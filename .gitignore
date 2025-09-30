@@ -1,3 +1,17 @@
+.DS_Store
+__pycache__/
+venv/
+credentials.py
+dist/
+
+# uswds assets
+app/static/assets/*
+
+# for our placeholder image
+!app/static/assets/img
+# node
+node_modules/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

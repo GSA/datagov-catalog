@@ -1,0 +1,26 @@
+---
+applications:
+  - name: ((app_name))
+    buildpacks:
+      - python_buildpack
+    routes:
+      - route: ((route_external))
+    services:
+      - ((app_name))-db
+      - ((app_name))-secrets
+      - ((app_name))-smtp
+    instances: ((admin_instances))
+    memory: ((admin_memory_quota))
+    disk_quota: ((admin_disk_quota))
+    env:
+      FLASK_APP: run.py
+      HARVEST_RUNNER_MAX_TASKS: ((HARVEST_RUNNER_MAX_TASKS))
+      HARVEST_RETRY_ON_ERROR: ((HARVEST_RETRY_ON_ERROR))
+      MDTRANSLATOR_URL: ((MDTRANSLATOR_URL))
+      CLIENT_ID: ((CLIENT_ID))
+      ISSUER: ((ISSUER))
+      NEW_RELIC_APP_NAME: ((app_name))-((space_name))
+      NEW_RELIC_HOST: gov-collector.newrelic.com
+      NEW_RELIC_MONITOR_MODE: ((new_relic_monitor_mode))
+      NEW_RELIC_CONFIG_FILE: /home/vcap/app/config/newrelic.ini
+    command: ./app-start.sh
