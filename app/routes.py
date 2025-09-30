@@ -5,14 +5,7 @@ from flask import Blueprint, Response, current_app, render_template
 
 logger = logging.getLogger(__name__)
 
-user = Blueprint("user", __name__)
-auth = Blueprint("auth", __name__)
 main = Blueprint("main", __name__)
-org = Blueprint("org", __name__)
-source = Blueprint("harvest_source", __name__)
-job = Blueprint("harvest_job", __name__)
-api = Blueprint("api", __name__)
-testdata = Blueprint("testdata", __name__)
 
 # Login authentication
 load_dotenv()
