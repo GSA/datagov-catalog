@@ -1,0 +1,51 @@
+{
+  "name": "datagov-harvester",
+  "version": "1.0.0",
+  "description": "Front-end UI components for Datagov Harvester app",
+  "main": "index.js",
+  "homepage": "https://github.com/GSA/datagov-harvester#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GSA/datagov-harvester.git"
+  },
+  "author": "datagovteam@gsa.gov",
+  "license": "CC0-1.0",
+  "bugs": {
+    "url": "https://github.com/GSA/datagov-harvester/issues"
+  },
+  "engines": {
+    "node": ">20.0.0"
+  },
+  "scripts": {
+    "build": "npm run gulp && npm run rollup",
+    "gulp": "gulp",
+    "rollup": "rollup -c rollup.config.mjs",
+    "test": "test"
+  },
+  "dependencies": {
+    "@uswds/uswds": "3.13.0",
+    "chart.js": "^4.5.0",
+    "glossary-panel": "^1.0.0",
+    "htmx.org": "^2.0.7"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/plugin-transform-runtime": "^7.28.3",
+    "@babel/preset-env": "^7.28.3",
+    "@uswds/compile": "^1.3.1",
+    "babelify": "^10.0.0",
+    "browserify": "^17.0.1",
+    "concurrently": "^9.2.1",
+    "gulp": "^5.0.1",
+    "rollup": "^4.52.3",
+    "rollup-plugin-copy": "^3.5.0",
+    "sass": "^1.93.2",
+    "typescript": "^5.9.2",
+    "vinyl-buffer": "^1.0.1",
+    "vinyl-source-stream": "^2.0.0",
+    "vite": "^7.1.7"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.13.2"
+  }
+}

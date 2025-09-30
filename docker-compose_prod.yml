@@ -1,0 +1,5 @@
+services:
+  app:
+    environment:
+      PORT: ${PORT}
+    command: ./app-start.sh
