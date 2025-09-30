@@ -14,6 +14,10 @@ install-static: ## Installs static assets
 	npm run build
 
 
+update-dependencies: ## Updates requirements.txt and requirements_dev.txt from pyproject.toml
+	poetry export --without-hashes --without=dev --format=requirements.txt > requirements.txt
+	poetry export --without-hashes --only=dev --format=requirements.txt > requirements-dev.txt
+	
 test: up test-unit test-integration ## Runs all local tests
 
 up: ## Sets up local flask and harvest runner docker environments. harvest runner gets DATABASE_PORT from .env
