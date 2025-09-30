@@ -3,12 +3,14 @@ __pycache__/
 venv/
 credentials.py
 dist/
+requirements.txt
 
 # uswds assets
 app/static/assets/*
 
 # for our placeholder image
 !app/static/assets/img
+
 # node
 node_modules/
 
