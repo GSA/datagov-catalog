@@ -8,9 +8,6 @@ build:  ## build Flask app
 build-dev:  ## build Flask app w/ dev dependencies
 	docker compose build app --build-arg DEV=True
 
-clean-dist:  ## Cleans dist dir
-	rm -rf dist/*
-
 install-static: ## Installs static assets
 	cd app/static; \
 	npm install; \
