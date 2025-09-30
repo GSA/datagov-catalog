@@ -17,8 +17,6 @@ export APP_NAME=$(echo $VCAP_APPLICATION | jq -r '.application_name')
 export URI=$(vcap_get_service db .credentials.replica_uri)
 export DATABASE_URI=$(echo $URI | sed 's/postgres:\/\//postgresql+psycopg:\/\//g')
 
-export FLASK_APP_SECRET_KEY=$(vcap_get_service secrets .credentials.FLASK_APP_SECRET_KEY)
-
 # New Relic
 export NEW_RELIC_LICENSE_KEY=$(vcap_get_service secrets .credentials.NEW_RELIC_LICENSE_KEY)
 
