@@ -15,6 +15,9 @@ dependencies = [
 ]
 
 [tool.poetry]
+packages = [
+    { include = "app" }
+]
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.9.0"
