@@ -236,4 +236,3 @@ __all__ = [
     "HarvestUser",
     "Locations",
 ]
-

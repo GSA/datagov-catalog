@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.models import HarvestRecord, db
 from sqlalchemy import or_
 
+from app.models import HarvestRecord, db
 
 logger = logging.getLogger(__name__)
 

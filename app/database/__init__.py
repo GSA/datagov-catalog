@@ -3,4 +3,3 @@
 from .interface import CatalogDBInterface
 
 __all__ = ["CatalogDBInterface"]
-
