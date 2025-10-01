@@ -18,6 +18,8 @@ services:
         interval: 5s
         timeout: 5s
         retries: 5
+      stdin_open: true
+      tty: true
   app:
     build: .
     depends_on:
@@ -29,13 +31,16 @@ services:
       DATABASE_URI: postgresql+psycopg://${DATABASE_USER}:${DATABASE_PASSWORD}@db:${DATABASE_PORT}/${DATABASE_NAME}
       FLASK_APP: run.py
       FLASK_ENV: development
+      FLASK_DEBUG: 1
     ports:
       - "8080:8080"
     command:
       - /bin/sh
       - -c
       - |
-        flask run --host=0.0.0.0 --port=8080 --reload
+        flask run --host=0.0.0.0 --port=8080 --reload --extra-files templates:static
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres_data:

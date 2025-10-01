@@ -1,7 +1,121 @@
 {% extends "base.html" %}
 
-{% block title %}Index - Data.gov{% endblock %}
+{% block title %}Catalog - Data.gov{% endblock %}
 
 {% block content %}
-<h1>Hello World</h1>
+<div class="grid-container">
+    <div class="grid-row margin-top-8">
+        <div class="grid-col-12 tablet:grid-col-8 tablet:grid-offset-2">
+            <h1 class="text-center">Search Data.gov</h1>
+
+            <form method="get" action="{{ url_for('main.index') }}" class="usa-form margin-top-4">
+                <div class="grid-row grid-gap-1 flex-align-end">
+                    <div class="grid-col-fill">
+                        <input class="usa-input margin-0" id="search-query" name="q" type="text" value="{{ query }}"
+                            placeholder="Search Data.gov..." autofocus aria-label="Search">
+                    </div>
+                    <div class="grid-col-auto">
+                        <button type="submit" class="usa-button margin-0">
+                            <i class="fa fa-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            {% if query %}
+            <div class="margin-top-4">
+                <p class="text-base-dark">
+                    Found <strong>{{ results.total }}</strong> record(s) matching "{{ query }}"
+                </p>
+            </div>
+
+            {% if results.records %}
+            <div class="usa-table-container--scrollable margin-top-2" tabindex="0">
+                <table class="usa-table usa-table--striped">
+                    <thead>
+                        <tr>
+                            <th scope="col">Identifier</th>
+                            <th scope="col">CKAN Name</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Date Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in results.records %}
+                        <tr>
+                            <td>
+                                <code>{{ record.identifier }}</code>
+                            </td>
+                            <td>{{ record.ckan_name or 'N/A' }}</td>
+                            <td>
+                                {% if record.status == 'success' %}
+                                <span class="usa-tag usa-tag--success">{{ record.status }}</span>
+                                {% else %}
+                                <span class="usa-tag usa-tag--error">{{ record.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ record.date_created.strftime('%Y-%m-%d %H:%M') if record.date_created else 'N/A' }}
+                            </td>
+                            <td>{{ record.source_raw if record.source_raw else 'N/A' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if results.total_pages > 1 %}
+            <nav aria-label="Pagination" class="usa-pagination margin-top-4">
+                <ul class="usa-pagination__list">
+                    <li class="usa-pagination__item usa-pagination__arrow">
+                        {% if results.page > 1 %}
+                        <a href="{{ url_for('main.index', q=query, page=results.page-1) }}"
+                            class="usa-pagination__link usa-pagination__previous-page" aria-label="Previous page">
+                            <span class="usa-pagination__link-text">Previous</span>
+                        </a>
+                        {% endif %}
+                    </li>
+
+                    {% for page_num in range(1, results.total_pages + 1) %}
+                    {% if page_num <= 3 or page_num> results.total_pages - 3 or
+                        (page_num >= results.page - 1 and page_num <= results.page + 1) %} <li
+                            class="usa-pagination__item usa-pagination__page-no">
+                            <a href="{{ url_for('main.index', q=query, page=page_num) }}"
+                                class="usa-pagination__button {% if page_num == results.page %}usa-current{% endif %}"
+                                {% if page_num==results.page %}aria-current="page" {% endif %}>
+                                {{ page_num }}
+                            </a>
+                            </li>
+                            {% elif page_num == 4 or page_num == results.total_pages - 3 %}
+                            <li class="usa-pagination__item usa-pagination__overflow">
+                                <span>…</span>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+
+                            <li class="usa-pagination__item usa-pagination__arrow">
+                                {% if results.page < results.total_pages %} <a
+                                    href="{{ url_for('main.index', q=query, page=results.page+1) }}"
+                                    class="usa-pagination__link usa-pagination__next-page" aria-label="Next page">
+                                    <span class="usa-pagination__link-text">Next</span>
+                                    </a>
+                                    {% endif %}
+                            </li>
+                </ul>
+            </nav>
+            {% endif %}
+
+            {% else %}
+            <div class="usa-alert usa-alert--info margin-top-3">
+                <div class="usa-alert__body">
+                    <p class="usa-alert__text">
+                        No records found matching "{{ query }}". Try a different search term.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}
