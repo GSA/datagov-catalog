@@ -56,8 +56,6 @@
                             </td>
                             <td>{{ record.date_created.strftime('%Y-%m-%d %H:%M') if record.date_created else 'N/A' }}
                             </td>
-                            <td>{{ record.source_raw if record.source_raw else 'N/A' }}
-                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
