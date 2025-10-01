@@ -83,7 +83,6 @@ class CatalogDBInterface:
                     HarvestRecord.identifier.ilike(search_pattern),
                     HarvestRecord.ckan_id.ilike(search_pattern),
                     HarvestRecord.ckan_name.ilike(search_pattern),
-                    HarvestRecord.source_raw.ilike(search_pattern),
                 )
             )
 
