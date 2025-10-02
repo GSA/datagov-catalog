@@ -4,7 +4,17 @@ from datetime import datetime
 from math import ceil
 
 from dotenv import load_dotenv
-from flask import Blueprint, Response, current_app, jsonify, render_template, request
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 from .database import CatalogDBInterface
 from .utils import json_not_found, valid_id_required
@@ -39,6 +49,18 @@ def render_block(template_name: str, block_name: str, **context) -> Response:
     block_gen = template.blocks[block_name]
     html = "".join(block_gen(template.new_context(context)))
     return Response(html, mimetype="text/html; charset=utf-8")
+
+
+def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
+    pages = []
+    last = 0
+    for num in range(1, total_pages + 1):
+        if num <= edge or num > total_pages - edge or abs(num - cur) <= around:
+            if last and num - last > 1:
+                pages.append(None)
+            pages.append(num)
+            last = num
+    return pages
 
 
 # Routes
@@ -105,17 +127,6 @@ def list_success_harvest_records():
     total_pages = max(ceil(total / per_page), 1) if per_page else 1
     current_page = min(current_page, total_pages)
 
-    def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
-        pages = []
-        last = 0
-        for num in range(1, total_pages + 1):
-            if num <= edge or num > total_pages - edge or abs(num - cur) <= around:
-                if last and num - last > 1:
-                    pages.append(None)
-                pages.append(num)
-                last = num
-        return pages
-
     pagination = {
         "page": current_page,
         "per_page": per_page,
@@ -128,6 +139,58 @@ def list_success_harvest_records():
         "harvest_record_list.html",
         record_ids=result["ids"],
         pagination=pagination,
+    )
+
+
+@main.route("/organization", methods=["GET"])
+def list_organizations():
+    interface = CatalogDBInterface()
+    page = request.args.get("page", default=1, type=int)
+    per_page = request.args.get("per_page", default=20, type=int)
+
+    result = interface.list_organizations(page=page, per_page=per_page)
+
+    total = result["total"]
+    per_page = result["per_page"]
+    current_page = max(result["page"], 1)
+    total_pages = max(ceil(total / per_page), 1) if per_page else 1
+    current_page = min(current_page, total_pages)
+
+    pagination = {
+        "page": current_page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
+        "page_sequence": build_page_sequence(current_page, total_pages),
+    }
+
+    return render_template(
+        "organization_list.html",
+        organizations=result["organizations"],
+        pagination=pagination,
+    )
+
+
+@main.route("/organization/<slug>", methods=["GET"])
+def organization_detail(slug: str):
+    interface = CatalogDBInterface()
+    organization = interface.get_organization_by_slug(slug)
+    if organization is None:
+        organization = interface.get_organization_by_id(slug)
+        if organization is None:
+            abort(404)
+        if organization.slug and organization.slug != slug:
+            return redirect(
+                url_for("main.organization_detail", slug=organization.slug), code=302
+            )
+
+    organization_data = interface.to_dict(organization)
+    sources = [interface.to_dict(source) for source in organization.sources]
+
+    return render_template(
+        "organization_detail.html",
+        organization=organization_data,
+        sources=sources,
     )
 
 
