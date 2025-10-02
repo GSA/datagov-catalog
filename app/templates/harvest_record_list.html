@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Harvest Records - Data.gov{% endblock %}
+
+{% block content %}
+<section class="harvest-records">
+  <h1>Harvest Records</h1>
+  {% if record_ids %}
+    <ul class="record-list">
+      {% for record_id in record_ids %}
+        <li><a href="{{ url_for('main.get_harvest_record', record_id=record_id) }}">{{ record_id }}</a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No harvest records found.</p>
+  {% endif %}
+
+  {% if pagination.total_pages > 1 %}
+  <nav class="pagination" aria-label="Harvest Records Pagination">
+    <ul>
+      {% set page = pagination.page %}
+      {% set total_pages = pagination.total_pages %}
+
+      <li class="{{ 'disabled' if page <= 1 else '' }}">
+        {% if page <= 1 %}
+          <span>&laquo;</span>
+        {% else %}
+          <a href="{{ url_for('main.list_success_harvest_records', page=page-1) }}">&laquo;</a>
+        {% endif %}
+      </li>
+
+      {% for number in pagination.page_sequence %}
+        {% if number is none %}
+          <li class="ellipsis"><span>&hellip;</span></li>
+        {% elif number == page %}
+          <li class="active"><span>{{ number }}</span></li>
+        {% else %}
+          <li><a href="{{ url_for('main.list_success_harvest_records', page=number) }}">{{ number }}</a></li>
+        {% endif %}
+      {% endfor %}
+
+      <li class="{{ 'disabled' if page >= total_pages else '' }}">
+        {% if page >= total_pages %}
+          <span>&raquo;</span>
+        {% else %}
+          <a href="{{ url_for('main.list_success_harvest_records', page=page+1) }}">&raquo;</a>
+        {% endif %}
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}
+
