@@ -19,6 +19,7 @@ load_dotenv()
 
 STATUS_STRINGS_ENUM = {404: "Not Found"}
 
+interface = CatalogDBInterface()
 
 class UnsafeTemplateEnvError(RuntimeError):
     pass
@@ -81,7 +82,6 @@ def search():
 @main.route("/harvest_record/<record_id>", methods=["GET"])
 @valid_id_required
 def get_harvest_record(record_id: str):
-    interface = CatalogDBInterface()
     record = interface.get_harvest_record(record_id)
     if record is None:
         return json_not_found()

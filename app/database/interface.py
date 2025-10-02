@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
+
 from functools import wraps
 from typing import Any
 
 from sqlalchemy import or_
 
-from app.models import HarvestRecord, db
+from app.models import HarvestRecord, Dataset, db
 
 DEFAULT_PER_PAGE = 20
 DEFAULT_PAGE = 1
@@ -38,6 +39,28 @@ def paginate(fn):
 
 logger = logging.getLogger(__name__)
 
+PAGINATE_ENTRIES_PER_PAGE = 10
+PAGINATE_START_PAGE = 0
+
+
+def paginate(fn):
+    @wraps(fn)
+    def _impl(self, *args, **kwargs):
+        query = fn(self, *args, **kwargs)
+        if kwargs.get("count") is True:
+            return query
+        elif kwargs.get("paginate") is False:
+            return query.all()
+        else:
+            per_page = kwargs.get("per_page") or PAGINATE_ENTRIES_PER_PAGE
+            page = kwargs.get("page") or PAGINATE_START_PAGE
+            query = query.limit(per_page)
+            query = query.offset(page * per_page)
+            return query.all()
+
+
+    return _impl
+
 
 class CatalogDBInterface:
     """Subset of harvester interface for read-only access."""
@@ -47,6 +70,16 @@ class CatalogDBInterface:
 
     def get_harvest_record(self, record_id: str) -> HarvestRecord | None:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
+
+    @paginate
+    def search_datasets(self, query: str):
+        """Text search for datasets.
+
+        Use the `query` to find matching datasets.
+        """
+        # TODO: use a real text search method here instead of contains
+        return self.db.query(Dataset).filter(or_(Dataset.dcat["title"].astext.contains(query),
+                                          Dataset.dcat["description"].astext.contains(query)))
 
     def _success_harvest_record_ids_query(self):
         return (
