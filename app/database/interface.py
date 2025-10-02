@@ -5,6 +5,9 @@ from __future__ import annotations
 import logging
 from functools import wraps
 from typing import Any
+
+from app.models import HarvestRecord, db
+
 DEFAULT_PER_PAGE = 20
 DEFAULT_PAGE = 1
 
@@ -30,7 +33,6 @@ def paginate(fn):
 
     return _impl
 
-from app.models import HarvestRecord, db
 
 logger = logging.getLogger(__name__)
 

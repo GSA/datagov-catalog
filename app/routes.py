@@ -6,12 +6,11 @@ from math import ceil
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
-    abort,
+    Response,
     current_app,
     jsonify,
     render_template,
     request,
-    url_for,
 )
 
 from .database import CatalogDBInterface
