@@ -4,17 +4,10 @@ from datetime import datetime
 from math import ceil
 
 from dotenv import load_dotenv
-from flask import (
-    Blueprint,
-    Response,
-    current_app,
-    jsonify,
-    render_template,
-    request,
-)
+from flask import Blueprint, Response, current_app, jsonify, render_template, request
 
 from .database import CatalogDBInterface
-from .utils import valid_id_required, json_not_found
+from .utils import json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
