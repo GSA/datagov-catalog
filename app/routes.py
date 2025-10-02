@@ -17,6 +17,7 @@ from flask import (
 )
 
 from .database import CatalogDBInterface
+from .utils import valid_id_required, json_not_found
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +59,12 @@ def index():
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
+@valid_id_required
 def get_harvest_record(record_id: str):
     interface = CatalogDBInterface()
     record = interface.get_harvest_record(record_id)
     if record is None:
-        abort(404, description="HarvestRecord not found")
+        return json_not_found()
 
     record_data = interface.to_dict(record)
     for key, value in record_data.items():
