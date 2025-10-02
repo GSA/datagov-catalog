@@ -46,7 +46,4 @@ class CatalogDBInterface:
         if obj is None:
             return None
 
-        if hasattr(obj, "to_dict"):
-            return obj.to_dict()
-
-        return {column.key: getattr(obj, column.key) for column in obj.__table__.columns}
+        return obj.to_dict()
