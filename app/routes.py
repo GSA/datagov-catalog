@@ -67,6 +67,16 @@ def index():
         results=results,
     )
 
+@main.route("/search", methods=["GET"])
+def search():
+    """Search for datasets.
+
+    The search argument is `q`: `/search?q=search%20term`.
+    """
+    # missing query parameter searches for everything
+    query = request.args.get("q", "")
+    results = interface.search_datasets(query, page=1)
+
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
 @valid_id_required
