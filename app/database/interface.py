@@ -71,7 +71,7 @@ class CatalogDBInterface:
         Dict with pagination info and list of harvest records
         """
         page = max(page, 1)
-        per_page = max(min(per_page, 100), 1)
+        per_page = max(min(per_page, 50), 1)
 
         db_query = self.db.query(HarvestRecord)
 
@@ -83,7 +83,6 @@ class CatalogDBInterface:
                     HarvestRecord.identifier.ilike(search_pattern),
                     HarvestRecord.ckan_id.ilike(search_pattern),
                     HarvestRecord.ckan_name.ilike(search_pattern),
-                    HarvestRecord.source_raw.ilike(search_pattern),
                 )
             )
 
