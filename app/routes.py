@@ -1,13 +1,11 @@
 import json
 import logging
 from datetime import datetime
-from html import escape
 from math import ceil
 
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
-    Response,
     abort,
     current_app,
     jsonify,
@@ -89,14 +87,6 @@ def list_success_harvest_records():
     interface = CatalogDBInterface()
     result = interface.list_success_harvest_record_ids(page=page, per_page=PER_PAGE)
 
-    # no template yet, so build HTML manually
-    response_html = ["<ul>"]
-    for record_id in result["ids"]:
-        safe_id = escape(record_id)
-        record_url = url_for("main.get_harvest_record", record_id=record_id)
-        response_html.append(f'<li><a href="{record_url}">{safe_id}</a></li>')
-    response_html.append("</ul>")
-
     total = result["total"]
     per_page = result["per_page"]
     current_page = max(result["page"], 1)
@@ -118,35 +108,19 @@ def list_success_harvest_records():
                 last = num
         return pages
 
-    response_html.append('<nav class="pagination">')
-    response_html.append("<ul>")
+    pagination = {
+        "page": current_page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
+        "page_sequence": build_page_sequence(current_page, total_pages),
+    }
 
-    def page_link(label: str, target_page: int, is_disabled: bool = False, is_active: bool = False) -> None:
-        if is_disabled:
-            response_html.append(f'<li class="disabled"><span>{label}</span></li>')
-            return
-        if is_active:
-            response_html.append(f'<li class="active"><span>{label}</span></li>')
-            return
-        query_args = request.args.to_dict()
-        query_args["page"] = target_page
-        link = url_for("main.list_success_harvest_records", **query_args)
-        response_html.append(f'<li><a href="{link}">{label}</a></li>')
-
-    page_link("&laquo;", current_page - 1, is_disabled=current_page <= 1)
-
-    for page_number in build_page_sequence(current_page, total_pages):
-        if page_number is None:
-            response_html.append('<li class="ellipsis"><span>…</span></li>')
-        else:
-            page_link(str(page_number), page_number, is_active=page_number == current_page)
-
-    page_link("&raquo;", current_page + 1, is_disabled=current_page >= total_pages)
-
-    response_html.append("</ul>")
-    response_html.append("</nav>")
-
-    return Response("".join(response_html), mimetype="text/html")
+    return render_template(
+        "harvest_record_list.html",
+        record_ids=result["ids"],
+        pagination=pagination,
+    )
 
 
 def register_routes(app):
