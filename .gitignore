@@ -4,6 +4,7 @@ venv/
 credentials.py
 dist/
 requirements.txt
+requirements-dev.txt
 
 # uswds assets
 app/static/assets/*

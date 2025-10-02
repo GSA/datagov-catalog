@@ -4,17 +4,10 @@ from datetime import datetime
 from math import ceil
 
 from dotenv import load_dotenv
-from flask import (
-    Blueprint,
-    Response,
-    current_app,
-    jsonify,
-    render_template,
-    request,
-)
+from flask import Blueprint, Response, current_app, jsonify, render_template, request
 
 from .database import CatalogDBInterface
-from .utils import valid_id_required, json_not_found
+from .utils import json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +44,28 @@ def render_block(template_name: str, block_name: str, **context) -> Response:
 # Routes
 @main.route("/", methods=["GET"])
 def index():
-    """Render the index page"""
-    return render_template("index.html")
+    """Display search page with results."""
+    query = request.args.get("q", "").strip()
+    status = request.args.get("status", "").strip()
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+
+    results = None
+    if query:
+        db_interface = CatalogDBInterface()
+        results = db_interface.search_harvest_records(
+            query=query,
+            status=status if status else None,
+            page=page,
+            per_page=per_page,
+        )
+
+    return render_template(
+        "index.html",
+        query=query,
+        status=status,
+        results=results,
+    )
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
@@ -96,11 +109,7 @@ def list_success_harvest_records():
         pages = []
         last = 0
         for num in range(1, total_pages + 1):
-            if (
-                num <= edge
-                or num > total_pages - edge
-                or abs(num - cur) <= around
-            ):
+            if num <= edge or num > total_pages - edge or abs(num - cur) <= around:
                 if last and num - last > 1:
                     pages.append(None)
                 pages.append(num)

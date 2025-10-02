@@ -40,4 +40,3 @@ def valid_id_required(func: F) -> F:
         return func(*args, **kwargs)
 
     return wrapper  # type: ignore[return-value]
-
