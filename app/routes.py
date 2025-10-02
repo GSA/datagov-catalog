@@ -77,6 +77,7 @@ def search():
     # missing query parameter searches for everything
     query = request.args.get("q", "")
     results = interface.search_datasets(query, page=1)
+    return jsonify([result.to_dict() for result in results])
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])

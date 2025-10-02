@@ -7,6 +7,7 @@ import logging
 from functools import wraps
 from typing import Any
 
+from flask import jsonify
 from sqlalchemy import or_
 
 from app.models import HarvestRecord, Dataset, db
@@ -57,8 +58,6 @@ def paginate(fn):
             query = query.limit(per_page)
             query = query.offset(page * per_page)
             return query.all()
-
-
     return _impl
 
 
@@ -72,7 +71,7 @@ class CatalogDBInterface:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
     @paginate
-    def search_datasets(self, query: str):
+    def search_datasets(self, query: str, *args, **kwargs):
         """Text search for datasets.
 
         Use the `query` to find matching datasets.
