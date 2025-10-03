@@ -3,16 +3,12 @@
 from __future__ import annotations
 
 import logging
-
 from functools import wraps
 from typing import Any
 
-from flask import jsonify
 from sqlalchemy import or_
 
-
 from app.models import Dataset, HarvestRecord, Organization, db
-
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +54,12 @@ class CatalogDBInterface:
         Use the `query` to find matching datasets.
         """
         # TODO: use a real text search method here instead of contains
-        return self.db.query(Dataset).filter(or_(Dataset.dcat["title"].astext.contains(query),
-                                          Dataset.dcat["description"].astext.contains(query)))
+        return self.db.query(Dataset).filter(
+            or_(
+                Dataset.dcat["title"].astext.contains(query),
+                Dataset.dcat["description"].astext.contains(query),
+            )
+        )
 
     def _success_harvest_record_ids_query(self):
         return (
@@ -119,7 +119,11 @@ class CatalogDBInterface:
     def get_organization_by_id(self, organization_id: str) -> Organization | None:
         if not organization_id:
             return None
-        return self.db.query(Organization).filter(Organization.id == organization_id).first()
+        return (
+            self.db.query(Organization)
+            .filter(Organization.id == organization_id)
+            .first()
+        )
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:

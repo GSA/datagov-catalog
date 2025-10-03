@@ -1,4 +1,3 @@
-
 def test_search(interface_with_dataset):
     # test is in the title
     result = interface_with_dataset.search_datasets("test")
@@ -11,5 +10,3 @@ def test_search(interface_with_dataset):
     # no search results
     result = interface_with_dataset.search_datasets("nonexistentword")
     assert len(result) == 0
-
-
