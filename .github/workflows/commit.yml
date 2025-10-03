@@ -40,6 +40,8 @@ jobs:
     environment: development
     runs-on: ubuntu-latest
     name: Pytests
+    env:
+      DATABASE_URI: needs-to-be-set
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
