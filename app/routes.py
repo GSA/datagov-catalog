@@ -53,8 +53,7 @@ def index():
 
     results = None
     if query:
-        db_interface = CatalogDBInterface()
-        results = db_interface.search_harvest_records(
+        results = interface.search_harvest_records(
             query=query,
             status=status if status else None,
             page=page,
@@ -107,7 +106,6 @@ def list_success_harvest_records():
     PER_PAGE = 20
     page = request.args.get("page", default=1, type=int)
 
-    interface = CatalogDBInterface()
     result = interface.list_success_harvest_record_ids(page=page, per_page=PER_PAGE)
 
     total = result["total"]

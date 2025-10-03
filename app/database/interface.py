@@ -12,6 +12,9 @@ from sqlalchemy import or_
 
 from app.models import HarvestRecord, Dataset, db
 
+
+logger = logging.getLogger(__name__)
+
 DEFAULT_PER_PAGE = 20
 DEFAULT_PAGE = 1
 
@@ -35,29 +38,6 @@ def paginate(fn):
         query = query.offset((page - 1) * per_page)
         return query.all()
 
-    return _impl
-
-
-logger = logging.getLogger(__name__)
-
-PAGINATE_ENTRIES_PER_PAGE = 10
-PAGINATE_START_PAGE = 0
-
-
-def paginate(fn):
-    @wraps(fn)
-    def _impl(self, *args, **kwargs):
-        query = fn(self, *args, **kwargs)
-        if kwargs.get("count") is True:
-            return query
-        elif kwargs.get("paginate") is False:
-            return query.all()
-        else:
-            per_page = kwargs.get("per_page") or PAGINATE_ENTRIES_PER_PAGE
-            page = kwargs.get("page") or PAGINATE_START_PAGE
-            query = query.limit(per_page)
-            query = query.offset(page * per_page)
-            return query.all()
     return _impl
 
 

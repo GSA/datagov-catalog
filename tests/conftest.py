@@ -34,11 +34,6 @@ def dbapp(app):
 
 
 @pytest.fixture
-def client(app):
-    yield app.test_client()
-
-
-@pytest.fixture
 def db_client(dbapp):
     yield dbapp.test_client()
 
