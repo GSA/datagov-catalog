@@ -29,6 +29,7 @@ load_dotenv()
 
 STATUS_STRINGS_ENUM = {404: "Not Found"}
 
+interface = CatalogDBInterface()
 
 class UnsafeTemplateEnvError(RuntimeError):
     pass
@@ -74,8 +75,7 @@ def index():
 
     results = None
     if query:
-        db_interface = CatalogDBInterface()
-        results = db_interface.search_harvest_records(
+        results = interface.search_harvest_records(
             query=query,
             status=status if status else None,
             page=page,
@@ -89,11 +89,21 @@ def index():
         results=results,
     )
 
+@main.route("/search", methods=["GET"])
+def search():
+    """Search for datasets.
+
+    The search argument is `q`: `/search?q=search%20term`.
+    """
+    # missing query parameter searches for everything
+    query = request.args.get("q", "")
+    results = interface.search_datasets(query, page=1)
+    return jsonify([result.to_dict() for result in results])
+
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
 @valid_id_required
 def get_harvest_record(record_id: str):
-    interface = CatalogDBInterface()
     record = interface.get_harvest_record(record_id)
     if record is None:
         return json_not_found()
@@ -118,7 +128,6 @@ def list_success_harvest_records():
     PER_PAGE = 20
     page = request.args.get("page", default=1, type=int)
 
-    interface = CatalogDBInterface()
     result = interface.list_success_harvest_record_ids(page=page, per_page=PER_PAGE)
 
     total = result["total"]

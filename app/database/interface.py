@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import logging
+
 from functools import wraps
 from typing import Any
 
+from flask import jsonify
 from sqlalchemy import or_
 
-from app.models import HarvestRecord, Organization, db
+
+from app.models import Dataset, HarvestRecord, Organization, db
+
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PER_PAGE = 20
 DEFAULT_PAGE = 1
@@ -36,9 +42,6 @@ def paginate(fn):
     return _impl
 
 
-logger = logging.getLogger(__name__)
-
-
 class CatalogDBInterface:
     """Subset of harvester interface for read-only access."""
 
@@ -47,6 +50,16 @@ class CatalogDBInterface:
 
     def get_harvest_record(self, record_id: str) -> HarvestRecord | None:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
+
+    @paginate
+    def search_datasets(self, query: str, *args, **kwargs):
+        """Text search for datasets.
+
+        Use the `query` to find matching datasets.
+        """
+        # TODO: use a real text search method here instead of contains
+        return self.db.query(Dataset).filter(or_(Dataset.dcat["title"].astext.contains(query),
+                                          Dataset.dcat["description"].astext.contains(query)))
 
     def _success_harvest_record_ids_query(self):
         return (
