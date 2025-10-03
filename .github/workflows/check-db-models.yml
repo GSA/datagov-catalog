@@ -21,8 +21,8 @@ jobs:
           set -euo pipefail
 
           declare -A files=(
-            ["app/models.py"]="https://raw.githubusercontent.com/GSA/datagov-harvester/main/database/models.py"
-            ["shared/constants.py"]="https://raw.githubusercontent.com/GSA/datagov-harvester/main/shared/constants.py"
+            ["app/models.py"]="https://raw.githubusercontent.com/GSA/datagov-harvester/develop/database/models.py"
+            ["shared/constants.py"]="https://raw.githubusercontent.com/GSA/datagov-harvester/develop/shared/constants.py"
           )
 
           for path in "${!files[@]}"; do
