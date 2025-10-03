@@ -1,15 +1,14 @@
 import pytest
-
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
 from app.database import CatalogDBInterface
 from app.models import (
-    Organization,
-    HarvestSource,
+    Dataset,
     HarvestJob,
     HarvestRecord,
-    Dataset,
+    HarvestSource,
+    Organization,
     db,
 )
 
