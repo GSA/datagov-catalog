@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Organizations - Data.gov{% endblock %}
+
+{% block script_head %}
+<style>
+  .organization-list th[scope="row"] {
+    text-align: left;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="organization-list">
+  <h1>Organizations</h1>
+
+  {% if organizations %}
+    <table class="usa-table usa-table--striped">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for organization in organizations %}
+          <tr>
+            <th scope="row">
+              {% if organization.slug %}
+                <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name }}</a>
+              {% else %}
+                {{ organization.name }}
+              {% endif %}
+            </th>
+            <td>{{ organization.organization_type or "—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No organizations found.</p>
+  {% endif %}
+
+  {% if pagination.total_pages > 1 %}
+  <nav class="pagination" aria-label="Organizations Pagination">
+    <ul>
+      {% set page = pagination.page %}
+      {% set total_pages = pagination.total_pages %}
+
+      <li class="{{ 'disabled' if page <= 1 else '' }}">
+        {% if page <= 1 %}
+          <span>&laquo;</span>
+        {% else %}
+          <a href="{{ url_for('main.list_organizations', page=page-1, per_page=pagination.per_page) }}">&laquo;</a>
+        {% endif %}
+      </li>
+
+      {% for number in pagination.page_sequence %}
+        {% if number is none %}
+          <li class="ellipsis"><span>&hellip;</span></li>
+        {% elif number == page %}
+          <li class="active"><span>{{ number }}</span></li>
+        {% else %}
+          <li><a href="{{ url_for('main.list_organizations', page=number, per_page=pagination.per_page) }}">{{ number }}</a></li>
+        {% endif %}
+      {% endfor %}
+
+      <li class="{{ 'disabled' if page >= total_pages else '' }}">
+        {% if page >= total_pages %}
+          <span>&raquo;</span>
+        {% else %}
+          <a href="{{ url_for('main.list_organizations', page=page+1, per_page=pagination.per_page) }}">&raquo;</a>
+        {% endif %}
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+</section>
+{% endblock %}

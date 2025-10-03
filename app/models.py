@@ -1,7 +1,3 @@
-"""Database models duplicated from datagov-harvester."""
-
-from __future__ import annotations
-
 import uuid
 
 from flask_sqlalchemy import SQLAlchemy
@@ -9,17 +5,18 @@ from geoalchemy2 import Geometry
 from sqlalchemy import CheckConstraint, Column, Enum, String, func
 from sqlalchemy.orm import DeclarativeBase, backref
 
+from shared.constants import ORGANIZATION_TYPE_VALUES
+
 
 class Base(DeclarativeBase):
-    """Base model with UUID primary key and dict helper."""
-
-    __abstract__ = True
+    __abstract__ = True  # Indicates that this class should not be created as a table
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    def to_dict(self) -> dict:
+    def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
+# For ref: https://stackoverflow.com/questions/22698478/what-is-the-difference-between-the-declarative-base-and-db-model
 db = SQLAlchemy(model_class=Base)
 
 
@@ -35,15 +32,11 @@ class Organization(db.Model):
 
     name = db.Column(db.String, nullable=False, index=True)
     logo = db.Column(db.String)
+    description = db.Column(db.Text)
+    slug = db.Column(db.String(100), unique=True, index=True)
     organization_type = db.Column(
         Enum(
-            "Federal Government",
-            "City Government",
-            "State Government",
-            "County Government",
-            "University",
-            "Tribal",
-            "Non-Profit",
+            *ORGANIZATION_TYPE_VALUES,
             name="organization_type_enum",
             create_constraint=True,
         )
@@ -98,8 +91,7 @@ class HarvestSource(db.Model):
     )
 
     source_type = db.Column(
-        db.Enum("document", "waf", "waf-collection", name="source_type"),
-        nullable=False,
+        db.Enum("document", "waf", "waf-collection", name="source_type"), nullable=False
     )
     jobs = db.relationship(
         "HarvestJob",
@@ -111,6 +103,7 @@ class HarvestSource(db.Model):
         db.Enum(
             "on_error",
             "always",
+            "on_error_or_update",
             name="notification_frequency",
         ),
         nullable=False,
@@ -158,10 +151,7 @@ class HarvestJob(db.Model):
         "HarvestRecord", backref="job", cascade="all, delete-orphan", lazy=True
     )
     record_errors = db.relationship(
-        "HarvestRecordError",
-        backref="job",
-        cascade="all, delete-orphan",
-        lazy=True,
+        "HarvestRecordError", backref="job", cascade="all, delete-orphan", lazy=True
     )
 
 
@@ -186,6 +176,8 @@ class HarvestRecord(db.Model):
     action = db.Column(
         Enum("create", "update", "delete", name="record_action"), index=True
     )
+    # Parent information isn't in source_raw for XML records
+    parent_identifier = db.Column(db.String)
     status = db.Column(Enum("error", "success", name="record_status"), index=True)
     errors = db.relationship("HarvestRecordError", backref="record", lazy=True)
 
@@ -223,16 +215,3 @@ class Locations(db.Model):
     display_name = db.Column(db.String)
     the_geom = db.Column(Geometry(geometry_type="MULTIPOLYGON"))
     type_order = db.Column(db.Integer)
-
-
-__all__ = [
-    "db",
-    "Organization",
-    "HarvestSource",
-    "HarvestJob",
-    "HarvestRecord",
-    "HarvestJobError",
-    "HarvestRecordError",
-    "HarvestUser",
-    "Locations",
-]
