@@ -10,7 +10,8 @@ from typing import Any
 from flask import jsonify
 from sqlalchemy import or_
 
-from app.models import HarvestRecord, Dataset, db
+
+from app.models import Dataset, HarvestRecord, Organization, db
 
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,40 @@ class CatalogDBInterface:
             "total": total,
             "ids": [item.id for item in items],
         }
+
+    def _organization_query(self):
+        return self.db.query(Organization).order_by(Organization.name.asc())
+
+    @paginate
+    def _organization_paginated(self, **kwargs):
+        return self._organization_query()
+
+    def list_organizations(
+        self, page: int = 1, per_page: int = DEFAULT_PER_PAGE
+    ) -> dict[str, Any]:
+        page = max(page, 1)
+        per_page = max(min(per_page, 100), 1)
+        base_query = self._organization_query()
+        total = base_query.count()
+        items = self._organization_paginated(page=page, per_page=per_page)
+        total_pages = max(((total + per_page - 1) // per_page), 1)
+        return {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": total_pages,
+            "organizations": [self.to_dict(item) for item in items],
+        }
+
+    def get_organization_by_slug(self, slug: str) -> Organization | None:
+        if not slug:
+            return None
+        return self.db.query(Organization).filter(Organization.slug == slug).first()
+
+    def get_organization_by_id(self, organization_id: str) -> Organization | None:
+        if not organization_id:
+            return None
+        return self.db.query(Organization).filter(Organization.id == organization_id).first()
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:
