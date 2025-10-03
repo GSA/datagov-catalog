@@ -31,6 +31,7 @@ STATUS_STRINGS_ENUM = {404: "Not Found"}
 
 interface = CatalogDBInterface()
 
+
 class UnsafeTemplateEnvError(RuntimeError):
     pass
 
@@ -88,6 +89,7 @@ def index():
         status=status,
         results=results,
     )
+
 
 @main.route("/search", methods=["GET"])
 def search():

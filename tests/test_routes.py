@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import app.routes as routes_module
 
 def test_search_api_endpoint(interface_with_dataset, db_client):
     with patch("app.routes.interface", interface_with_dataset):
