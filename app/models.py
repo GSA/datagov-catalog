@@ -1,8 +1,11 @@
+# NOTE: Keep this file in sync between datagov-harvester and datagov-catalog
+
 import uuid
 
 from flask_sqlalchemy import SQLAlchemy
 from geoalchemy2 import Geometry
 from sqlalchemy import CheckConstraint, Column, Enum, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, backref
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 
@@ -168,6 +171,7 @@ class HarvestRecord(db.Model):
     )
     source_hash = db.Column(db.String)
     source_raw = db.Column(db.String)
+    source_transform = db.Column(JSONB)
     date_created = db.Column(
         db.DateTime, index=True, default=func.statement_timestamp()
     )
