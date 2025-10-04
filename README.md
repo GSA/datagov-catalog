@@ -21,7 +21,7 @@ CREATE materialized VIEW dataset
 AS SELECT sq.ckan_name                          AS slug,
           sq.source_raw :: jsonb                AS dcat,
           sq.id                                 AS harvest_record_id,
-          NULL                                  AS popularity,
+          0                                     AS popularity,
           sq.date_finished                      AS last_harvested_date,
           To_tsvector('english', sq.source_raw) AS search_vector,
           Md5(sq.identifier
@@ -37,6 +37,12 @@ AS SELECT sq.ckan_name                          AS slug,
    WHERE  sq.action != 'delete'
           AND hs.schema_type :: text LIKE 'dcatus1.1:%';
 
--- drop the view 
-DROP MATERIALIZED VIEW dataset
+-- add indexes (materialized views don't inherit)
+CREATE INDEX on dataset (slug);
+CREATE INDEX ON dataset (harvest_record_id);
+CREATE INDEX ON dataset (last_harvested_date);
+CREATE INDEX ON dataset USING GIN (search_vector);
+
+-- example command to drop the view (if needed)
+DROP MATERIALIZED VIEW dataset;
 ```
