@@ -18,6 +18,8 @@ update-dependencies: ## Updates requirements.txt and requirements_dev.txt from p
 	poetry export --without-hashes --without=dev --format=requirements.txt > requirements.txt
 	poetry export --without-hashes --only=dev --format=requirements.txt > requirements-dev.txt
 
+test-ci: up test
+
 test:
 	poetry run pytest
 
