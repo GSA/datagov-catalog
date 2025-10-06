@@ -99,7 +99,12 @@ def search():
     """
     # missing query parameter searches for everything
     query = request.args.get("q", "")
-    results = interface.search_datasets(query, page=1)
+    results = interface.search_datasets(
+        query,
+        page=request.args.get("page", type=int),
+        per_page=request.args.get("per_page", type=int),
+        paginate=request.args.get("paginate", type=lambda x: x.lower() == "true" ),
+    )
     return jsonify([result.to_dict() for result in results])
 
 
