@@ -62,4 +62,4 @@ jobs:
           poetry install
 
       - name: Run Pytest
-        run: make test
+        run: make test-ci
