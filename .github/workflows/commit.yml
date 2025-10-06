@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Pytests
     env:
-      DATABASE_URI: needs-to-be-set
+      DATABASE_URI: postgres://localhost/needs-to-be-set
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
