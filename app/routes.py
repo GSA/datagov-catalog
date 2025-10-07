@@ -210,21 +210,15 @@ def organization_detail(slug: str):
     )
 
 
-@main.route("/dataset/slug/<dataset_slug>", methods=["GET"])
-def dataset_detail_by_slug(dataset_slug: str):
-    dataset = interface.get_dataset_by_slug(dataset_slug)
+@main.route("/dataset/<slug_or_id>", methods=["GET"])
+def dataset_detail_by_slug(slug_or_id: str):
+    """Display dataset detail page by slug or ID."""
+    dataset = interface.get_dataset_by_slug(slug_or_id)
+    # if the dataset is not found by slug, try to find it by ID
     if dataset is None:
-        abort(404)
-    return render_template(
-        "dataset_detail.html",
-        dataset=dataset,
-    )
-
-
-@valid_id_required
-@main.route("/dataset/id/<dataset_id>", methods=["GET"])
-def dataset_detail_by_id(dataset_id: str):
-    dataset = interface.get_dataset_by_id(dataset_id)
+        dataset = interface.get_dataset_by_id(slug_or_id)
+    
+    # if the dataset is still not found, return 404
     if dataset is None:
         abort(404)
     return render_template(
