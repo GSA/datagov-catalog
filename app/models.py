@@ -192,7 +192,12 @@ class Dataset(db.Model):
     # Base has a string `id` column that is uuid by default
 
     # slug is the string that we use in a URL for this dataset
-    slug = db.Column(db.String, nullable=False, index=True, unique=True)
+    slug = db.Column(
+        db.String,
+        nullable=False,
+        index=True,
+        unique=True
+    )
 
     # This is all of the details of the dataset in DCAT schema in a JSON column
     dcat = db.Column(JSONB, nullable=False)
@@ -216,7 +221,10 @@ class Dataset(db.Model):
     )
 
     popularity = db.Column(db.Numeric)
-    last_harvested_date = db.Column(db.DateTime, index=True)
+    last_harvested_date = db.Column(
+        db.DateTime,
+        index=True
+    )
     search_vector = db.Column(TSVECTOR)
 
     __table_args__ = (
