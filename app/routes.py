@@ -211,7 +211,7 @@ def organization_detail(slug: str):
 
 
 @main.route("/dataset/<slug_or_id>", methods=["GET"])
-def dataset_detail_by_slug(slug_or_id: str):
+def dataset_detail_by_slug_or_id(slug_or_id: str):
     """Display dataset detail page by slug or ID."""
     dataset = interface.get_dataset_by_slug(slug_or_id)
     # if the dataset is not found by slug, try to find it by ID
