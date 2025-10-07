@@ -66,11 +66,6 @@
                                     {% endif %}
                                 </dd>
 
-                                <dt class="text-bold margin-top-2">Popularity Score</dt>
-                                <dd class="margin-bottom-2">
-                                    <span class="text-bold text-primary">{{ dataset.popularity or 'N/A' }}</span>
-                                </dd>
-
                                 <dt class="text-bold margin-top-2">Harvest Record</dt>
                                 <dd class="margin-bottom-0">
                                     <a href="{{ url_for('main.get_harvest_record', record_id=dataset.harvest_record_id) }}"
