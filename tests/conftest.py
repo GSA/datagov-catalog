@@ -1,6 +1,8 @@
 import pytest
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+from dotenv import load_dotenv
+
 from app import create_app
 from app.database import CatalogDBInterface
 from app.models import (
@@ -11,6 +13,8 @@ from app.models import (
     Organization,
     db,
 )
+
+load_dotenv()
 
 
 @pytest.fixture(scope="session", autouse=True)

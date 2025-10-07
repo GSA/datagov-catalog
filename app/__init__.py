@@ -20,15 +20,8 @@ def create_app(config_name: str = "local") -> Flask:
         app.config["TEMPLATES_AUTO_RELOAD"] = True
         app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
-    database_uri = app.config.get("DATABASE_URI") or os.getenv("DATABASE_URI")
-    if not database_uri:
-        raise RuntimeError(
-            "DATABASE_URI must be set in Flask config to connect to harvest database"
-        )
-
-    app.config.setdefault("DATABASE_URI", database_uri)
-    app.config.setdefault("SQLALCHEMY_DATABASE_URI", database_uri)
-    app.config.setdefault("SQLALCHEMY_TRACK_MODIFICATIONS", False)
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     db.init_app(app)
 

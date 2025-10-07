@@ -1,0 +1,65 @@
+name: 1 - Commit
+on: [push]
+
+permissions:
+    contents: read
+
+env:
+  PY_VERSION: "3.12"
+  POETRY_VERSION: "2.0.0"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    name: Python lint
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Set up Python ${{ env.PY_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VERSION }}
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+          poetry-plugins: "poetry-plugin-export"
+
+      - name: Install Dependencies
+        run: |
+          poetry env use ${{ env.PY_VERSION }}
+          poetry install
+
+      - name: Run linting
+        run: make lint
+
+  test:
+    environment: development
+    runs-on: ubuntu-latest
+    name: Pytests
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Set up Python ${{ env.PY_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VERSION }}
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+          poetry-plugins: "poetry-plugin-export"
+
+      - name: Install Dependencies
+        run: |
+          poetry env use ${{ env.PY_VERSION }}
+          poetry install
+
+      - name: Run Pytest
+        run: make test-ci
