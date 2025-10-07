@@ -4,46 +4,61 @@
 
 {% block content %}
 <section class="harvest-records">
-  <h1>Harvest Records</h1>
+  <div class="usa-prose">
+    <h1>Harvest Records</h1>
+  </div>
+
   {% if record_ids %}
-    <ul class="record-list">
-      {% for record_id in record_ids %}
-        <li><a href="{{ url_for('main.get_harvest_record', record_id=record_id) }}">{{ record_id }}</a></li>
-      {% endfor %}
-    </ul>
+  <ul class="usa-list usa-list--unstyled margin-top-2">
+    {% for record_id in record_ids %}
+    <li class="border-bottom-1px border-base-lighter padding-y-2">
+      <a class="usa-link" href="{{ url_for('main.get_harvest_record', record_id=record_id) }}">{{ record_id }}</a>
+    </li>
+    {% endfor %}
+  </ul>
   {% else %}
-    <p>No harvest records found.</p>
+  <div class="usa-alert usa-alert--info margin-top-3">
+    <div class="usa-alert__body">
+      <p class="usa-alert__text">No harvest records found.</p>
+    </div>
+  </div>
   {% endif %}
 
   {% if pagination.total_pages > 1 %}
-  <nav class="pagination" aria-label="Harvest Records Pagination">
-    <ul>
+  <nav class="usa-pagination margin-top-4" aria-label="Harvest records pagination">
+    <ul class="usa-pagination__list">
       {% set page = pagination.page %}
       {% set total_pages = pagination.total_pages %}
 
-      <li class="{{ 'disabled' if page <= 1 else '' }}">
-        {% if page <= 1 %}
-          <span>&laquo;</span>
-        {% else %}
-          <a href="{{ url_for('main.list_success_harvest_records', page=page-1) }}">&laquo;</a>
+      <li class="usa-pagination__item usa-pagination__arrow">
+        {% if page > 1 %}
+        <a class="usa-pagination__link usa-pagination__previous-page"
+          href="{{ url_for('main.list_success_harvest_records', page=page-1) }}" aria-label="Previous page">
+          <span class="usa-pagination__link-text">Previous</span>
+        </a>
         {% endif %}
       </li>
 
       {% for number in pagination.page_sequence %}
-        {% if number is none %}
-          <li class="ellipsis"><span>&hellip;</span></li>
-        {% elif number == page %}
-          <li class="active"><span>{{ number }}</span></li>
-        {% else %}
-          <li><a href="{{ url_for('main.list_success_harvest_records', page=number) }}">{{ number }}</a></li>
-        {% endif %}
+      {% if number is none %}
+      <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
+      {% elif number == page %}
+      <li class="usa-pagination__item usa-pagination__page-no">
+        <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
+      </li>
+      {% else %}
+      <li class="usa-pagination__item usa-pagination__page-no">
+        <a class="usa-pagination__button" href="{{ url_for('main.list_success_harvest_records', page=number) }}">{{ number }}</a>
+      </li>
+      {% endif %}
       {% endfor %}
 
-      <li class="{{ 'disabled' if page >= total_pages else '' }}">
-        {% if page >= total_pages %}
-          <span>&raquo;</span>
-        {% else %}
-          <a href="{{ url_for('main.list_success_harvest_records', page=page+1) }}">&raquo;</a>
+      <li class="usa-pagination__item usa-pagination__arrow">
+        {% if page < total_pages %}
+        <a class="usa-pagination__link usa-pagination__next-page"
+          href="{{ url_for('main.list_success_harvest_records', page=page+1) }}" aria-label="Next page">
+          <span class="usa-pagination__link-text">Next</span>
+        </a>
         {% endif %}
       </li>
     </ul>
@@ -51,4 +66,3 @@
   {% endif %}
 </section>
 {% endblock %}
-

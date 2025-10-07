@@ -4,9 +4,25 @@
 
 {% block content %}
 <section class="organization-detail">
-  <h1>{{ organization.name }}</h1>
+  <nav class="usa-breadcrumb" aria-label="Breadcrumbs">
+    <ol class="usa-breadcrumb__list">
+      <li class="usa-breadcrumb__list-item">
+        <a class="usa-breadcrumb__link" href="{{ url_for('main.index') }}">Home</a>
+      </li>
+      <li class="usa-breadcrumb__list-item">
+        <a class="usa-breadcrumb__link" href="{{ url_for('main.list_organizations') }}">Organizations</a>
+      </li>
+      <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+        <span>{{ organization.name }}</span>
+      </li>
+    </ol>
+  </nav>
 
-  <dl class="usa-description-list">
+  <div class="usa-prose">
+    <h1 class="margin-top-2">{{ organization.name }}</h1>
+  </div>
+
+  <dl class="usa-description-list margin-top-3">
     <div class="usa-description-list__row">
       <dt class="usa-description-list__term">ID</dt>
       <dd class="usa-description-list__description">{{ organization.id }}</dd>
@@ -23,77 +39,104 @@
       <dt class="usa-description-list__term">Logo</dt>
       <dd class="usa-description-list__description">
         {% if organization.logo %}
-          <a href="{{ organization.logo }}" target="_blank" rel="noopener">{{ organization.logo }}</a>
+        <a class="usa-link" href="{{ organization.logo }}" target="_blank" rel="noopener">{{ organization.logo }}</a>
         {% else %}
-          —
+        —
         {% endif %}
       </dd>
     </div>
   </dl>
 
   {% if organization.description %}
-  <section class="organization-description">
+  <section class="organization-description usa-prose margin-top-4">
     <h2>Description</h2>
     <p>{{ organization.description }}</p>
   </section>
   {% endif %}
 
-  <section class="organization-datasets">
-    <h2>Datasets ({{ organization.dataset_count }})</h2>
+  <section class="organization-datasets margin-top-5">
+    <div class="usa-prose">
+      <h2>Datasets ({{ organization.dataset_count }})</h2>
+    </div>
 
     {% if datasets %}
-      <div class="dataset-list">
-        {% for dataset in datasets %}
-          {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
-          {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
-          {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
-          {% set description_string = (dataset_meta.get('description') or '') | string %}
-          {% set truncated_description = description_string | trim | truncate(300, False, '…') %}
-          <article class="dataset-tile">
-            <h3 class="dataset-tile__title">
-              <a href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">{{ dataset_title }}</a>
-            </h3>
-            <p class="dataset-tile__meta">{{ organization.name }} -- {{ truncated_description }}</p>
-          </article>
+    <ul class="usa-collection">
+      {% for dataset in datasets %}
+      {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
+      {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
+      {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
+      {% set description_string = (dataset_meta.get('description') or '') | string %}
+      {% set truncated_description = description_string | trim | truncate(300, False, '…') %}
+      <li class="usa-collection__item">
+        <div class="usa-collection__body">
+          <h3 class="usa-collection__heading">
+            <a class="usa-link" href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+              {{ dataset_title }}
+            </a>
+          </h3>
+          <ul class="usa-collection__meta">
+            <li class="usa-collection__meta-item">
+              <strong>Organization:</strong>
+              <a class="usa-link" href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
+                {{ organization.name }}
+              </a>
+            </li>
+          </ul>
+          <p class="usa-collection__description">{{ truncated_description }}</p>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% if dataset_pagination.total_pages > 1 %}
+    <nav class="usa-pagination margin-top-4" aria-label="Datasets pagination">
+      <ul class="usa-pagination__list">
+        {% set page = dataset_pagination.page %}
+        {% set total_pages = dataset_pagination.total_pages %}
+
+        <li class="usa-pagination__item usa-pagination__arrow">
+          {% if page > 1 %}
+          <a class="usa-pagination__link usa-pagination__previous-page"
+            href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page-1, dataset_per_page=dataset_pagination.per_page) }}"
+            aria-label="Previous page">
+            <span class="usa-pagination__link-text">Previous</span>
+          </a>
+          {% endif %}
+        </li>
+
+        {% for number in dataset_pagination.page_sequence %}
+        {% if number is none %}
+        <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
+        {% elif number == page %}
+        <li class="usa-pagination__item usa-pagination__page-no">
+          <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
+        </li>
+        {% else %}
+        <li class="usa-pagination__item usa-pagination__page-no">
+          <a class="usa-pagination__button"
+            href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=number, dataset_per_page=dataset_pagination.per_page) }}">{{ number }}</a>
+        </li>
+        {% endif %}
         {% endfor %}
-      </div>
 
-      {% if dataset_pagination.total_pages > 1 %}
-      <nav class="pagination" aria-label="Organization datasets pagination">
-        <ul>
-          {% set page = dataset_pagination.page %}
-          {% set total_pages = dataset_pagination.total_pages %}
-
-          <li class="{{ 'disabled' if page <= 1 else '' }}">
-            {% if page <= 1 %}
-              <span>&laquo;</span>
-            {% else %}
-              <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page-1, dataset_per_page=dataset_pagination.per_page) }}">&laquo;</a>
-            {% endif %}
-          </li>
-
-          {% for number in dataset_pagination.page_sequence %}
-            {% if number is none %}
-              <li class="ellipsis"><span>&hellip;</span></li>
-            {% elif number == page %}
-              <li class="active"><span>{{ number }}</span></li>
-            {% else %}
-              <li><a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=number, dataset_per_page=dataset_pagination.per_page) }}">{{ number }}</a></li>
-            {% endif %}
-          {% endfor %}
-
-          <li class="{{ 'disabled' if page >= total_pages else '' }}">
-            {% if page >= total_pages %}
-              <span>&raquo;</span>
-            {% else %}
-              <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page+1, dataset_per_page=dataset_pagination.per_page) }}">&raquo;</a>
-            {% endif %}
-          </li>
-        </ul>
-      </nav>
-      {% endif %}
+        <li class="usa-pagination__item usa-pagination__arrow">
+          {% if page < total_pages %}
+          <a class="usa-pagination__link usa-pagination__next-page"
+            href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page+1, dataset_per_page=dataset_pagination.per_page) }}"
+            aria-label="Next page">
+            <span class="usa-pagination__link-text">Next</span>
+          </a>
+          {% endif %}
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
     {% else %}
-      <p>No datasets found for this organization.</p>
+    <div class="usa-alert usa-alert--info margin-top-3">
+      <div class="usa-alert__body">
+        <p class="usa-alert__text">No datasets found for this organization.</p>
+      </div>
+    </div>
     {% endif %}
   </section>
 </section>

@@ -2,19 +2,14 @@
 
 {% block title %}Organizations - Data.gov{% endblock %}
 
-{% block script_head %}
-<style>
-  .organization-list th[scope="row"] {
-    text-align: left;
-  }
-</style>
-{% endblock %}
-
 {% block content %}
 <section class="organization-list">
-  <h1>Organizations</h1>
+  <div class="usa-prose">
+    <h1 class="margin-bottom-3">Organizations</h1>
+  </div>
 
   {% if organizations %}
+  <div class="usa-table-container--scrollable" tabindex="0">
     <table class="usa-table usa-table--striped">
       <thead>
         <tr>
@@ -25,53 +20,66 @@
       </thead>
       <tbody>
         {% for organization in organizations %}
-          <tr>
-            <th scope="row">
-              {% if organization.slug %}
-                <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name }}</a>
-              {% else %}
-                {{ organization.name }}
-              {% endif %}
-            </th>
-            <td>{{ organization.organization_type or "—" }}</td>
-            <td class="text-right">{{ organization.dataset_count }}</td>
-          </tr>
+        <tr>
+          <th scope="row">
+            {% if organization.slug %}
+            <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name }}</a>
+            {% else %}
+            {{ organization.name }}
+            {% endif %}
+          </th>
+          <td>{{ organization.organization_type or "—" }}</td>
+          <td class="text-right">{{ organization.dataset_count }}</td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
+  </div>
   {% else %}
-    <p>No organizations found.</p>
+  <div class="usa-alert usa-alert--info">
+    <div class="usa-alert__body">
+      <p class="usa-alert__text">No organizations found.</p>
+    </div>
+  </div>
   {% endif %}
 
   {% if pagination.total_pages > 1 %}
-  <nav class="pagination" aria-label="Organizations Pagination">
-    <ul>
+  <nav class="usa-pagination margin-top-4" aria-label="Organizations pagination">
+    <ul class="usa-pagination__list">
       {% set page = pagination.page %}
       {% set total_pages = pagination.total_pages %}
 
-      <li class="{{ 'disabled' if page <= 1 else '' }}">
-        {% if page <= 1 %}
-          <span>&laquo;</span>
-        {% else %}
-          <a href="{{ url_for('main.list_organizations', page=page-1, per_page=pagination.per_page) }}">&laquo;</a>
+      <li class="usa-pagination__item usa-pagination__arrow">
+        {% if page > 1 %}
+        <a class="usa-pagination__link usa-pagination__previous-page"
+          href="{{ url_for('main.list_organizations', page=page-1, per_page=pagination.per_page) }}"
+          aria-label="Previous page">
+          <span class="usa-pagination__link-text">Previous</span>
+        </a>
         {% endif %}
       </li>
 
       {% for number in pagination.page_sequence %}
-        {% if number is none %}
-          <li class="ellipsis"><span>&hellip;</span></li>
-        {% elif number == page %}
-          <li class="active"><span>{{ number }}</span></li>
-        {% else %}
-          <li><a href="{{ url_for('main.list_organizations', page=number, per_page=pagination.per_page) }}">{{ number }}</a></li>
-        {% endif %}
+      {% if number is none %}
+      <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
+      {% elif number == page %}
+      <li class="usa-pagination__item usa-pagination__page-no">
+        <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
+      </li>
+      {% else %}
+      <li class="usa-pagination__item usa-pagination__page-no">
+        <a class="usa-pagination__button"
+          href="{{ url_for('main.list_organizations', page=number, per_page=pagination.per_page) }}">{{ number }}</a>
+      </li>
+      {% endif %}
       {% endfor %}
 
-      <li class="{{ 'disabled' if page >= total_pages else '' }}">
-        {% if page >= total_pages %}
-          <span>&raquo;</span>
-        {% else %}
-          <a href="{{ url_for('main.list_organizations', page=page+1, per_page=pagination.per_page) }}">&raquo;</a>
+      <li class="usa-pagination__item usa-pagination__arrow">
+        {% if page < total_pages %}
+        <a class="usa-pagination__link usa-pagination__next-page"
+          href="{{ url_for('main.list_organizations', page=page+1, per_page=pagination.per_page) }}" aria-label="Next page">
+          <span class="usa-pagination__link-text">Next</span>
+        </a>
         {% endif %}
       </li>
     </ul>

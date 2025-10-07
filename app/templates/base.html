@@ -1,38 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Catalog - Data.gov{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='assets/uswds/css/styles.css') }}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <script src="{{ url_for('static', filename='assets/uswds/js/uswds-init.js') }}"></script>
   <script src="{{ url_for('static', filename='assets/htmx/htmx.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/datetime.js') }}"></script>
-  {% block script_head %}
-  {% endblock %}
+  {% block script_head %}{% endblock %}
 </head>
+<body class="usa-app">
+  <a class="usa-skipnav" href="#main-content">Skip to main content</a>
 
-<body>
-  <header>
+  <section class="usa-banner" aria-label="Official website of the United States government">
+    <div class="usa-accordion">
+      <header class="usa-banner__header">
+        <div class="usa-banner__inner">
+          <div class="grid-col-auto">
+            <img class="usa-banner__header-flag" src="{{ url_for('static', filename='assets/uswds/img/us_flag_small.png') }}"
+              alt="U.S. flag">
+          </div>
+          <div class="grid-col-fill tablet:grid-col-auto">
+            <p class="usa-banner__header-text">An official website of the United States government</p>
+            <p class="usa-banner__header-action" aria-hidden="true">Here’s how you know</p>
+          </div>
+          <button class="usa-accordion__button usa-banner__button" aria-expanded="false"
+            aria-controls="gov-banner">
+            <span class="usa-banner__button-text">Here’s how you know</span>
+          </button>
+        </div>
+      </header>
+      <div class="usa-banner__content usa-accordion__content" id="gov-banner" hidden>
+        <div class="grid-row grid-gap-lg">
+          <div class="usa-banner__guidance tablet:grid-col-6">
+            <img class="usa-banner__icon usa-media-block__img"
+              src="{{ url_for('static', filename='assets/uswds/img/icon-dot-gov.svg') }}"
+              role="img" alt="Dot gov"> 
+            <div class="usa-media-block__body">
+              <p>
+                <strong>Official websites use .gov</strong>
+                <br>
+                A <strong>.gov</strong> website belongs to an official government organization in the United States.
+              </p>
+            </div>
+          </div>
+          <div class="usa-banner__guidance tablet:grid-col-6">
+            <img class="usa-banner__icon usa-media-block__img"
+              src="{{ url_for('static', filename='assets/uswds/img/icon-https.svg') }}"
+              role="img" alt="Https"> 
+            <div class="usa-media-block__body">
+              <p>
+                <strong>Secure .gov websites use HTTPS</strong>
+                <br>
+                A <strong>lock</strong> ( <span class="fa fa-lock" aria-hidden="true"></span> ) or <strong>https://</strong>
+                means you’ve safely connected to the .gov website. Share sensitive information only on official, secure websites.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="usa-overlay"></div>
+  <header class="usa-header usa-header--basic">
     <div class="usa-nav-container">
+      <div class="usa-navbar">
+        <div class="usa-logo" id="logo">
+          <em class="usa-logo__text">
+            <a href="{{ url_for('main.index') }}" title="Data.gov Catalog home">Data.gov Catalog</a>
+          </em>
+        </div>
+        <button class="usa-menu-btn" type="button">Menu</button>
+      </div>
       <nav aria-label="Primary navigation" class="usa-nav">
+        <button class="usa-nav__close" type="button">
+          <img src="{{ url_for('static', filename='assets/uswds/img/usa-icons/close.svg') }}" role="img" alt="Close">
+        </button>
         <ul class="usa-nav__primary usa-accordion">
           <li class="usa-nav__primary-item">
-            <a href="{{ url_for('main.index') }}" class="usa-nav__link">Home</a>
+            <a href="{{ url_for('main.index') }}" class="usa-nav__link">
+              <span>Home</span>
+            </a>
           </li>
           <li class="usa-nav__primary-item">
-            <a href="{{ url_for('main.list_organizations') }}" class="usa-nav__link">Organizations</a>
+            <a href="{{ url_for('main.list_organizations') }}" class="usa-nav__link">
+              <span>Organizations</span>
+            </a>
+          </li>
+          <li class="usa-nav__primary-item">
+            <a href="{{ url_for('main.list_success_harvest_records') }}" class="usa-nav__link">
+              <span>Harvest Records</span>
+            </a>
           </li>
         </ul>
       </nav>
     </div>
   </header>
-  <main id="content">{% block content %}{% endblock %}</main>
+
+  <main id="main-content" class="usa-section">
+    <div class="grid-container">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <footer class="usa-footer usa-footer--slim">
+    <div class="usa-footer__primary-section">
+      <div class="grid-container">
+        <div class="grid-row grid-gap">
+          <div class="grid-col-12 tablet:grid-col-auto">
+            <h2 class="usa-footer__heading text-uppercase">Data.gov</h2>
+          </div>
+          <div class="grid-col-12 tablet:grid-col-fill">
+            <ul class="usa-list usa-list--unstyled usa-footer__primary-content">
+              <li>
+                <a class="usa-footer__primary-link" href="https://www.data.gov/" target="_blank" rel="noopener">About</a>
+              </li>
+              <li>
+                <a class="usa-footer__primary-link" href="https://resources.data.gov/contact/" target="_blank" rel="noopener">Contact</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="usa-footer__secondary-section">
+      <div class="grid-container">
+        <div class="usa-footer__logo">
+          <h3 class="usa-footer__logo-heading">An official website of the United States government</h3>
+        </div>
+      </div>
+    </div>
+  </footer>
+
   <script src="{{ url_for('static', filename='assets/uswds/js/uswds.js') }}"></script>
   <script src="{{ url_for('static', filename='assets/js/bundle.js') }}"></script>
-  {% block scripts %}
-  {% endblock %}
+  {% block scripts %}{% endblock %}
 </body>
 
 </html>
