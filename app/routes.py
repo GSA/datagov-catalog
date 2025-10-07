@@ -201,12 +201,9 @@ def organization_detail(slug: str):
             )
 
     organization_data = interface.to_dict(organization)
-    sources = [interface.to_dict(source) for source in organization.sources]
-
     return render_template(
         "organization_detail.html",
         organization=organization_data,
-        sources=sources,
     )
 
 

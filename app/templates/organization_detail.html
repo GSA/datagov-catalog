@@ -37,33 +37,5 @@
     <p>{{ organization.description }}</p>
   </section>
   {% endif %}
-
-  <section class="organization-sources">
-    <h2>Harvest Sources</h2>
-    {% if sources %}
-    <table class="usa-table usa-table--striped">
-      <thead>
-        <tr>
-          <th scope="col">Name</th>
-          <th scope="col">URL</th>
-          <th scope="col">Frequency</th>
-          <th scope="col">Schema</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for source in sources %}
-        <tr>
-          <th scope="row">{{ source.name }}</th>
-          <td><a href="{{ source.url }}" target="_blank" rel="noopener">{{ source.url }}</a></td>
-          <td>{{ source.frequency or "—" }}</td>
-          <td>{{ source.schema_type or "—" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p>No harvest sources associated with this organization.</p>
-    {% endif %}
-  </section>
 </section>
 {% endblock %}
