@@ -97,3 +97,21 @@ def test_dataset_detail_404(db_client):
     response = db_client.get("/dataset/does-not-exist")
     # check response fails with 404
     assert response.status_code == 404
+
+
+def test_organization_list_shows_type_and_count(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    rows = soup.select("table tbody tr")
+
+    assert len(rows) == 1
+
+    cells = rows[0].find_all(["th", "td"])
+    assert cells[0].get_text(strip=True) == "test org"
+    assert cells[1].get_text(strip=True) == "Federal Government"
+    assert cells[2].get_text(strip=True) == "1"

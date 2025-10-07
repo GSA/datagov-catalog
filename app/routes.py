@@ -160,7 +160,6 @@ def list_success_harvest_records():
 
 @main.route("/organization", methods=["GET"])
 def list_organizations():
-    interface = CatalogDBInterface()
     page = request.args.get("page", default=1, type=int)
     per_page = request.args.get("per_page", default=20, type=int)
 
@@ -189,7 +188,6 @@ def list_organizations():
 
 @main.route("/organization/<slug>", methods=["GET"])
 def organization_detail(slug: str):
-    interface = CatalogDBInterface()
     organization = interface.get_organization_by_slug(slug)
     if organization is None:
         organization = interface.get_organization_by_id(slug)
