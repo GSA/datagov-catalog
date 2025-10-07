@@ -115,3 +115,30 @@ def test_organization_list_shows_type_and_count(
     assert cells[0].get_text(strip=True) == "test org"
     assert cells[1].get_text(strip=True) == "Federal Government"
     assert cells[2].get_text(strip=True) == "1"
+
+
+def test_organization_detail_displays_dataset_list(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_section = soup.find("section", class_="organization-datasets")
+    assert dataset_section is not None
+
+    heading_text = dataset_section.find("h2").get_text(strip=True)
+    assert heading_text.endswith("(1)")
+
+    tiles = dataset_section.select(".dataset-tile")
+    assert len(tiles) == 1
+
+    title_link = tiles[0].find("a")
+    assert title_link is not None
+    assert title_link.get("href") == "/dataset/test"
+    assert title_link.get_text(strip=True) == "test"
+
+    meta_text = tiles[0].select_one(".dataset-tile__meta").get_text(strip=True)
+    assert meta_text.startswith("test org -- this is the test description")

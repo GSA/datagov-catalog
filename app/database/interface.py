@@ -142,6 +142,51 @@ class CatalogDBInterface:
             .first()
         )
 
+    def _datasets_for_organization_query(self, organization_id: str):
+        return (
+            self.db.query(Dataset)
+            .filter(Dataset.organization_id == organization_id)
+            .order_by(Dataset.slug.asc())
+        )
+
+    @paginate
+    def _datasets_for_organization_paginated(self, organization_id: str, **kwargs):
+        return self._datasets_for_organization_query(organization_id)
+
+    def list_datasets_for_organization(
+        self,
+        organization_id: str,
+        page: int = DEFAULT_PAGE,
+        per_page: int = DEFAULT_PER_PAGE,
+    ) -> dict[str, Any]:
+        if not organization_id:
+            return {
+                "page": DEFAULT_PAGE,
+                "per_page": DEFAULT_PER_PAGE,
+                "total": 0,
+                "total_pages": 0,
+                "datasets": [],
+            }
+
+        page = max(page, 1)
+        per_page = max(min(per_page, 100), 1)
+
+        base_query = self._datasets_for_organization_query(organization_id)
+        total = base_query.count()
+        datasets = self._datasets_for_organization_paginated(
+            organization_id, page=page, per_page=per_page
+        )
+
+        total_pages = (total + per_page - 1) // per_page if total else 0
+
+        return {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": total_pages,
+            "datasets": [self.to_dict(dataset) for dataset in datasets],
+        }
+
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:
         if obj is None:
