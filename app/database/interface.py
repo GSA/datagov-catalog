@@ -142,23 +142,45 @@ class CatalogDBInterface:
             .first()
         )
 
-    def _datasets_for_organization_query(self, organization_id: str):
-        return (
-            self.db.query(Dataset)
-            .filter(Dataset.organization_id == organization_id)
-            .order_by(Dataset.slug.asc())
+    def _datasets_for_organization_query(
+        self, organization_id: str, sort_by: str | None = None
+    ):
+        query = self.db.query(Dataset).filter(
+            Dataset.organization_id == organization_id
         )
 
+        sort_key = (sort_by or "popularity").lower()
+
+        if sort_key == "slug":
+            order_by = [Dataset.slug.asc()]
+        elif sort_key == "harvested":
+            order_by = [Dataset.last_harvested_date.desc().nullslast(), Dataset.slug.asc()]
+        else:
+            # Default to popularity, highest first with slug tie-breaker
+            order_by = [Dataset.popularity.desc().nullslast(), Dataset.slug.asc()]
+
+        return query.order_by(*order_by)
+
     @paginate
-    def _datasets_for_organization_paginated(self, organization_id: str, **kwargs):
-        return self._datasets_for_organization_query(organization_id)
+    def _datasets_for_organization_paginated(
+        self, organization_id: str, sort_by: str | None = None, **kwargs
+    ):
+        return self._datasets_for_organization_query(organization_id, sort_by=sort_by)
 
     def list_datasets_for_organization(
         self,
         organization_id: str,
         page: int = DEFAULT_PAGE,
         per_page: int = DEFAULT_PER_PAGE,
+        sort_by: str | None = None,
     ) -> dict[str, Any]:
+        allowed_sorts = {"popularity", "slug", "harvested"}
+        sort_key = (sort_by or "popularity").lower()
+        if sort_key == "published":
+            sort_key = "harvested"
+        if sort_key not in allowed_sorts:
+            sort_key = "popularity"
+
         if not organization_id:
             return {
                 "page": DEFAULT_PAGE,
@@ -166,15 +188,21 @@ class CatalogDBInterface:
                 "total": 0,
                 "total_pages": 0,
                 "datasets": [],
+                "sort": sort_key,
             }
 
         page = max(page, 1)
         per_page = max(min(per_page, 100), 1)
 
-        base_query = self._datasets_for_organization_query(organization_id)
+        base_query = self._datasets_for_organization_query(
+            organization_id, sort_by=sort_key
+        )
         total = base_query.count()
         datasets = self._datasets_for_organization_paginated(
-            organization_id, page=page, per_page=per_page
+            organization_id,
+            page=page,
+            per_page=per_page,
+            sort_by=sort_key,
         )
 
         total_pages = (total + per_page - 1) // per_page if total else 0
@@ -185,6 +213,7 @@ class CatalogDBInterface:
             "total": total,
             "total_pages": total_pages,
             "datasets": [self.to_dict(dataset) for dataset in datasets],
+            "sort": sort_key,
         }
 
     @staticmethod

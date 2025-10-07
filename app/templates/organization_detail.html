@@ -59,85 +59,130 @@
       <h2>Datasets ({{ organization.dataset_count }})</h2>
     </div>
 
-    {% if datasets %}
-    <ul class="usa-collection">
-      {% for dataset in datasets %}
-      {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
-      {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
-      {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
-      {% set description_string = (dataset_meta.get('description') or '') | string %}
-      {% set truncated_description = description_string | trim | truncate(300, False, '…') %}
-      <li class="usa-collection__item">
-        <div class="usa-collection__body">
-          <h3 class="usa-collection__heading">
-            <a class="usa-link" href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
-              {{ dataset_title }}
-            </a>
-          </h3>
-          <ul class="usa-collection__meta">
-            <li class="usa-collection__meta-item">
-              <strong>Organization:</strong>
-              <a class="usa-link" href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
-                {{ organization.name }}
+    <div class="grid-row grid-gap-lg margin-top-2">
+      <div class="desktop:grid-col-8">
+        {% if datasets %}
+        <ul class="usa-collection">
+          {% for dataset in datasets %}
+          {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
+          {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
+          {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
+          {% set description_string = (dataset_meta.get('description') or '') | string %}
+          {% set truncated_description = description_string | trim | truncate(300, False, '…') %}
+          {% set updated_display = dataset_meta.get('modified') %}
+          {% set harvested_display = None %}
+          {% set last_harvested = dataset.get('last_harvested_date') %}
+          {% if last_harvested %}
+          {% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') %}
+          {% if not updated_display %}
+          {% set updated_display = harvested_display %}
+          {% endif %}
+          {% endif %}
+          <li class="usa-collection__item">
+            <div class="usa-collection__body">
+              <h3 class="usa-collection__heading">
+                <a class="usa-link" href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                  {{ dataset_title }}
+                </a>
+              </h3>
+              <ul class="usa-collection__meta">
+                <li class="usa-collection__meta-item">
+                  <strong>Organization:</strong>
+                  <a class="usa-link" href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
+                    {{ organization.name }}
+                  </a>
+                </li>
+                <li class="usa-collection__meta-item">
+                  <strong>Updated:</strong> {{ updated_display or 'Not available' }}
+                  {% if harvested_display %}
+                  <span class="margin-left-1">|</span>
+                  <strong>Harvested:</strong> {{ harvested_display }}
+                  {% endif %}
+                </li>
+              </ul>
+              <p class="usa-collection__description">{{ truncated_description }}</p>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+
+        {% if dataset_pagination.total_pages > 1 %}
+        <nav class="usa-pagination margin-top-4" aria-label="Datasets pagination">
+          <ul class="usa-pagination__list">
+            {% set page = dataset_pagination.page %}
+            {% set total_pages = dataset_pagination.total_pages %}
+
+            <li class="usa-pagination__item usa-pagination__arrow">
+              {% if page > 1 %}
+              <a class="usa-pagination__link usa-pagination__previous-page"
+                href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page-1, dataset_per_page=dataset_pagination.per_page, sort=selected_sort) }}"
+                aria-label="Previous page">
+                <span class="usa-pagination__link-text">Previous</span>
               </a>
+              {% endif %}
+            </li>
+
+            {% for number in dataset_pagination.page_sequence %}
+            {% if number is none %}
+            <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
+            {% elif number == page %}
+            <li class="usa-pagination__item usa-pagination__page-no">
+              <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
+            </li>
+            {% else %}
+            <li class="usa-pagination__item usa-pagination__page-no">
+              <a class="usa-pagination__button"
+                href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=number, dataset_per_page=dataset_pagination.per_page, sort=selected_sort) }}">{{ number }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+            <li class="usa-pagination__item usa-pagination__arrow">
+              {% if page < total_pages %}
+              <a class="usa-pagination__link usa-pagination__next-page"
+                href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page+1, dataset_per_page=dataset_pagination.per_page, sort=selected_sort) }}"
+                aria-label="Next page">
+                <span class="usa-pagination__link-text">Next</span>
+              </a>
+              {% endif %}
             </li>
           </ul>
-          <p class="usa-collection__description">{{ truncated_description }}</p>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-
-    {% if dataset_pagination.total_pages > 1 %}
-    <nav class="usa-pagination margin-top-4" aria-label="Datasets pagination">
-      <ul class="usa-pagination__list">
-        {% set page = dataset_pagination.page %}
-        {% set total_pages = dataset_pagination.total_pages %}
-
-        <li class="usa-pagination__item usa-pagination__arrow">
-          {% if page > 1 %}
-          <a class="usa-pagination__link usa-pagination__previous-page"
-            href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page-1, dataset_per_page=dataset_pagination.per_page) }}"
-            aria-label="Previous page">
-            <span class="usa-pagination__link-text">Previous</span>
-          </a>
-          {% endif %}
-        </li>
-
-        {% for number in dataset_pagination.page_sequence %}
-        {% if number is none %}
-        <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
-        {% elif number == page %}
-        <li class="usa-pagination__item usa-pagination__page-no">
-          <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
-        </li>
-        {% else %}
-        <li class="usa-pagination__item usa-pagination__page-no">
-          <a class="usa-pagination__button"
-            href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=number, dataset_per_page=dataset_pagination.per_page) }}">{{ number }}</a>
-        </li>
+        </nav>
         {% endif %}
-        {% endfor %}
-
-        <li class="usa-pagination__item usa-pagination__arrow">
-          {% if page < total_pages %}
-          <a class="usa-pagination__link usa-pagination__next-page"
-            href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page+1, dataset_per_page=dataset_pagination.per_page) }}"
-            aria-label="Next page">
-            <span class="usa-pagination__link-text">Next</span>
-          </a>
-          {% endif %}
-        </li>
-      </ul>
-    </nav>
-    {% endif %}
-    {% else %}
-    <div class="usa-alert usa-alert--info margin-top-3">
-      <div class="usa-alert__body">
-        <p class="usa-alert__text">No datasets found for this organization.</p>
+        {% else %}
+        <div class="usa-alert usa-alert--info margin-top-3">
+          <div class="usa-alert__body">
+            <p class="usa-alert__text">No datasets found for this organization.</p>
+          </div>
+        </div>
+        {% endif %}
       </div>
+
+      <aside class="desktop:grid-col-4">
+        <div class="usa-card">
+          <div class="usa-card__container">
+            <div class="usa-card__header">
+              <h3 class="usa-card__heading">Display options</h3>
+            </div>
+            <div class="usa-card__body">
+              <form class="usa-form" method="get"
+                action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
+                <input type="hidden" name="dataset_per_page" value="{{ dataset_pagination.per_page }}">
+                <label class="usa-label" for="sort-by">Sort by</label>
+                <select class="usa-select" id="sort-by" name="sort">
+                  {% for value, label in sort_options.items() %}
+                  <option value="{{ value }}" {% if value == selected_sort %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="usa-button usa-button--outline margin-top-2">
+                  Apply
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
-    {% endif %}
   </section>
 </section>
 {% endblock %}
