@@ -1,7 +1,6 @@
 import pytest
-from sqlalchemy.orm import scoped_session, sessionmaker
-
 from dotenv import load_dotenv
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
 from app.database import CatalogDBInterface
