@@ -47,22 +47,6 @@
                     </div>
                 </section>
                 {% endif %}
-
-                {% if dataset.dcat.get('contactPoint') or dataset.dcat.get('license') %}
-                <section class="margin-bottom-4">
-                    <h2 class="text-primary-darker">Additional Information</h2>
-                    <dl class="usa-prose">
-                        {% if dataset.dcat.get('contactPoint') %}
-                        <dt class="text-bold">Contact</dt>
-                        <dd>{{ dataset.dcat.contactPoint }}</dd>
-                        {% endif %}
-                        {% if dataset.dcat.get('license') %}
-                        <dt class="text-bold">License</dt>
-                        <dd>{{ dataset.dcat.license }}</dd>
-                        {% endif %}
-                    </dl>
-                </section>
-                {% endif %}
             </div>
 
             <div class="desktop:grid-col-4">
