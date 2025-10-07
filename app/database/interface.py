@@ -185,12 +185,12 @@ class CatalogDBInterface:
 
     def get_dataset_by_slug(self, dataset_slug: str) -> Dataset | None:
         """
-        Get dataset by its slug.
+        Get dataset by its slug. If the slug is not found, return None.
         """
         return self.db.query(Dataset).filter_by(slug=dataset_slug).first()
 
     def get_dataset_by_id(self, dataset_id: str) -> Dataset | None:
         """
-        Get dataset by its guid.
+        Get dataset by its guid. If the ID is not found, return None.
         """
         return self.db.query(Dataset).filter_by(id=dataset_id).first()

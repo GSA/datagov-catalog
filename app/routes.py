@@ -103,7 +103,7 @@ def search():
         query,
         page=request.args.get("page", type=int),
         per_page=request.args.get("per_page", type=int),
-        paginate=request.args.get("paginate", type=lambda x: x.lower() == "true" ),
+        paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
     )
     return jsonify([result.to_dict() for result in results])
 
@@ -217,7 +217,6 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # if the dataset is not found by slug, try to find it by ID
     if dataset is None:
         dataset = interface.get_dataset_by_id(slug_or_id)
-    
     # if the dataset is still not found, return 404
     if dataset is None:
         abort(404)
