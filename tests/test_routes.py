@@ -1,5 +1,4 @@
 from unittest.mock import patch
-
 from app.models import Dataset
 
 
@@ -14,6 +13,7 @@ def test_search_api_pagination(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
     for i in range(10):
         dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
     with patch("app.routes.interface", interface_with_dataset):

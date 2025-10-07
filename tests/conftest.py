@@ -113,6 +113,8 @@ def interface_with_dataset(interface_with_harvest_record):
             slug="test",
             dcat={"title": "test", "description": "this is the test description"},
             harvest_record_id="1",
+            organization_id="1",
+            harvest_source_id="1",
         )
     )
     interface_with_harvest_record.db.commit()
