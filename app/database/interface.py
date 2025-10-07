@@ -182,3 +182,15 @@ class CatalogDBInterface:
             "total_pages": (total + per_page - 1) // per_page,
             "records": [self.to_dict(record) for record in items],
         }
+
+    def get_dataset_by_slug(self, dataset_slug: str) -> Dataset | None:
+        """
+        Get dataset by its slug.
+        """
+        return self.db.query(Dataset).filter_by(slug=dataset_slug).first()
+
+    def get_dataset_by_id(self, dataset_id: str) -> Dataset | None:
+        """
+        Get dataset by its guid.
+        """
+        return self.db.query(Dataset).filter_by(id=dataset_id).first()

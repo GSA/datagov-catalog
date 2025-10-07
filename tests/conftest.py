@@ -106,6 +106,7 @@ def interface_with_dataset(interface_with_harvest_record):
 
     interface_with_harvest_record.db.add(
         Dataset(
+            id="5dafad8f-4338-4602-84ca-010ee1adf9a0",
             slug="test",
             dcat={"title": "test", "description": "this is the test description"},
             harvest_record_id="1",

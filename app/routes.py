@@ -14,6 +14,7 @@ from flask import (
     render_template,
     request,
     url_for,
+    abort,
 )
 
 from .database import CatalogDBInterface
@@ -202,6 +203,29 @@ def organization_detail(slug: str):
         "organization_detail.html",
         organization=organization_data,
         sources=sources,
+    )
+
+
+@main.route("/dataset/slug/<dataset_slug>", methods=["GET"])
+def dataset_detail_by_slug(dataset_slug: str):
+    dataset = interface.get_dataset_by_slug(dataset_slug)
+    if dataset is None:
+        abort(404)
+    return render_template(
+        "dataset_detail.html",
+        dataset=dataset,
+    )
+
+
+@valid_id_required
+@main.route("/dataset/id/<dataset_id>", methods=["GET"])
+def dataset_detail_by_id(dataset_id: str):
+    dataset = interface.get_dataset_by_id(dataset_id)
+    if dataset is None:
+        abort(404)
+    return render_template(
+        "dataset_detail.html",
+        dataset=dataset,
     )
 
 
