@@ -22,30 +22,38 @@
     <h1 class="margin-top-2">{{ organization.name }}</h1>
   </div>
 
-  <dl class="usa-description-list margin-top-3">
-    <div class="usa-description-list__row">
-      <dt class="usa-description-list__term">ID</dt>
-      <dd class="usa-description-list__description">{{ organization.id }}</dd>
+  <div class="grid-row grid-gap-lg margin-top-3">
+    <div class="desktop:grid-col-8">
+      <div class="usa-summary-box" role="region" aria-label="Organization summary">
+        <div class="usa-summary-box__body">
+          <h2 class="usa-summary-box__heading">Organization Overview</h2>
+          <ul class="usa-summary-box__list">
+            <li class="usa-summary-box__item">
+              <strong>Type:</strong> {{ organization.organization_type or "Not specified" }}
+            </li>
+            <li class="usa-summary-box__item">
+              <strong>Total datasets:</strong> {{ organization.dataset_count }}
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
-    <div class="usa-description-list__row">
-      <dt class="usa-description-list__term">Slug</dt>
-      <dd class="usa-description-list__description">{{ organization.slug or "—" }}</dd>
-    </div>
-    <div class="usa-description-list__row">
-      <dt class="usa-description-list__term">Type</dt>
-      <dd class="usa-description-list__description">{{ organization.organization_type or "—" }}</dd>
-    </div>
-    <div class="usa-description-list__row">
-      <dt class="usa-description-list__term">Logo</dt>
-      <dd class="usa-description-list__description">
+
+    <div class="desktop:grid-col-4">
+      <div class="display-flex flex-column flex-align-center flex-justify-center height-full">
         {% if organization.logo %}
-        <a class="usa-link" href="{{ organization.logo }}" target="_blank" rel="noopener">{{ organization.logo }}</a>
+        <img src="{{ organization.logo }}" alt="{{ organization.name }} logo" class="border border-base-lighter radius-md"
+          style="max-width: 160px; max-height: 160px; width: 100%; object-fit: contain;">
         {% else %}
-        —
+        <div class="usa-alert usa-alert--info width-full">
+          <div class="usa-alert__body">
+            <p class="usa-alert__text">Logo not available.</p>
+          </div>
+        </div>
         {% endif %}
-      </dd>
+      </div>
     </div>
-  </dl>
+  </div>
 
   {% if organization.description %}
   <section class="organization-description usa-prose margin-top-4">
