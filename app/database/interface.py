@@ -6,7 +6,7 @@ import logging
 from functools import wraps
 from typing import Any
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 
 from app.models import Dataset, HarvestRecord, Organization, db
 
@@ -99,16 +99,33 @@ class CatalogDBInterface:
     ) -> dict[str, Any]:
         page = max(page, 1)
         per_page = max(min(per_page, 100), 1)
-        base_query = self._organization_query()
-        total = base_query.count()
+        total = self.db.query(func.count(Organization.id)).scalar() or 0
         items = self._organization_paginated(page=page, per_page=per_page)
         total_pages = max(((total + per_page - 1) // per_page), 1)
+
+        dataset_counts: dict[str, int] = {}
+        organization_ids = [item.id for item in items]
+        if organization_ids:
+            counts = (
+                self.db.query(Dataset.organization_id, func.count(Dataset.id))
+                .filter(Dataset.organization_id.in_(organization_ids))
+                .group_by(Dataset.organization_id)
+                .all()
+            )
+            dataset_counts = {org_id: count for org_id, count in counts}
+
         return {
             "page": page,
             "per_page": per_page,
             "total": total,
             "total_pages": total_pages,
-            "organizations": [self.to_dict(item) for item in items],
+            "organizations": [
+                {
+                    **self.to_dict(item),
+                    "dataset_count": dataset_counts.get(item.id, 0),
+                }
+                for item in items
+            ],
         }
 
     def get_organization_by_slug(self, slug: str) -> Organization | None:
@@ -124,6 +141,51 @@ class CatalogDBInterface:
             .filter(Organization.id == organization_id)
             .first()
         )
+
+    def _datasets_for_organization_query(self, organization_id: str):
+        return (
+            self.db.query(Dataset)
+            .filter(Dataset.organization_id == organization_id)
+            .order_by(Dataset.slug.asc())
+        )
+
+    @paginate
+    def _datasets_for_organization_paginated(self, organization_id: str, **kwargs):
+        return self._datasets_for_organization_query(organization_id)
+
+    def list_datasets_for_organization(
+        self,
+        organization_id: str,
+        page: int = DEFAULT_PAGE,
+        per_page: int = DEFAULT_PER_PAGE,
+    ) -> dict[str, Any]:
+        if not organization_id:
+            return {
+                "page": DEFAULT_PAGE,
+                "per_page": DEFAULT_PER_PAGE,
+                "total": 0,
+                "total_pages": 0,
+                "datasets": [],
+            }
+
+        page = max(page, 1)
+        per_page = max(min(per_page, 100), 1)
+
+        base_query = self._datasets_for_organization_query(organization_id)
+        total = base_query.count()
+        datasets = self._datasets_for_organization_paginated(
+            organization_id, page=page, per_page=per_page
+        )
+
+        total_pages = (total + per_page - 1) // per_page if total else 0
+
+        return {
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": total_pages,
+            "datasets": [self.to_dict(dataset) for dataset in datasets],
+        }
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:

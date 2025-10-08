@@ -61,7 +61,7 @@ def interface(session) -> CatalogDBInterface:
 
 @pytest.fixture
 def interface_with_organization(interface):
-    interface.db.add(Organization(id="1", name="test org"))
+    interface.db.add(Organization(id="1", name="test org", slug="test-org", organization_type="Federal Government"))
     interface.db.commit()
     yield interface
 
