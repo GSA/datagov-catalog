@@ -91,7 +91,13 @@ class CatalogDBInterface:
         query = self.db.query(Organization)
         if search:
             like_pattern = f"%{search}%"
-            query = query.filter(Organization.name.ilike(like_pattern))
+            query = query.filter(
+                or_(
+                    Organization.name.ilike(like_pattern),
+                    Organization.slug.ilike(like_pattern),
+                    Organization.description.ilike(like_pattern),
+                )
+            )
         return query.order_by(Organization.name.asc())
 
     @paginate
