@@ -42,7 +42,7 @@
           <div class="usa-banner__guidance tablet:grid-col-6">
             <img class="usa-banner__icon usa-media-block__img"
               src="{{ url_for('static', filename='assets/uswds/img/icon-dot-gov.svg') }}"
-              role="img" alt="Dot gov"> 
+              role="img" alt="Dot gov">
             <div class="usa-media-block__body">
               <p>
                 <strong>Official websites use .gov</strong>
@@ -54,7 +54,7 @@
           <div class="usa-banner__guidance tablet:grid-col-6">
             <img class="usa-banner__icon usa-media-block__img"
               src="{{ url_for('static', filename='assets/uswds/img/icon-https.svg') }}"
-              role="img" alt="Https"> 
+              role="img" alt="Https">
             <div class="usa-media-block__body">
               <p>
                 <strong>Secure .gov websites use HTTPS</strong>
@@ -106,34 +106,64 @@
     </div>
   </main>
 
-  <footer class="usa-footer usa-footer--slim">
-    <div class="usa-footer__primary-section">
-      <div class="grid-container">
-        <div class="grid-row grid-gap">
-          <div class="grid-col-12 tablet:grid-col-auto">
-            <h2 class="usa-footer__heading text-uppercase">Data.gov</h2>
-          </div>
-          <div class="grid-col-12 tablet:grid-col-fill">
-            <ul class="usa-list usa-list--unstyled usa-footer__primary-content">
-              <li>
-                <a class="usa-footer__primary-link" href="https://www.data.gov/" target="_blank" rel="noopener">About</a>
-              </li>
-              <li>
-                <a class="usa-footer__primary-link" href="https://resources.data.gov/contact/" target="_blank" rel="noopener">Contact</a>
-              </li>
+<div class="usa-identifier">
+    <section class="usa-identifier__section usa-identifier__section--masthead" aria-label="Agency identifier,,,">
+        <div class="usa-identifier__container">
+            <div class="usa-identifier__logos">
+                <div class="usa-identifier__logo">
+                    <img class="usa-identifier__logo-img" alt="GSA logo" role="img"
+                        src="https://s3-us-gov-west-1.amazonaws.com/cg-0817d6e3-93c4-4de8-8b32-da6919464e61/gsa_starmark.png" />
+                </div>
+            </div>
+            <div class="usa-identifier__identity" aria-label="Agency description">
+                <p class="usa-identifier__identity-domain">data.gov</p>
+                <p class="usa-identifier__identity-disclaimer">An official website of the GSA's <a
+                        href="https://www.gsa.gov/about-us/organization/federal-acquisition-service/technology-transformation-services"
+                        class="usa-identifier__required-link usa-link">Technology Transformation Services {{'launch' | usa_icon | safe}}</a>
+                </p>
+            </div>
+        </div>
+    </section>
+    <nav class="usa-identifier__section usa-identifier__section--required-links" aria-label="Important links,,,">
+        <div class="usa-identifier__container">
+            <ul class="usa-identifier__required-links-list">
+                <li class="usa-identifier__required-links-item">
+                    <a href="https://www.gsa.gov/about-us" class="usa-identifier__required-link usa-link">About GSA {{'launch'| usa_icon | safe }}</a>
+                </li>
+                <li class="usa-identifier__required-links-item">
+                    <a href="https://www.gsa.gov/website-information/accessibility-statement"
+                        class="usa-identifier__required-link usa-link">Accessibility statement {{'launch'| usa_icon | safe }}</a>
+                </li>
+                <li class="usa-identifier__required-links-item">
+                    <a href="https://www.gsa.gov/reference/freedom-of-information-act-foia"
+                        class="usa-identifier__required-link usa-link">FOIA requests {{'launch'| usa_icon | safe }}</a>
+                </li>
+                <li class="usa-identifier__required-links-item">
+                    <a href="https://www.gsa.gov/reference/civil-rights-programs/notification-and-federal-employee-antidiscrimination-and-retaliation-act-of-2002"
+                        class="usa-identifier__required-link usa-link">No FEAR Act data {{'launch'| usa_icon | safe }}</a>
+                </li>
+                <li class="usa-identifier__required-links-item">
+                    <a href="https://www.gsaig.gov" class="usa-identifier__required-link usa-link">Office of the Inspector General {{'launch'| usa_icon | safe }}</a>
+                </li>
+                <li class="usa-identifier__required-links-item">
+                    <a href="https://www.gsa.gov/reference/reports/budget-performance"
+                        class="usa-identifier__required-link usa-link">Performance reports {{'launch'| usa_icon | safe }}</a>
+                </li>
+                <li class="usa-identifier__required-links-item">
+                    <a href="https://www.gsa.gov/website-information/website-policies#privacy"
+                        class="usa-identifier__required-link usa-link">Privacy policy {{'launch'| usa_icon | safe }}</a>
+                </li>
             </ul>
-          </div>
         </div>
-      </div>
-    </div>
-    <div class="usa-footer__secondary-section">
-      <div class="grid-container">
-        <div class="usa-footer__logo">
-          <h3 class="usa-footer__logo-heading">An official website of the United States government</h3>
+    </nav>
+    <section class="usa-identifier__section usa-identifier__section--usagov"
+        aria-label="U.S. government information and services,,,">
+        <div class="usa-identifier__container">
+            <div class="usa-identifier__usagov-description">Looking for U.S. government information and services?</div>
+            <a href="https://www.usa.gov/" class="usa-link">Visit USA.gov {{'launch'| usa_icon | safe }}</a>
         </div>
-      </div>
-    </div>
-  </footer>
+    </section>
+</div>
 
   <script src="{{ url_for('static', filename='assets/uswds/js/uswds.js') }}"></script>
   <script src="{{ url_for('static', filename='assets/js/bundle.js') }}"></script>
