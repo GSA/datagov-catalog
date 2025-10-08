@@ -107,14 +107,24 @@ def test_organization_list_shows_type_and_count(
     assert response.status_code == 200
 
     soup = BeautifulSoup(response.text, "html.parser")
-    rows = soup.select("table tbody tr")
+    cards = soup.select(".organization-list .usa-card")
 
-    assert len(rows) == 1
+    assert len(cards) == 1
 
-    cells = rows[0].find_all(["th", "td"])
-    assert cells[0].get_text(strip=True) == "test org"
-    assert cells[1].get_text(strip=True) == "Federal Government"
-    assert cells[2].get_text(strip=True) == "1"
+    card = cards[0]
+    heading = card.select_one(".usa-card__heading").get_text(strip=True)
+    assert heading == "test org"
+
+    body_paragraphs = card.select(".usa-card__body p")
+    assert len(body_paragraphs) >= 2
+
+    type_text = body_paragraphs[0].get_text(" ", strip=True)
+    assert type_text.startswith("Type:")
+    assert type_text.endswith("Federal Government")
+
+    datasets_text = body_paragraphs[1].get_text(" ", strip=True)
+    assert datasets_text.startswith("Datasets:")
+    assert datasets_text.endswith("1")
 
 
 def test_organization_detail_displays_dataset_list(
@@ -132,13 +142,20 @@ def test_organization_detail_displays_dataset_list(
     heading_text = dataset_section.find("h2").get_text(strip=True)
     assert heading_text.endswith("(1)")
 
-    tiles = dataset_section.select(".dataset-tile")
-    assert len(tiles) == 1
+    items = dataset_section.select(".usa-collection__item")
+    assert len(items) == 1
 
-    title_link = tiles[0].find("a")
+    item = items[0]
+    title_link = item.select_one(".usa-collection__heading a")
     assert title_link is not None
     assert title_link.get("href") == "/dataset/test"
     assert title_link.get_text(strip=True) == "test"
 
-    meta_text = tiles[0].select_one(".dataset-tile__meta").get_text(strip=True)
-    assert meta_text.startswith("test org -- this is the test description")
+    meta_items = item.select(".usa-collection__meta-item")
+    assert meta_items
+    organization_meta_text = meta_items[0].get_text(" ", strip=True)
+    assert organization_meta_text.startswith("Organization:")
+    assert organization_meta_text.endswith("test org")
+
+    description_text = item.select_one(".usa-collection__description").get_text(strip=True)
+    assert description_text.startswith("this is the test description")

@@ -130,40 +130,15 @@ def get_harvest_record(record_id: str):
     return jsonify(record_data)
 
 
-@main.route("/harvest_record/", methods=["GET"])
-def list_success_harvest_records():
-    PER_PAGE = 20
-    page = request.args.get("page", default=1, type=int)
-
-    result = interface.list_success_harvest_record_ids(page=page, per_page=PER_PAGE)
-
-    total = result["total"]
-    per_page = result["per_page"]
-    current_page = max(result["page"], 1)
-    total_pages = max(ceil(total / per_page), 1) if per_page else 1
-    current_page = min(current_page, total_pages)
-
-    pagination = {
-        "page": current_page,
-        "per_page": per_page,
-        "total": total,
-        "total_pages": total_pages,
-        "page_sequence": build_page_sequence(current_page, total_pages),
-    }
-
-    return render_template(
-        "harvest_record_list.html",
-        record_ids=result["ids"],
-        pagination=pagination,
-    )
-
-
 @main.route("/organization", methods=["GET"])
 def list_organizations():
     page = request.args.get("page", default=1, type=int)
     per_page = request.args.get("per_page", default=20, type=int)
+    search_query = request.args.get("q", default="", type=str).strip()
 
-    result = interface.list_organizations(page=page, per_page=per_page)
+    result = interface.list_organizations(
+        page=page, per_page=per_page, search=search_query
+    )
 
     total = result["total"]
     per_page = result["per_page"]
@@ -183,6 +158,7 @@ def list_organizations():
         "organization_list.html",
         organizations=result["organizations"],
         pagination=pagination,
+        search_query=search_query,
     )
 
 
@@ -201,10 +177,13 @@ def organization_detail(slug: str):
     organization_data = interface.to_dict(organization)
     dataset_page = request.args.get("dataset_page", default=1, type=int)
     dataset_per_page = request.args.get("dataset_per_page", default=20, type=int)
+    sort_by = request.args.get("sort", default="popularity")
+
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
         page=dataset_page,
         per_page=dataset_per_page,
+        sort_by=sort_by,
     )
 
     dataset_pagination = (
@@ -238,6 +217,12 @@ def organization_detail(slug: str):
         datasets=dataset_result["datasets"],
         dataset_pagination=dataset_pagination,
         organization_slug_or_id=slug_or_id,
+        selected_sort=dataset_result.get("sort", "popularity"),
+        sort_options={
+            "popularity": "Popularity",
+            "slug": "Title (shhh...it is slug)",
+            "harvested": "Harvested Date",
+        },
     )
 
 

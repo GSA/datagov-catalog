@@ -80,3 +80,34 @@ ul.menu {
 .usa-table-container--scrollable {
   overflow: scroll;
 }
+
+// Fix identifier link colors to match harvester styling
+.usa-identifier__required-link {
+  color: #a9aeb1 !important;
+  
+  &:hover {
+    color: #ffffff !important;
+  }
+  
+  &:visited {
+    color: #a9aeb1 !important;
+  }
+}
+
+// Fix icon alignment with links
+.usa-icon {
+  vertical-align: middle;
+  margin-left: 0.25rem;
+}
+
+// Prevent icon wrapping in identifier links
+.usa-identifier__required-link {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+// Search box not connecting well with Search Button
+.usa-form .usa-input[type="search"] {
+  border-right: 1px solid var(--usa-input-border-color, #565c65) !important;
+}
