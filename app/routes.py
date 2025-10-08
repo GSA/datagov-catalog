@@ -130,34 +130,6 @@ def get_harvest_record(record_id: str):
     return jsonify(record_data)
 
 
-@main.route("/harvest_record/", methods=["GET"])
-def list_success_harvest_records():
-    PER_PAGE = 20
-    page = request.args.get("page", default=1, type=int)
-
-    result = interface.list_success_harvest_record_ids(page=page, per_page=PER_PAGE)
-
-    total = result["total"]
-    per_page = result["per_page"]
-    current_page = max(result["page"], 1)
-    total_pages = max(ceil(total / per_page), 1) if per_page else 1
-    current_page = min(current_page, total_pages)
-
-    pagination = {
-        "page": current_page,
-        "per_page": per_page,
-        "total": total,
-        "total_pages": total_pages,
-        "page_sequence": build_page_sequence(current_page, total_pages),
-    }
-
-    return render_template(
-        "harvest_record_list.html",
-        record_ids=result["ids"],
-        pagination=pagination,
-    )
-
-
 @main.route("/organization", methods=["GET"])
 def list_organizations():
     page = request.args.get("page", default=1, type=int)

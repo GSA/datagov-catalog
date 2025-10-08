@@ -68,25 +68,6 @@ class CatalogDBInterface:
             .order_by(HarvestRecord.id.asc())
         )
 
-    @paginate
-    def _success_harvest_record_ids_paginated(self, **kwargs):
-        return self._success_harvest_record_ids_query()
-
-    def list_success_harvest_record_ids(
-        self, page: int = 1, per_page: int = DEFAULT_PER_PAGE
-    ) -> dict[str, Any]:
-        page = max(page, 1)
-        per_page = max(min(per_page, 100), 1)
-        base_query = self._success_harvest_record_ids_query()
-        total = base_query.count()
-        items = self._success_harvest_record_ids_paginated(page=page, per_page=per_page)
-        return {
-            "page": page,
-            "per_page": per_page,
-            "total": total,
-            "ids": [item.id for item in items],
-        }
-
     def _organization_query(self, search: str | None = None):
         query = self.db.query(Organization)
         if search:
