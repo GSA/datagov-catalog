@@ -20,8 +20,10 @@ New Data.gov catalog UI
 CREATE materialized VIEW dataset
 AS SELECT sq.ckan_name                          AS slug,
           sq.source_raw :: jsonb                AS dcat,
+          org.id                                AS organization_id,
+          hs.id                                 AS harvest_source_id,
           sq.id                                 AS harvest_record_id,
-          NULL                                  AS popularity,
+          0                                     AS popularity,
           sq.date_finished                      AS last_harvested_date,
           To_tsvector('english', sq.source_raw) AS search_vector,
           Md5(sq.identifier
@@ -34,9 +36,19 @@ AS SELECT sq.ckan_name                          AS slug,
                     date_created DESC) sq
          LEFT JOIN harvest_source hs
                 ON ( sq.harvest_source_id = hs.id )
-   WHERE  sq.action != 'delete'
-          AND hs.schema_type :: text LIKE 'dcatus1.1:%';
+         LEFT JOIN organization org
+                ON ( hs.organization_id = org.id)
+          WHERE  sq.action != 'delete'
+                  AND hs.schema_type :: text LIKE 'dcatus1.1:%';
 
--- drop the view 
-DROP MATERIALIZED VIEW dataset
+-- add indexes (materialized views don't inherit)
+CREATE INDEX on dataset (slug);
+CREATE INDEX on dataset (organization_id);
+CREATE INDEX on dataset (harvest_source_id);
+CREATE INDEX ON dataset (harvest_record_id);
+CREATE INDEX ON dataset (last_harvested_date);
+CREATE INDEX ON dataset USING GIN (search_vector);
+
+-- example command to drop the view (if needed)
+DROP MATERIALIZED VIEW dataset;
 ```

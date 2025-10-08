@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dataset.dcat.title }} - Data.gov{% endblock %}
+
+{% block content %}
+<div class="usa-section">
+    <div class="grid-container">
+        <nav class="usa-breadcrumb" aria-label="Breadcrumbs">
+            <ol class="usa-breadcrumb__list">
+                <li class="usa-breadcrumb__list-item">
+                    <a href="{{ url_for('main.index') }}" class="usa-breadcrumb__link">Home</a>
+                </li>
+                <li class="usa-breadcrumb__list-item">
+                    <a href="#" class="usa-breadcrumb__link">Datasets</a>
+                </li>
+                <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
+                    <span>{{ dataset.dcat.title }}</span>
+                </li>
+            </ol>
+        </nav>
+
+        <div class="grid-row margin-top-4">
+            <div class="grid-col-12">
+                <h1 class="margin-bottom-1">{{ dataset.dcat.title }}</h1>
+                {% if dataset.dcat.get('publisher', {}).get('name') %}
+                <p class="usa-intro text-base-dark margin-top-0">
+                    Published by {{ dataset.dcat.publisher.name }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid-row grid-gap-lg margin-top-4">
+            <div class="desktop:grid-col-8">
+                <section class="margin-bottom-4">
+                    <h2 class="text-primary-darker">Description</h2>
+                    <p class="usa-prose">{{ dataset.dcat.description }}</p>
+                </section>
+
+                {% if dataset.dcat.get('keyword') %}
+                <section class="margin-bottom-4">
+                    <h2 class="text-primary-darker">Tags</h2>
+                    <div>
+                        {% for keyword in dataset.dcat.keyword %}
+                        <span class="usa-tag margin-right-05 margin-bottom-05">{{ keyword }}</span>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+            </div>
+
+            <div class="desktop:grid-col-4">
+                <div>
+                    <div class="usa-card__container">
+                        <div class="usa-card__header">
+                            <h4 class="usa-card__heading">Dataset Information</h3>
+                        </div>
+                        <div class="usa-card__body">
+                            <dl>
+                                <dt class="text-bold margin-top-2">Last Harvested</dt>
+                                <dd class="margin-bottom-2">
+                                    {% if dataset.last_harvested_date %}
+                                    {{ dataset.last_harvested_date.strftime('%B %d, %Y at %I:%M %p') }}
+                                    {% else %}
+                                    Not available
+                                    {% endif %}
+                                </dd>
+
+                                <dt class="text-bold margin-top-2">Harvest Record</dt>
+                                <dd class="margin-bottom-0">
+                                    <a href="{{ url_for('main.get_harvest_record', record_id=dataset.harvest_record_id) }}"
+                                        class="usa-link">
+                                        View Record
+                                    </a>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -38,31 +38,62 @@
   </section>
   {% endif %}
 
-  <section class="organization-sources">
-    <h2>Harvest Sources</h2>
-    {% if sources %}
-    <table class="usa-table usa-table--striped">
-      <thead>
-        <tr>
-          <th scope="col">Name</th>
-          <th scope="col">URL</th>
-          <th scope="col">Frequency</th>
-          <th scope="col">Schema</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for source in sources %}
-        <tr>
-          <th scope="row">{{ source.name }}</th>
-          <td><a href="{{ source.url }}" target="_blank" rel="noopener">{{ source.url }}</a></td>
-          <td>{{ source.frequency or "—" }}</td>
-          <td>{{ source.schema_type or "—" }}</td>
-        </tr>
+  <section class="organization-datasets">
+    <h2>Datasets ({{ organization.dataset_count }})</h2>
+
+    {% if datasets %}
+      <div class="dataset-list">
+        {% for dataset in datasets %}
+          {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
+          {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
+          {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
+          {% set description_string = (dataset_meta.get('description') or '') | string %}
+          {% set truncated_description = description_string | trim | truncate(300, False, '…') %}
+          <article class="dataset-tile">
+            <h3 class="dataset-tile__title">
+              <a href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">{{ dataset_title }}</a>
+            </h3>
+            <p class="dataset-tile__meta">{{ organization.name }} -- {{ truncated_description }}</p>
+          </article>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+
+      {% if dataset_pagination.total_pages > 1 %}
+      <nav class="pagination" aria-label="Organization datasets pagination">
+        <ul>
+          {% set page = dataset_pagination.page %}
+          {% set total_pages = dataset_pagination.total_pages %}
+
+          <li class="{{ 'disabled' if page <= 1 else '' }}">
+            {% if page <= 1 %}
+              <span>&laquo;</span>
+            {% else %}
+              <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page-1, dataset_per_page=dataset_pagination.per_page) }}">&laquo;</a>
+            {% endif %}
+          </li>
+
+          {% for number in dataset_pagination.page_sequence %}
+            {% if number is none %}
+              <li class="ellipsis"><span>&hellip;</span></li>
+            {% elif number == page %}
+              <li class="active"><span>{{ number }}</span></li>
+            {% else %}
+              <li><a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=number, dataset_per_page=dataset_pagination.per_page) }}">{{ number }}</a></li>
+            {% endif %}
+          {% endfor %}
+
+          <li class="{{ 'disabled' if page >= total_pages else '' }}">
+            {% if page >= total_pages %}
+              <span>&raquo;</span>
+            {% else %}
+              <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page+1, dataset_per_page=dataset_pagination.per_page) }}">&raquo;</a>
+            {% endif %}
+          </li>
+        </ul>
+      </nav>
+      {% endif %}
     {% else %}
-    <p>No harvest sources associated with this organization.</p>
+      <p>No datasets found for this organization.</p>
     {% endif %}
   </section>
 </section>

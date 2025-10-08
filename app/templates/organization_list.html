@@ -20,6 +20,7 @@
         <tr>
           <th scope="col">Name</th>
           <th scope="col">Type</th>
+          <th scope="col" class="text-right">Datasets</th>
         </tr>
       </thead>
       <tbody>
@@ -33,6 +34,7 @@
               {% endif %}
             </th>
             <td>{{ organization.organization_type or "—" }}</td>
+            <td class="text-right">{{ organization.dataset_count }}</td>
           </tr>
         {% endfor %}
       </tbody>

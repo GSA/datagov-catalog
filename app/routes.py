@@ -160,7 +160,6 @@ def list_success_harvest_records():
 
 @main.route("/organization", methods=["GET"])
 def list_organizations():
-    interface = CatalogDBInterface()
     page = request.args.get("page", default=1, type=int)
     per_page = request.args.get("per_page", default=20, type=int)
 
@@ -189,7 +188,6 @@ def list_organizations():
 
 @main.route("/organization/<slug>", methods=["GET"])
 def organization_detail(slug: str):
-    interface = CatalogDBInterface()
     organization = interface.get_organization_by_slug(slug)
     if organization is None:
         organization = interface.get_organization_by_id(slug)
@@ -201,12 +199,61 @@ def organization_detail(slug: str):
             )
 
     organization_data = interface.to_dict(organization)
-    sources = [interface.to_dict(source) for source in organization.sources]
+    dataset_page = request.args.get("dataset_page", default=1, type=int)
+    dataset_per_page = request.args.get("dataset_per_page", default=20, type=int)
+    dataset_result = interface.list_datasets_for_organization(
+        organization.id,
+        page=dataset_page,
+        per_page=dataset_per_page,
+    )
+
+    dataset_pagination = (
+        {
+            "page": dataset_result["page"],
+            "per_page": dataset_result["per_page"],
+            "total": dataset_result["total"],
+            "total_pages": dataset_result["total_pages"],
+            "page_sequence": build_page_sequence(
+                dataset_result["page"], dataset_result["total_pages"]
+            ),
+        }
+        if dataset_result["total"]
+        else {
+            "page": dataset_result["page"],
+            "per_page": dataset_result["per_page"],
+            "total": 0,
+            "total_pages": 0,
+            "page_sequence": [],
+        }
+    )
+
+    if organization_data is not None:
+        organization_data["dataset_count"] = dataset_result["total"]
+
+    slug_or_id = organization.slug or slug
 
     return render_template(
         "organization_detail.html",
         organization=organization_data,
-        sources=sources,
+        datasets=dataset_result["datasets"],
+        dataset_pagination=dataset_pagination,
+        organization_slug_or_id=slug_or_id,
+    )
+
+
+@main.route("/dataset/<slug_or_id>", methods=["GET"])
+def dataset_detail_by_slug_or_id(slug_or_id: str):
+    """Display dataset detail page by slug or ID."""
+    dataset = interface.get_dataset_by_slug(slug_or_id)
+    # if the dataset is not found by slug, try to find it by ID
+    if dataset is None:
+        dataset = interface.get_dataset_by_id(slug_or_id)
+    # if the dataset is still not found, return 404
+    if dataset is None:
+        abort(404)
+    return render_template(
+        "dataset_detail.html",
+        dataset=dataset,
     )
 
 
