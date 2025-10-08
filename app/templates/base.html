@@ -12,7 +12,7 @@
   {% block script_head %}{% endblock %}
 </head>
 <body class="usa-app">
-  <a class="usa-skipnav" href="#main-content">Skip to main content</a>
+  <a class="usa-skipnav" href="#content">Skip to main content</a>
 
   <section class="usa-banner" aria-label="Official website of the United States government">
     <div class="usa-accordion">
@@ -95,9 +95,11 @@
     </div>
   </header>
 
-  <main id="main-content" class="usa-section">
-    <div class="grid-container">
-      {% block content %}{% endblock %}
+  <main id="content">
+    <div class="usa-section">
+      <div class="grid-container">
+        {% block content %}{% endblock %}
+      </div>
     </div>
   </main>
 
