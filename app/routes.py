@@ -103,7 +103,7 @@ def search():
         query,
         page=request.args.get("page", type=int),
         per_page=request.args.get("per_page", type=int),
-        paginate=request.args.get("paginate", type=lambda x: x.lower() == "true" ),
+        paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
     )
     return jsonify([result.to_dict() for result in results])
 
