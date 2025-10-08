@@ -4,41 +4,85 @@
 
 {% block content %}
 <section class="organization-list">
-  <div class="usa-prose">
-    <h1 class="margin-bottom-3">Organizations</h1>
+  <div class="margin-bottom-3">
+    <div class="display-flex flex-wrap tablet:flex-nowrap flex-align-end">
+      <div class="usa-prose margin-right-2 margin-bottom-2 tablet:margin-bottom-0">
+        <h1 class="margin-0">Organizations</h1>
+      </div>
+      <div class="margin-left-auto width-full tablet:width-auto" style="max-width: 24rem;">
+        <form method="get" action="{{ url_for('main.list_organizations') }}" class="usa-form margin-0">
+          <div class="grid-row grid-gap-1 flex-align-end">
+            <div class="grid-col-fill">
+              <label class="usa-sr-only" for="organization-search">Search organizations</label>
+              <input class="usa-input" id="organization-search" name="q" type="search"
+                value="{{ search_query or '' }}" placeholder="Search organizations">
+              <input type="hidden" name="per_page" value="{{ pagination.per_page }}">
+            </div>
+            <div class="grid-col-auto">
+              <button type="submit" class="usa-button">Search</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 
+  {% if search_query %}
+  <p class="font-body-sm text-base-dark">Showing {{ pagination.total }} organization(s) matching "{{ search_query }}".</p>
+  {% endif %}
+
   {% if organizations %}
-  <div class="usa-table-container--scrollable" tabindex="0">
-    <table class="usa-table usa-table--striped">
-      <thead>
-        <tr>
-          <th scope="col">Name</th>
-          <th scope="col">Type</th>
-          <th scope="col" class="text-right">Datasets</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for organization in organizations %}
-        <tr>
-          <th scope="row">
-            {% if organization.slug %}
-            <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name }}</a>
+  <div class="grid-row grid-gap-3">
+    {% for organization in organizations %}
+    {% set detail_url = organization.slug and url_for('main.organization_detail', slug=organization.slug) %}
+    {% set logo_url = organization.logo %}
+    {% set initials = (organization.name or 'DG')[:2] %}
+    <div class="grid-col-12 tablet:grid-col-6 desktop:grid-col-4">
+      <article class="usa-card height-full">
+        <div class="usa-card__container height-full">
+          <header class="usa-card__header">
+            {% if detail_url %}
+            <h2 class="usa-card__heading">
+              <a class="usa-link" href="{{ detail_url }}">{{ organization.name }}</a>
+            </h2>
             {% else %}
-            {{ organization.name }}
+            <h2 class="usa-card__heading">{{ organization.name }}</h2>
             {% endif %}
-          </th>
-          <td>{{ organization.organization_type or "—" }}</td>
-          <td class="text-right">{{ organization.dataset_count }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+          </header>
+          <div class="usa-card__media margin-top-1">
+            <div class="usa-card__img display-flex flex-align-center flex-justify-center bg-base-lightest"
+              style="height: 100px;">
+              {% if logo_url %}
+              <img src="{{ logo_url }}" alt="{{ organization.name }} logo"
+                style="max-height: 90px; max-width: 100%; object-fit: contain;">
+              {% else %}
+              <span class="text-uppercase text-primary-darker font-heading-md text-bold">{{ initials }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="usa-card__body">
+            <p class="margin-y-0 font-body-xs text-base-dark">
+              <span class="text-bold text-primary-darker">Type:</span> {{ organization.organization_type or "Not specified" }}
+            </p>
+            <p class="margin-top-05 margin-bottom-0 font-body-xs text-base-dark">
+              <span class="text-bold text-primary-darker">Datasets:</span> {{ organization.dataset_count }}
+            </p>
+          </div>
+        </div>
+      </article>
+    </div>
+    {% endfor %}
   </div>
   {% else %}
   <div class="usa-alert usa-alert--info">
     <div class="usa-alert__body">
-      <p class="usa-alert__text">No organizations found.</p>
+      <p class="usa-alert__text">
+        {% if search_query %}
+        No organizations found matching "{{ search_query }}".
+        {% else %}
+        No organizations found.
+        {% endif %}
+      </p>
     </div>
   </div>
   {% endif %}
@@ -52,7 +96,7 @@
       <li class="usa-pagination__item usa-pagination__arrow">
         {% if page > 1 %}
         <a class="usa-pagination__link usa-pagination__previous-page"
-          href="{{ url_for('main.list_organizations', page=page-1, per_page=pagination.per_page) }}"
+          href="{{ url_for('main.list_organizations', page=page-1, per_page=pagination.per_page, q=search_query or None) }}"
           aria-label="Previous page">
           <span class="usa-pagination__link-text">Previous</span>
         </a>
@@ -69,7 +113,7 @@
       {% else %}
       <li class="usa-pagination__item usa-pagination__page-no">
         <a class="usa-pagination__button"
-          href="{{ url_for('main.list_organizations', page=number, per_page=pagination.per_page) }}">{{ number }}</a>
+          href="{{ url_for('main.list_organizations', page=number, per_page=pagination.per_page, q=search_query or None) }}">{{ number }}</a>
       </li>
       {% endif %}
       {% endfor %}
@@ -77,7 +121,7 @@
       <li class="usa-pagination__item usa-pagination__arrow">
         {% if page < total_pages %}
         <a class="usa-pagination__link usa-pagination__next-page"
-          href="{{ url_for('main.list_organizations', page=page+1, per_page=pagination.per_page) }}" aria-label="Next page">
+          href="{{ url_for('main.list_organizations', page=page+1, per_page=pagination.per_page, q=search_query or None) }}" aria-label="Next page">
           <span class="usa-pagination__link-text">Next</span>
         </a>
         {% endif %}

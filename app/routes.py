@@ -162,8 +162,11 @@ def list_success_harvest_records():
 def list_organizations():
     page = request.args.get("page", default=1, type=int)
     per_page = request.args.get("per_page", default=20, type=int)
+    search_query = request.args.get("q", default="", type=str).strip()
 
-    result = interface.list_organizations(page=page, per_page=per_page)
+    result = interface.list_organizations(
+        page=page, per_page=per_page, search=search_query
+    )
 
     total = result["total"]
     per_page = result["per_page"]
@@ -183,6 +186,7 @@ def list_organizations():
         "organization_list.html",
         organizations=result["organizations"],
         pagination=pagination,
+        search_query=search_query,
     )
 
 

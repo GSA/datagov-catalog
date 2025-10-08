@@ -87,20 +87,30 @@ class CatalogDBInterface:
             "ids": [item.id for item in items],
         }
 
-    def _organization_query(self):
-        return self.db.query(Organization).order_by(Organization.name.asc())
+    def _organization_query(self, search: str | None = None):
+        query = self.db.query(Organization)
+        if search:
+            like_pattern = f"%{search}%"
+            query = query.filter(Organization.name.ilike(like_pattern))
+        return query.order_by(Organization.name.asc())
 
     @paginate
-    def _organization_paginated(self, **kwargs):
-        return self._organization_query()
+    def _organization_paginated(self, search: str | None = None, **kwargs):
+        return self._organization_query(search=search)
 
     def list_organizations(
-        self, page: int = 1, per_page: int = DEFAULT_PER_PAGE
+        self,
+        page: int = 1,
+        per_page: int = DEFAULT_PER_PAGE,
+        search: str | None = None,
     ) -> dict[str, Any]:
         page = max(page, 1)
         per_page = max(min(per_page, 100), 1)
-        total = self.db.query(func.count(Organization.id)).scalar() or 0
-        items = self._organization_paginated(page=page, per_page=per_page)
+        base_query = self._organization_query(search=search)
+        total = base_query.count()
+        items = self._organization_paginated(
+            page=page, per_page=per_page, search=search
+        )
         total_pages = max(((total + per_page - 1) // per_page), 1)
 
         dataset_counts: dict[str, int] = {}
@@ -126,6 +136,7 @@ class CatalogDBInterface:
                 }
                 for item in items
             ],
+            "search": search or "",
         }
 
     def get_organization_by_slug(self, slug: str) -> Organization | None:
