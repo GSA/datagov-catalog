@@ -25,11 +25,12 @@ AS SELECT sq.ckan_name                          AS slug,
           sq.id                                 AS harvest_record_id,
           0                                     AS popularity,
           sq.date_finished                      AS last_harvested_date,
-          setweight(to_tsvector('english', COALESCE((sq.source_raw :: jsonb ->> 'title')::TEXT, '')), 'A') ||
-            setweight(to_tsvector('english',  COALESCE((sq.source_raw :: jsonb ->> 'description')::TEXT, '')), 'B') ||
-            setweight(to_tsvector('english',  COALESCE((sq.source_raw :: jsonb ->> 'publisher')::TEXT, '')), 'B') ||
-            setweight(to_tsvector('english',  COALESCE((sq.source_raw :: jsonb ->> 'theme')::TEXT, '')), 'D') ||
-            setweight(to_tsvector('english',  COALESCE((sq.source_raw :: jsonb ->> 'identifier')::TEXT, '')), 'D')
+          setweight(to_tsvector('english', COALESCE(sq.source_raw::jsonb->>'title', '')), 'A') ||
+            setweight(to_tsvector('english',  COALESCE(sq.source_raw::jsonb->>'description', '')), 'B') ||
+            setweight(to_tsvector('english',  COALESCE(sq.source_raw::jsonb->>'publisher', '')), 'B') ||
+            setweight(to_tsvector('english',  COALESCE(array_to_string(ARRAY(SELECT jsonb_array_elements_text(sq.source_raw::jsonb->'keyword')), ' '), '')), 'C') ||
+            setweight(to_tsvector('english',  COALESCE(sq.source_raw::jsonb->>'theme', '')), 'D') ||
+            setweight(to_tsvector('english',  COALESCE(sq.source_raw::jsonb->>'identifier', '')), 'D')
           AS search_vector,
           Md5(sq.identifier
               || sq.harvest_source_id)          AS id
@@ -42,7 +43,7 @@ AS SELECT sq.ckan_name                          AS slug,
          LEFT JOIN harvest_source hs
                 ON ( sq.harvest_source_id = hs.id )
          LEFT JOIN organization org
-                ON ( hs.organization_id = org.id)
+                ON ( hs.organization_id = org.id )
           WHERE  sq.action != 'delete'
                   AND hs.schema_type :: text LIKE 'dcatus1.1:%';
 
