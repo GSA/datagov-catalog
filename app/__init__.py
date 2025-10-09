@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from flask import Flask
 
 from .models import db
+from .filters import usa_icon
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ def create_app(config_name: str = "local") -> Flask:
     from .routes import register_routes
 
     register_routes(app)
+    app.add_template_filter(usa_icon)
 
     return app
 

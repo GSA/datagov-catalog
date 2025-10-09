@@ -70,39 +70,36 @@ class CatalogDBInterface:
             .order_by(HarvestRecord.id.asc())
         )
 
-    @paginate
-    def _success_harvest_record_ids_paginated(self, **kwargs):
-        return self._success_harvest_record_ids_query()
-
-    def list_success_harvest_record_ids(
-        self, page: int = 1, per_page: int = DEFAULT_PER_PAGE
-    ) -> dict[str, Any]:
-        page = max(page, 1)
-        per_page = max(min(per_page, 100), 1)
-        base_query = self._success_harvest_record_ids_query()
-        total = base_query.count()
-        items = self._success_harvest_record_ids_paginated(page=page, per_page=per_page)
-        return {
-            "page": page,
-            "per_page": per_page,
-            "total": total,
-            "ids": [item.id for item in items],
-        }
-
-    def _organization_query(self):
-        return self.db.query(Organization).order_by(Organization.name.asc())
+    def _organization_query(self, search: str | None = None):
+        query = self.db.query(Organization)
+        if search:
+            like_pattern = f"%{search}%"
+            query = query.filter(
+                or_(
+                    Organization.name.ilike(like_pattern),
+                    Organization.slug.ilike(like_pattern),
+                    Organization.description.ilike(like_pattern),
+                )
+            )
+        return query.order_by(Organization.name.asc())
 
     @paginate
-    def _organization_paginated(self, **kwargs):
-        return self._organization_query()
+    def _organization_paginated(self, search: str | None = None, **kwargs):
+        return self._organization_query(search=search)
 
     def list_organizations(
-        self, page: int = 1, per_page: int = DEFAULT_PER_PAGE
+        self,
+        page: int = 1,
+        per_page: int = DEFAULT_PER_PAGE,
+        search: str | None = None,
     ) -> dict[str, Any]:
         page = max(page, 1)
         per_page = max(min(per_page, 100), 1)
-        total = self.db.query(func.count(Organization.id)).scalar() or 0
-        items = self._organization_paginated(page=page, per_page=per_page)
+        base_query = self._organization_query(search=search)
+        total = base_query.count()
+        items = self._organization_paginated(
+            page=page, per_page=per_page, search=search
+        )
         total_pages = max(((total + per_page - 1) // per_page), 1)
 
         dataset_counts: dict[str, int] = {}
@@ -128,6 +125,7 @@ class CatalogDBInterface:
                 }
                 for item in items
             ],
+            "search": search or "",
         }
 
     def get_organization_by_slug(self, slug: str) -> Organization | None:
@@ -144,23 +142,45 @@ class CatalogDBInterface:
             .first()
         )
 
-    def _datasets_for_organization_query(self, organization_id: str):
-        return (
-            self.db.query(Dataset)
-            .filter(Dataset.organization_id == organization_id)
-            .order_by(Dataset.slug.asc())
+    def _datasets_for_organization_query(
+        self, organization_id: str, sort_by: str | None = None
+    ):
+        query = self.db.query(Dataset).filter(
+            Dataset.organization_id == organization_id
         )
 
+        sort_key = (sort_by or "popularity").lower()
+
+        if sort_key == "slug":
+            order_by = [Dataset.slug.asc()]
+        elif sort_key == "harvested":
+            order_by = [Dataset.last_harvested_date.desc().nullslast(), Dataset.slug.asc()]
+        else:
+            # Default to popularity, highest first with slug tie-breaker
+            order_by = [Dataset.popularity.desc().nullslast(), Dataset.slug.asc()]
+
+        return query.order_by(*order_by)
+
     @paginate
-    def _datasets_for_organization_paginated(self, organization_id: str, **kwargs):
-        return self._datasets_for_organization_query(organization_id)
+    def _datasets_for_organization_paginated(
+        self, organization_id: str, sort_by: str | None = None, **kwargs
+    ):
+        return self._datasets_for_organization_query(organization_id, sort_by=sort_by)
 
     def list_datasets_for_organization(
         self,
         organization_id: str,
         page: int = DEFAULT_PAGE,
         per_page: int = DEFAULT_PER_PAGE,
+        sort_by: str | None = None,
     ) -> dict[str, Any]:
+        allowed_sorts = {"popularity", "slug", "harvested"}
+        sort_key = (sort_by or "popularity").lower()
+        if sort_key == "published":
+            sort_key = "harvested"
+        if sort_key not in allowed_sorts:
+            sort_key = "popularity"
+
         if not organization_id:
             return {
                 "page": DEFAULT_PAGE,
@@ -168,15 +188,21 @@ class CatalogDBInterface:
                 "total": 0,
                 "total_pages": 0,
                 "datasets": [],
+                "sort": sort_key,
             }
 
         page = max(page, 1)
         per_page = max(min(per_page, 100), 1)
 
-        base_query = self._datasets_for_organization_query(organization_id)
+        base_query = self._datasets_for_organization_query(
+            organization_id, sort_by=sort_key
+        )
         total = base_query.count()
         datasets = self._datasets_for_organization_paginated(
-            organization_id, page=page, per_page=per_page
+            organization_id,
+            page=page,
+            per_page=per_page,
+            sort_by=sort_key,
         )
 
         total_pages = (total + per_page - 1) // per_page if total else 0
@@ -187,6 +213,7 @@ class CatalogDBInterface:
             "total": total,
             "total_pages": total_pages,
             "datasets": [self.to_dict(dataset) for dataset in datasets],
+            "sort": sort_key,
         }
 
     @staticmethod
