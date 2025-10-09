@@ -51,13 +51,15 @@ class CatalogDBInterface:
     def search_datasets(self, query: str, *args, **kwargs):
         """Text search for datasets.
 
-        Use the `query` to find matching datasets.
+        Use the `query` to find matching datasets. The query is in Postgres's
+        "websearch" format which allows the use of quoted phrases with AND
+        and OR keywords.
         """
-        # TODO: use a real text search method here instead of contains
-        return self.db.query(Dataset).filter(
-            or_(
-                Dataset.dcat["title"].astext.contains(query),
-                Dataset.dcat["description"].astext.contains(query),
+        return (
+            self.db.query(Dataset)
+            .filter(Dataset.search_vector.op("@@")(func.websearch_to_tsquery(query)))
+            .order_by(
+                func.ts_rank(Dataset.search_vector, func.websearch_to_tsquery(query))
             )
         )
 

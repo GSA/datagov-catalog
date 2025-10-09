@@ -1,5 +1,6 @@
 import pytest
 from dotenv import load_dotenv
+from sqlalchemy import func
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
@@ -115,6 +116,7 @@ def interface_with_dataset(interface_with_harvest_record):
             harvest_record_id="1",
             harvest_source_id="1",
             organization_id="1",
+            search_vector=func.to_tsvector("english", "test description"),
         )
     )
     interface_with_harvest_record.db.commit()
