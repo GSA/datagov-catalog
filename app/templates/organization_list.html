@@ -19,7 +19,10 @@
               <input type="hidden" name="per_page" value="{{ pagination.per_page }}">
             </div>
             <div class="grid-col-auto">
-              <button type="submit" class="usa-button">Search</button>
+              <button type="submit" class="usa-button">
+                <i class="fa fa-search" aria-hidden="true"></i>
+                <span class="margin-left-05">Search</span>
+              </button>
             </div>
           </div>
         </form>
@@ -37,7 +40,7 @@
     {% set detail_url = organization.slug and url_for('main.organization_detail', slug=organization.slug) %}
     {% set logo_url = organization.logo %}
     {% set initials = (organization.name or 'DG')[:2] %}
-    <div class="grid-col-12 tablet:grid-col-6 desktop:grid-col-4">
+    <div class="grid-col-12 tablet:grid-col-6 desktop:grid-col-4 margin-bottom-2">
       <article class="usa-card height-full">
         <div class="usa-card__container height-full">
           <header class="usa-card__header">
@@ -49,7 +52,7 @@
             <h2 class="usa-card__heading">{{ organization.name }}</h2>
             {% endif %}
           </header>
-          <div class="usa-card__media margin-top-1">
+          <div class="usa-card__media">
             <div class="usa-card__img display-flex flex-align-center flex-justify-center bg-base-lightest"
               style="height: 100px;">
               {% if logo_url %}

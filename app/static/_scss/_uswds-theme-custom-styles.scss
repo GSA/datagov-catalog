@@ -111,3 +111,10 @@ ul.menu {
 .usa-form .usa-input[type="search"] {
   border-right: 1px solid var(--usa-input-border-color, #565c65) !important;
 }
+.organization-list button.usa-button {
+  padding: 0.5rem 0.75rem !important;
+}
+
+.dataset-tags .usa-tag {
+  display: inline-flex;
+}
