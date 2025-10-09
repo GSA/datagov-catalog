@@ -25,7 +25,12 @@ AS SELECT sq.ckan_name                          AS slug,
           sq.id                                 AS harvest_record_id,
           0                                     AS popularity,
           sq.date_finished                      AS last_harvested_date,
-          To_tsvector('english', sq.source_raw) AS search_vector,
+          setweight(to_tsvector('english', COALESCE((sq.source_raw :: jsonb ->> 'title')::TEXT, '')), 'A') ||
+            setweight(to_tsvector('english',  COALESCE((sq.source_raw :: jsonb ->> 'description')::TEXT, '')), 'B') ||
+            setweight(to_tsvector('english',  COALESCE((sq.source_raw :: jsonb ->> 'publisher')::TEXT, '')), 'B') ||
+            setweight(to_tsvector('english',  COALESCE((sq.source_raw :: jsonb ->> 'theme')::TEXT, '')), 'D') ||
+            setweight(to_tsvector('english',  COALESCE((sq.source_raw :: jsonb ->> 'identifier')::TEXT, '')), 'D')
+          AS search_vector,
           Md5(sq.identifier
               || sq.harvest_source_id)          AS id
    FROM  (SELECT DISTINCT ON (identifier, harvest_source_id) *
