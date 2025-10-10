@@ -67,7 +67,7 @@ WHERE
 CREATE UNIQUE INDEX ON dataset(slug);
 CREATE INDEX ON dataset(organization_id);
 CREATE INDEX ON dataset(harvest_source_id);
-CREATE UNIQUE INDEX ON dsataet(harvest_record_id);
+CREATE UNIQUE INDEX ON dataset(harvest_record_id);
 CREATE INDEX ON dataset(popularity);
 CREATE INDEX ON dataset(last_harvested_date);
 CREATE INDEX ON dataset USING GIN(search_vector);
