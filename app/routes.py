@@ -105,7 +105,13 @@ def search():
         per_page=request.args.get("per_page", type=int),
         paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
     )
-    return jsonify([result.to_dict() for result in results])
+
+    return jsonify(
+        [
+            {k: v for k, v in result.to_dict().items() if k != "search_vector"}
+            for result in results
+        ]
+    )
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])

@@ -10,6 +10,7 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
     assert len(response.json) > 0
+    assert all("search_vector" not in item for item in response.json)
 
 
 def test_search_api_pagination(interface_with_dataset, db_client):
