@@ -70,6 +70,14 @@ This "many matches" case is where the new system significantly underperforms
 the current catalog. We should explore possible ways to improve performance in
 this case.
 
+The initial suspicion is that this particular search is not using the search
+index in the Postgres database. The dev response time here depends heavily on
+the concurrency. With only one concurrent request, the 50th percentile
+response time is a very reasonable 1295ms and the 99th percentile response
+time is 1454ms.  This concurrency dependency makes sense if the query requires
+a full table scan from the database because that is an intensive operation and
+multiple concurrent scans would require lots of waiting.
+
 ## Page load performance
 
 Our web stack is quite different between the new system and the current
