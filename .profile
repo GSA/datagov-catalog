@@ -16,6 +16,14 @@ function vcap_get_service () {
 
 export APP_NAME=$(echo $VCAP_APPLICATION | jq -r '.application_name')
 
+# FLASK SECRET KEY
+flask_secret=$(vcap_get_service secrets .credentials.FLASK_SECRET_KEY)
+if [ -z "$flask_secret" ] || [ "$flask_secret" = "null" ]; then
+  echo "FLASK_SECRET_KEY is not found in secrets" >&2
+  exit 1
+fi
+export FLASK_SECRET_KEY="$flask_secret"
+
 # POSTGRES DB CREDS
 export URI=$(vcap_get_service db .credentials.replica_uri)
 export DATABASE_URI=$(echo $URI | sed 's/postgres:\/\//postgresql+psycopg:\/\//g')
