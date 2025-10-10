@@ -57,9 +57,15 @@ class CatalogDBInterface:
         """
         return (
             self.db.query(Dataset)
-            .filter(Dataset.search_vector.op("@@")(func.websearch_to_tsquery(query)))
+            .filter(
+                Dataset.search_vector.op("@@")(
+                    func.websearch_to_tsquery("english", query)
+                )
+            )
             .order_by(
-                func.ts_rank(Dataset.search_vector, func.websearch_to_tsquery(query))
+                func.ts_rank(
+                    Dataset.search_vector, func.websearch_to_tsquery("english", query)
+                )
             )
         )
 
@@ -154,7 +160,10 @@ class CatalogDBInterface:
         if sort_key == "slug":
             order_by = [Dataset.slug.asc()]
         elif sort_key == "harvested":
-            order_by = [Dataset.last_harvested_date.desc().nullslast(), Dataset.slug.asc()]
+            order_by = [
+                Dataset.last_harvested_date.desc().nullslast(),
+                Dataset.slug.asc(),
+            ]
         else:
             # Default to popularity, highest first with slug tie-breaker
             order_by = [Dataset.popularity.desc().nullslast(), Dataset.slug.asc()]
