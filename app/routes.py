@@ -15,9 +15,10 @@ from flask import (
     request,
     url_for,
 )
+from . import htmx
 
-from .database import CatalogDBInterface
-from .utils import json_not_found, valid_id_required
+from .database import CatalogDBInterface, DEFAULT_PAGE, DEFAULT_PER_PAGE
+from .utils import json_not_found, valid_id_required, build_dataset_dict
 
 logger = logging.getLogger(__name__)
 
@@ -68,26 +69,8 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 # Routes
 @main.route("/", methods=["GET"])
 def index():
-    """Display search page with results."""
-    query = request.args.get("q", "").strip()
-    status = request.args.get("status", "").strip()
-    page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 20, type=int)
-
-    results = None
-    if query:
-        results = interface.search_harvest_records(
-            query=query,
-            status=status if status else None,
-            page=page,
-            per_page=per_page,
-        )
-
     return render_template(
         "index.html",
-        query=query,
-        status=status,
-        results=results,
     )
 
 
@@ -99,12 +82,29 @@ def search():
     """
     # missing query parameter searches for everything
     query = request.args.get("q", "")
+    page = request.args.get("page", DEFAULT_PAGE, type=int)
+    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     results = interface.search_datasets(
         query,
-        page=request.args.get("page", type=int),
-        per_page=request.args.get("per_page", type=int),
+        page=page,
+        per_page=per_page,
         paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
     )
+
+    if htmx:
+        total = len(results)
+        results = results[((page - 1) * per_page) : (page * per_page)]
+        results = [build_dataset_dict(result) for result in results]
+        total_pages = max(ceil(total / per_page), 1) if per_page else 1
+
+        return render_template(
+            "components/dataset_results.html",
+            datasets=results,
+            page=page,
+            page_sequence=build_page_sequence(page, total_pages),
+            total=total,
+            total_pages=total_pages,
+        )
 
     return jsonify(
         [

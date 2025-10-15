@@ -56,12 +56,13 @@ class CatalogDBInterface:
         and OR keywords.
         """
         return (
-            self.db.query(Dataset)
+            self.db.query(Dataset, Organization)
             .filter(
                 Dataset.search_vector.op("@@")(
                     func.websearch_to_tsquery("english", query)
                 )
             )
+            .join(Organization, Dataset.organization_id == Organization.id)
             .order_by(
                 func.ts_rank(
                     Dataset.search_vector, func.websearch_to_tsquery("english", query)
