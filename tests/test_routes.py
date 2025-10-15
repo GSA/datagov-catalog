@@ -136,6 +136,9 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     dataset_section = soup.find("section", class_="organization-datasets")
     assert dataset_section is not None
 
+    search_button = soup.find("form", attrs={"action": "/organization/test-org"})
+    assert search_button is not None
+
     heading_text = dataset_section.find("h2").get_text(strip=True)
     assert heading_text.endswith("(1)")
 
@@ -271,3 +274,42 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
     assert next_button is not None
     assert "hx-get" in next_button.attrs
     assert "hx-target" in next_button.attrs
+
+def test_organization_detail_displays_searched_dataset(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization/test-org?dataset_search_terms=test")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_section = soup.find("section", class_="organization-datasets")
+    assert dataset_section is not None
+
+    items = dataset_section.select(".usa-collection__item")
+    assert len(items) == 1
+
+    item = items[0]
+    title_link = item.select_one(".usa-collection__heading a")
+    assert title_link is not None
+    assert title_link.get("href") == "/dataset/test"
+    assert title_link.get_text(strip=True) == "test"
+
+
+def test_organization_detail_displays_no_datasets_on_search(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/organization/test-org?dataset_search_terms=no-dataset"
+        )
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_section = soup.find("section", class_="organization-datasets")
+    assert dataset_section is not None
+
+    items = dataset_section.select(".usa-collection__item")
+    assert len(items) == 0
