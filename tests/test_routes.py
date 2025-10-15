@@ -182,3 +182,46 @@ def test_index_page_renders(db_client):
     # Check search results container exists (initially empty)
     results_container = soup.find("div", {"id": "search-results"})
     assert results_container is not None
+
+def test_index_search_returns_results(interface_with_dataset, db_client):
+    """
+    Test that searching via HTMX returns HTML results with dataset information.
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        # Simulate HTMX request with HX-Request header
+        response = db_client.get(
+            "/search",
+            query_string={"q": "test", "paginate": "false", "per_page": "20"},
+            headers={"HX-Request": "true"}
+        )
+    
+    assert response.status_code == 200
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    # Check that search results container is returned
+    results_container = soup.find("div", {"id": "search-results"})
+    assert results_container is not None
+    
+    # Check that results count is displayed
+    results_text = soup.find("p", class_="text-base-dark")
+    assert results_text is not None
+    assert "Found" in results_text.text
+    assert "dataset(s)" in results_text.text
+    
+    # Check that dataset is in the results
+    dataset_collection = soup.find("ul", class_="usa-collection")
+    assert dataset_collection is not None
+    
+    dataset_items = dataset_collection.find_all("li", class_="usa-collection__item")
+    assert len(dataset_items) > 0
+    
+    # Check first dataset has expected elements
+    first_dataset = dataset_items[0]
+    dataset_heading = first_dataset.find("h3", class_="usa-collection__heading")
+    assert dataset_heading is not None
+    assert "test" in dataset_heading.text.lower()
+    
+    # Check dataset has description
+    dataset_description = first_dataset.find("p", class_="usa-collection__description")
+    assert dataset_description is not None
