@@ -102,9 +102,7 @@ def test_dataset_detail_404(db_client):
     assert response.status_code == 404
 
 
-def test_organization_list_shows_type_and_count(
-    db_client, interface_with_dataset
-):
+def test_organization_list_shows_type_and_count(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization")
     assert response.status_code == 200
@@ -130,9 +128,7 @@ def test_organization_list_shows_type_and_count(
     assert datasets_text.endswith("1")
 
 
-def test_organization_detail_displays_dataset_list(
-    db_client, interface_with_dataset
-):
+def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization/test-org")
 
@@ -141,6 +137,9 @@ def test_organization_detail_displays_dataset_list(
     soup = BeautifulSoup(response.text, "html.parser")
     dataset_section = soup.find("section", class_="organization-datasets")
     assert dataset_section is not None
+
+    search_button = soup.find("form", attrs={"action": "/organization/test-org"})
+    assert search_button is not None
 
     heading_text = dataset_section.find("h2").get_text(strip=True)
     assert heading_text.endswith("(1)")
@@ -160,7 +159,9 @@ def test_organization_detail_displays_dataset_list(
     assert organization_meta_text.startswith("Organization:")
     assert organization_meta_text.endswith("test org")
 
-    description_text = item.select_one(".usa-collection__description").get_text(strip=True)
+    description_text = item.select_one(".usa-collection__description").get_text(
+        strip=True
+    )
     assert description_text.startswith("this is the test description")
 
 
@@ -223,3 +224,43 @@ def test_harvest_record_transformed_not_found(
         )
 
     assert response.status_code == 404
+
+
+def test_organization_detail_displays_searched_dataset(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization/test-org?dataset_search_terms=test")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_section = soup.find("section", class_="organization-datasets")
+    assert dataset_section is not None
+
+    items = dataset_section.select(".usa-collection__item")
+    assert len(items) == 1
+
+    item = items[0]
+    title_link = item.select_one(".usa-collection__heading a")
+    assert title_link is not None
+    assert title_link.get("href") == "/dataset/test"
+    assert title_link.get_text(strip=True) == "test"
+
+
+def test_organization_detail_displays_no_datasets_on_search(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/organization/test-org?dataset_search_terms=no-dataset"
+        )
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_section = soup.find("section", class_="organization-datasets")
+    assert dataset_section is not None
+
+    items = dataset_section.select(".usa-collection__item")
+    assert len(items) == 0
