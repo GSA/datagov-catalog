@@ -192,3 +192,34 @@ def test_harvest_record_raw_not_found(interface_with_harvest_record, db_client):
         response = db_client.get(f"/harvest_record/{missing_id}/raw")
 
     assert response.status_code == 404
+
+
+def test_harvest_record_transformed_returns_json(
+    interface_with_harvest_record, db_client
+):
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(
+            f"/harvest_record/{HARVEST_RECORD_ID}/transformed"
+        )
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    assert response.get_json() == {
+        "title": "test dataset",
+        "extras": {"foo": "bar"},
+    }
+
+
+def test_harvest_record_transformed_not_found(
+    interface_with_harvest_record, db_client
+):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_transform = None
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(
+            f"/harvest_record/{HARVEST_RECORD_ID}/transformed"
+        )
+
+    assert response.status_code == 404

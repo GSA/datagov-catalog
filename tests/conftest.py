@@ -107,6 +107,10 @@ def interface_with_harvest_record(interface_with_harvest_job):
             harvest_job_id="1",
             identifier="identifier",
             source_raw='{"title": "test dataset"}',
+            source_transform={
+                "title": "test dataset",
+                "extras": {"foo": "bar"},
+            },
         )
     )
     interface_with_harvest_job.db.commit()

@@ -169,6 +169,24 @@ def get_harvest_record_raw(record_id: str) -> Response:
     return Response(source_raw, mimetype=mimetype)
 
 
+@main.route("/harvest_record/<record_id>/transformed", methods=["GET"])
+@valid_id_required
+def get_harvest_record_transformed(record_id: str) -> Response:
+    record = interface.get_harvest_record(record_id)
+    if record is None:
+        return json_not_found()
+
+    transformed = record.source_transform
+    if transformed is None:
+        return json_not_found()
+
+    if isinstance(transformed, str) and not transformed.strip():
+        return json_not_found()
+
+    body = json.dumps(transformed)
+    return Response(body, mimetype="application/json")
+
+
 @main.route("/organization", methods=["GET"])
 def list_organizations():
     page = request.args.get("page", default=1, type=int)
