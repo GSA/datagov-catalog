@@ -49,6 +49,9 @@ class CatalogDBInterface:
 
     @paginate
     def search_datasets(self, query: str, *args, **kwargs):
+        return self._search_datasets(query, *args, **kwargs)
+
+    def _search_datasets(self, query: str, *args, **kwargs):
         """Text search for datasets.
 
         Use the `query` to find matching datasets. The query is in Postgres's
@@ -149,11 +152,20 @@ class CatalogDBInterface:
         )
 
     def _datasets_for_organization_query(
-        self, organization_id: str, sort_by: str | None = None
+        self,
+        organization_id: str,
+        sort_by: str | None = None,
+        dataset_search_terms: str = "",
     ):
         query = self.db.query(Dataset).filter(
             Dataset.organization_id == organization_id
         )
+
+        if dataset_search_terms:
+            query = query.join(
+                self._search_datasets(dataset_search_terms),
+                Dataset.harvest_record_id == Dataset.harvest_record_id,
+            )
 
         sort_key = (sort_by or "popularity").lower()
 
@@ -172,9 +184,15 @@ class CatalogDBInterface:
 
     @paginate
     def _datasets_for_organization_paginated(
-        self, organization_id: str, sort_by: str | None = None, **kwargs
+        self,
+        organization_id: str,
+        sort_by: str | None = None,
+        dataset_search_terms: str = "",
+        **kwargs,
     ):
-        return self._datasets_for_organization_query(organization_id, sort_by=sort_by)
+        return self._datasets_for_organization_query(
+            organization_id, sort_by=sort_by, dataset_search_terms=dataset_search_terms
+        )
 
     def list_datasets_for_organization(
         self,
@@ -182,6 +200,7 @@ class CatalogDBInterface:
         page: int = DEFAULT_PAGE,
         per_page: int = DEFAULT_PER_PAGE,
         sort_by: str | None = None,
+        dataset_search_terms: str = "",
     ) -> dict[str, Any]:
         allowed_sorts = {"popularity", "slug", "harvested"}
         sort_key = (sort_by or "popularity").lower()
@@ -212,6 +231,7 @@ class CatalogDBInterface:
             page=page,
             per_page=per_page,
             sort_by=sort_key,
+            dataset_search_terms=dataset_search_terms,
         )
 
         total_pages = (total + per_page - 1) // per_page if total else 0
