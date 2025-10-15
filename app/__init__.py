@@ -5,9 +5,8 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_htmx import HTMX
 
-
-from .models import db
 from .filters import usa_icon
+from .models import db
 
 logger = logging.getLogger(__name__)
 

@@ -100,9 +100,7 @@ def test_dataset_detail_404(db_client):
     assert response.status_code == 404
 
 
-def test_organization_list_shows_type_and_count(
-    db_client, interface_with_dataset
-):
+def test_organization_list_shows_type_and_count(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization")
     assert response.status_code == 200
@@ -128,9 +126,7 @@ def test_organization_list_shows_type_and_count(
     assert datasets_text.endswith("1")
 
 
-def test_organization_detail_displays_dataset_list(
-    db_client, interface_with_dataset
-):
+def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization/test-org")
 
@@ -158,5 +154,7 @@ def test_organization_detail_displays_dataset_list(
     assert organization_meta_text.startswith("Organization:")
     assert organization_meta_text.endswith("test org")
 
-    description_text = item.select_one(".usa-collection__description").get_text(strip=True)
+    description_text = item.select_one(".usa-collection__description").get_text(
+        strip=True
+    )
     assert description_text.startswith("this is the test description")

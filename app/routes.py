@@ -15,10 +15,10 @@ from flask import (
     request,
     url_for,
 )
-from . import htmx
 
-from .database import CatalogDBInterface, DEFAULT_PAGE, DEFAULT_PER_PAGE
-from .utils import json_not_found, valid_id_required, build_dataset_dict
+from . import htmx
+from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
+from .utils import build_dataset_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
