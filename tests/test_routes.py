@@ -158,3 +158,27 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
         strip=True
     )
     assert description_text.startswith("this is the test description")
+
+def test_index_page_renders(db_client):
+    """
+    Test that the index page loads correctly and contains the search form.
+    """
+    response = db_client.get("/")
+    assert response.status_code == 200
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    # Check page title
+    assert "Catalog - Data.gov" in soup.title.string
+    
+    # Check search form exists with all of the expected elements
+    search_form = soup.find("form", {"hx-get": True})
+    assert search_form is not None    
+    search_input = soup.find("input", {"id": "search-query", "name": "q"})
+    assert search_input is not None
+    search_button = soup.find("button", {"type": "submit"})
+    assert search_button is not None
+    
+    # Check search results container exists (initially empty)
+    results_container = soup.find("div", {"id": "search-results"})
+    assert results_container is not None
