@@ -225,3 +225,49 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
     # Check dataset has description
     dataset_description = first_dataset.find("p", class_="usa-collection__description")
     assert dataset_description is not None
+
+def test_index_search_with_pagination(interface_with_dataset, db_client):
+    """
+    Test that search results with pagination render correctly via HTMX.
+    Creates multiple datasets to trigger pagination display.
+    """
+    # Create multiple datasets to ensure pagination appears
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(25):  # Create enough for multiple pages
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        dataset_dict["dcat"]["title"] = f"Test Dataset {i}"
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    # attempt commit
+    interface_with_dataset.db.commit()
+    
+    with patch("app.routes.interface", interface_with_dataset):
+        # Request page 1 with 20 items per page
+        response = db_client.get(
+            "/search",
+            query_string={"q": "test", "paginate": "false", "per_page": "20", "page": "1"},
+            headers={"HX-Request": "true"}
+        )
+    
+    assert response.status_code == 200
+    
+    soup = BeautifulSoup(response.text, "html.parser")
+    
+    # Check pagination exists
+    pagination = soup.find("nav", class_="usa-pagination")
+    assert pagination is not None
+    
+    # Check pagination has page numbers
+    pagination_list = pagination.find("ul", class_="usa-pagination__list")
+    assert pagination_list is not None
+    
+    # Check for current page indicator
+    current_page = pagination.find("span", class_="usa-current")
+    assert current_page is not None
+    assert "1" in current_page.text
+    
+    # Check for Next button and ensure htmx attrs are there
+    next_button = pagination.find("a", class_="usa-pagination__next-page")
+    assert next_button is not None
+    assert "hx-get" in next_button.attrs
+    assert "hx-target" in next_button.attrs
