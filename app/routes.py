@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime
 from math import ceil
+from xml.etree import ElementTree
 
 from dotenv import load_dotenv
 from flask import (
@@ -134,6 +135,38 @@ def get_harvest_record(record_id: str):
             pass
 
     return jsonify(record_data)
+
+
+@main.route("/harvest_record/<record_id>/raw", methods=["GET"])
+@valid_id_required
+def get_harvest_record_raw(record_id: str) -> Response:
+    record = interface.get_harvest_record(record_id)
+    if record is None:
+        return json_not_found()
+
+    source_raw = record.source_raw
+    if not source_raw:
+        return json_not_found()
+
+    if not isinstance(source_raw, str):
+        source_raw = str(source_raw)
+
+    mimetype = "text/plain"
+    stripped_source = source_raw.strip()
+    if stripped_source:
+        try:
+            json.loads(stripped_source)
+        except (TypeError, json.JSONDecodeError):
+            try:
+                ElementTree.fromstring(stripped_source)
+            except (ElementTree.ParseError, SyntaxError):
+                pass
+            else:
+                mimetype = "application/xml"
+        else:
+            mimetype = "application/json"
+
+    return Response(source_raw, mimetype=mimetype)
 
 
 @main.route("/organization", methods=["GET"])

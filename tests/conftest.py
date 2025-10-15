@@ -14,6 +14,10 @@ from app.models import (
     db,
 )
 
+
+HARVEST_RECORD_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+DATASET_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+
 load_dotenv()
 
 
@@ -98,7 +102,11 @@ def interface_with_harvest_job(interface_with_harvest_source):
 def interface_with_harvest_record(interface_with_harvest_job):
     interface_with_harvest_job.db.add(
         HarvestRecord(
-            id="1", harvest_source_id="1", harvest_job_id="1", identifier="identifier"
+            id=HARVEST_RECORD_ID,
+            harvest_source_id="1",
+            harvest_job_id="1",
+            identifier="identifier",
+            source_raw='{"title": "test dataset"}',
         )
     )
     interface_with_harvest_job.db.commit()
@@ -110,10 +118,10 @@ def interface_with_dataset(interface_with_harvest_record):
 
     interface_with_harvest_record.db.add(
         Dataset(
-            id="5dafad8f-4338-4602-84ca-010ee1adf9a0",
+            id=DATASET_ID,
             slug="test",
             dcat={"title": "test", "description": "this is the test description"},
-            harvest_record_id="1",
+            harvest_record_id=HARVEST_RECORD_ID,
             harvest_source_id="1",
             organization_id="1",
             search_vector=func.to_tsvector("english", "test description"),
