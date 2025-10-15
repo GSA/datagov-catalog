@@ -6,6 +6,9 @@ dist/
 requirements.txt
 requirements-dev.txt
 
+# vsc
+.vscode/
+
 # uswds assets
 app/static/assets/*
 

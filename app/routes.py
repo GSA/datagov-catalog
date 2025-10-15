@@ -184,12 +184,16 @@ def organization_detail(slug: str):
     dataset_page = request.args.get("dataset_page", default=1, type=int)
     dataset_per_page = request.args.get("dataset_per_page", default=20, type=int)
     sort_by = request.args.get("sort", default="popularity")
+    dataset_search_terms = request.args.get(
+        "dataset_search_terms", default="", type=str
+    ).strip()
 
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
         page=dataset_page,
         per_page=dataset_per_page,
         sort_by=sort_by,
+        dataset_search_terms=dataset_search_terms,
     )
 
     dataset_pagination = (
@@ -229,6 +233,7 @@ def organization_detail(slug: str):
             "slug": "Title (shhh...it is slug)",
             "harvested": "Harvested Date",
         },
+        dataset_search_terms=dataset_search_terms,
     )
 
 
