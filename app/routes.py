@@ -106,12 +106,7 @@ def search():
             total_pages=total_pages,
         )
 
-    return jsonify(
-        [
-            {k: v for k, v in result.to_dict().items() if k != "search_vector"}
-            for result in results
-        ]
-    )
+    return jsonify([build_dataset_dict(result) for result in results])
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
