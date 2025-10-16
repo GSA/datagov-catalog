@@ -56,10 +56,13 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     ).text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(
-        "main#content > div.usa-section > div.grid-container > .grid-row.grid-gap-lg.margin-top-4 > div > section > p"
-    ).text
+    description = soup.select_one(".dataset-detail__description-text").get_text(strip=True)
     assert description == "this is the test description"
+
+    feedback_button = soup.find("button", id="contact-btn")
+    assert feedback_button is not None
+    assert feedback_button.get("data-dataset-identifier") == "test"
+    assert "Feedback" in feedback_button.get_text(" ", strip=True)
 
     resources_heading = soup.find("h2", string="Resources")
     assert resources_heading is not None
@@ -108,10 +111,13 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     ).text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(
-        "main#content > div.usa-section > div.grid-container > .grid-row.grid-gap-lg.margin-top-4 > div > section > p"
-    ).text
+    description = soup.select_one(".dataset-detail__description-text").get_text(strip=True)
     assert description == "this is the test description"
+
+    feedback_button = soup.find("button", id="contact-btn")
+    assert feedback_button is not None
+    assert feedback_button.get("data-dataset-identifier") == "test"
+    assert "Feedback" in feedback_button.get_text(" ", strip=True)
 
     resources_heading = soup.find("h2", string="Resources")
     assert resources_heading is not None

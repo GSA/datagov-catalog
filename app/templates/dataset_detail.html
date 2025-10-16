@@ -31,8 +31,21 @@
 <div class="grid-row grid-gap-lg margin-top-4">
     <div class="desktop:grid-col-8">
         <section class="margin-bottom-4 usa-prose">
-            <h2 class="text-primary-darker">Description</h2>
-            <p>{{ dataset.dcat.description }}</p>
+                    <h2 class="text-primary-darker">Description</h2>
+                    <button
+                        class="usa-button usa-button--outline dataset-detail__feedback-button"
+                        type="button"
+                        id="contact-btn"
+                        data-dataset-identifier="{{ dataset_identifier }}"
+                        data-dataset-title="{{ dataset_title }}"
+                        aria-label="Provide feedback on {{ dataset_title }}"
+                    >
+                        <span aria-hidden="true" class="dataset-detail__feedback-icon">
+                            <i class="fa-solid fa-comment-dots"></i>
+                        </span>
+                        <span>Feedback</span>
+                    </button>
+                <p>{{ dataset.dcat.description }}</p>
         </section>
 
         {% if dataset.dcat.get('keyword') %}
@@ -188,6 +201,11 @@
                 </tbody>
             </table>
         </div>
-    </div>
 </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
 {% endblock %}
