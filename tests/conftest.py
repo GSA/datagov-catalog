@@ -131,7 +131,19 @@ def interface_with_dataset(interface_with_harvest_record):
         Dataset(
             id=DATASET_ID,
             slug="test",
-            dcat={"title": "test", "description": "this is the test description"},
+            dcat={
+                "title": "test",
+                "description": "this is the test description",
+                "distribution": [
+                    {
+                        "title": "Test CSV",
+                        "description": "Sample CSV resource",
+                        "format": "CSV",
+                        "downloadURL": "https://example.com/test.csv",
+                        "mediaType": "text/csv",
+                    }
+                ],
+            },
             harvest_record_id=HARVEST_RECORD_ID,
             harvest_source_id="1",
             organization_id="1",

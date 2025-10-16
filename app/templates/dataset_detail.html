@@ -81,6 +81,88 @@
     </div>
 </div>
 
+{% set distributions = dataset.dcat.get('distribution') %}
+{% if distributions %}
+<div class="grid-row margin-top-6">
+    <div class="grid-col-12">
+        <section class="usa-prose">
+            <h2 class="text-primary-darker">Resources</h2>
+        </section>
+        {% set resource_items = distributions %}
+        {% if resource_items is mapping or resource_items is string %}
+        {% set resource_items = [resource_items] %}
+        {% elif resource_items is not sequence %}
+        {% set resource_items = [resource_items] %}
+        {% endif %}
+        <div class="usa-table-container--scrollable">
+            <table class="usa-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Resource</th>
+                        <th scope="col">Format</th>
+                        <th scope="col">Access</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resource in resource_items %}
+                    {% set resource_url = None %}
+                    {% set resource_title = resource|format_dcat_value %}
+                    {% set resource_format = None %}
+                    {% set resource_description = None %}
+                    {% set secondary_url = None %}
+                    {% set primary_label = 'Access' %}
+                    {% set secondary_label = 'Download' %}
+                    {% if resource is mapping %}
+                    {% set download_url = resource.get('downloadURL') %}
+                    {% set access_url = resource.get('accessURL') %}
+                    {% set resource_url = download_url or access_url %}
+                    {% set resource_title = resource.get('title') or resource.get('description') or resource_url or 'Resource ' ~ loop.index %}
+                    {% set resource_format = resource.get('format') or resource.get('mediaType') %}
+                    {% set resource_description = resource.get('description') %}
+                    {% if download_url and access_url and download_url != access_url %}
+                    {% set secondary_url = access_url if resource_url == download_url else download_url %}
+                    {% endif %}
+                    {% set primary_label = 'Download' if download_url else 'Access' %}
+                    {% set secondary_label = 'Access' if download_url else 'Download' %}
+                    {% endif %}
+                    <tr>
+                        <th scope="row">
+                            {% if resource_url %}
+                            <a href="{{ resource_url }}" target="_blank" rel="noopener">{{ resource_title }}</a>
+                            {% else %}
+                            {{ resource_title }}
+                            {% endif %}
+                            {% if resource_description and (resource_title != resource_description) %}
+                            <p class="margin-top-1 margin-bottom-0 text-base">{{ resource_description }}</p>
+                            {% endif %}
+                        </th>
+                        <td>
+                            {% if resource_format %}
+                            {{ resource_format|format_dcat_value }}
+                            {% else %}
+                            <span class="text-base-light">Not specified</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if resource_url %}
+                            <a href="{{ resource_url }}" target="_blank" rel="noopener">{{ primary_label }}</a>
+                            {% if secondary_url %}
+                            <br>
+                            <a href="{{ secondary_url }}" target="_blank" rel="noopener">{{ secondary_label }}</a>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-base-light">Unavailable</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="grid-row margin-top-6">
     <div class="grid-col-12">
         <section class="usa-prose">
