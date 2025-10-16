@@ -9,10 +9,9 @@ def usa_icon(icon_name: str) -> str:
     sprite_path = url_for("static", filename="assets/uswds/img/sprite.svg")
     return (
         '<svg class="usa-icon" aria-hidden="true" role="img">'
-        f"<use xlink:href=\"{sprite_path}#{icon_name}\"></use>"
+        f'<use xlink:href="{sprite_path}#{icon_name}"></use>'
         "</svg>"
     )
 
 
 __all__ = ["usa_icon"]
-

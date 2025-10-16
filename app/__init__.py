@@ -3,14 +3,17 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask
+from flask_htmx import HTMX
 
-from .models import db
 from .filters import usa_icon
+from .models import db
 
 logger = logging.getLogger(__name__)
 
 
 load_dotenv()
+
+htmx = None
 
 
 def create_app(config_name: str = "local") -> Flask:
@@ -23,6 +26,9 @@ def create_app(config_name: str = "local") -> Flask:
 
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    global htmx
+    htmx = HTMX(app)
 
     db.init_app(app)
 
