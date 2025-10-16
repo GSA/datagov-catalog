@@ -1,8 +1,10 @@
 from unittest.mock import patch
+from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
 from app.models import Dataset
+from tests.conftest import HARVEST_RECORD_ID
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client):
@@ -274,6 +276,67 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
     assert next_button is not None
     assert "hx-get" in next_button.attrs
     assert "hx-target" in next_button.attrs
+
+def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    assert response.get_data(as_text=True) == '{"title": "test dataset"}'
+
+
+def test_harvest_record_raw_returns_xml(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = "<xml>value</xml>"
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+    assert response.get_data(as_text=True) == "<xml>value</xml>"
+
+
+def test_harvest_record_raw_not_found(interface_with_harvest_record, db_client):
+    missing_id = str(uuid4())
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{missing_id}/raw")
+
+    assert response.status_code == 404
+
+
+def test_harvest_record_transformed_returns_json(
+    interface_with_harvest_record, db_client
+):
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(
+            f"/harvest_record/{HARVEST_RECORD_ID}/transformed"
+        )
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    assert response.get_json() == {
+        "title": "test dataset",
+        "extras": {"foo": "bar"},
+    }
+
+
+def test_harvest_record_transformed_not_found(
+    interface_with_harvest_record, db_client
+):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_transform = None
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(
+            f"/harvest_record/{HARVEST_RECORD_ID}/transformed"
+        )
+
+    assert response.status_code == 404
+
 
 def test_organization_detail_displays_searched_dataset(
     db_client, interface_with_dataset
