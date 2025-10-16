@@ -80,4 +80,32 @@
         </div>
     </div>
 </div>
+
+<div class="grid-row margin-top-6">
+    <div class="grid-col-12">
+        <section class="usa-prose">
+            <h2 class="text-primary-darker">DCAT Metadata</h2>
+        </section>
+        <div class="usa-table-container--scrollable">
+            <table class="usa-table">
+                <tbody>
+                    {% set excluded_keys = ['title', 'description', 'distribution', 'contactPoint', 'keyword', '@type'] %}
+                    {% for key, value in dataset.dcat|dictsort if key not in excluded_keys %}
+                    {% set rendered_value = value|format_dcat_value %}
+                    <tr>
+                        <th scope="row">{{ key }}</th>
+                        <td>
+                            {% if '\n' in rendered_value %}
+                            <pre class="margin-0 overflow-auto">{{ rendered_value }}</pre>
+                            {% else %}
+                            {{ rendered_value }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
