@@ -140,6 +140,13 @@ def get_harvest_record(record_id: str):
 @main.route("/harvest_record/<record_id>/raw", methods=["GET"])
 @valid_id_required
 def get_harvest_record_raw(record_id: str) -> Response:
+    """Return the raw payload stored on a harvest record.
+
+    The endpoint fetches HarvestObject.source_raw and responds with a mimetype
+    based on the payload content: application/json for valid JSON, application/xml
+    for XML, and text/plain otherwise. A 404 JSON response is returned
+    when the record does not exist or the payload is missing/empty.
+    """
     record = interface.get_harvest_record(record_id)
     if record is None:
         return json_not_found()
@@ -160,6 +167,7 @@ def get_harvest_record_raw(record_id: str) -> Response:
             try:
                 ElementTree.fromstring(stripped_source)
             except (ElementTree.ParseError, SyntaxError):
+                # not JSON or XML, leave as "text/plain"
                 pass
             else:
                 mimetype = "application/xml"
@@ -172,6 +180,13 @@ def get_harvest_record_raw(record_id: str) -> Response:
 @main.route("/harvest_record/<record_id>/transformed", methods=["GET"])
 @valid_id_required
 def get_harvest_record_transformed(record_id: str) -> Response:
+    """Return the transformed payload for a harvest record.
+
+    The endpoint fetches HarvestObject.source_transform and
+    returns the JSON content with the application/json mimetype.
+    A 404 JSON response is returned if the record cannot be found,
+    no transformed payload exists, or the stored payload is an empty string.
+    """
     record = interface.get_harvest_record(record_id)
     if record is None:
         return json_not_found()
