@@ -56,10 +56,34 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     ).text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(
-        "main#content > div.usa-section > div.grid-container > .grid-row.grid-gap-lg.margin-top-4 > div > section > p"
-    ).text
+    description = soup.select_one(".dataset-detail__description-text").get_text(strip=True)
     assert description == "this is the test description"
+
+    feedback_button = soup.find("button", id="contact-btn")
+    assert feedback_button is not None
+    assert feedback_button.get("data-dataset-identifier") == "test"
+    assert "Feedback" in feedback_button.get_text(" ", strip=True)
+
+    resources_heading = soup.find("h2", string="Resources")
+    assert resources_heading is not None
+
+    resources_table = resources_heading.find_next("table")
+    assert resources_table is not None
+
+    rows = resources_table.select("tbody tr")
+    assert len(rows) == 1
+
+    first_row = rows[0]
+    resource_cell = first_row.find("th")
+    assert "Test CSV" in resource_cell.get_text(" ", strip=True)
+
+    resource_link = resource_cell.find("a")
+    assert resource_link is not None
+    assert resource_link.get("href") == "https://example.com/test.csv"
+
+    format_cell, access_cell = first_row.find_all("td")
+    assert format_cell.get_text(" ", strip=True) == "CSV"
+    assert access_cell.find("a").get_text(strip=True) == "Download"
 
 
 def test_dataset_detail_by_id(interface_with_dataset, db_client):
@@ -87,10 +111,34 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     ).text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(
-        "main#content > div.usa-section > div.grid-container > .grid-row.grid-gap-lg.margin-top-4 > div > section > p"
-    ).text
+    description = soup.select_one(".dataset-detail__description-text").get_text(strip=True)
     assert description == "this is the test description"
+
+    feedback_button = soup.find("button", id="contact-btn")
+    assert feedback_button is not None
+    assert feedback_button.get("data-dataset-identifier") == "test"
+    assert "Feedback" in feedback_button.get_text(" ", strip=True)
+
+    resources_heading = soup.find("h2", string="Resources")
+    assert resources_heading is not None
+
+    resources_table = resources_heading.find_next("table")
+    assert resources_table is not None
+
+    rows = resources_table.select("tbody tr")
+    assert len(rows) == 1
+
+    first_row = rows[0]
+    resource_cell = first_row.find("th")
+    assert "Test CSV" in resource_cell.get_text(" ", strip=True)
+
+    resource_link = resource_cell.find("a")
+    assert resource_link is not None
+    assert resource_link.get("href") == "https://example.com/test.csv"
+
+    format_cell, access_cell = first_row.find_all("td")
+    assert format_cell.get_text(" ", strip=True) == "CSV"
+    assert access_cell.find("a").get_text(strip=True) == "Download"
 
 
 def test_dataset_detail_404(db_client):
