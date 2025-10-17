@@ -6,7 +6,7 @@ import logging
 from functools import wraps
 from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import desc, func, or_
 
 from app.models import Dataset, HarvestRecord, Organization, db
 
@@ -67,8 +67,11 @@ class CatalogDBInterface:
             )
             .join(Organization, Dataset.organization_id == Organization.id)
             .order_by(
-                func.ts_rank(
-                    Dataset.search_vector, func.websearch_to_tsquery("english", query)
+                desc(
+                    func.ts_rank(
+                        Dataset.search_vector,
+                        func.websearch_to_tsquery("english", query),
+                    )
                 )
             )
         )
