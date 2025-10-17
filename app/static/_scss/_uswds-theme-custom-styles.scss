@@ -26,7 +26,6 @@ i.e.
 @import "components/icons";
 @import "components/blockview";
 @import "components/progress_bar";
-@import "components/dataset_detail";
 
 ul.menu {
   padding-inline-start: 0;
@@ -85,11 +84,11 @@ ul.menu {
 // Fix identifier link colors to match harvester styling
 .usa-identifier__required-link {
   color: #a9aeb1 !important;
-  
+
   &:hover {
     color: #ffffff !important;
   }
-  
+
   &:visited {
     color: #a9aeb1 !important;
   }
