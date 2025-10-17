@@ -24,6 +24,7 @@ def create_app(config_name: str = "local") -> Flask:
         app.config["TEMPLATES_AUTO_RELOAD"] = True
         app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
+    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
