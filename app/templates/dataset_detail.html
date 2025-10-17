@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}{{ dataset.dcat.title }} - Data.gov{% endblock %}
+{% block title %}{{ dataset.dcat.get('title') or dataset.slug or dataset.id }} - Data.gov{% endblock %}
 
 {% block content %}
+{% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
+{% set dataset_identifier = dataset.slug or dataset.id %}
 <nav class="usa-breadcrumb" aria-label="Breadcrumbs">
     <ol class="usa-breadcrumb__list">
         <li class="usa-breadcrumb__list-item">
@@ -12,14 +14,14 @@
             <a href="#" class="usa-breadcrumb__link">Datasets</a>
         </li>
         <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
-            <span>{{ dataset.dcat.title }}</span>
+            <span>{{ dataset_title }}</span>
         </li>
     </ol>
 </nav>
 
 <div class="grid-row margin-top-4">
     <div class="grid-col-12 usa-prose">
-        <h1 class="margin-bottom-1">{{ dataset.dcat.title }}</h1>
+        <h1 class="margin-bottom-1">{{ dataset_title }}</h1>
         {% if dataset.dcat.get('publisher', {}).get('name') %}
         <p class="usa-intro text-base-dark margin-top-0">
             Published by {{ dataset.dcat.publisher.name }}
@@ -31,21 +33,26 @@
 <div class="grid-row grid-gap-lg margin-top-4">
     <div class="desktop:grid-col-8">
         <section class="margin-bottom-4 usa-prose">
-                    <h2 class="text-primary-darker">Description</h2>
-                    <button
-                        class="usa-button usa-button--outline dataset-detail__feedback-button"
-                        type="button"
-                        id="contact-btn"
-                        data-dataset-identifier="{{ dataset_identifier }}"
-                        data-dataset-title="{{ dataset_title }}"
-                        aria-label="Provide feedback on {{ dataset_title }}"
-                    >
-                        <span aria-hidden="true" class="dataset-detail__feedback-icon">
-                            <i class="fa-solid fa-comment-dots"></i>
-                        </span>
-                        <span>Feedback</span>
-                    </button>
-                <p>{{ dataset.dcat.description }}</p>
+            <h2 class="text-primary-darker">Description</h2>
+            <button
+                class="usa-button usa-button--outline dataset-detail__feedback-button"
+                type="button"
+                id="contact-btn"
+                data-dataset-identifier="{{ dataset_identifier }}"
+                data-dataset-title="{{ dataset_title }}"
+                aria-label="Provide feedback on {{ dataset_title }}"
+            >
+                <span aria-hidden="true" class="dataset-detail__feedback-icon">
+                    <i class="fa-solid fa-comment-dots"></i>
+                </span>
+                <span>Feedback</span>
+            </button>
+            {% set description_value = dataset.dcat.get('description') %}
+            {% if description_value %}
+            <p class="dataset-detail__description-text">{{ description_value | format_dcat_value }}</p>
+            {% else %}
+            <p class="dataset-detail__description-text text-base-light">Not available</p>
+            {% endif %}
         </section>
 
         {% if dataset.dcat.get('keyword') %}
