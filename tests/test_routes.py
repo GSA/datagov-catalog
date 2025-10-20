@@ -85,6 +85,14 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     assert format_cell.get_text(" ", strip=True) == "CSV"
     assert access_cell.find("a").get_text(strip=True) == "Download"
 
+    org_search_form = soup.find("form", attrs={"action": "/organization/test-org"})
+    assert org_search_form is not None
+    search_input = org_search_form.find("input", {"name": "dataset_search_terms"})
+    assert search_input is not None
+    submit_button = org_search_form.find("button", {"type": "submit"})
+    assert submit_button is not None
+    assert "Search" in submit_button.get_text(" ", strip=True)
+
 
 def test_dataset_detail_by_id(interface_with_dataset, db_client):
     """
@@ -139,6 +147,11 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     format_cell, access_cell = first_row.find_all("td")
     assert format_cell.get_text(" ", strip=True) == "CSV"
     assert access_cell.find("a").get_text(strip=True) == "Download"
+
+    org_search_form = soup.find("form", attrs={"action": "/organization/test-org"})
+    assert org_search_form is not None
+    search_input = org_search_form.find("input", {"name": "dataset_search_terms"})
+    assert search_input is not None
 
 
 def test_dataset_detail_404(db_client):
