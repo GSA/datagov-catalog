@@ -98,6 +98,22 @@
                 </div>
             </div>
         </div>
+        {% if organization_slug_or_id %}
+        <div class="usa-card margin-top-3">
+            <div class="usa-card__container">
+                <div class="usa-card__header">
+                    <h3 class="usa-card__heading">Search This Organization</h3>
+                </div>
+                <div class="usa-card__body">
+                    <form class="usa-form" method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
+                        <label class="usa-label" for="organization-dataset-search">Search datasets{% if organization and organization.name %} in {{ organization.name }}{% endif %}</label>
+                        <input class="usa-input" id="organization-dataset-search" name="dataset_search_terms" type="search" placeholder="Enter keywords">
+                        <button class="usa-button margin-top-2" type="submit">Search</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
