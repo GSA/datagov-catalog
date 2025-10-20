@@ -90,6 +90,7 @@ def search():
         page=page,
         per_page=per_page,
         paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
+        include_org=True,
     )
 
     if htmx:
