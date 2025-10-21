@@ -145,4 +145,4 @@ def interface_with_dataset(interface_with_harvest_record):
 
 @pytest.fixture
 def opensearch_client():
-    return OpenSearchInterface(host="localhost")
+    return OpenSearchInterface(test_host="localhost")
