@@ -309,18 +309,9 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     if dataset is None:
         abort(404)
 
-    organization = None
-    organization_slug_or_id = None
-    if getattr(dataset, "organization_id", None):
-        organization = interface.get_organization_by_id(dataset.organization_id)
-        if organization is not None:
-            organization_slug_or_id = organization.slug or organization.id
-
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
-        organization=organization,
-        organization_slug_or_id=organization_slug_or_id,
     )
 
 
