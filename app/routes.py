@@ -16,6 +16,7 @@ from flask import (
     request,
     url_for,
 )
+from flask_sqlalchemy.query import Query
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
@@ -90,14 +91,18 @@ def search():
         page=page,
         per_page=per_page,
         paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
+        count=request.args.get("count", type=lambda x: x.lower() == "true"),
     )
 
     if htmx:
-        total = len(results)
-        results = results[((page - 1) * per_page) : (page * per_page)]
+        # type hint that this is a Query object because paginate returns a query
+        #  if count is True.
+        results: Query
+        total = results.count()
+        offset = (page - 1) * per_page
+        results = results.limit(per_page).offset(offset).all()
         results = [build_dataset_dict(result) for result in results]
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
-
         return render_template(
             "components/dataset_results.html",
             datasets=results,

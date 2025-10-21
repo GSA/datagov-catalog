@@ -1,34 +1,41 @@
 {# templates/components/dataset_search.html #}
-<div class="usa-prose text-center">
-    <h1>Search Data.gov</h1>
+<div class="grid-row">
+    <div class="grid-col-12">
+        <div class="usa-prose text-center">
+            <h1>Search Data.gov</h1>
+        </div>
+    </div>
 </div>
-
-<form hx-get="{{ url_for('main.search') }}" hx-target="#search-results" hx-trigger="submit"
-    hx-indicator="#search-loading" class="usa-form margin-top-4">
-    <div class="grid-row grid-gap-1 flex-align-end">
-        <div class="grid-col-fill">
-            <label class="usa-sr-only" for="search-query">Search Data.gov</label>
-            <input class="usa-input margin-0" id="search-query" name="q" type="text" placeholder="Search Data.gov..."
-                autofocus value="{{ request.args.get('q', '') }}">
-            <input type="hidden" name="paginate" value="false">
-            <input type="hidden" name="per_page" value="20">
-        </div>
-        <div class="grid-col-auto">
-            <button type="submit" class="usa-button margin-0">
-                <i class="fa fa-search" aria-hidden="true"></i>
-                <span class="margin-left-05">Search</span>
-            </button>
-        </div>
-    </div>
-
-    <div id="search-loading" class="htmx-indicator margin-top-2">
-        <div class="usa-alert usa-alert--info usa-alert--slim">
-            <div class="usa-alert__body">
-                <p class="usa-alert__text">
-                    <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
-                    Searching...
-                </p>
+<div class="grid-row">
+    <div class="grid-col-12">
+        <form hx-get="{{ url_for('main.search') }}" hx-target="#search-results" hx-trigger="submit"
+            hx-indicator="#search-loading" class="usa-form margin-top-4">
+            <div class="grid-row grid-gap-1 flex-align-end">
+                <div class="grid-col-fill">
+                    <label class="usa-sr-only" for="search-query">Search Data.gov</label>
+                    <input class="usa-input margin-0" id="search-query" name="q" type="text" placeholder="Search Data.gov..."
+                        autofocus value="{{ request.args.get('q', '') }}">
+                    <input type="hidden" name="count" value="true">
+                    <input type="hidden" name="per_page" value="20">
+                </div>
+                <div class="grid-col-auto">
+                    <button type="submit" class="usa-button margin-0">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <span class="margin-left-05">Search</span>
+                    </button>
+                </div>
             </div>
-        </div>
+        
+            <div id="search-loading" class="htmx-indicator margin-top-2">
+                <div class="usa-alert usa-alert--info usa-alert--slim">
+                    <div class="usa-alert__body">
+                        <p class="usa-alert__text">
+                            <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+                            Searching...
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </form>
     </div>
-</form>
+</div>
