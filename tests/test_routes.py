@@ -173,7 +173,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
     assert datasets_text.startswith("Datasets:")
-    assert datasets_text.endswith("1")
+    assert datasets_text.endswith("49")
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -190,16 +190,16 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     assert search_button is not None
 
     heading_text = dataset_section.find("h2").get_text(strip=True)
-    assert heading_text.endswith("(1)")
+    assert heading_text.endswith("(49)")
 
     items = dataset_section.select(".usa-collection__item")
-    assert len(items) == 1
+    assert len(items) == 20
 
     item = items[0]
     title_link = item.select_one(".usa-collection__heading a")
     assert title_link is not None
-    assert title_link.get("href") == "/dataset/test"
-    assert title_link.get_text(strip=True) == "test"
+    assert title_link.get("href") == "/dataset/segal-americorps-education-award-detailed-payments-by-institution-2020"
+    assert title_link.get_text(strip=True) == "Segal AmeriCorps Education Award: Detailed Payments by Institution 2020"
 
     meta_items = item.select(".usa-collection__meta-item")
     assert meta_items
@@ -210,7 +210,7 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     description_text = item.select_one(".usa-collection__description").get_text(
         strip=True
     )
-    assert description_text.startswith("this is the test description")
+    assert description_text.startswith("Summary dataset of detailed payments")
 
 def test_index_page_renders(db_client):
     """
@@ -386,11 +386,16 @@ def test_harvest_record_transformed_not_found(
     assert response.status_code == 404
 
 
-def test_organization_detail_displays_searched_dataset(
+def test_organization_detail_displays_searched_dataset_no_pagination(
     db_client, interface_with_dataset
 ):
+    """
+    search for datasets within the org fewer than the pagination count. the expectation
+    is only 4 datasets are returned based on the search so pagination shouldn't appear
+    because it's less than the default 20
+    """
     with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/organization/test-org?dataset_search_terms=test")
+        response = db_client.get("/organization/test-org?dataset_search_terms=2016")
 
     assert response.status_code == 200
 
@@ -399,13 +404,41 @@ def test_organization_detail_displays_searched_dataset(
     assert dataset_section is not None
 
     items = dataset_section.select(".usa-collection__item")
-    assert len(items) == 1
+    assert len(items) == 4
+
+    pages = soup.find_all("li", class_="usa-pagination__item usa-pagination__page-no")
+    assert len(pages) == 0
 
     item = items[0]
     title_link = item.select_one(".usa-collection__heading a")
     assert title_link is not None
-    assert title_link.get("href") == "/dataset/test"
-    assert title_link.get_text(strip=True) == "test"
+    assert title_link.get("href") == "/dataset/2016-americorps-mes-americorps-member-exit-survey"
+    assert title_link.get_text(strip=True) == "2016 AmeriCorps MES: AmeriCorps Member Exit Survey"
+
+
+def test_organization_detail_displays_searched_dataset_with_pagination(
+    db_client, interface_with_dataset
+):
+    """
+    search for datasets within an org larger than the pagination count. the expectation is
+    pagination occurs, the first page has 20 datasets, and there's 3 pages (the search 
+    without pagination returns 47 datasets)
+    
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization/test-org?dataset_search_terms=americorps")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_section = soup.find("section", class_="organization-datasets")
+    assert dataset_section is not None
+
+    items = dataset_section.select(".usa-collection__item")
+    assert len(items) == 20
+
+    pages = soup.find_all("li", class_="usa-pagination__item usa-pagination__page-no")
+    assert len(pages) == 3
 
 
 def test_organization_detail_displays_no_datasets_on_search(

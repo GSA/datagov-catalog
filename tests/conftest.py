@@ -2,6 +2,9 @@ import pytest
 from dotenv import load_dotenv
 from sqlalchemy import func
 from sqlalchemy.orm import scoped_session, sessionmaker
+import json
+from pathlib import Path
+import csv
 
 from app import create_app
 from app.database import CatalogDBInterface
@@ -17,8 +20,19 @@ from app.models import (
 
 HARVEST_RECORD_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 DATASET_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+TEST_DIR = Path(__file__).parent
 
 load_dotenv()
+
+
+# helpers functions
+def read_csv(file_path) -> list:
+    output = []
+    with open(file_path) as f:
+        csv_reader = csv.reader(f)
+        for row in csv_reader:
+            output.append(row)
+    return output
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -126,7 +140,7 @@ def interface_with_harvest_record(interface_with_harvest_job):
 
 @pytest.fixture
 def interface_with_dataset(interface_with_harvest_record):
-
+    # add generic dataset record
     interface_with_harvest_record.db.add(
         Dataset(
             id=DATASET_ID,
@@ -150,6 +164,17 @@ def interface_with_dataset(interface_with_harvest_record):
             search_vector=func.to_tsvector("english", "test description"),
         )
     )
+
+    # add additional dataset records
+    datasets = read_csv(TEST_DIR / "data" / "americorps_datasets.csv")
+    fields = datasets[0]
+
+    for row in datasets[1:]:
+        row[-2] = func.to_tsvector("english", row[1])  # search_vector
+        row[1] = json.loads(row[1])  # dcat
+        row[5] = int(row[5])  # popularity
+        interface_with_harvest_record.db.add(Dataset(**dict(zip(fields, row))))
+
     interface_with_harvest_record.db.commit()
 
     yield interface_with_harvest_record
