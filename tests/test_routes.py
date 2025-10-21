@@ -218,20 +218,20 @@ def test_index_page_renders(db_client):
     """
     response = db_client.get("/")
     assert response.status_code == 200
-    
+
     soup = BeautifulSoup(response.text, "html.parser")
-    
+
     # Check page title
     assert "Catalog - Data.gov" in soup.title.string
-    
+
     # Check search form exists with all of the expected elements
     search_form = soup.find("form", {"hx-get": True})
-    assert search_form is not None    
+    assert search_form is not None
     search_input = soup.find("input", {"id": "search-query", "name": "q"})
     assert search_input is not None
     search_button = soup.find("button", {"type": "submit"})
     assert search_button is not None
-    
+
     # Check search results container exists (initially empty)
     results_container = soup.find("div", {"id": "search-results"})
     assert results_container is not None
@@ -247,34 +247,34 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
             query_string={"q": "test", "paginate": "false", "per_page": "20"},
             headers={"HX-Request": "true"}
         )
-    
+
     assert response.status_code == 200
-    
+
     soup = BeautifulSoup(response.text, "html.parser")
-    
+
     # Check that search results container is returned
     results_container = soup.find("div", {"id": "search-results"})
     assert results_container is not None
-    
+
     # Check that results count is displayed
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     assert "Found" in results_text.text
     assert "dataset(s)" in results_text.text
-    
+
     # Check that dataset is in the results
     dataset_collection = soup.find("ul", class_="usa-collection")
     assert dataset_collection is not None
-    
+
     dataset_items = dataset_collection.find_all("li", class_="usa-collection__item")
     assert len(dataset_items) > 0
-    
+
     # Check first dataset has expected elements
     first_dataset = dataset_items[0]
     dataset_heading = first_dataset.find("h3", class_="usa-collection__heading")
     assert dataset_heading is not None
     assert "test" in dataset_heading.text.lower()
-    
+
     # Check dataset has description
     dataset_description = first_dataset.find("p", class_="usa-collection__description")
     assert dataset_description is not None
@@ -293,7 +293,7 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     # attempt commit
     interface_with_dataset.db.commit()
-    
+
     with patch("app.routes.interface", interface_with_dataset):
         # Request page 1 with 20 items per page
         response = db_client.get(
@@ -301,24 +301,24 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
             query_string={"q": "test", "paginate": "false", "per_page": "20", "page": "1"},
             headers={"HX-Request": "true"}
         )
-    
+
     assert response.status_code == 200
-    
+
     soup = BeautifulSoup(response.text, "html.parser")
-    
+
     # Check pagination exists
     pagination = soup.find("nav", class_="usa-pagination")
     assert pagination is not None
-    
+
     # Check pagination has page numbers
     pagination_list = pagination.find("ul", class_="usa-pagination__list")
     assert pagination_list is not None
-    
+
     # Check for current page indicator
     current_page = pagination.find("span", class_="usa-current")
     assert current_page is not None
     assert "1" in current_page.text
-    
+
     # Check for Next button and ensure htmx attrs are there
     next_button = pagination.find("a", class_="usa-pagination__next-page")
     assert next_button is not None
@@ -421,9 +421,9 @@ def test_organization_detail_displays_searched_dataset_with_pagination(
 ):
     """
     search for datasets within an org larger than the pagination count. the expectation is
-    pagination occurs, the first page has 20 datasets, and there's 3 pages (the search 
+    pagination occurs, the first page has 20 datasets, and there's 3 pages (the search
     without pagination returns 47 datasets)
-    
+
     """
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization/test-org?dataset_search_terms=americorps")
@@ -457,3 +457,50 @@ def test_organization_detail_displays_no_datasets_on_search(
 
     items = dataset_section.select(".usa-collection__item")
     assert len(items) == 0
+
+
+def test_dataset_detail_includes_map_assets_when_spatial_bbox(interface_with_dataset, db_client):
+    # Add spatial bbox and ensure map container and Leaflet assets are present
+    ds = interface_with_dataset.get_dataset_by_slug("test")
+    ds.dcat["spatial"] = "-90.155,27.155,-90.26,27.255"
+    interface_with_dataset.db.commit()
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/dataset/test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Map container
+    map_div = soup.select_one("#dataset-map")
+    assert map_div is not None
+    assert map_div.get("data-bbox") == "-90.155,27.155,-90.26,27.255"
+
+    # Leaflet assets (conditionally included)
+    leaflet_css = soup.select_one('link[href*="leaflet.css"]')
+    leaflet_js = soup.select_one('script[src*="leaflet.js"]')
+    view_js = soup.select_one('script[src*="js/view_bbox_map.js"]')
+    assert leaflet_css is not None
+    assert leaflet_js is not None
+    assert view_js is not None
+
+
+def test_dataset_detail_omits_map_when_spatial_missing(interface_with_dataset, db_client):
+    # Ensure no spatial key and verify no map container or Leaflet assets
+    ds = interface_with_dataset.get_dataset_by_slug("test")
+    ds.dcat.pop("spatial", None)
+    interface_with_dataset.db.commit()
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/dataset/test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # No map container
+    assert soup.select_one("#dataset-map") is None
+
+    # No Leaflet assets
+    assert soup.select_one('link[href*="leaflet.css"]') is None
+    assert soup.select_one('script[src*="leaflet.js"]') is None
+    assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
