@@ -71,8 +71,18 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 # Routes
 @main.route("/", methods=["GET"])
 def index():
+    query = request.args.get("q", "")
+    page = request.args.get("page", DEFAULT_PAGE, type=int)
+    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    org_id = request.args.get("org_id", None, type=str)
+    org_types = request.args.getlist("org_type")
     return render_template(
         "index.html",
+        query=query,
+        page=page,
+        per_page=per_page,
+        org_id=org_id,
+        org_types=org_types,
     )
 
 
@@ -86,6 +96,8 @@ def search():
     query = request.args.get("q", "")
     page = request.args.get("page", DEFAULT_PAGE, type=int)
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    org_id = request.args.get("org_id", None, type=str)
+    org_types = request.args.getlist("org_type")
     results = interface.search_datasets(
         query,
         page=page,
@@ -93,6 +105,8 @@ def search():
         paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
         count=request.args.get("count", type=lambda x: x.lower() == "true"),
         include_org=True,
+        org_id=org_id,
+        org_types=org_types,
     )
 
     if htmx:
