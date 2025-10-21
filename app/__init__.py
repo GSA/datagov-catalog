@@ -6,7 +6,7 @@ from flask import Flask
 from flask_htmx import HTMX
 
 from .models import db
-from .filters import format_dcat_value, usa_icon
+from .filters import format_dcat_value, usa_icon, format_gov_type
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ def create_app(config_name: str = "local") -> Flask:
     register_routes(app)
     app.add_template_filter(usa_icon)
     app.add_template_filter(format_dcat_value)
+    app.add_template_filter(format_gov_type)
 
     return app
 
