@@ -35,6 +35,11 @@ def create_app(config_name: str = "local") -> Flask:
     from .routes import register_routes
 
     register_routes(app)
+
+    from .commands import register_commands
+
+    register_commands(app)
+
     app.add_template_filter(usa_icon)
     app.add_template_filter(format_dcat_value)
     app.add_template_filter(format_gov_type)
