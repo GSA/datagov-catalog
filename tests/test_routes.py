@@ -212,29 +212,31 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     )
     assert description_text.startswith("Summary dataset of detailed payments")
 
+
 def test_index_page_renders(db_client):
     """
     Test that the index page loads correctly and contains the search form.
     """
     response = db_client.get("/")
     assert response.status_code == 200
-    
+
     soup = BeautifulSoup(response.text, "html.parser")
-    
+
     # Check page title
     assert "Catalog - Data.gov" in soup.title.string
-    
+
     # Check search form exists with all of the expected elements
     search_form = soup.find("form", {"hx-get": True})
-    assert search_form is not None    
+    assert search_form is not None
     search_input = soup.find("input", {"id": "search-query", "name": "q"})
     assert search_input is not None
     search_button = soup.find("button", {"type": "submit"})
     assert search_button is not None
-    
+
     # Check search results container exists (initially empty)
     results_container = soup.find("div", {"id": "search-results"})
     assert results_container is not None
+
 
 def test_index_search_returns_results(interface_with_dataset, db_client):
     """
@@ -245,39 +247,40 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
         response = db_client.get(
             "/search",
             query_string={"q": "test", "paginate": "false", "per_page": "20"},
-            headers={"HX-Request": "true"}
+            headers={"HX-Request": "true"},
         )
-    
+
     assert response.status_code == 200
-    
+
     soup = BeautifulSoup(response.text, "html.parser")
-    
+
     # Check that search results container is returned
     results_container = soup.find("div", {"id": "search-results"})
     assert results_container is not None
-    
+
     # Check that results count is displayed
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     assert "Found" in results_text.text
     assert "dataset(s)" in results_text.text
-    
+
     # Check that dataset is in the results
     dataset_collection = soup.find("ul", class_="usa-collection")
     assert dataset_collection is not None
-    
+
     dataset_items = dataset_collection.find_all("li", class_="usa-collection__item")
     assert len(dataset_items) > 0
-    
+
     # Check first dataset has expected elements
     first_dataset = dataset_items[0]
     dataset_heading = first_dataset.find("h3", class_="usa-collection__heading")
     assert dataset_heading is not None
     assert "test" in dataset_heading.text.lower()
-    
+
     # Check dataset has description
     dataset_description = first_dataset.find("p", class_="usa-collection__description")
     assert dataset_description is not None
+
 
 def test_index_search_with_pagination(interface_with_dataset, db_client):
     """
@@ -293,37 +296,43 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     # attempt commit
     interface_with_dataset.db.commit()
-    
+
     with patch("app.routes.interface", interface_with_dataset):
         # Request page 1 with 20 items per page
         response = db_client.get(
             "/search",
-            query_string={"q": "test", "paginate": "false", "per_page": "20", "page": "1"},
-            headers={"HX-Request": "true"}
+            query_string={
+                "q": "test",
+                "paginate": "false",
+                "per_page": "20",
+                "page": "1",
+            },
+            headers={"HX-Request": "true"},
         )
-    
+
     assert response.status_code == 200
-    
+
     soup = BeautifulSoup(response.text, "html.parser")
-    
+
     # Check pagination exists
     pagination = soup.find("nav", class_="usa-pagination")
     assert pagination is not None
-    
+
     # Check pagination has page numbers
     pagination_list = pagination.find("ul", class_="usa-pagination__list")
     assert pagination_list is not None
-    
+
     # Check for current page indicator
     current_page = pagination.find("span", class_="usa-current")
     assert current_page is not None
     assert "1" in current_page.text
-    
+
     # Check for Next button and ensure htmx attrs are there
     next_button = pagination.find("a", class_="usa-pagination__next-page")
     assert next_button is not None
     assert "hx-get" in next_button.attrs
     assert "hx-target" in next_button.attrs
+
 
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
     with patch("app.routes.interface", interface_with_harvest_record):
@@ -359,9 +368,7 @@ def test_harvest_record_transformed_returns_json(
     interface_with_harvest_record, db_client
 ):
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(
-            f"/harvest_record/{HARVEST_RECORD_ID}/transformed"
-        )
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/transformed")
 
     assert response.status_code == 200
     assert response.mimetype == "application/json"
@@ -371,17 +378,13 @@ def test_harvest_record_transformed_returns_json(
     }
 
 
-def test_harvest_record_transformed_not_found(
-    interface_with_harvest_record, db_client
-):
+def test_harvest_record_transformed_not_found(interface_with_harvest_record, db_client):
     record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
     record.source_transform = None
     interface_with_harvest_record.db.commit()
 
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(
-            f"/harvest_record/{HARVEST_RECORD_ID}/transformed"
-        )
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/transformed")
 
     assert response.status_code == 404
 
