@@ -77,10 +77,6 @@
                                         {{ dataset.organization.name }}
                                     </a>
                                 </li>
-                                <li class="usa-collection__meta-item">
-                                    <strong>Type:</strong>
-                                    <span class="usa-tag usa-tag--{{ dataset.organization.organization_type | format_gov_type }} margin-right-1 margin-bottom-05">{{ dataset.organization.organization_type }}</span>
-                                </li>
                                 {% if updated_display or harvested_display %}
                                 <li class="usa-collection__meta-item">
                                     {% if updated_display %}
