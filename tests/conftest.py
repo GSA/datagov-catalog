@@ -1,10 +1,11 @@
+import csv
+import json
+from pathlib import Path
+
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy import func
 from sqlalchemy.orm import scoped_session, sessionmaker
-import json
-from pathlib import Path
-import csv
 
 from app import create_app
 from app.database import CatalogDBInterface
