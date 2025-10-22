@@ -444,3 +444,122 @@ def test_index_search_with_query_shows_result_count(interface_with_dataset, db_c
     assert "Found" in results_text.text
     assert "dataset(s)" in results_text.text
     assert 'matching "test"' in results_text.text
+
+
+def test_index_search_no_results_shows_alert(interface_with_dataset, db_client):
+    """Test that searching with no results shows an informative alert."""
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=nonexistentdataset12345")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check for alert message
+    alert = soup.find("div", class_="usa-alert usa-alert--info")
+    assert alert is not None
+
+    alert_text = alert.find("p", class_="usa-alert__text")
+    assert alert_text is not None
+    assert "No datasets found" in alert_text.text
+    assert "nonexistentdataset12345" in alert_text.text
+
+
+def test_index_search_result_includes_organization_link(
+    interface_with_dataset, db_client
+):
+    """Test that each search result includes a link to the organization."""
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Find first dataset item
+    first_item = soup.find("li", class_="usa-collection__item")
+    assert first_item is not None
+
+    # Check for organization link in metadata
+    org_link = first_item.find("a", href=lambda href: href and "/organization/" in href)
+    assert org_link is not None
+    assert "test org" in org_link.text
+
+
+def test_index_search_result_includes_dataset_link(interface_with_dataset, db_client):
+    """Test that each search result includes a link to the dataset detail page."""
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Find first dataset item
+    first_item = soup.find("li", class_="usa-collection__item")
+    assert first_item is not None
+
+    # Check for dataset link
+    dataset_link = first_item.find("a", href=lambda href: href and "/dataset/" in href)
+    assert dataset_link is not None
+
+
+def test_index_pagination_preserves_query_params(interface_with_dataset, db_client):
+    """Test that pagination links preserve query and filter parameters."""
+    # Create multiple datasets for pagination
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(25):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=test&per_page=10&sort=relevance")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check that pagination links preserve parameters
+    next_link = soup.find("a", class_="usa-pagination__next-page")
+    if next_link:
+        href = next_link.get("href")
+        assert "q=test" in href
+        assert "per_page=10" in href
+        assert "sort=relevance" in href
+
+
+def test_index_filter_checkboxes_checked_when_selected(db_client):
+    """Test that filter checkboxes are checked when organization types are selected."""
+    response = db_client.get(
+        "/?q=test&org_type=Federal+Government&org_type=State+Government"
+    )
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check Federal Government checkbox is checked
+    federal_checkbox = soup.find("input", {"id": "filter-federal"})
+    assert federal_checkbox is not None
+    assert "checked" in federal_checkbox.attrs
+
+    # Check State Government checkbox is checked
+    state_checkbox = soup.find("input", {"id": "filter-state"})
+    assert state_checkbox is not None
+    assert "checked" in state_checkbox.attrs
+
+    # Check City Government checkbox is NOT checked
+    city_checkbox = soup.find("input", {"id": "filter-city"})
+    assert city_checkbox is not None
+    assert "checked" not in city_checkbox.attrs
+
+
+def test_index_apply_filters_button_exists(db_client):
+    """Test that the Apply Filters button exists in the sidebar."""
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    apply_button = soup.find(
+        "button", {"type": "submit"}, string=lambda s: s and "Apply Filters" in s
+    )
+    assert apply_button is not None
+    assert "usa-button" in apply_button.get("class", [])
