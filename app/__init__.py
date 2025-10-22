@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_htmx import HTMX
 
+from .filters import format_dcat_value, format_gov_type, usa_icon
 from .models import db
-from .filters import format_dcat_value, usa_icon, format_gov_type
 
 logger = logging.getLogger(__name__)
 

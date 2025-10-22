@@ -76,13 +76,52 @@ def index():
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
+    sort_by = request.args.get("sort", "relevance")
+
+    # Initialize empty results
+    datasets = []
+    total = 0
+    total_pages = 1
+
+    # Only search if there's a query
+    if query:
+        results = interface.search_datasets(
+            query,
+            page=page,
+            per_page=per_page,
+            paginate=False,
+            count=True,
+            include_org=True,
+            org_id=org_id,
+            org_types=org_types,
+            sort_by=sort_by,
+        )
+
+        # Get total count
+        total = results.count()
+
+        # Apply pagination
+        offset = (page - 1) * per_page
+        results = results.limit(per_page).offset(offset).all()
+
+        # Build dataset dictionaries with organization data
+        datasets = [build_dataset_dict(result) for result in results]
+
+        # Calculate total pages
+        total_pages = max(ceil(total / per_page), 1) if per_page else 1
+
     return render_template(
         "index.html",
         query=query,
+        datasets=datasets,
         page=page,
         per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+        page_sequence=build_page_sequence(page, total_pages),
         org_id=org_id,
         org_types=org_types,
+        sort_by=sort_by,
     )
 
 

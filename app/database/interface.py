@@ -61,7 +61,8 @@ class CatalogDBInterface:
         include_org
             include org with dataset
         """
-
+        # default sort to relevance
+        sort_by = kwargs.get("sort_by", "relevance").lower()
         ts_query = func.websearch_to_tsquery("english", query)
 
         query = (
@@ -75,14 +76,20 @@ class CatalogDBInterface:
         if include_org:
             query = query.join(Organization, Dataset.organization_id == Organization.id)
 
-        return query.order_by(
-            desc(
-                func.ts_rank(
-                    Dataset.search_vector,
-                    ts_query,
+            # we only want to filter by org type if we include the org join
+            if kwargs.get("org_types"):
+                org_types = kwargs["org_types"]
+                query = query.filter(Organization.organization_type.in_(org_types))
+
+        if sort_by == "relevance":
+            return query.order_by(
+                desc(
+                    func.ts_rank(
+                        Dataset.search_vector,
+                        ts_query,
+                    )
                 )
             )
-        )
 
     def _success_harvest_record_ids_query(self):
         return (

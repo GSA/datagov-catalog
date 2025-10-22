@@ -1,10 +1,11 @@
 """Jinja template filters for the catalog application."""
 
-from datetime import date, datetime
 import json
+from datetime import date, datetime
 from typing import Any
 
 from flask import url_for
+
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
 
@@ -39,6 +40,7 @@ def format_dcat_value(value: Any) -> str:
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     return str(value)
+
 
 def format_gov_type(gov_type: str) -> str:
     """Format a government type value for display."""
