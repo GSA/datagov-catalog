@@ -4,9 +4,10 @@ import uuid
 
 from flask_sqlalchemy import SQLAlchemy
 from geoalchemy2 import Geometry
-from sqlalchemy import CheckConstraint, Column, Enum, Index, String, func
+from sqlalchemy import CheckConstraint, Column, Enum, String, func, Index
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, backref
+from sqlalchemy.ext.mutable import MutableDict
 
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
@@ -192,10 +193,17 @@ class Dataset(db.Model):
     # Base has a string `id` column that is uuid by default
 
     # slug is the string that we use in a URL for this dataset
-    slug = db.Column(db.String, nullable=False, index=True, unique=True)
+    slug = db.Column(
+        db.String,
+        nullable=False,
+        index=True,
+        unique=True
+    )
 
     # This is all of the details of the dataset in DCAT schema in a JSON column
-    dcat = db.Column(JSONB, nullable=False)
+    # make it mutable so that in-place mutations (e.g.,
+    # dcat["spatial"] = "...", for tests) are tracked
+    dcat = db.Column(MutableDict.as_mutable(JSONB), nullable=False)
 
     organization_id = db.Column(
         db.String(36),
@@ -216,7 +224,10 @@ class Dataset(db.Model):
     )
 
     popularity = db.Column(db.Numeric)
-    last_harvested_date = db.Column(db.DateTime, index=True)
+    last_harvested_date = db.Column(
+        db.DateTime,
+        index=True
+    )
     search_vector = db.Column(TSVECTOR)
 
     __table_args__ = (
