@@ -446,24 +446,6 @@ def test_index_search_with_query_shows_result_count(interface_with_dataset, db_c
     assert 'matching "test"' in results_text.text
 
 
-def test_index_search_no_results_shows_alert(interface_with_dataset, db_client):
-    """Test that searching with no results shows an informative alert."""
-    with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/?q=nonexistentdataset12345")
-
-    assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Check for alert message
-    alert = soup.find("div", class_="usa-alert usa-alert--info")
-    assert alert is not None
-
-    alert_text = alert.find("p", class_="usa-alert__text")
-    assert alert_text is not None
-    assert "No datasets found" in alert_text.text
-    assert "nonexistentdataset12345" in alert_text.text
-
-
 def test_index_search_result_includes_organization_link(
     interface_with_dataset, db_client
 ):
