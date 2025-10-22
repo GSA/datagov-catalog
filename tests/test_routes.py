@@ -223,127 +223,6 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     assert description_text.startswith("Summary dataset of detailed payments")
 
 
-def test_index_page_renders(db_client):
-    """
-    Test that the index page loads correctly and contains the search form.
-    """
-    response = db_client.get("/")
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Check page title
-    assert "Catalog - Data.gov" in soup.title.string
-
-    # Check search form exists with all of the expected elements
-    search_form = soup.find("form", {"hx-get": True})
-    assert search_form is not None
-    search_input = soup.find("input", {"id": "search-query", "name": "q"})
-    assert search_input is not None
-    search_button = soup.find("button", {"type": "submit"})
-    assert search_button is not None
-
-    # Check search results container exists (initially empty)
-    results_container = soup.find("div", {"id": "search-results"})
-    assert results_container is not None
-
-
-def test_index_search_returns_results(interface_with_dataset, db_client):
-    """
-    Test that searching via HTMX returns HTML results with dataset information.
-    """
-    with patch("app.routes.interface", interface_with_dataset):
-        # Simulate HTMX request with HX-Request header
-        response = db_client.get(
-            "/search",
-            query_string={"q": "test", "paginate": "false", "per_page": "20"},
-            headers={"HX-Request": "true"},
-        )
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Check that search results container is returned
-    results_container = soup.find("div", {"id": "search-results"})
-    assert results_container is not None
-
-    # Check that results count is displayed
-    results_text = soup.find("p", class_="text-base-dark")
-    assert results_text is not None
-    assert "Found" in results_text.text
-    assert "dataset(s)" in results_text.text
-
-    # Check that dataset is in the results
-    dataset_collection = soup.find("ul", class_="usa-collection")
-    assert dataset_collection is not None
-
-    dataset_items = dataset_collection.find_all("li", class_="usa-collection__item")
-    assert len(dataset_items) > 0
-
-    # Check first dataset has expected elements
-    first_dataset = dataset_items[0]
-    dataset_heading = first_dataset.find("h3", class_="usa-collection__heading")
-    assert dataset_heading is not None
-    assert "test" in dataset_heading.text.lower()
-
-    # Check dataset has description
-    dataset_description = first_dataset.find("p", class_="usa-collection__description")
-    assert dataset_description is not None
-
-
-def test_index_search_with_pagination(interface_with_dataset, db_client):
-    """
-    Test that search results with pagination render correctly via HTMX.
-    Creates multiple datasets to trigger pagination display.
-    """
-    # Create multiple datasets to ensure pagination appears
-    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
-    for i in range(25):  # Create enough for multiple pages
-        dataset_dict["id"] = str(i)
-        dataset_dict["slug"] = f"test-{i}"
-        dataset_dict["dcat"]["title"] = f"Test Dataset {i}"
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
-    # attempt commit
-    interface_with_dataset.db.commit()
-
-    with patch("app.routes.interface", interface_with_dataset):
-        # Request page 1 with 20 items per page
-        response = db_client.get(
-            "/search",
-            query_string={
-                "q": "test",
-                "paginate": "false",
-                "per_page": "20",
-                "page": "1",
-            },
-            headers={"HX-Request": "true"},
-        )
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Check pagination exists
-    pagination = soup.find("nav", class_="usa-pagination")
-    assert pagination is not None
-
-    # Check pagination has page numbers
-    pagination_list = pagination.find("ul", class_="usa-pagination__list")
-    assert pagination_list is not None
-
-    # Check for current page indicator
-    current_page = pagination.find("span", class_="usa-current")
-    assert current_page is not None
-    assert "1" in current_page.text
-
-    # Check for Next button and ensure htmx attrs are there
-    next_button = pagination.find("a", class_="usa-pagination__next-page")
-    assert next_button is not None
-    assert "hx-get" in next_button.attrs
-    assert "hx-target" in next_button.attrs
-
-
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
     with patch("app.routes.interface", interface_with_harvest_record):
         response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
@@ -478,3 +357,90 @@ def test_organization_detail_displays_no_datasets_on_search(
 
     items = dataset_section.select(".usa-collection__item")
     assert len(items) == 0
+
+
+def test_index_page_empty_query_shows_no_results(db_client):
+    """Test that index page with no search query shows no results section."""
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Should not show results container when no query
+    results_text = soup.find("p", class_="text-base-dark")
+    assert results_text is None
+
+
+def test_index_page_has_filters_sidebar(db_client):
+    """Test that the index page contains the filters sidebar."""
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check for sort dropdown
+    sort_select = soup.find("select", {"name": "sort", "id": "sort-select"})
+    assert sort_select is not None
+
+    # Check sort has relevance option
+    relevance_option = soup.find("option", {"value": "relevance"})
+    assert relevance_option is not None
+
+    # Check for organization type filters
+    filter_form = soup.find("form", {"id": "filter-form"})
+    assert filter_form is not None
+
+    # Check for specific organization type checkboxes
+    federal_checkbox = soup.find(
+        "input", {"id": "filter-federal", "value": "Federal Government"}
+    )
+    assert federal_checkbox is not None
+    assert federal_checkbox.get("type") == "checkbox"
+
+    city_checkbox = soup.find(
+        "input", {"id": "filter-city", "value": "City Government"}
+    )
+    assert city_checkbox is not None
+
+    state_checkbox = soup.find(
+        "input", {"id": "filter-state", "value": "State Government"}
+    )
+    assert state_checkbox is not None
+
+
+def test_index_page_query_parameter_preserved_in_form(db_client):
+    """Test that query parameters are preserved in the search form."""
+    response = db_client.get("/?q=climate&per_page=10&sort=relevance")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check search input has the query value
+    search_input = soup.find("input", {"name": "q"})
+    assert search_input is not None
+    assert search_input.get("value") == "climate"
+
+    # Check hidden inputs preserve other parameters
+    per_page_input = soup.find("input", {"name": "per_page", "type": "hidden"})
+    assert per_page_input is not None
+    assert per_page_input.get("value") == "10"
+
+    sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
+    assert sort_input is not None
+    assert sort_input.get("value") == "relevance"
+
+
+def test_index_search_with_query_shows_result_count(interface_with_dataset, db_client):
+    """Test that searching shows the count of results found."""
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check for results count message
+    results_text = soup.find("p", class_="text-base-dark")
+    assert results_text is not None
+    assert "Found" in results_text.text
+    assert "dataset(s)" in results_text.text
+    assert 'matching "test"' in results_text.text
