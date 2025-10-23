@@ -98,6 +98,17 @@
                 </div>
             </div>
         </div>
+        <div class="usa-card margin-top-3">
+            <div class="usa-card__container">
+                <div class="usa-card__body">
+                    <form class="usa-form" method="get" action="{{ url_for('main.index') }}">
+                        <label class="usa-label margin-top-0" for="dataset-search">Try a different search</label>
+                        <input class="usa-input" id="dataset-search" name="q" type="search" placeholder="Search Data.gov...">
+                        <button class="usa-button margin-top-2" type="submit">Search</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 

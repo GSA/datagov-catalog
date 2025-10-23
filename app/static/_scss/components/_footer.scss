@@ -1,0 +1,39 @@
+#menu-footer li {
+    border-left-color: #428bca;
+    border-left-style: solid;
+    border-left-width: 1px;
+    display: inline;
+    float: left;
+    padding-bottom: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 0;
+}
+#menu-footer li a {
+    font-size: 13px;
+    padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    color: #284a7a;
+}
+.footer-logo a.logo-brand {
+    margin-bottom: 1em;
+    margin-top: 0;
+}
+#menu-footer li:first-child {
+    border-left-color: -moz-use-text-color;
+    border-left-style: none;
+    border-left-width: medium;
+    padding-bottom: 0;
+    padding-left: 0;
+    padding-right: 8px;
+    padding-top: 0;
+}
+
+.fa-twitter:before {
+    content: '\f099';
+}
+.fa-github:before {
+    content: '\f09b';
+}
