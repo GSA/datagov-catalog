@@ -15,7 +15,7 @@ def sync_opensearch():
     """Sync the datasets to the OpenSearch system."""
 
     opensearch_host = os.getenv("OPENSEARCH_HOST")
-    if opensearch_host.endswith("es.awamzonaws.com"):
+    if opensearch_host.endswith("es.amazonaws.com"):
         client = OpenSearchInterface(aws_host=opensearch_host)
     else:
         client = OpenSearchInterface(test_host=opensearch_host)
