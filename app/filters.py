@@ -1,6 +1,7 @@
 """Jinja template filters for the catalog application."""
 
 import json
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any
 
@@ -49,4 +50,61 @@ def format_gov_type(gov_type: str) -> str:
     return "unknown"
 
 
-__all__ = ["usa_icon", "format_dcat_value", "format_gov_type"]
+def is_bbox_string(value: Any) -> bool:
+    """Return True when value looks like a numeric bbox string."""
+
+    if not isinstance(value, str):
+        return False
+
+    parts = [part.strip() for part in value.split(",")]
+    if len(parts) != 4:
+        return False
+
+    try:
+        # Ensure all parts convert cleanly to floats.
+        [float(part) for part in parts]
+    except ValueError:
+        return False
+
+    return True
+def is_geometry_mapping(value: Any) -> bool:
+    """Return True when value looks like a GeoJSON geometry mapping."""
+
+    return geometry_to_mapping(value) is not None
+
+
+def geometry_to_mapping(value: Any) -> Mapping | None:
+    """Return a mapping version of the geometry, parsing JSON strings when needed."""
+
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+
+    if not isinstance(value, Mapping):
+        return None
+
+    geom_type = value.get("type")
+    coords = value.get("coordinates")
+
+    if not isinstance(geom_type, str):
+        return None
+    if coords is None:
+        return None
+    if isinstance(coords, (str, bytes)):
+        return None
+    if not isinstance(coords, Sequence):
+        return None
+
+    return value
+
+
+__all__ = [
+    "usa_icon",
+    "format_dcat_value",
+    "format_gov_type",
+    "is_bbox_string",
+    "is_geometry_mapping",
+    "geometry_to_mapping",
+]
