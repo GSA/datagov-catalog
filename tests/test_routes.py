@@ -247,17 +247,22 @@ def test_index_page_renders(db_client):
     # Check page title
     assert "Catalog - Data.gov" in soup.title.string
 
-    # Check search form exists with all of the expected elements
-    search_form = soup.find("form", {"hx-get": True})
+    # Check search form exists with expected attributes
+    search_form = soup.find("form", attrs={"action": "/"})
     assert search_form is not None
-    search_input = soup.find("input", {"id": "search-query", "name": "q"})
+    assert search_form.get("method", "").lower() == "get"
+
+    search_input = search_form.find("input", {"id": "search-query", "name": "q"})
     assert search_input is not None
-    search_button = soup.find("button", {"type": "submit"})
+
+    per_page_input = search_form.find("input", {"type": "hidden", "name": "per_page"})
+    assert per_page_input is not None
+
+    search_button = search_form.find("button", {"type": "submit"})
     assert search_button is not None
 
-    # Check search results container exists (initially empty)
-    results_container = soup.find("div", {"id": "search-results"})
-    assert results_container is not None
+    # Initial load should not render results without a query
+    assert soup.find("div", {"id": "search-results"}) is None
 
 def test_index_search_returns_results(interface_with_dataset, db_client):
     """
@@ -267,7 +272,7 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
         # Simulate HTMX request with HX-Request header
         response = db_client.get(
             "/search",
-            query_string={"q": "test", "paginate": "false", "per_page": "20"},
+            query_string={"q": "test", "count": "true", "per_page": "20"},
             headers={"HX-Request": "true"}
         )
 
@@ -321,7 +326,7 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
         # Request page 1 with 20 items per page
         response = db_client.get(
             "/search",
-            query_string={"q": "test", "paginate": "false", "per_page": "20", "page": "1"},
+            query_string={"q": "test", "count": "true", "per_page": "20", "page": "1"},
             headers={"HX-Request": "true"}
         )
 
