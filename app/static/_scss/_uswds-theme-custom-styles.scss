@@ -26,6 +26,8 @@ i.e.
 @import "components/icons";
 @import "components/blockview";
 @import "components/progress_bar";
+@import "components/footer";
+@import "components/header";
 
 ul.menu {
   padding-inline-start: 0;
@@ -199,6 +201,12 @@ ul.menu {
 .organization-datasets__item {
   border: none;
 }
+
+#menu-footer a {
+  color: #206b82;
+  text-decoration: none;
+}
+
 // Filetype pill labels
 ul.dataset-resources {
   padding-inline-start: 0;

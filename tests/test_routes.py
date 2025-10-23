@@ -545,3 +545,34 @@ def test_index_apply_filters_button_exists(db_client):
     )
     assert apply_button is not None
     assert "usa-button" in apply_button.get("class", [])
+
+
+def test_header_exists(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # check for usa banner
+    usa_banner = soup.find("section", class_="usa-banner")
+    assert usa_banner is not None
+
+    # check for navigation and nav parts
+    nav_bar = soup.find("div", class_="usa-navbar")
+    assert nav_bar is not None
+
+    nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
+    assert len(nav_parts) == 3  # "Home", "Organizations", "User Guide"
+
+
+def test_footer_exists(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    datagov_footer = soup.find("div", class_="footer-section-bottom")
+    assert datagov_footer is not None
+
+    gsa_footer = soup.find("div", class_="usa-identifier")
+    assert gsa_footer is not None
