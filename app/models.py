@@ -7,6 +7,7 @@ from geoalchemy2 import Geometry
 from sqlalchemy import CheckConstraint, Column, Enum, String, func, Index
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, backref
+from sqlalchemy.ext.mutable import MutableDict
 
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
@@ -200,7 +201,9 @@ class Dataset(db.Model):
     )
 
     # This is all of the details of the dataset in DCAT schema in a JSON column
-    dcat = db.Column(JSONB, nullable=False)
+    # make it mutable so that in-place mutations (e.g.,
+    # dcat["spatial"] = "...", for tests) are tracked
+    dcat = db.Column(MutableDict.as_mutable(JSONB), nullable=False)
 
     organization_id = db.Column(
         db.String(36),
@@ -230,6 +233,20 @@ class Dataset(db.Model):
     __table_args__ = (
         Index("ix_dataset_search_vector", "search_vector", postgresql_using="gin"),
     )
+
+
+class DatasetViewCount(db.Model):
+    __tablename__ = "dataset_view_count"
+
+    dataset_slug = db.Column(db.String(100), nullable=False, unique=True, index=True)
+    view_count = db.Column(db.Integer, nullable=False, default=0)
+
+
+class ResourceViewCount(db.Model):
+    __tablename__ = "resource_view_count"
+    # url from Google Analytics resource path is truncated to 100 characters
+    resource_url = db.Column(db.String(100), nullable=False, unique=True, index=True)
+    view_count = db.Column(db.Integer, nullable=False, default=0)
 
 
 class HarvestJobError(Error):

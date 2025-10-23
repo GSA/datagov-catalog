@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_htmx import HTMX
 
+from .filters import format_dcat_value, format_gov_type, usa_icon
 from .models import db
-from .filters import format_dcat_value, usa_icon
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,7 @@ def create_app(config_name: str = "local") -> Flask:
         app.config["TEMPLATES_AUTO_RELOAD"] = True
         app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
+    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -35,8 +36,14 @@ def create_app(config_name: str = "local") -> Flask:
     from .routes import register_routes
 
     register_routes(app)
+
+    from .commands import register_commands
+
+    register_commands(app)
+
     app.add_template_filter(usa_icon)
     app.add_template_filter(format_dcat_value)
+    app.add_template_filter(format_gov_type)
 
     return app
 

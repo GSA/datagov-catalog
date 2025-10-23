@@ -51,30 +51,45 @@ class CatalogDBInterface:
     def search_datasets(self, query: str, *args, **kwargs):
         return self._search_datasets(query, *args, **kwargs)
 
-    def _search_datasets(self, query: str, *args, **kwargs):
+    def _search_datasets(self, query: str, include_org=False, *args, **kwargs):
         """Text search for datasets.
 
         Use the `query` to find matching datasets. The query is in Postgres's
         "websearch" format which allows the use of quoted phrases with AND
         and OR keywords.
+
+        include_org
+            include org with dataset
         """
-        return (
+        # default sort to relevance
+        sort_by = kwargs.get("sort_by", "relevance").lower()
+        ts_query = func.websearch_to_tsquery("english", query)
+
+        query = (
             self.db.query(Dataset, Organization)
-            .filter(
-                Dataset.search_vector.op("@@")(
-                    func.websearch_to_tsquery("english", query)
-                )
-            )
-            .join(Organization, Dataset.organization_id == Organization.id)
-            .order_by(
+            if include_org
+            else self.db.query(Dataset)
+        )
+
+        query = query.filter(Dataset.search_vector.op("@@")(ts_query))
+
+        if include_org:
+            query = query.join(Organization, Dataset.organization_id == Organization.id)
+
+            # we only want to filter by org type if we include the org join
+            if kwargs.get("org_types"):
+                org_types = kwargs["org_types"]
+                query = query.filter(Organization.organization_type.in_(org_types))
+
+        if sort_by == "relevance":
+            return query.order_by(
                 desc(
                     func.ts_rank(
                         Dataset.search_vector,
-                        func.websearch_to_tsquery("english", query),
+                        ts_query,
                     )
                 )
             )
-        )
 
     def _success_harvest_record_ids_query(self):
         return (
@@ -166,9 +181,8 @@ class CatalogDBInterface:
         )
 
         if dataset_search_terms:
-            query = query.join(
-                self._search_datasets(dataset_search_terms),
-                Dataset.harvest_record_id == Dataset.harvest_record_id,
+            query = self._search_datasets(dataset_search_terms).filter(
+                Dataset.organization_id == organization_id
             )
 
         sort_key = (sort_by or "popularity").lower()
@@ -227,7 +241,9 @@ class CatalogDBInterface:
         per_page = max(min(per_page, 100), 1)
 
         base_query = self._datasets_for_organization_query(
-            organization_id, sort_by=sort_key
+            organization_id,
+            sort_by=sort_key,
+            dataset_search_terms=dataset_search_terms,
         )
         total = base_query.count()
         datasets = self._datasets_for_organization_paginated(

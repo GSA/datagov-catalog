@@ -1,34 +1,122 @@
 {# templates/components/dataset_search.html #}
-<div class="usa-prose text-center">
-    <h1>Search Data.gov</h1>
-</div>
-
-<form hx-get="{{ url_for('main.search') }}" hx-target="#search-results" hx-trigger="submit"
-    hx-indicator="#search-loading" class="usa-form margin-top-4">
-    <div class="grid-row grid-gap-1 flex-align-end">
-        <div class="grid-col-fill">
-            <label class="usa-sr-only" for="search-query">Search Data.gov</label>
-            <input class="usa-input margin-0" id="search-query" name="q" type="text" placeholder="Search Data.gov..."
-                autofocus value="{{ request.args.get('q', '') }}">
-            <input type="hidden" name="paginate" value="false">
-            <input type="hidden" name="per_page" value="20">
-        </div>
-        <div class="grid-col-auto">
-            <button type="submit" class="usa-button margin-0">
-                <i class="fa fa-search" aria-hidden="true"></i>
-                <span class="margin-left-05">Search</span>
-            </button>
+<div class="grid-row">
+    <div class="grid-col-12">
+        <div class="usa-prose text-center margin-bottom-4">
+            <h1>Search Data.gov</h1>
         </div>
     </div>
+</div>
+{% if request.args.get('q') %}
+<div hx-get="{{ url_for('main.search') }}?{{ request.query_string.decode() }}" 
+     hx-trigger="load" 
+     hx-target="#search-results"
+     hx-swap="outerHTML"
+     style="display:none;"></div>
+{% endif %}
+<div class="grid-row grid-gap-lg">
+    <!-- Main search and results area (9 columns on desktop) -->
+    <div class="tablet:grid-col-12 desktop:grid-col-9">
+        <form hx-get="{{ url_for('main.search') }}" hx-target="#search-results" hx-trigger="submit"
+            hx-indicator="#search-loading" hx-push-url="/?q={{q}}&per_page=20&count=true" class="usa-form">
+            
+            <label class="usa-label" for="search-query">Search datasets</label>
+            <div class="grid-row grid-gap-1 flex-align-end">
+                <div class="grid-col-fill">
+                    <input class="usa-input margin-0" id="search-query" name="q" type="text" 
+                        placeholder="Search Data.gov..." autofocus value="{{ request.args.get('q', '') }}">
+                    <input type="hidden" name="count" value="true">
+                    <input type="hidden" name="per_page" value="20">
+                </div>
+                <div class="grid-col-auto">
+                    <button type="submit" class="usa-button margin-0">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <span class="margin-left-05">Search</span>
+                    </button>
+                </div>
+            </div>
+        
+            <div id="search-loading" class="htmx-indicator margin-top-2">
+                <div class="usa-alert usa-alert--info usa-alert--slim">
+                    <div class="usa-alert__body">
+                        <p class="usa-alert__text">
+                            <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+                            Searching...
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </form>
 
-    <div id="search-loading" class="htmx-indicator margin-top-2">
-        <div class="usa-alert usa-alert--info usa-alert--slim">
-            <div class="usa-alert__body">
-                <p class="usa-alert__text">
-                    <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
-                    Searching...
-                </p>
+        <!-- Results will be injected here by HTMX -->
+        {% include "components/dataset_results.html" %}
+    </div>
+
+    <!-- Sidebar for filters and sort (3 columns on desktop) -->
+    <aside class="tablet:grid-col-12 desktop:grid-col-3">
+        <!-- Sort Section -->
+        <div class="margin-bottom-4">
+            <h3 class="usa-label">Sort by</h3>
+            <select class="usa-select" name="sort" id="sort-select"
+                hx-get="{{ url_for('main.search') }}"
+                hx-target="#search-results"
+                hx-include="[name='q']"
+                hx-trigger="change"
+                hx-push-url="/?q={{q}}&per_page=20&count=true">
+                <option value="relevance">Relevance</option>
+                <option value="title">Title (A-Z)</option>
+                <option value="modified">Last Modified</option>
+                <option value="created">Date Created</option>
+            </select>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="usa-accordion usa-accordion--bordered">
+            <h3 class="usa-accordion__heading">
+                <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization">
+                    Organization Type
+                </button>
+            </h3>
+            <div id="filter-organization" class="usa-accordion__content usa-prose">
+                <fieldset class="usa-fieldset">
+                    <div class="usa-checkbox">
+                        <input class="usa-checkbox__input" id="filter-federal" type="checkbox" name="org_type" value="Federal Government">
+                        <label class="usa-checkbox__label" for="filter-federal">Federal Government</label>
+                    </div>
+                    <div class="usa-checkbox">
+                        <input class="usa-checkbox__input" id="filter-city" type="checkbox" name="org_type" value="City Government">
+                        <label class="usa-checkbox__label" for="filter-city">City Government</label>
+                    </div>
+                    <div class="usa-checkbox">
+                        <input class="usa-checkbox__input" id="filter-state" type="checkbox" name="org_type" value="State Government">
+                        <label class="usa-checkbox__label" for="filter-state">State Government</label>
+                    </div>
+                    <div class="usa-checkbox">
+                        <input class="usa-checkbox__input" id="filter-county" type="checkbox" name="org_type" value="County Government">
+                        <label class="usa-checkbox__label" for="filter-county">County Government</label>
+                    </div>
+                    <div class="usa-checkbox">
+                        <input class="usa-checkbox__input" id="filter-university" type="checkbox" name="org_type" value="University">
+                        <label class="usa-checkbox__label" for="filter-university">University</label>
+                    </div>
+                    <div class="usa-checkbox">
+                        <input class="usa-checkbox__input" id="filter-tribal" type="checkbox" name="org_type" value="Tribal">
+                        <label class="usa-checkbox__label" for="filter-tribal">Tribal</label>
+                    </div>
+                    <div class="usa-checkbox">
+                        <input class="usa-checkbox__input" id="filter-nonprofit" type="checkbox" name="org_type" value="Non-Profit">
+                        <label class="usa-checkbox__label" for="filter-nonprofit">Non-Profit</label>
+                    </div>
+                </fieldset>
             </div>
         </div>
-    </div>
-</form>
+
+        <button type="button" 
+            class="usa-button usa-button--outline width-full margin-top-2"
+            hx-get="{{ url_for('main.search') }}"
+            hx-target="#search-results"
+            hx-include="[name='q'], [name='org_type']:checked, [name='sort'], [name='count']"
+            hx-push-url="true">
+            Apply Filters
+        </button>
+    </aside>
+</div>

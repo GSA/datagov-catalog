@@ -16,9 +16,22 @@ function vcap_get_service () {
 
 export APP_NAME=$(echo $VCAP_APPLICATION | jq -r '.application_name')
 
+# FLASK SECRET KEY
+flask_secret=$(vcap_get_service secrets .credentials.FLASK_SECRET_KEY)
+if [ -z "$flask_secret" ] || [ "$flask_secret" = "null" ]; then
+  echo "FLASK_SECRET_KEY is not found in secrets" >&2
+  exit 1
+fi
+export FLASK_SECRET_KEY="$flask_secret"
+
 # POSTGRES DB CREDS
 export URI=$(vcap_get_service db .credentials.replica_uri)
 export DATABASE_URI=$(echo $URI | sed 's/postgres:\/\//postgresql+psycopg:\/\//g')
+
+# Opensearch host and credentials
+export OPENSEARCH_HOST=$(vcap_get_service opensearch .credentials.host)
+export OPENSEARCH_ACCESS_KEY=$(vcap_get_service opensearch .credentials.access_key)
+export OPENSEARCH_SECRET_KEY=$(vcap_get_service opensearch .credentials.secret_key)
 
 # New Relic
 export NEW_RELIC_LICENSE_KEY=$(vcap_get_service secrets .credentials.NEW_RELIC_LICENSE_KEY)
