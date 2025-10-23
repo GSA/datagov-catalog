@@ -367,9 +367,14 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # if the dataset is still not found, return 404
     if dataset is None:
         abort(404)
+
+    # get the org for GA purposes so far
+    org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
+        organization=org,
     )
 
 

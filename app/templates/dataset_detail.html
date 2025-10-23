@@ -2,6 +2,24 @@
 
 {% block title %}{{ dataset.dcat.get('title') or dataset.slug or dataset.id }} - Data.gov{% endblock %}
 
+{% block datalayer %}
+<script>
+window.dataLayer = window.dataLayer || [];
+
+dataLayer.push({
+    "nodeID": "{{ dataset.id }}",
+    "contentType": "dataset",
+    "language": "en",
+    "homepageTest": "not_homepage",
+    "basicPagesubType": "dataset",
+    "Page_Type": "Dataset Page",
+    "organization": "{{ organization.name if organization else 'Unknown' }}",
+    "publisher": "{{ dataset.dcat.get('publisher', {}).get('name') }}"
+});
+</script>
+{% endblock %}
+
+
 {% block content %}
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_identifier = dataset.slug or dataset.id %}
