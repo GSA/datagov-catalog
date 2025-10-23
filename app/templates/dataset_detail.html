@@ -115,8 +115,8 @@ dataLayer.push({
                     </dl>
 
                     {% set spatial_raw = dataset.dcat.get('spatial') %}
-                    {% set spatial_has_bbox = spatial_raw is string and ',' in spatial_raw %}
-                    {% set spatial_has_geometry = spatial_raw is mapping %}
+                    {% set spatial_has_bbox = spatial_raw | is_bbox_string %}
+                    {% set spatial_has_geometry = spatial_raw | is_geometry_mapping %}
                     {% if spatial_has_bbox or spatial_has_geometry %}
                     <div class="margin-top-3">
                       <p class="margin-0"><strong>Location</strong></p>
@@ -262,8 +262,8 @@ dataLayer.push({
 {{ super() }}
 <script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
 {% set spatial_raw = dataset.dcat.get('spatial') %}
-{% set spatial_has_bbox = spatial_raw is string and ',' in spatial_raw %}
-{% set spatial_has_geometry = spatial_raw is mapping %}
+{% set spatial_has_bbox = spatial_raw | is_bbox_string %}
+{% set spatial_has_geometry = spatial_raw | is_geometry_mapping %}
 {% if spatial_has_bbox or spatial_has_geometry %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
