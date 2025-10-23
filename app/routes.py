@@ -16,6 +16,7 @@ from flask import (
     request,
     url_for,
 )
+from flask_sqlalchemy.query import Query
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
@@ -70,8 +71,57 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 # Routes
 @main.route("/", methods=["GET"])
 def index():
+    query = request.args.get("q", "")
+    page = request.args.get("page", DEFAULT_PAGE, type=int)
+    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    org_id = request.args.get("org_id", None, type=str)
+    org_types = request.args.getlist("org_type")
+    sort_by = request.args.get("sort", "relevance")
+
+    # Initialize empty results
+    datasets = []
+    total = 0
+    total_pages = 1
+
+    # Only search if there's a query
+    if query:
+        results = interface.search_datasets(
+            query,
+            page=page,
+            per_page=per_page,
+            paginate=False,
+            count=True,
+            include_org=True,
+            org_id=org_id,
+            org_types=org_types,
+            sort_by=sort_by,
+        )
+
+        # Get total count
+        total = results.count()
+
+        # Apply pagination
+        offset = (page - 1) * per_page
+        results = results.limit(per_page).offset(offset).all()
+
+        # Build dataset dictionaries with organization data
+        datasets = [build_dataset_dict(result) for result in results]
+
+        # Calculate total pages
+        total_pages = max(ceil(total / per_page), 1) if per_page else 1
+
     return render_template(
         "index.html",
+        query=query,
+        datasets=datasets,
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+        page_sequence=build_page_sequence(page, total_pages),
+        org_id=org_id,
+        org_types=org_types,
+        sort_by=sort_by,
     )
 
 
@@ -85,20 +135,28 @@ def search():
     query = request.args.get("q", "")
     page = request.args.get("page", DEFAULT_PAGE, type=int)
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    org_id = request.args.get("org_id", None, type=str)
+    org_types = request.args.getlist("org_type")
     results = interface.search_datasets(
         query,
         page=page,
         per_page=per_page,
         paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
+        count=request.args.get("count", type=lambda x: x.lower() == "true"),
         include_org=True,
+        org_id=org_id,
+        org_types=org_types,
     )
 
     if htmx:
-        total = len(results)
-        results = results[((page - 1) * per_page) : (page * per_page)]
+        # type hint that this is a Query object because paginate returns a query
+        #  if count is True.
+        results: Query
+        total = results.count()
+        offset = (page - 1) * per_page
+        results = results.limit(per_page).offset(offset).all()
         results = [build_dataset_dict(result) for result in results]
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
-
         return render_template(
             "components/dataset_results.html",
             datasets=results,
@@ -309,9 +367,14 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # if the dataset is still not found, return 404
     if dataset is None:
         abort(404)
+
+    # get the org for GA purposes so far
+    org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
+        organization=org,
     )
 
 

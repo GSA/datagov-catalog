@@ -3,16 +3,242 @@
 {% block title %}Catalog - Data.gov{% endblock %}
 
 {% block content %}
-<div class="grid-row margin-top-6">
-    <div class="grid-col-12 tablet:grid-col-10 tablet:grid-offset-1">
-
-        {% include "components/dataset_search.html" %}
-
-        <div class="margin-top-4">
-            {% include "components/dataset_results.html" %}
+<div class="grid-row">
+    <div class="grid-col-12">
+        <div class="usa-prose text-center margin-bottom-4">
+            <h1>Search Data.gov</h1>
         </div>
-
     </div>
 </div>
 
+<div class="grid-row grid-gap-lg">
+    <!-- Main search and results area -->
+    <div class="tablet:grid-col-12 desktop:grid-col-9">
+        <form method="GET" action="{{ url_for('main.index') }}" class="usa-form">
+            
+            <label class="usa-label" for="search-query">Search datasets</label>
+            <div class="grid-row grid-gap-1 flex-align-end">
+                <div class="grid-col-fill">
+                    <input class="usa-input margin-0" id="search-query" name="q" type="text" 
+                        placeholder="Search Data.gov..." autofocus value="{{ query }}">
+                    <input type="hidden" name="per_page" value="{{ per_page }}">
+                    {% for org_type in org_types %}
+                    <input type="hidden" name="org_type" value="{{ org_type }}">
+                    {% endfor %}
+                    {% if org_id %}
+                    <input type="hidden" name="org_id" value="{{ org_id }}">
+                    {% endif %}
+                    <input type="hidden" name="sort" value="{{ sort_by }}">
+                </div>
+                <div class="grid-col-auto">
+                    <button type="submit" class="usa-button margin-0">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <span class="margin-left-05">Search</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Results Section -->
+        {% if query %}
+        <div id="search-results" class="margin-top-3">
+            {% if datasets %}
+            <div class="usa-prose">
+                <p class="text-base-dark">
+                    Found <strong>{{ total }}</strong> dataset(s){% if query %} matching "{{ query }}"{% endif %}.
+                </p>
+            </div>
+
+            <section class="organization-datasets margin-top-3">
+                <ul class="usa-collection organization-datasets__list">
+                    {% for dataset in datasets %}
+                    {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
+                    {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
+                    {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
+                    {% set last_harvested = dataset.get('last_harvested_date') %}
+                    {% set updated_display = dataset_meta.get('modified') %}
+                    {% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') if last_harvested else None %}
+                    
+                    <li class="usa-collection__item organization-datasets__item">
+                        <div class="organization-datasets__body organization-datasets__body--{{ dataset.organization.organization_type | format_gov_type }}">
+                            <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">
+                                <h3 class="usa-collection__heading margin-0">
+                                    <a class="usa-link"
+                                        href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                                        {{ dataset_title }}
+                                    </a>
+                                </h3>
+                            </div>
+                            <ul class="usa-collection__meta">
+                                <li class="usa-collection__meta-item">
+                                    <strong>Organization:</strong>
+                                    <a class="usa-link"
+                                        href="{{ url_for('main.organization_detail', slug=dataset.organization.slug) }}">
+                                        {{ dataset.organization.name }}
+                                    </a>
+                                </li>
+                                {% if updated_display or harvested_display %}
+                                <li class="usa-collection__meta-item">
+                                    {% if updated_display %}
+                                    <strong>Updated:</strong> {{ updated_display or 'Not available' }}
+                                    {% endif %}
+                                    {% if harvested_display %}                                
+                                    <span class="margin-left-1">|</span>
+                                    <strong>Harvested:</strong> {{ harvested_display }}
+                                    {% endif %}
+                                </li>
+                                {% endif %}
+                            </ul>
+                            <p class="usa-collection__description">
+                                {{ dataset_meta.get('description', 'No description available.') | truncate(200) }}
+                            </p>
+                            {% if dataset.dcat.distribution %}
+                            <ul class="dataset-resources unstyled">
+                                {% for resource in dataset.dcat.distribution[:6] %}
+                                <li>
+                                    <a href="{{ resource.accessURL }}" class="label label-default text-uppercase" data-format="{{ resource.format | default('HTML') | lower }}" data-organization="{{ dataset.organization.name }}">{{ resource.format | default('HTML') | lower }}</a>
+                                </li>
+                                {% endfor %}
+                                {% if dataset.dcat.distribution|length > 6 %}
+                                <li class="text-base-light">
+                                    <a class="usa-link"
+                                        href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                                        +{{ dataset.dcat.distribution|length - 6 }} more
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+
+                <!-- Pagination -->
+                {% if total_pages > 1 %}
+                <nav class="usa-pagination margin-top-4" aria-label="Datasets pagination">
+                    <ul class="usa-pagination__list">
+                        <!-- Previous button -->
+                        <li class="usa-pagination__item usa-pagination__arrow">
+                            {% if page > 1 %}
+                            <a class="usa-pagination__link usa-pagination__previous-page"
+                                href="{{ url_for('main.index', q=query, page=page-1, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types)) }}"
+                                aria-label="Previous page">
+                                <span class="usa-pagination__link-text">Previous</span>
+                            </a>
+                            {% endif %}
+                        </li>
+
+                        {% for number in page_sequence %}
+                        {% if number is none %}
+                        <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
+                        {% elif number == page %}
+                        <li class="usa-pagination__item usa-pagination__page-no">
+                            <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
+                        </li>
+                        {% else %}
+                        <li class="usa-pagination__item usa-pagination__page-no">
+                            <a class="usa-pagination__button"
+                                href="{{ url_for('main.index', q=query, page=number, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types)) }}">
+                                {{ number }}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+
+                        <!-- Next button -->
+                        <li class="usa-pagination__item usa-pagination__arrow">
+                            {% if page < total_pages %}
+                            <a class="usa-pagination__link usa-pagination__next-page"
+                                href="{{ url_for('main.index', q=query, page=page+1, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types)) }}"
+                                aria-label="Next page">
+                                <span class="usa-pagination__link-text">Next</span>
+                            </a>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </nav>
+                {% endif %}
+            </section>
+            {% else %}
+            <div class="usa-alert usa-alert--info margin-top-3">
+                <div class="usa-alert__body">
+                    <p class="usa-alert__text">
+                        No datasets found matching "{{ query }}". Try adjusting your search terms or filters.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar for filters and sort -->
+    <aside class="tablet:grid-col-12 desktop:grid-col-3">
+        <form method="GET" action="{{ url_for('main.index') }}" id="filter-form">
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="per_page" value="{{ per_page }}">
+            
+            <!-- Sort Section -->
+            <div class="margin-bottom-4">
+                <label class="usa-label" for="sort-select">Sort by</label>
+                <select class="usa-select" name="sort" id="sort-select" onchange="this.form.submit()">
+                    <option value="relevance" {% if sort_by == 'relevance' %}selected{% endif %}>Relevance</option>
+                </select>
+            </div>
+
+            <!-- Filters Section -->
+            <div class="usa-accordion usa-accordion--bordered">
+                <h3 class="usa-accordion__heading">
+                    <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization">
+                        Organization Type
+                    </button>
+                </h3>
+                <div id="filter-organization" class="usa-accordion__content usa-prose">
+                    <fieldset class="usa-fieldset">
+                        <div class="usa-checkbox">
+                            <input class="usa-checkbox__input" id="filter-federal" type="checkbox" name="org_type" value="Federal Government"
+                                {% if 'Federal Government' in org_types %}checked{% endif %}>
+                            <label class="usa-checkbox__label" for="filter-federal">Federal Government</label>
+                        </div>
+                        <div class="usa-checkbox">
+                            <input class="usa-checkbox__input" id="filter-city" type="checkbox" name="org_type" value="City Government"
+                                {% if 'City Government' in org_types %}checked{% endif %}>
+                            <label class="usa-checkbox__label" for="filter-city">City Government</label>
+                        </div>
+                        <div class="usa-checkbox">
+                            <input class="usa-checkbox__input" id="filter-state" type="checkbox" name="org_type" value="State Government"
+                                {% if 'State Government' in org_types %}checked{% endif %}>
+                            <label class="usa-checkbox__label" for="filter-state">State Government</label>
+                        </div>
+                        <div class="usa-checkbox">
+                            <input class="usa-checkbox__input" id="filter-county" type="checkbox" name="org_type" value="County Government"
+                                {% if 'County Government' in org_types %}checked{% endif %}>
+                            <label class="usa-checkbox__label" for="filter-county">County Government</label>
+                        </div>
+                        <div class="usa-checkbox">
+                            <input class="usa-checkbox__input" id="filter-university" type="checkbox" name="org_type" value="University"
+                                {% if 'University' in org_types %}checked{% endif %}>
+                            <label class="usa-checkbox__label" for="filter-university">University</label>
+                        </div>
+                        <div class="usa-checkbox">
+                            <input class="usa-checkbox__input" id="filter-tribal" type="checkbox" name="org_type" value="Tribal"
+                                {% if 'Tribal' in org_types %}checked{% endif %}>
+                            <label class="usa-checkbox__label" for="filter-tribal">Tribal</label>
+                        </div>
+                        <div class="usa-checkbox">
+                            <input class="usa-checkbox__input" id="filter-nonprofit" type="checkbox" name="org_type" value="Non-Profit"
+                                {% if 'Non-Profit' in org_types %}checked{% endif %}>
+                            <label class="usa-checkbox__label" for="filter-nonprofit">Non-Profit</label>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+
+            <button type="submit" class="usa-button usa-button--outline width-full margin-top-2">
+                Apply Filters
+            </button>
+        </form>
+    </aside>
+</div>
 {% endblock %}

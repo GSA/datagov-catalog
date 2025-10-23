@@ -96,6 +96,7 @@
           {% set updated_display = dataset_meta.get('modified') %}
           {% set harvested_display = None %}
           {% set last_harvested = dataset.get('last_harvested_date') %}
+          {% set view_count = dataset.get('popularity') %}
           {% if last_harvested %}
           {% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') %}
           {% if not updated_display %}
@@ -108,6 +109,14 @@
                 <a class="usa-link" href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
                   {{ dataset_title }}
                 </a>
+                <span class="margin-left-1 text-base-dark font-sans-sm">
+                  Views:
+                  {% if view_count is not none %}
+                  {{ view_count | int }}
+                  {% else %}
+                  Not available
+                  {% endif %}
+                </span>
               </h3>
               <ul class="usa-collection__meta">
                 <li class="usa-collection__meta-item">

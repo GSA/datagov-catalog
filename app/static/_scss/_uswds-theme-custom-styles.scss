@@ -26,6 +26,8 @@ i.e.
 @import "components/icons";
 @import "components/blockview";
 @import "components/progress_bar";
+@import "components/footer";
+@import "components/header";
 
 ul.menu {
   padding-inline-start: 0;
@@ -118,3 +120,172 @@ ul.menu {
 .dataset-tags .usa-tag {
   display: inline-flex;
 }
+
+.organization-datasets__body {
+    background: #fff;
+    border: 1px solid rgba(15,23,42,.12);
+    border-radius: 1rem;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 14px 32px rgba(15,23,42,.1);
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+.organization-datasets__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.organization-datasets__body--federal {
+  border-color: #2e75bb;
+}
+.organization-datasets__body--city { 
+  border-color: #c0c0c0;
+}
+.organization-datasets__body--state {
+  border-color: #8e719f;
+}
+.organization-datasets__body--county {
+  border-color: #d67a22;
+}
+.organization-datasets__body--university {
+  border-color: #71769f;
+}
+.organization-datasets__body--tribal {
+  border-color: #a45db5;
+}
+.organization-datasets__body--other {
+  border-color: #7d7d7d;
+} 
+
+.organization-datasets__label {
+    position: absolute;
+    top: 1.2rem;
+    right: -2.5rem;
+    display: inline-block;
+    padding: .25rem 1rem;
+    min-width: 8.5rem;
+    text-align: center;
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #fff;
+    background: #1a4480;
+    transform: rotate(45deg);
+    transform-origin: center;
+    box-shadow: 0 10px 20px rgba(15,23,42,.25);
+    filter: drop-shadow(0 6px 10px rgba(15,23,42,.3));
+}
+.organization-datasets__body .usa-collection__heading{
+    padding-right: 1.6rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+.organization-datasets__body .usa-collection__meta{
+    margin-top: .25rem;
+    font-size: .9rem;
+    color: #3d4551;
+    gap: .25rem;
+}
+.organization-datasets__body .usa-collection__description{
+    color: #565c65;
+    line-height: 1.6;
+    margin-top: .5rem;
+    margin-bottom: 0;
+}
+.organization-datasets__item {
+  border: none;
+}
+
+#menu-footer a {
+  color: #206b82;
+  text-decoration: none;
+}
+
+// Filetype pill labels
+ul.dataset-resources {
+  padding-inline-start: 0;
+  li {
+    display: inline;
+    .label {
+      display: inline;
+      padding: 0.2em 0.6em 0.2em;
+      font-size: 75%;
+      font-weight: 700;
+      line-height: 1;
+      color: #fff;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: baseline;
+      border-radius: 0.25em;
+      background-color: #3d4551;
+    }
+    .label:empty {
+        display: none;
+    }
+    .label[data-format='html'],
+    .label[data-format*='html'] {
+        background-color: #2e759e;
+    }
+    .label[data-format='json'],
+    .label[data-format*='json'] {
+        background-color: #d63b00;
+    }
+    .label[data-format='xml'],
+    .label[data-format*='xml'] {
+        background-color: #d63b00;
+    }
+    .label[data-format='kml'],
+    .label[data-format*='kml'] {
+        background-color: #8B008B;
+    }
+    .label[data-format='text'],
+    .label[data-format*='text'] {
+        background-color: #1a7ea3;
+    }
+    .label[data-format='csv'],
+    .label[data-format*='csv'] {
+        background-color: #856a00;
+    }
+    .label[data-format='xls'],
+    .label[data-format*='xls'] {
+        background-color: #207e42;
+    }
+    .label[data-format='zip'],
+    .label[data-format*='zip'] {
+        background-color: #686868;
+    }
+    .label[data-format='api'],
+    .label[data-format*='api'] {
+        background-color: #d22d81;
+    }
+    .label[data-format='pdf'],
+    .label[data-format*='pdf'] {
+        background-color: #e0051e;
+    }
+    .label[data-format='rdf'],
+    .label[data-format*='rdf'],
+    .label[data-format*='nquad'],
+    .label[data-format*='ntriples'],
+    .label[data-format*='turtle'] {
+        background-color: #0b4498;
+    } 
+    a {
+      text-decoration: none;
+    }
+    .label:hover:not(.label[data-diff]) {
+      background-color: #333;
+    }
+    a.label:hover,
+    a.label:focus {
+        color: #fff;
+        cursor: pointer;
+    }
+  }
+}
+// end filetype pills
