@@ -24,87 +24,8 @@
   <!-- End of Google analytics iframe -->
   <a class="usa-skipnav" href="#content">Skip to main content</a>
 
-  <section class="usa-banner" aria-label="Official website of the United States government">
-    <div class="usa-accordion">
-      <header class="usa-banner__header">
-        <div class="usa-banner__inner">
-          <div class="grid-col-auto">
-            <img class="usa-banner__header-flag" src="{{ url_for('static', filename='assets/uswds/img/us_flag_small.png') }}"
-              alt="U.S. flag">
-          </div>
-          <div class="grid-col-fill tablet:grid-col-auto">
-            <p class="usa-banner__header-text">An official website of the United States government</p>
-            <p class="usa-banner__header-action" aria-hidden="true">Here’s how you know</p>
-          </div>
-          <button class="usa-accordion__button usa-banner__button" aria-expanded="false"
-            aria-controls="gov-banner">
-            <span class="usa-banner__button-text">Here’s how you know</span>
-          </button>
-        </div>
-      </header>
-      <div class="usa-banner__content usa-accordion__content" id="gov-banner" hidden>
-        <div class="grid-row grid-gap-lg">
-          <div class="usa-banner__guidance tablet:grid-col-6">
-            <img class="usa-banner__icon usa-media-block__img"
-              src="{{ url_for('static', filename='assets/uswds/img/icon-dot-gov.svg') }}"
-              role="img" alt="Dot gov">
-            <div class="usa-media-block__body">
-              <p>
-                <strong>Official websites use .gov</strong>
-                <br>
-                A <strong>.gov</strong> website belongs to an official government organization in the United States.
-              </p>
-            </div>
-          </div>
-          <div class="usa-banner__guidance tablet:grid-col-6">
-            <img class="usa-banner__icon usa-media-block__img"
-              src="{{ url_for('static', filename='assets/uswds/img/icon-https.svg') }}"
-              role="img" alt="Https">
-            <div class="usa-media-block__body">
-              <p>
-                <strong>Secure .gov websites use HTTPS</strong>
-                <br>
-                A <strong>lock</strong> ( <span class="fa fa-lock" aria-hidden="true"></span> ) or <strong>https://</strong>
-                means you’ve safely connected to the .gov website. Share sensitive information only on official, secure websites.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <div class="usa-overlay"></div>
-  <header class="usa-header usa-header--basic">
-    <div class="usa-nav-container">
-      <div class="usa-navbar">
-        <div class="usa-logo" id="logo">
-          <em class="usa-logo__text">
-            <a href="{{ url_for('main.index') }}" title="Data.gov Catalog home">Data.gov Catalog</a>
-          </em>
-        </div>
-        <button class="usa-menu-btn" type="button">Menu</button>
-      </div>
-      <nav aria-label="Primary navigation" class="usa-nav">
-        <button class="usa-nav__close" type="button">
-          <img src="{{ url_for('static', filename='assets/uswds/img/usa-icons/close.svg') }}" role="img" alt="Close">
-        </button>
-        <ul class="usa-nav__primary usa-accordion">
-          <li class="usa-nav__primary-item">
-            <a href="{{ url_for('main.index') }}" class="usa-nav__link">
-              <span>Home</span>
-            </a>
-          </li>
-          <li class="usa-nav__primary-item">
-            <a href="{{ url_for('main.list_organizations') }}" class="usa-nav__link">
-              <span>Organizations</span>
-            </a>
-          </li>
-        </ul>
-      </nav>
-    </div>
-  </header>
-
+  {% include "components/header.html" %}
+  
   <main id="content">
     <div class="usa-section">
       <div class="grid-container">
@@ -113,64 +34,7 @@
     </div>
   </main>
 
-<div class="usa-identifier">
-    <section class="usa-identifier__section usa-identifier__section--masthead" aria-label="Agency identifier,,,">
-        <div class="usa-identifier__container">
-            <div class="usa-identifier__logos">
-                <div class="usa-identifier__logo">
-                    <img class="usa-identifier__logo-img" alt="GSA logo" role="img"
-                        src="https://s3-us-gov-west-1.amazonaws.com/cg-0817d6e3-93c4-4de8-8b32-da6919464e61/gsa_starmark.png" />
-                </div>
-            </div>
-            <div class="usa-identifier__identity" aria-label="Agency description">
-                <p class="usa-identifier__identity-domain">data.gov</p>
-                <p class="usa-identifier__identity-disclaimer">An official website of the GSA's <a
-                        href="https://www.gsa.gov/about-us/organization/federal-acquisition-service/technology-transformation-services"
-                        class="usa-identifier__required-link usa-link">Technology Transformation Services {{'launch' | usa_icon | safe}}</a>
-                </p>
-            </div>
-        </div>
-    </section>
-    <nav class="usa-identifier__section usa-identifier__section--required-links" aria-label="Important links,,,">
-        <div class="usa-identifier__container">
-            <ul class="usa-identifier__required-links-list">
-                <li class="usa-identifier__required-links-item">
-                    <a href="https://www.gsa.gov/about-us" class="usa-identifier__required-link usa-link">About GSA {{'launch'| usa_icon | safe }}</a>
-                </li>
-                <li class="usa-identifier__required-links-item">
-                    <a href="https://www.gsa.gov/website-information/accessibility-statement"
-                        class="usa-identifier__required-link usa-link">Accessibility statement {{'launch'| usa_icon | safe }}</a>
-                </li>
-                <li class="usa-identifier__required-links-item">
-                    <a href="https://www.gsa.gov/reference/freedom-of-information-act-foia"
-                        class="usa-identifier__required-link usa-link">FOIA requests {{'launch'| usa_icon | safe }}</a>
-                </li>
-                <li class="usa-identifier__required-links-item">
-                    <a href="https://www.gsa.gov/reference/civil-rights-programs/notification-and-federal-employee-antidiscrimination-and-retaliation-act-of-2002"
-                        class="usa-identifier__required-link usa-link">No FEAR Act data {{'launch'| usa_icon | safe }}</a>
-                </li>
-                <li class="usa-identifier__required-links-item">
-                    <a href="https://www.gsaig.gov" class="usa-identifier__required-link usa-link">Office of the Inspector General {{'launch'| usa_icon | safe }}</a>
-                </li>
-                <li class="usa-identifier__required-links-item">
-                    <a href="https://www.gsa.gov/reference/reports/budget-performance"
-                        class="usa-identifier__required-link usa-link">Performance reports {{'launch'| usa_icon | safe }}</a>
-                </li>
-                <li class="usa-identifier__required-links-item">
-                    <a href="https://www.gsa.gov/website-information/website-policies#privacy"
-                        class="usa-identifier__required-link usa-link">Privacy policy {{'launch'| usa_icon | safe }}</a>
-                </li>
-            </ul>
-        </div>
-    </nav>
-    <section class="usa-identifier__section usa-identifier__section--usagov"
-        aria-label="U.S. government information and services,,,">
-        <div class="usa-identifier__container">
-            <div class="usa-identifier__usagov-description">Looking for U.S. government information and services?</div>
-            <a href="https://www.usa.gov/" class="usa-link">Visit USA.gov {{'launch'| usa_icon | safe }}</a>
-        </div>
-    </section>
-</div>
+  {% include "components/footer.html" %}
 
   <script src="{{ url_for('static', filename='assets/uswds/js/uswds.js') }}"></script>
   <script src="{{ url_for('static', filename='assets/js/bundle.js') }}"></script>

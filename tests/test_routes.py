@@ -87,6 +87,14 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     assert format_cell.get_text(" ", strip=True) == "CSV"
     assert access_cell.find("a").get_text(strip=True) == "Download"
 
+    search_form = soup.find("form", attrs={"action": "/"})
+    assert search_form is not None
+    search_input = search_form.find("input", {"name": "q"})
+    assert search_input is not None
+    submit_button = search_form.find("button", {"type": "submit"})
+    assert submit_button is not None
+    assert "Search" in submit_button.get_text(" ", strip=True)
+
 
 def test_dataset_detail_by_id(interface_with_dataset, db_client):
     """
@@ -143,6 +151,11 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     format_cell, access_cell = first_row.find_all("td")
     assert format_cell.get_text(" ", strip=True) == "CSV"
     assert access_cell.find("a").get_text(strip=True) == "Download"
+
+    search_form = soup.find("form", attrs={"action": "/"})
+    assert search_form is not None
+    search_input = search_form.find("input", {"name": "q"})
+    assert search_input is not None
 
 
 def test_dataset_detail_404(db_client):
@@ -222,6 +235,123 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     )
     assert description_text.startswith("Summary dataset of detailed payments")
 
+def test_index_page_renders(db_client):
+    """
+    Test that the index page loads correctly and contains the search form.
+    """
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check page title
+    assert "Catalog - Data.gov" in soup.title.string
+
+    # Check search form exists with expected attributes
+    search_form = soup.find("form", attrs={"action": "/"})
+    assert search_form is not None
+    assert search_form.get("method", "").lower() == "get"
+
+    search_input = search_form.find("input", {"id": "search-query", "name": "q"})
+    assert search_input is not None
+
+    per_page_input = search_form.find("input", {"type": "hidden", "name": "per_page"})
+    assert per_page_input is not None
+
+    search_button = search_form.find("button", {"type": "submit"})
+    assert search_button is not None
+
+    # Initial load should not render results without a query
+    assert soup.find("div", {"id": "search-results"}) is None
+
+def test_index_search_returns_results(interface_with_dataset, db_client):
+    """
+    Test that searching via HTMX returns HTML results with dataset information.
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        # Simulate HTMX request with HX-Request header
+        response = db_client.get(
+            "/search",
+            query_string={"q": "test", "count": "true", "per_page": "20"},
+            headers={"HX-Request": "true"}
+        )
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check that search results container is returned
+    results_container = soup.find("div", {"id": "search-results"})
+    assert results_container is not None
+
+    # Check that results count is displayed
+    results_text = soup.find("p", class_="text-base-dark")
+    assert results_text is not None
+    assert "Found" in results_text.text
+    assert "dataset(s)" in results_text.text
+
+    # Check that dataset is in the results
+    dataset_collection = soup.find("ul", class_="usa-collection")
+    assert dataset_collection is not None
+
+    dataset_items = dataset_collection.find_all("li", class_="usa-collection__item")
+    assert len(dataset_items) > 0
+
+    # Check first dataset has expected elements
+    first_dataset = dataset_items[0]
+    dataset_heading = first_dataset.find("h3", class_="usa-collection__heading")
+    assert dataset_heading is not None
+    assert "test" in dataset_heading.text.lower()
+
+    # Check dataset has description
+    dataset_description = first_dataset.find("p", class_="usa-collection__description")
+    assert dataset_description is not None
+
+def test_index_search_with_pagination(interface_with_dataset, db_client):
+    """
+    Test that search results with pagination render correctly via HTMX.
+    Creates multiple datasets to trigger pagination display.
+    """
+    # Create multiple datasets to ensure pagination appears
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(25):  # Create enough for multiple pages
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        dataset_dict["dcat"]["title"] = f"Test Dataset {i}"
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    # attempt commit
+    interface_with_dataset.db.commit()
+
+    with patch("app.routes.interface", interface_with_dataset):
+        # Request page 1 with 20 items per page
+        response = db_client.get(
+            "/search",
+            query_string={"q": "test", "count": "true", "per_page": "20", "page": "1"},
+            headers={"HX-Request": "true"}
+        )
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check pagination exists
+    pagination = soup.find("nav", class_="usa-pagination")
+    assert pagination is not None
+
+    # Check pagination has page numbers
+    pagination_list = pagination.find("ul", class_="usa-pagination__list")
+    assert pagination_list is not None
+
+    # Check for current page indicator
+    current_page = pagination.find("span", class_="usa-current")
+    assert current_page is not None
+    assert "1" in current_page.text
+
+    # Check for Next button and ensure htmx attrs are there
+    next_button = pagination.find("a", class_="usa-pagination__next-page")
+    assert next_button is not None
+    assert "hx-get" in next_button.attrs
+    assert "hx-target" in next_button.attrs
 
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
     with patch("app.routes.interface", interface_with_harvest_record):
@@ -545,3 +675,34 @@ def test_index_apply_filters_button_exists(db_client):
     )
     assert apply_button is not None
     assert "usa-button" in apply_button.get("class", [])
+
+
+def test_header_exists(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # check for usa banner
+    usa_banner = soup.find("section", class_="usa-banner")
+    assert usa_banner is not None
+
+    # check for navigation and nav parts
+    nav_bar = soup.find("div", class_="usa-navbar")
+    assert nav_bar is not None
+
+    nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
+    assert len(nav_parts) == 3  # "Home", "Organizations", "User Guide"
+
+
+def test_footer_exists(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    datagov_footer = soup.find("div", class_="footer-section-bottom")
+    assert datagov_footer is not None
+
+    gsa_footer = soup.find("div", class_="usa-identifier")
+    assert gsa_footer is not None
