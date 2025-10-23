@@ -832,3 +832,24 @@ def test_dataset_detail_omits_map_when_spatial_missing(interface_with_dataset, d
     assert soup.select_one('link[href*="leaflet.css"]') is None
     assert soup.select_one('script[src*="leaflet.js"]') is None
     assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
+
+
+def test_dataset_detail_logs_warning_when_spatial_unqualified(interface_with_dataset, db_client):
+    ds = interface_with_dataset.get_dataset_by_slug("test")
+    ds.dcat["spatial"] = "Virginia, USA"
+    interface_with_dataset.db.commit()
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/dataset/test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Still no map container or assets
+    assert soup.select_one("#dataset-map") is None
+    assert soup.select_one('link[href*="leaflet.css"]') is None
+    assert soup.select_one('script[src*="leaflet.js"]') is None
+    assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
+
+    inline_scripts = [script.get_text() for script in soup.find_all("script") if not script.get("src")]
+    assert any("Map not displayed" in content for content in inline_scripts)
