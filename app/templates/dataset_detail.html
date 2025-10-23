@@ -115,15 +115,16 @@ dataLayer.push({
                     </dl>
 
                     {% set spatial_raw = dataset.dcat.get('spatial') %}
+                    {% set spatial_geometry_data = spatial_raw | geometry_to_mapping %}
                     {% set spatial_has_bbox = spatial_raw | is_bbox_string %}
-                    {% set spatial_has_geometry = spatial_raw | is_geometry_mapping %}
+                    {% set spatial_has_geometry = spatial_geometry_data is not none %}
                     {% if spatial_has_bbox or spatial_has_geometry %}
                     <div class="margin-top-3">
                       <p class="margin-0"><strong>Location</strong></p>
                       <div
                         id="dataset-map"
                         {% if spatial_has_bbox %}data-bbox="{{ spatial_raw }}"{% endif %}
-                        {% if spatial_has_geometry %}data-geometry='{{ spatial_raw | tojson | forceescape }}'{% endif %}
+                        {% if spatial_has_geometry %}data-geometry='{{ spatial_geometry_data | tojson | forceescape }}'{% endif %}
                         style="height: 220px; border-radius: 4px; overflow: hidden;"
                       ></div>
                     </div>
@@ -262,8 +263,9 @@ dataLayer.push({
 {{ super() }}
 <script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
 {% set spatial_raw = dataset.dcat.get('spatial') %}
+{% set spatial_geometry_data = spatial_raw | geometry_to_mapping %}
 {% set spatial_has_bbox = spatial_raw | is_bbox_string %}
-{% set spatial_has_geometry = spatial_raw | is_geometry_mapping %}
+{% set spatial_has_geometry = spatial_geometry_data is not none %}
 {% if spatial_has_bbox or spatial_has_geometry %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

@@ -67,27 +67,37 @@ def is_bbox_string(value: Any) -> bool:
         return False
 
     return True
-
-
 def is_geometry_mapping(value: Any) -> bool:
     """Return True when value looks like a GeoJSON geometry mapping."""
 
+    return geometry_to_mapping(value) is not None
+
+
+def geometry_to_mapping(value: Any) -> Mapping | None:
+    """Return a mapping version of the geometry, parsing JSON strings when needed."""
+
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+
     if not isinstance(value, Mapping):
-        return False
+        return None
 
     geom_type = value.get("type")
     coords = value.get("coordinates")
 
     if not isinstance(geom_type, str):
-        return False
+        return None
     if coords is None:
-        return False
+        return None
     if isinstance(coords, (str, bytes)):
-        return False
+        return None
     if not isinstance(coords, Sequence):
-        return False
+        return None
 
-    return True
+    return value
 
 
 __all__ = [
@@ -96,4 +106,5 @@ __all__ = [
     "format_gov_type",
     "is_bbox_string",
     "is_geometry_mapping",
+    "geometry_to_mapping",
 ]
