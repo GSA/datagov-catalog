@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -726,6 +727,45 @@ def test_dataset_detail_includes_map_assets_when_spatial_bbox(interface_with_dat
     assert map_div.get("data-bbox") == "-90.155,27.155,-90.26,27.255"
 
     # Leaflet assets (conditionally included)
+    leaflet_css = soup.select_one('link[href*="leaflet.css"]')
+    leaflet_js = soup.select_one('script[src*="leaflet.js"]')
+    view_js = soup.select_one('script[src*="js/view_bbox_map.js"]')
+    assert leaflet_css is not None
+    assert leaflet_js is not None
+    assert view_js is not None
+
+
+def test_dataset_detail_includes_map_assets_when_spatial_geometry(interface_with_dataset, db_client):
+    # Add spatial geometry and ensure map container and Leaflet assets are present
+    ds = interface_with_dataset.get_dataset_by_slug("test")
+    ds.dcat["spatial"] = {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [-373.59375715256, -65.778772326728],
+                [-373.59375715256, 84.220160826965],
+                [-12.187442779541, 84.220160826965],
+                [-12.187442779541, -65.778772326728],
+                [-373.59375715256, -65.778772326728],
+            ]
+        ],
+    }
+    interface_with_dataset.db.commit()
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/dataset/test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    map_div = soup.select_one("#dataset-map")
+    assert map_div is not None
+    assert map_div.get("data-bbox") is None
+
+    geometry_attr = map_div.get("data-geometry")
+    assert geometry_attr is not None
+    assert json.loads(geometry_attr) == ds.dcat["spatial"]
+
     leaflet_css = soup.select_one('link[href*="leaflet.css"]')
     leaflet_js = soup.select_one('script[src*="leaflet.js"]')
     view_js = soup.select_one('script[src*="js/view_bbox_map.js"]')
