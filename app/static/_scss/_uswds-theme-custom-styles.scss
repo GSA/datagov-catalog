@@ -215,6 +215,7 @@ ul.dataset-resources {
       white-space: nowrap;
       vertical-align: baseline;
       border-radius: 0.25em;
+      background-color: #3d4551;
     }
     .label:empty {
         display: none;
@@ -230,6 +231,10 @@ ul.dataset-resources {
     .label[data-format='xml'],
     .label[data-format*='xml'] {
         background-color: #d63b00;
+    }
+    .label[data-format='kml'],
+    .label[data-format*='kml'] {
+        background-color: #8B008B;
     }
     .label[data-format='text'],
     .label[data-format*='text'] {
