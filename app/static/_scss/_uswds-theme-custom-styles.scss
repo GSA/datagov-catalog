@@ -206,3 +206,86 @@ ul.menu {
   color: #206b82;
   text-decoration: none;
 }
+
+// Filetype pill labels
+ul.dataset-resources {
+  padding-inline-start: 0;
+  li {
+    display: inline;
+    .label {
+      display: inline;
+      padding: 0.2em 0.6em 0.2em;
+      font-size: 75%;
+      font-weight: 700;
+      line-height: 1;
+      color: #fff;
+      text-align: center;
+      white-space: nowrap;
+      vertical-align: baseline;
+      border-radius: 0.25em;
+      background-color: #3d4551;
+    }
+    .label:empty {
+        display: none;
+    }
+    .label[data-format='html'],
+    .label[data-format*='html'] {
+        background-color: #2e759e;
+    }
+    .label[data-format='json'],
+    .label[data-format*='json'] {
+        background-color: #d63b00;
+    }
+    .label[data-format='xml'],
+    .label[data-format*='xml'] {
+        background-color: #d63b00;
+    }
+    .label[data-format='kml'],
+    .label[data-format*='kml'] {
+        background-color: #8B008B;
+    }
+    .label[data-format='text'],
+    .label[data-format*='text'] {
+        background-color: #1a7ea3;
+    }
+    .label[data-format='csv'],
+    .label[data-format*='csv'] {
+        background-color: #856a00;
+    }
+    .label[data-format='xls'],
+    .label[data-format*='xls'] {
+        background-color: #207e42;
+    }
+    .label[data-format='zip'],
+    .label[data-format*='zip'] {
+        background-color: #686868;
+    }
+    .label[data-format='api'],
+    .label[data-format*='api'] {
+        background-color: #d22d81;
+    }
+    .label[data-format='pdf'],
+    .label[data-format*='pdf'] {
+        background-color: #e0051e;
+    }
+    .label[data-format='rdf'],
+    .label[data-format*='rdf'],
+    .label[data-format*='nquad'],
+    .label[data-format*='ntriples'],
+    .label[data-format*='turtle'] {
+        background-color: #0b4498;
+    } 
+    a {
+      text-decoration: none;
+    }
+    .label:hover:not(.label[data-diff]) {
+      background-color: #333;
+    }
+    a.label:hover,
+    a.label:focus {
+        color: #fff;
+        cursor: pointer;
+    }
+  }
+}
+// end filetype pills
