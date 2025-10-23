@@ -367,6 +367,7 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # if the dataset is still not found, return 404
     if dataset is None:
         abort(404)
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
