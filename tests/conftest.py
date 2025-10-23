@@ -1,3 +1,7 @@
+import csv
+import json
+from pathlib import Path
+
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy import func
@@ -13,8 +17,23 @@ from app.models import (
     Organization,
     db,
 )
+from app.opensearch import OpenSearchInterface
+
+HARVEST_RECORD_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+DATASET_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+TEST_DIR = Path(__file__).parent
 
 load_dotenv()
+
+
+# helpers functions
+def read_csv(file_path) -> list:
+    output = []
+    with open(file_path) as f:
+        csv_reader = csv.reader(f)
+        for row in csv_reader:
+            output.append(row)
+    return output
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -62,7 +81,14 @@ def interface(session) -> CatalogDBInterface:
 
 @pytest.fixture
 def interface_with_organization(interface):
-    interface.db.add(Organization(id="1", name="test org", slug="test-org", organization_type="Federal Government"))
+    interface.db.add(
+        Organization(
+            id="1",
+            name="test org",
+            slug="test-org",
+            organization_type="Federal Government",
+        )
+    )
     interface.db.commit()
     yield interface
 
@@ -98,7 +124,15 @@ def interface_with_harvest_job(interface_with_harvest_source):
 def interface_with_harvest_record(interface_with_harvest_job):
     interface_with_harvest_job.db.add(
         HarvestRecord(
-            id="1", harvest_source_id="1", harvest_job_id="1", identifier="identifier"
+            id=HARVEST_RECORD_ID,
+            harvest_source_id="1",
+            harvest_job_id="1",
+            identifier="identifier",
+            source_raw='{"title": "test dataset"}',
+            source_transform={
+                "title": "test dataset",
+                "extras": {"foo": "bar"},
+            },
         )
     )
     interface_with_harvest_job.db.commit()
@@ -107,18 +141,46 @@ def interface_with_harvest_record(interface_with_harvest_job):
 
 @pytest.fixture
 def interface_with_dataset(interface_with_harvest_record):
-
+    # add generic dataset record
     interface_with_harvest_record.db.add(
         Dataset(
-            id="5dafad8f-4338-4602-84ca-010ee1adf9a0",
+            id=DATASET_ID,
             slug="test",
-            dcat={"title": "test", "description": "this is the test description"},
-            harvest_record_id="1",
+            dcat={
+                "title": "test",
+                "description": "this is the test description",
+                "distribution": [
+                    {
+                        "title": "Test CSV",
+                        "description": "Sample CSV resource",
+                        "format": "CSV",
+                        "downloadURL": "https://example.com/test.csv",
+                        "mediaType": "text/csv",
+                    }
+                ],
+            },
+            harvest_record_id=HARVEST_RECORD_ID,
             harvest_source_id="1",
             organization_id="1",
             search_vector=func.to_tsvector("english", "test description"),
         )
     )
+
+    # add additional dataset records
+    datasets = read_csv(TEST_DIR / "data" / "americorps_datasets.csv")
+    fields = datasets[0]
+
+    for row in datasets[1:]:
+        row[-2] = func.to_tsvector("english", row[1])  # search_vector
+        row[1] = json.loads(row[1])  # dcat
+        row[5] = int(row[5])  # popularity
+        interface_with_harvest_record.db.add(Dataset(**dict(zip(fields, row))))
+
     interface_with_harvest_record.db.commit()
 
     yield interface_with_harvest_record
+
+
+@pytest.fixture
+def opensearch_client():
+    return OpenSearchInterface(test_host="localhost")

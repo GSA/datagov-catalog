@@ -1,8 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}{{ dataset.dcat.title }} - Data.gov{% endblock %}
+{% block title %}{{ dataset.dcat.get('title') or dataset.slug or dataset.id }} - Data.gov{% endblock %}
 
 {% block content %}
+{% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
+{% set dataset_identifier = dataset.slug or dataset.id %}
 <nav class="usa-breadcrumb" aria-label="Breadcrumbs">
     <ol class="usa-breadcrumb__list">
         <li class="usa-breadcrumb__list-item">
@@ -12,14 +14,14 @@
             <a href="#" class="usa-breadcrumb__link">Datasets</a>
         </li>
         <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
-            <span>{{ dataset.dcat.title }}</span>
+            <span>{{ dataset_title }}</span>
         </li>
     </ol>
 </nav>
 
 <div class="grid-row margin-top-4">
     <div class="grid-col-12 usa-prose">
-        <h1 class="margin-bottom-1">{{ dataset.dcat.title }}</h1>
+        <h1 class="margin-bottom-1">{{ dataset_title }}</h1>
         {% if dataset.dcat.get('publisher', {}).get('name') %}
         <p class="usa-intro text-base-dark margin-top-0">
             Published by {{ dataset.dcat.publisher.name }}
@@ -32,7 +34,25 @@
     <div class="desktop:grid-col-8">
         <section class="margin-bottom-4 usa-prose">
             <h2 class="text-primary-darker">Description</h2>
-            <p>{{ dataset.dcat.description }}</p>
+            <button
+                class="usa-button usa-button--outline dataset-detail__feedback-button"
+                type="button"
+                id="contact-btn"
+                data-dataset-identifier="{{ dataset_identifier }}"
+                data-dataset-title="{{ dataset_title }}"
+                aria-label="Provide feedback on {{ dataset_title }}"
+            >
+                <span aria-hidden="true" class="dataset-detail__feedback-icon">
+                    <i class="fa-solid fa-comment-dots"></i>
+                </span>
+                <span>Feedback</span>
+            </button>
+            {% set description_value = dataset.dcat.get('description') %}
+            {% if description_value %}
+            <p class="dataset-detail__description-text">{{ description_value | format_dcat_value }}</p>
+            {% else %}
+            <p class="dataset-detail__description-text text-base-light">Not available</p>
+            {% endif %}
         </section>
 
         {% if dataset.dcat.get('keyword') %}
@@ -68,7 +88,7 @@
                         <div class="usa-description-list__row">
                             <dt class="usa-description-list__term">Harvest Record</dt>
                             <dd class="usa-description-list__description">
-                                <a href="{{ url_for('main.get_harvest_record', record_id=dataset.harvest_record_id) }}"
+                                <a href="{{ url_for('main.get_harvest_record_raw', record_id=dataset.harvest_record_id) }}"
                                     class="usa-link">
                                     View Record
                                 </a>
@@ -80,4 +100,119 @@
         </div>
     </div>
 </div>
+
+{% set distributions = dataset.dcat.get('distribution') %}
+{% if distributions %}
+<div class="grid-row margin-top-6">
+    <div class="grid-col-12">
+        <section class="usa-prose">
+            <h2 class="text-primary-darker">Resources</h2>
+        </section>
+        {% set resource_items = distributions %}
+        {% if resource_items is mapping or resource_items is string %}
+        {% set resource_items = [resource_items] %}
+        {% elif resource_items is not sequence %}
+        {% set resource_items = [resource_items] %}
+        {% endif %}
+        <div class="usa-table-container--scrollable">
+            <table class="usa-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Resource</th>
+                        <th scope="col">Format</th>
+                        <th scope="col">Access</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resource in resource_items %}
+                    {% set resource_url = None %}
+                    {% set resource_title = resource|format_dcat_value %}
+                    {% set resource_format = None %}
+                    {% set resource_description = None %}
+                    {% set secondary_url = None %}
+                    {% set primary_label = 'Access' %}
+                    {% set secondary_label = 'Download' %}
+                    {% if resource is mapping %}
+                    {% set download_url = resource.get('downloadURL') %}
+                    {% set access_url = resource.get('accessURL') %}
+                    {% set resource_url = download_url or access_url %}
+                    {% set resource_title = resource.get('title') or resource.get('description') or resource_url or 'Resource ' ~ loop.index %}
+                    {% set resource_format = resource.get('format') or resource.get('mediaType') %}
+                    {% set resource_description = resource.get('description') %}
+                    {% if download_url and access_url and download_url != access_url %}
+                    {% set secondary_url = access_url if resource_url == download_url else download_url %}
+                    {% endif %}
+                    {% set primary_label = 'Download' if download_url else 'Access' %}
+                    {% set secondary_label = 'Access' if download_url else 'Download' %}
+                    {% endif %}
+                    <tr>
+                        <th scope="row">
+                            {% if resource_url %}
+                            <a href="{{ resource_url }}" target="_blank" rel="noopener">{{ resource_title }}</a>
+                            {% else %}
+                            {{ resource_title }}
+                            {% endif %}
+                            {% if resource_description and (resource_title != resource_description) %}
+                            <p class="margin-top-1 margin-bottom-0 text-base">{{ resource_description }}</p>
+                            {% endif %}
+                        </th>
+                        <td>
+                            {% if resource_format %}
+                            {{ resource_format|format_dcat_value }}
+                            {% else %}
+                            <span class="text-base-light">Not specified</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if resource_url %}
+                            <a href="{{ resource_url }}" target="_blank" rel="noopener">{{ primary_label }}</a>
+                            {% if secondary_url %}
+                            <br>
+                            <a href="{{ secondary_url }}" target="_blank" rel="noopener">{{ secondary_label }}</a>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-base-light">Unavailable</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="grid-row margin-top-6">
+    <div class="grid-col-12">
+        <section class="usa-prose">
+            <h2 class="text-primary-darker">DCAT Metadata</h2>
+        </section>
+        <div class="usa-table-container--scrollable">
+            <table class="usa-table">
+                <tbody>
+                    {% set excluded_keys = ['title', 'description', 'distribution', 'contactPoint', 'keyword', '@type'] %}
+                    {% for key, value in dataset.dcat|dictsort if key not in excluded_keys %}
+                    {% set rendered_value = value|format_dcat_value %}
+                    <tr>
+                        <th scope="row">{{ key }}</th>
+                        <td>
+                            {% if '\n' in rendered_value %}
+                            <pre class="margin-0 overflow-auto">{{ rendered_value }}</pre>
+                            {% else %}
+                            {{ rendered_value }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
 {% endblock %}

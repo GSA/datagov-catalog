@@ -1,3 +1,6 @@
+from tests.conftest import DATASET_ID
+
+
 class TestDatasetDetail:
     """
     Test cases for dataset detail page.
@@ -9,8 +12,6 @@ class TestDatasetDetail:
         assert dataset.dcat.get("title") == "test"
 
     def test_dataset_detail_by_id(self, interface_with_dataset):
-        dataset = interface_with_dataset.get_dataset_by_id(
-            "5dafad8f-4338-4602-84ca-010ee1adf9a0"
-        )
+        dataset = interface_with_dataset.get_dataset_by_id(DATASET_ID)
         assert dataset is not None
         assert dataset.dcat.get("title") == "test"

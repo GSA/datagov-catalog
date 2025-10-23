@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime
 from math import ceil
+from xml.etree import ElementTree
 
 from dotenv import load_dotenv
 from flask import (
@@ -15,9 +16,11 @@ from flask import (
     request,
     url_for,
 )
+from flask_sqlalchemy.query import Query
 
-from .database import CatalogDBInterface
-from .utils import json_not_found, valid_id_required
+from . import htmx
+from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
+from .utils import build_dataset_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
@@ -68,26 +71,57 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 # Routes
 @main.route("/", methods=["GET"])
 def index():
-    """Display search page with results."""
-    query = request.args.get("q", "").strip()
-    status = request.args.get("status", "").strip()
-    page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 20, type=int)
+    query = request.args.get("q", "")
+    page = request.args.get("page", DEFAULT_PAGE, type=int)
+    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    org_id = request.args.get("org_id", None, type=str)
+    org_types = request.args.getlist("org_type")
+    sort_by = request.args.get("sort", "relevance")
 
-    results = None
+    # Initialize empty results
+    datasets = []
+    total = 0
+    total_pages = 1
+
+    # Only search if there's a query
     if query:
-        results = interface.search_harvest_records(
-            query=query,
-            status=status if status else None,
+        results = interface.search_datasets(
+            query,
             page=page,
             per_page=per_page,
+            paginate=False,
+            count=True,
+            include_org=True,
+            org_id=org_id,
+            org_types=org_types,
+            sort_by=sort_by,
         )
+
+        # Get total count
+        total = results.count()
+
+        # Apply pagination
+        offset = (page - 1) * per_page
+        results = results.limit(per_page).offset(offset).all()
+
+        # Build dataset dictionaries with organization data
+        datasets = [build_dataset_dict(result) for result in results]
+
+        # Calculate total pages
+        total_pages = max(ceil(total / per_page), 1) if per_page else 1
 
     return render_template(
         "index.html",
         query=query,
-        status=status,
-        results=results,
+        datasets=datasets,
+        page=page,
+        per_page=per_page,
+        total=total,
+        total_pages=total_pages,
+        page_sequence=build_page_sequence(page, total_pages),
+        org_id=org_id,
+        org_types=org_types,
+        sort_by=sort_by,
     )
 
 
@@ -99,19 +133,40 @@ def search():
     """
     # missing query parameter searches for everything
     query = request.args.get("q", "")
+    page = request.args.get("page", DEFAULT_PAGE, type=int)
+    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    org_id = request.args.get("org_id", None, type=str)
+    org_types = request.args.getlist("org_type")
     results = interface.search_datasets(
         query,
-        page=request.args.get("page", type=int),
-        per_page=request.args.get("per_page", type=int),
+        page=page,
+        per_page=per_page,
         paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
+        count=request.args.get("count", type=lambda x: x.lower() == "true"),
+        include_org=True,
+        org_id=org_id,
+        org_types=org_types,
     )
 
-    return jsonify(
-        [
-            {k: v for k, v in result.to_dict().items() if k != "search_vector"}
-            for result in results
-        ]
-    )
+    if htmx:
+        # type hint that this is a Query object because paginate returns a query
+        #  if count is True.
+        results: Query
+        total = results.count()
+        offset = (page - 1) * per_page
+        results = results.limit(per_page).offset(offset).all()
+        results = [build_dataset_dict(result) for result in results]
+        total_pages = max(ceil(total / per_page), 1) if per_page else 1
+        return render_template(
+            "components/dataset_results.html",
+            datasets=results,
+            page=page,
+            page_sequence=build_page_sequence(page, total_pages),
+            total=total,
+            total_pages=total_pages,
+        )
+
+    return jsonify([build_dataset_dict(result) for result in results])
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
@@ -134,6 +189,71 @@ def get_harvest_record(record_id: str):
             pass
 
     return jsonify(record_data)
+
+
+@main.route("/harvest_record/<record_id>/raw", methods=["GET"])
+@valid_id_required
+def get_harvest_record_raw(record_id: str) -> Response:
+    """Return the raw payload stored on a harvest record.
+
+    The endpoint fetches HarvestObject.source_raw and responds with a mimetype
+    based on the payload content: application/json for valid JSON, application/xml
+    for XML, and text/plain otherwise. A 404 JSON response is returned
+    when the record does not exist or the payload is missing/empty.
+    """
+    record = interface.get_harvest_record(record_id)
+    if record is None:
+        return json_not_found()
+
+    source_raw = record.source_raw
+    if not source_raw:
+        return json_not_found()
+
+    if not isinstance(source_raw, str):
+        source_raw = str(source_raw)
+
+    mimetype = "text/plain"
+    stripped_source = source_raw.strip()
+    if stripped_source:
+        try:
+            json.loads(stripped_source)
+        except (TypeError, json.JSONDecodeError):
+            try:
+                ElementTree.fromstring(stripped_source)
+            except (ElementTree.ParseError, SyntaxError):
+                # not JSON or XML, leave as "text/plain"
+                pass
+            else:
+                mimetype = "application/xml"
+        else:
+            mimetype = "application/json"
+
+    return Response(source_raw, mimetype=mimetype)
+
+
+@main.route("/harvest_record/<record_id>/transformed", methods=["GET"])
+@valid_id_required
+def get_harvest_record_transformed(record_id: str) -> Response:
+    """Return the transformed payload for a harvest record.
+
+    The endpoint fetches HarvestObject.source_transform and
+    returns the JSON content with the application/json mimetype.
+    A 404 JSON response is returned if the record cannot be found,
+    no transformed payload exists, or the stored payload is an empty string.
+    """
+    record = interface.get_harvest_record(record_id)
+    if record is None:
+        return json_not_found()
+
+    transformed = record.source_transform
+    if transformed is None:
+        return json_not_found()
+
+    if isinstance(transformed, str) and not transformed.strip():
+        return json_not_found()
+
+    body = json.dumps(transformed)
+    return Response(body, mimetype="application/json")
 
 
 @main.route("/organization", methods=["GET"])

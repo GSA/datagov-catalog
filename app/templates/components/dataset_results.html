@@ -1,0 +1,115 @@
+{# templates/components/dataset_results.html #}
+<div id="search-results">
+    {% if datasets %}
+    <div class="margin-top-3 usa-prose">
+        <p class="text-base-dark">
+            Found <strong>{{ total }}</strong> dataset(s){% if query %} matching "{{ query }}"{% endif %}.
+        </p>
+    </div>
+
+    <section class="organization-datasets margin-top-3">
+        {% if datasets %}
+        <ul class="usa-collection organization-datasets__list">
+            {% for dataset in datasets %}
+            {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
+            {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
+            {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
+            {% set last_harvested = dataset.get('last_harvested_date') %}
+            {% set updated_display = dataset_meta.get('modified') %}
+            {% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') if last_harvested else None %}
+            
+            <li class="usa-collection__item organization-datasets__item">
+                <div class="organization-datasets__body organization-datasets__body--{{ dataset.organization.organization_type | format_gov_type }}">
+                    <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">
+                        <h3 class="usa-collection__heading margin-0">
+                            <a class="usa-link"
+                                href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                                {{ dataset_title }}
+                            </a>
+                        </h3>
+                    </div>
+                    <ul class="usa-collection__meta">
+                        <li class="usa-collection__meta-item">
+                            <strong>Organization:</strong>
+                            <a class="usa-link"
+                                href="{{ url_for('main.organization_detail', slug=dataset.organization.slug) }}">
+                                {{ dataset.organization.name }}
+                            </a>
+                        </li>
+                        {% if updated_display or harvested_display %}
+                        <li class="usa-collection__meta-item">
+                            {% if updated_display %}
+                            <strong>Updated:</strong> {{ updated_display or 'Not available' }}
+                            {% endif %}
+                            {% if harvested_display %}                                
+                            <span class="margin-left-1">|</span>
+                            <strong>Harvested:</strong> {{ harvested_display }}
+                            {% endif %}
+                        </li>
+                        {% endif %}
+                    </ul>
+                    <p class="usa-collection__description">This study used DNA extracted from island marble butterfly (Euchloe ausonides insulanus) meconium, exuviae, and natural mortalities to generate microsatellite loci, ddRAD SNPs, and mitochondrial genomes.</p>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <nav class="usa-pagination margin-top-4" aria-label="Datasets pagination">
+            <ul class="usa-pagination__list">
+                <!-- Previous button -->
+                <li class="usa-pagination__item usa-pagination__arrow">
+                    {% if page > 1 %}
+                    <a class="usa-pagination__link usa-pagination__previous-page"
+                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), page=page-1, per_page=20, count='true') }}"
+                        hx-target="#search-results" 
+                        hx-swap="outerHTML show:.organization-datasets__list:top" 
+                        hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true"
+                        href="#" 
+                        aria-label="Previous page">
+                        <span class="usa-pagination__link-text">Previous</span>
+                    </a>
+                    {% endif %}
+                </li>
+
+                {% for number in page_sequence %}
+                {% if number is none %}
+                <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
+                {% elif number == page %}
+                <li class="usa-pagination__item usa-pagination__page-no">
+                    <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
+                </li>
+                {% else %}
+                <li class="usa-pagination__item usa-pagination__page-no">
+                    <a class="usa-pagination__button"
+                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), page=number, per_page=20, count='true') }}"
+                        hx-target="#search-results" 
+                        hx-swap="outerHTML show:.organization-datasets__list:top" 
+                        hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true"
+                        href="#">{{ number }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+
+                <!-- Next button -->
+                <li class="usa-pagination__item usa-pagination__arrow">
+                    {% if page < total_pages %}
+                    <a class="usa-pagination__link usa-pagination__next-page"
+                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), page=page+1, per_page=20, count='true') }}"
+                        hx-target="#search-results" 
+                        hx-swap="outerHTML show:.organization-datasets__list:top" 
+                        hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true"
+                        href="#" 
+                        aria-label="Next page">
+                        <span class="usa-pagination__link-text">Next</span>
+                    </a>
+                    {% endif %}
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+    </section>
+    {% endif %}
+</div>

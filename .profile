@@ -20,6 +20,11 @@ export APP_NAME=$(echo $VCAP_APPLICATION | jq -r '.application_name')
 export URI=$(vcap_get_service db .credentials.replica_uri)
 export DATABASE_URI=$(echo $URI | sed 's/postgres:\/\//postgresql+psycopg:\/\//g')
 
+# Opensearch host and credentials
+export OPENSEARCH_HOST=$(vcap_get_service opensearch .credentials.host)
+export OPENSEARCH_ACCESS_KEY=$(vcap_get_service opensearch .credentials.access_key)
+export OPENSEARCH_SECRET_KEY=$(vcap_get_service opensearch .credentials.secret_key)
+
 # New Relic
 export NEW_RELIC_LICENSE_KEY=$(vcap_get_service secrets .credentials.NEW_RELIC_LICENSE_KEY)
 
