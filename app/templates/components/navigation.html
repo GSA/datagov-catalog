@@ -1,0 +1,33 @@
+<div class="usa-overlay"></div>
+<header class="usa-header usa-header--basic">
+  <div class="usa-nav-container">
+    <div class="usa-navbar">
+      <div class="usa-logo" id="logo">
+        <a href="https://data.gov" target="_blank" title="Home" aria-label="Home"></a>
+      </div>
+      <button class="usa-menu-btn" type="button">Menu</button>
+    </div>
+    <nav aria-label="Primary navigation" class="usa-nav">
+      <button class="usa-nav__close" type="button">
+        <img src="{{ url_for('static', filename='assets/uswds/img/usa-icons/close.svg') }}" role="img" alt="Close">
+      </button>
+      <ul class="usa-nav__primary usa-accordion">
+        <li class="usa-nav__primary-item">
+          <a href="{{ url_for('main.index') }}" class="usa-nav__link">
+            <span>Home</span>
+          </a>
+        </li>
+        <li class="usa-nav__primary-item">
+          <a href="{{ url_for('main.list_organizations') }}" class="usa-nav__link">
+            <span>Organizations</span>
+          </a>
+        </li>
+        <li class="usa-nav__primary-item">
+          <a href="https://data.gov/user-guide/" target="_blank" class="usa-nav__link">
+            <span>User Guide</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>
