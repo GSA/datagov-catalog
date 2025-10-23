@@ -92,6 +92,15 @@
                             <p class="usa-collection__description">
                                 {{ dataset_meta.get('description', 'No description available.') | truncate(200) }}
                             </p>
+                            {% if dataset.dcat.distribution %}
+                            <ul class="dataset-resources unstyled">
+                                {% for resource in dataset.dcat.distribution %}
+                                <li>
+                                    <a href="{{ resource.accessURL }}" class="label label-default text-uppercase" data-format="{{ resource.format | lower }}" data-organization="{{ dataset.organization.name }}">{{ resource.format | lower }}</a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
                         </div>
                     </li>
                     {% endfor %}
