@@ -92,6 +92,23 @@
                             <p class="usa-collection__description">
                                 {{ dataset_meta.get('description', 'No description available.') | truncate(200) }}
                             </p>
+                            {% if dataset.dcat.distribution %}
+                            <ul class="dataset-resources unstyled">
+                                {% for resource in dataset.dcat.distribution[:6] %}
+                                <li>
+                                    <a href="{{ resource.accessURL }}" class="label label-default text-uppercase" data-format="{{ resource.format | default('HTML') | lower }}" data-organization="{{ dataset.organization.name }}">{{ resource.format | default('HTML') | lower }}</a>
+                                </li>
+                                {% endfor %}
+                                {% if dataset.dcat.distribution|length > 6 %}
+                                <li class="text-base-light">
+                                    <a class="usa-link"
+                                        href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                                        +{{ dataset.dcat.distribution|length - 6 }} more
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                            {% endif %}
                         </div>
                     </li>
                     {% endfor %}
