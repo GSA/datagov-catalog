@@ -235,6 +235,7 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     )
     assert description_text.startswith("Summary dataset of detailed payments")
 
+
 def test_index_page_renders(db_client):
     """
     Test that the index page loads correctly and contains the search form.
@@ -264,6 +265,7 @@ def test_index_page_renders(db_client):
     # Initial load should not render results without a query
     assert soup.find("div", {"id": "search-results"}) is None
 
+
 def test_index_search_returns_results(interface_with_dataset, db_client):
     """
     Test that searching via HTMX returns HTML results with dataset information.
@@ -273,7 +275,7 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
         response = db_client.get(
             "/search",
             query_string={"q": "test", "count": "true", "per_page": "20"},
-            headers={"HX-Request": "true"}
+            headers={"HX-Request": "true"},
         )
 
     assert response.status_code == 200
@@ -307,6 +309,7 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
     dataset_description = first_dataset.find("p", class_="usa-collection__description")
     assert dataset_description is not None
 
+
 def test_index_search_with_pagination(interface_with_dataset, db_client):
     """
     Test that search results with pagination render correctly via HTMX.
@@ -327,7 +330,7 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
         response = db_client.get(
             "/search",
             query_string={"q": "test", "count": "true", "per_page": "20", "page": "1"},
-            headers={"HX-Request": "true"}
+            headers={"HX-Request": "true"},
         )
 
     assert response.status_code == 200
@@ -352,6 +355,7 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
     assert next_button is not None
     assert "hx-get" in next_button.attrs
     assert "hx-target" in next_button.attrs
+
 
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
     with patch("app.routes.interface", interface_with_harvest_record):
