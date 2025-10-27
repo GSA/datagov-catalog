@@ -8,7 +8,19 @@ class OpenSearchInterface:
 
     INDEX_NAME = "datasets"
 
-    MAPPINGS = {"properties": {"title": {"type": "text"}}}
+    MAPPINGS = {
+        "properties": {
+            "title": {"type": "text"},
+            "description": {"type": "text"},
+            "publisher": {"type": "text"},
+            # Opensearch natively handles array-valued properties
+            "keyword": {"type": "text"},
+            "theme": {"type": "text"},
+            "identifier": {"type": "text"},
+            # keyword for exact matches
+            "organization_id": {"type": "keyword"},
+        }
+    }
 
     @staticmethod
     def _create_test_opensearch_client(host):
@@ -93,6 +105,13 @@ class OpenSearchInterface:
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
             "title": dataset.dcat.get("title", ""),
+            "description": dataset.dcat.get("description", ""),
+            "publisher": dataset.dcat.get("publisher", {}).get("name", ""),
+            # Opensearch handles array-value properties
+            "keyword": dataset.dcat.get("keyword", []),
+            "theme": dataset.dcat.get("theme", []),
+            "identifier": dataset.dcat.get("identifier", ""),
+            "organization_id": dataset.organization_id,
         }
 
     def index_datasets(self, dataset_iter):
@@ -116,10 +135,25 @@ class OpenSearchInterface:
     def search(self, query):
         """Search our index for a query string.
 
-        TODO: make a better search query weighted across many fields.
+        We use OpenSearch's multi-match to match our single query string
+        against many fields. We use the "boost" numbers to score some fields
+        higher than others.
         """
         search_body = {
-            "query": {"match": {"title": query}},
+            "query": {
+                "multi_match": {
+                    "query": query,
+                    "type": "most_fields",
+                    "fields": [
+                        "title^5",
+                        "description^3",
+                        "publisher^3",
+                        "keyword^2",
+                        "theme",
+                        "identifier",
+                    ],
+                }
+            },
             "size": 10,
         }
         return self.client.search(index=self.INDEX_NAME, body=search_body)["hits"][
