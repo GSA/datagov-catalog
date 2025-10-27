@@ -32,10 +32,10 @@ def test_search_api_pagination(interface_with_dataset, db_client):
         assert len(response.json) == 5
 
         response = db_client.get(
-            "/search", query_string={"q": "test", "paginate": "false"}
+            "/search", query_string={"q": "test"}
         )
-        # one original dataset plus 10 new ones
-        assert len(response.json) == 11
+        # default page size is 20 elements
+        assert len(response.json) == 20
 
 
 def test_dataset_detail_by_slug(interface_with_dataset, db_client):
@@ -295,7 +295,7 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     assert "Found" in results_text.text
-    assert "dataset(s)" in results_text.text
+    assert "datasets" in results_text.text
 
     # Check that dataset is in the results
     dataset_collection = soup.find("ul", class_="usa-collection")
@@ -584,7 +584,7 @@ def test_index_search_with_query_shows_result_count(interface_with_dataset, db_c
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     assert "Found" in results_text.text
-    assert "dataset(s)" in results_text.text
+    assert "datasets" in results_text.text
     assert 'matching "test"' in results_text.text
 
 
