@@ -10,21 +10,13 @@ def test_search(interface_with_dataset):
     assert len(result) == 0
 
 
-def test_websearch(interface_with_dataset):
-    """Test search queries in websearch format."""
+def test_multiple(interface_with_dataset):
+    """Test multiple search terms format."""
 
-    # "test description" is the source document
-    result = interface_with_dataset.search_datasets("test AND description")
+    # "test" and "description" are both in the source document
+    result = interface_with_dataset.search_datasets("test description")
     assert len(result) > 0
 
     # nonexistent isn't there so and should match nothing
-    result = interface_with_dataset.search_datasets("test AND nonexistentword")
-    assert len(result) == 0
-
-    # test is there, so this should match
-    result = interface_with_dataset.search_datasets("test OR -description")
-    assert len(result) > 0
-
-    # negation should match nothing
-    result = interface_with_dataset.search_datasets("-description")
+    result = interface_with_dataset.search_datasets("test nonexistentword")
     assert len(result) == 0

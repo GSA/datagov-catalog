@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
-from app.database import CatalogDBInterface
+from app.database import CatalogDBInterface, OpenSearchInterface
 from app.models import (
     Dataset,
     HarvestJob,
@@ -17,7 +17,6 @@ from app.models import (
     Organization,
     db,
 )
-from app.opensearch import OpenSearchInterface
 
 HARVEST_RECORD_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 DATASET_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"

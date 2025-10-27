@@ -42,13 +42,8 @@ def valid_id_required(func: F) -> F:
     return wrapper  # type: ignore[return-value]
 
 
-def build_dataset_dict(dataset_org_tuple: tuple) -> dict:
-    """Convert a dataset and organization tuple into a dictionary."""
-    dataset, organization = dataset_org_tuple
+def build_dataset_dict(dataset_dict: dict) -> dict:
+    """Convert an OpenSearch result dict into a dictionary."""
     # remove the search_vector from the dataset dict
-    dataset_dict = {k: v for k, v in dataset.to_dict().items() if k != "search_vector"}
-    # build organization data
-    dataset_dict["organization"] = {}
-    for key, value in organization.to_dict().items():
-        dataset_dict["organization"][key] = value
+    dataset_dict =  {k: v for k, v in dataset_dict.items() if k != "search_vector"}
     return dataset_dict

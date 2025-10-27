@@ -1,5 +1,7 @@
 """Database helpers for the catalog application."""
 
-from .interface import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
+from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
+from .interface import CatalogDBInterface
+from .opensearch import OpenSearchInterface
 
-__all__ = ["CatalogDBInterface", DEFAULT_PER_PAGE, DEFAULT_PAGE]
+__all__ = ["CatalogDBInterface", "OpenSearchInterface", DEFAULT_PER_PAGE, DEFAULT_PAGE]

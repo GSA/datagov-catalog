@@ -3,9 +3,8 @@ import os
 import click
 from flask import Blueprint
 
-from .database import CatalogDBInterface
+from .database import CatalogDBInterface, OpenSearchInterface
 from .models import Dataset
-from .opensearch import OpenSearchInterface
 
 search = Blueprint("search", __name__)
 
@@ -14,13 +13,10 @@ search = Blueprint("search", __name__)
 def sync_opensearch():
     """Sync the datasets to the OpenSearch system."""
 
-    opensearch_host = os.getenv("OPENSEARCH_HOST")
-    if opensearch_host.endswith("es.amazonaws.com"):
-        client = OpenSearchInterface(aws_host=opensearch_host)
-    else:
-        client = OpenSearchInterface(test_host=opensearch_host)
-
+    client = OpenSearchInterface.from_environment()
     interface = CatalogDBInterface()
+
+    click.echo("Indexing datasets...")
     succeeded, failed = client.index_datasets(interface.db.query(Dataset))
 
     click.echo(f"Indexed {succeeded} items.")

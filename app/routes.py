@@ -85,27 +85,23 @@ def index():
 
     # Only search if there's a query
     if query:
-        results = interface.search_datasets(
+        result = interface.search_datasets(
             query,
             page=page,
             per_page=per_page,
-            paginate=False,
-            count=True,
-            include_org=True,
             org_id=org_id,
             org_types=org_types,
             sort_by=sort_by,
         )
 
         # Get total count
-        total = results.count()
+        total = result.total
 
         # Apply pagination
         offset = (page - 1) * per_page
-        results = results.limit(per_page).offset(offset).all()
 
         # Build dataset dictionaries with organization data
-        datasets = [build_dataset_dict(result) for result in results]
+        datasets = [build_dataset_dict(each) for each in result.results]
 
         # Calculate total pages
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
@@ -137,25 +133,17 @@ def search():
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
-    results = interface.search_datasets(
+    result = interface.search_datasets(
         query,
         page=page,
         per_page=per_page,
-        paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
-        count=request.args.get("count", type=lambda x: x.lower() == "true"),
-        include_org=True,
         org_id=org_id,
         org_types=org_types,
     )
 
     if htmx:
-        # type hint that this is a Query object because paginate returns a query
-        #  if count is True.
-        results: Query
-        total = results.count()
-        offset = (page - 1) * per_page
-        results = results.limit(per_page).offset(offset).all()
-        results = [build_dataset_dict(result) for result in results]
+        total = result.total
+        results = [build_dataset_dict(each) for each in result.results]
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
         return render_template(
             "components/dataset_results.html",
@@ -166,7 +154,7 @@ def search():
             total_pages=total_pages,
         )
 
-    return jsonify([build_dataset_dict(result) for result in results])
+    return jsonify([build_dataset_dict(result) for result in result.results])
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
