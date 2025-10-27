@@ -51,6 +51,7 @@ class Organization(db.Model):
         cascade="all, delete-orphan",
         lazy=True,
     )
+    datasets = db.relationship("Dataset", backref="organization")
 
 
 class HarvestSource(db.Model):
@@ -207,6 +208,7 @@ class Dataset(db.Model):
 
     organization_id = db.Column(
         db.String(36),
+        db.ForeignKey("organization.id"),
         nullable=False,
         index=True,
     )

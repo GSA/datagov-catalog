@@ -24,7 +24,9 @@ def test_search_api_pagination(interface_with_dataset, db_client):
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
     # search relies on Opensearch now
-    interface_with_dataset.opensearch.index_datasets(interface_with_dataset.db.query(Dataset))
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test", "per_page": "5"})
         assert len(response.json) == 5
@@ -327,7 +329,9 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     # attempt commit
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(interface_with_dataset.db.query(Dataset))
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
 
     with patch("app.routes.interface", interface_with_dataset):
         # Request page 1 with 20 items per page

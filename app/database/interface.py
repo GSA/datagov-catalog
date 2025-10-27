@@ -10,8 +10,8 @@ from sqlalchemy import desc, func, or_
 
 from app.models import Dataset, HarvestRecord, Organization, db
 
-from .opensearch import OpenSearchInterface
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
+from .opensearch import OpenSearchInterface
 
 logger = logging.getLogger(__name__)
 

@@ -45,5 +45,5 @@ def valid_id_required(func: F) -> F:
 def build_dataset_dict(dataset_dict: dict) -> dict:
     """Convert an OpenSearch result dict into a dictionary."""
     # remove the search_vector from the dataset dict
-    dataset_dict =  {k: v for k, v in dataset_dict.items() if k != "search_vector"}
+    dataset_dict = {k: v for k, v in dataset_dict.items() if k != "search_vector"}
     return dataset_dict

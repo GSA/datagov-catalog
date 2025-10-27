@@ -16,7 +16,6 @@ from flask import (
     request,
     url_for,
 )
-from flask_sqlalchemy.query import Query
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
@@ -96,9 +95,6 @@ def index():
 
         # Get total count
         total = result.total
-
-        # Apply pagination
-        offset = (page - 1) * per_page
 
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]

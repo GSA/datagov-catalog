@@ -1,7 +1,7 @@
 import pytest
 
-from app.models import Dataset
 from app.database import OpenSearchInterface
+from app.models import Dataset
 
 
 class TestOpenSearch:
