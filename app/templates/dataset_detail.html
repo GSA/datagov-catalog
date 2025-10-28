@@ -22,360 +22,6 @@ dataLayer.push({
 {% endblock %}
 
 {% block script_head %}
-<style>
-/* Remove all padding/margin between header and content */
-/* TODO move to SCSS */
-#content {
-    padding-top: 0 !important;
-}
-
-.usa-section {
-    padding-top: 2rem;
-}
-
-.dataset-title {
-    font-size: 2.5rem;
-    line-height: 1.2;
-    margin-top: 0;
-    margin-bottom: 1rem;
-    color: #1b1b1b;
-}
-
-.dataset-meta {
-    font-size: 1rem;
-    color: #71767a;
-    margin-bottom: 1.5rem;
-}
-
-.dataset-meta a {
-    color: #005ea2;
-    text-decoration: none;
-}
-
-.dataset-meta a:hover {
-    text-decoration: underline;
-}
-
-.dataset-description {
-    font-size: 1.125rem;
-    line-height: 1.6;
-    margin-bottom: 2rem;
-}
-
-.resource-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    color: white;
-    margin-bottom: 0.75rem;
-}
-
-.resource-icon--csv { background: #00a91c; }
-.resource-icon--json { background: #0d7ea2; }
-.resource-icon--xml { background: #e52207; }
-.resource-icon--pdf { background: #d83933; }
-.resource-icon--html { background: #ff7e00; }
-.resource-icon--api { background: #2e2e2e; }
-.resource-icon--default { background: #71767a; }
-
-.resource-card-compact {
-    border: 1px solid #dfe1e2;
-    padding: 1.25rem;
-    border-radius: 0.5rem;
-    height: 100%;
-    transition: border-color 0.2s;
-}
-
-.resource-card-compact:hover {
-    border-color: #005ea2;
-}
-
-.resource-card-compact__title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #1b1b1b;
-}
-
-.resource-card-compact__links {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.resource-card-compact__link {
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.tags-section {
-    background: #f0f0f0;
-    padding: 1.5rem;
-    border-radius: 0.5rem;
-    margin-bottom: 2rem;
-}
-
-.tags-section__heading {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: #1b1b1b;
-}
-
-.tags-section__subtitle {
-    font-size: 0.875rem;
-    color: #71767a;
-    margin-bottom: 1rem;
-}
-
-.tag-link {
-    display: inline-block;
-    background: white;
-    border: 2px solid #dfe1e2;
-    color: #005ea2;
-    padding: 0.5rem 1rem;
-    border-radius: 1.5rem;
-    text-decoration: none;
-    font-size: 0.9375rem;
-    margin-right: 0.5rem;
-    margin-bottom: 0.5rem;
-    transition: all 0.2s;
-}
-
-.tag-link:hover {
-    border-color: #005ea2;
-    background: #005ea2;
-    color: white;
-    text-decoration: none;
-}
-
-.sidebar-section {
-    background: #f9f9f9;
-    border: 1px solid #dfe1e2;
-    border-radius: 0.5rem;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-.sidebar-section__heading {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin-top: 0;
-    margin-bottom: 1rem;
-    color: #1b1b1b;
-}
-
-.sidebar-section__item {
-    margin-bottom: 1rem;
-}
-
-.sidebar-section__item:last-child {
-    margin-bottom: 0;
-}
-
-.sidebar-section__label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #71767a;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.25rem;
-}
-
-.sidebar-section__value {
-    font-size: 1rem;
-    color: #1b1b1b;
-}
-
-.metadata-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.metadata-table th,
-.metadata-table td {
-    padding: 1rem;
-    text-align: left;
-    border-bottom: 1px solid #dfe1e2;
-}
-
-.metadata-table th {
-    font-weight: 600;
-    width: 30%;
-    vertical-align: top;
-    color: #1b1b1b;
-}
-
-.metadata-table td {
-    color: #454545;
-}
-
-.metadata-table tr:last-child th,
-.metadata-table tr:last-child td {
-    border-bottom: none;
-}
-
-.metadata-table pre {
-    background: #f0f0f0;
-    padding: 0.75rem;
-    border-radius: 0.25rem;
-    overflow-x: auto;
-    margin: 0;
-}
-
-.return-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    color: #005ea2;
-    text-decoration: none;
-}
-
-.return-link:hover {
-    text-decoration: underline;
-}
-
-.advanced-search-tip {
-    background: #e7f6f8;
-    border-left: 4px solid #0d7ea2;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-    border-radius: 0.25rem;
-}
-
-.advanced-search-tip__title {
-    font-weight: 600;
-    color: #1b1b1b;
-    margin-bottom: 0.5rem;
-}
-
-.advanced-search-tip__text {
-    font-size: 0.9375rem;
-    color: #454545;
-    margin: 0;
-}
-
-/* Resources dropdown in sidebar */
-.resources-dropdown {
-    border: 1px solid #dfe1e2;
-    border-radius: 0.25rem;
-    margin-top: 1rem;
-}
-
-.resources-dropdown summary {
-    padding: 0.75rem;
-    cursor: pointer;
-    user-select: none;
-    font-weight: 600;
-    list-style: none;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.resources-dropdown summary::-webkit-details-marker {
-    display: none;
-}
-
-.resources-dropdown summary::after {
-    content: '▼';
-    font-size: 0.75rem;
-    transition: transform 0.2s;
-}
-
-.resources-dropdown[open] summary::after {
-    transform: rotate(-180deg);
-}
-
-.resources-dropdown summary:hover {
-    background: #f9f9f9;
-}
-
-.resources-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.resources-list__item {
-    border-top: 1px solid #dfe1e2;
-    padding: 0.75rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    transition: background 0.2s;
-}
-
-.resources-list__item:hover {
-    background: #f9f9f9;
-}
-
-.resources-list__icon {
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f0f0f0;
-    border-radius: 0.25rem;
-    color: #71767a;
-}
-
-.resources-list__icon i {
-    font-size: 1rem;
-}
-
-.resources-list__details {
-    flex: 1;
-    min-width: 0;
-}
-
-.resources-list__name {
-    font-size: 0.875rem;
-    color: #1b1b1b;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin: 0;
-}
-
-.resources-list__format {
-    font-size: 0.75rem;
-    color: #71767a;
-    text-transform: uppercase;
-    margin-top: 0.125rem;
-}
-
-.resources-list__link {
-    color: inherit;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-}
-
-.resources-list__link:hover {
-    color: #005ea2;
-}
-
-.resources-list__link:hover .resources-list__name {
-    color: #005ea2;
-}
-</style>
 {% endblock %}
 
 {% block main_content %}
@@ -392,6 +38,16 @@ dataLayer.push({
             <i class="fa-solid fa-arrow-left"></i>
             Return to search results
         </a>
+
+        <!-- Advanced Search Tip -->
+        <div class="advanced-search-tip">
+            <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
+            <p class="advanced-search-tip__text">
+                Use quotes for exact phrases: <code>"climate change"</code> | 
+                Use AND/OR for multiple terms: <code>education AND funding</code> | 
+                Search by organization or tag to find related datasets
+            </p>
+        </div>
 
         <div class="grid-row grid-gap-lg">
             <!-- Main Content Column -->
@@ -424,17 +80,6 @@ dataLayer.push({
                 {% else %}
                 <p class="dataset-description text-base-light">No description available</p>
                 {% endif %}
-
-                <!-- Advanced Search Tip -->
-                <div class="advanced-search-tip">
-                    <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
-                    <p class="advanced-search-tip__text">
-                        Use quotes for exact phrases: <code>"climate change"</code> | 
-                        Use AND/OR for multiple terms: <code>education AND funding</code> | 
-                        Search by organization or tag to find related datasets
-                    </p>
-                </div>
-
 
                 <!-- Tags as Search Actions -->
                 {% if dataset.dcat.get('keyword') %}
@@ -478,7 +123,70 @@ dataLayer.push({
 
             <!-- Sidebar -->
             <aside class="desktop:grid-col-4">
-                
+
+                                <!-- Resources -->
+                {% if distributions %}
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Resources</h3>
+                    
+                    {% set resource_items = distributions %}
+                    {% if resource_items is mapping or resource_items is string %}
+                        {% set resource_items = [resource_items] %}
+                    {% elif resource_items is not sequence %}
+                        {% set resource_items = [resource_items] %}
+                    {% endif %}
+                    
+                    <p style="font-size: 0.9375rem; margin-bottom: 0.5rem; color: #71767a;">
+                        {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
+                    </p>
+                    
+                    <details class="resources-dropdown" open>
+                        <summary>View all resources</summary>
+                        <ul class="resources-list">
+                            {% for resource in resource_items %}
+                            {% set resource_url = None %}
+                            {% set resource_title = resource|format_dcat_value %}
+                            {% set resource_format = None %}
+                            
+                            {% if resource is mapping %}
+                                {% set download_url = resource.get('downloadURL') %}
+                                {% set access_url = resource.get('accessURL') %}
+                                {% set resource_url = download_url or access_url %}
+                                {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~ loop.index %}
+                                {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper %}
+                            {% endif %}
+                            
+                            <li class="resources-list__item">
+                                {% if resource_url %}
+                                <a href="{{ resource_url }}" target="_blank" rel="noopener" class="resources-list__link">
+                                    <div class="resources-list__icon">
+                                        <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                    </div>
+                                    <div class="resources-list__details">
+                                        <p class="resources-list__name" title="{{ resource_title }}">
+                                            {{ resource_title }}
+                                        </p>
+                                        <div class="resources-list__format">{{ resource_format or 'file' }}</div>
+                                    </div>
+                                </a>
+                                {% else %}
+                                <div class="resources-list__icon">
+                                    <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                </div>
+                                <div class="resources-list__details">
+                                    <p class="resources-list__name" title="{{ resource_title }}">
+                                        {{ resource_title }}
+                                    </p>
+                                    <div class="resources-list__format">{{ resource_format or 'file' }}</div>
+                                </div>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                </div>
+                {% endif %}
+
                 <!-- Access and Use Information -->
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Access & Use</h3>
@@ -548,69 +256,6 @@ dataLayer.push({
                     </div>
                     {% endif %}
                 </div>
-
-                <!-- Resources -->
-                {% if distributions %}
-                <div class="sidebar-section">
-                    <h3 class="sidebar-section__heading">Resources</h3>
-                    
-                    {% set resource_items = distributions %}
-                    {% if resource_items is mapping or resource_items is string %}
-                        {% set resource_items = [resource_items] %}
-                    {% elif resource_items is not sequence %}
-                        {% set resource_items = [resource_items] %}
-                    {% endif %}
-                    
-                    <p style="font-size: 0.9375rem; margin-bottom: 0.5rem; color: #71767a;">
-                        {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
-                    </p>
-                    
-                    <details class="resources-dropdown" open>
-                        <summary>View all resources</summary>
-                        <ul class="resources-list">
-                            {% for resource in resource_items %}
-                            {% set resource_url = None %}
-                            {% set resource_title = resource|format_dcat_value %}
-                            {% set resource_format = None %}
-                            
-                            {% if resource is mapping %}
-                                {% set download_url = resource.get('downloadURL') %}
-                                {% set access_url = resource.get('accessURL') %}
-                                {% set resource_url = download_url or access_url %}
-                                {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~ loop.index %}
-                                {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper %}
-                            {% endif %}
-                            
-                            <li class="resources-list__item">
-                                {% if resource_url %}
-                                <a href="{{ resource_url }}" target="_blank" rel="noopener" class="resources-list__link">
-                                    <div class="resources-list__icon">
-                                        <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
-                                    </div>
-                                    <div class="resources-list__details">
-                                        <p class="resources-list__name" title="{{ resource_title }}">
-                                            {{ resource_title }}
-                                        </p>
-                                        <div class="resources-list__format">{{ resource_format or 'file' }}</div>
-                                    </div>
-                                </a>
-                                {% else %}
-                                <div class="resources-list__icon">
-                                    <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
-                                </div>
-                                <div class="resources-list__details">
-                                    <p class="resources-list__name" title="{{ resource_title }}">
-                                        {{ resource_title }}
-                                    </p>
-                                    <div class="resources-list__format">{{ resource_format or 'file' }}</div>
-                                </div>
-                                {% endif %}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </details>
-                </div>
-                {% endif %}
 
                 <!-- Feedback -->
                 <div class="sidebar-section">
