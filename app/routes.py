@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime
 from math import ceil
+from typing import Optional
 from xml.etree import ElementTree
 
 from dotenv import load_dotenv
@@ -20,6 +21,7 @@ from flask_sqlalchemy.query import Query
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
+from .models import Dataset
 from .utils import build_dataset_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
@@ -66,6 +68,88 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
             pages.append(num)
             last = num
     return pages
+
+
+SITEMAP_PAGE_SIZE = 10000
+
+
+def _dataset_lastmod(dataset: Dataset) -> Optional[str]:
+    """Return ISO date string from dataset.last_harvested_date, if present."""
+    dt = getattr(dataset, "last_harvested_date", None)
+    if dt is not None:
+        try:
+            return dt.date().isoformat()
+        except Exception:
+            pass
+    return None
+
+
+@main.route("/sitemap.xml", methods=["GET"])
+def sitemap_index() -> Response:
+    """Sitemap index that points to chunked sitemap files of datasets.
+
+    Each sitemap chunk contains up to 10,000 dataset URLs.
+    """
+    total = interface.db.query(Dataset).count()
+    total_chunks = (total + SITEMAP_PAGE_SIZE - 1) // SITEMAP_PAGE_SIZE if total else 0
+
+    # Build XML
+    lines = [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
+    ]
+
+    for idx in range(total_chunks):
+        loc = url_for("main.sitemap_chunk", index=idx, _external=True)
+        lines.append("  <sitemap>")
+        lines.append(f"    <loc>{loc}</loc>")
+        lines.append("  </sitemap>")
+
+    lines.append("</sitemapindex>")
+    body = "\n".join(lines)
+    return Response(body, mimetype="application/xml")
+
+
+@main.route("/sitemap/sitemap-<int:index>.xml", methods=["GET"])
+def sitemap_chunk(index: int) -> Response:
+    """Return a single sitemap file containing up to 10,000 dataset URLs."""
+    if index < 0:
+        abort(404)
+
+    offset = index * SITEMAP_PAGE_SIZE
+    # Fetch the specific window deterministically, ordered by slug
+    datasets = (
+        interface.db.query(Dataset)
+        .order_by(
+            Dataset.last_harvested_date.asc().nullslast(),
+            Dataset.slug.asc(),
+        )
+        .offset(offset)
+        .limit(SITEMAP_PAGE_SIZE)
+        .all()
+    )
+
+    if index > 0 and not datasets:
+        # Non-zero empty page is out of range
+        abort(404)
+
+    lines = [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
+    ]
+
+    for ds in datasets:
+        loc = url_for("main.dataset_detail_by_slug_or_id", slug_or_id=ds.slug, _external=True)
+        lastmod = _dataset_lastmod(ds)
+        lines.append("  <url>")
+        lines.append(f"    <loc>{loc}</loc>")
+        if lastmod:
+            lines.append(f"    <lastmod>{lastmod}</lastmod>")
+        lines.append("  </url>")
+
+    lines.append("</urlset>")
+    body = "\n".join(lines)
+    return Response(body, mimetype="application/xml")
 
 
 # Routes
