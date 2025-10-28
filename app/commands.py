@@ -1,4 +1,5 @@
 import os
+from datetime import date
 from typing import Iterable, Optional
 
 import click
@@ -71,6 +72,7 @@ def _build_sitemap_chunk_xml(datasets: Iterable[Dataset]) -> str:
 
 def _build_sitemap_index_xml(total_chunks: int) -> str:
     base_url = os.getenv("SITEMAP_BASE_URL", "http://localhost:8080").rstrip("/")
+    today = date.today().isoformat()
     lines = [
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
         "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
@@ -79,6 +81,7 @@ def _build_sitemap_index_xml(total_chunks: int) -> str:
         loc = f"{base_url}/sitemap/sitemap-{idx}.xml"
         lines.append("  <sitemap>")
         lines.append(f"    <loc>{loc}</loc>")
+        lines.append(f"    <lastmod>{today}</lastmod>")
         lines.append("  </sitemap>")
     lines.append("</sitemapindex>")
     return "\n".join(lines)
