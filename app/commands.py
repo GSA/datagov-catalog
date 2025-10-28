@@ -1,6 +1,9 @@
 import os
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from typing import Iterable, Optional
+from urllib.parse import urlparse
+import posixpath
+import xml.etree.ElementTree as ET
 
 import click
 from flask import Blueprint
@@ -160,3 +163,142 @@ def sitemap_generate(chunk_size: int):
         ContentType="application/xml",
     )
     click.echo(f"Uploaded {index_key}")
+
+
+@sitemap.cli.command("verify")
+@click.option("--dry-run", is_flag=True, default=False, help="Show actions without deleting")
+@click.option(
+    "--max-age-hours",
+    type=int,
+    default=lambda: int(os.getenv("SITEMAP_MAX_AGE_HOURS", "24")),
+    help="Fail if index or chunks are older than this many hours (default 24)",
+)
+@click.option(
+    "--skip-freshness",
+    is_flag=True,
+    default=False,
+    help="Skip timestamp freshness checks (only validates presence and cleans extras)",
+)
+def sitemap_verify(dry_run: bool, max_age_hours: int, skip_freshness: bool):
+    """Verify sitemap chunks against the index and remove stale files.
+
+    - Reads the sitemap index (sitemap.xml) from S3
+    - Confirms each referenced chunk exists in S3
+    - Deletes chunk files in the prefix that are not referenced by the index
+    """
+    s3, bucket, prefix, index_key = _s3_client_and_config()
+
+    # Fetch index
+    try:
+        # Fetch index body; optionally fetch HEAD for timestamp when checking freshness
+        obj = s3.get_object(Bucket=bucket, Key=index_key)
+        body = obj["Body"].read()
+        index_head = (
+            s3.head_object(Bucket=bucket, Key=index_key) if not skip_freshness else None
+        )
+    except Exception as e:
+        raise click.ClickException(f"Failed to fetch index {index_key}: {e}")
+
+    # Parse index for <loc> values
+    try:
+        root = ET.fromstring(body)
+    except ET.ParseError as e:
+        raise click.ClickException(f"Invalid sitemap index XML: {e}")
+
+    # Sitemap namespace handling (default namespace)
+    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    loc_elems = root.findall(".//sm:loc", ns)
+    expected_keys = set()
+    for loc_el in loc_elems:
+        loc_text = (loc_el.text or "").strip()
+        if not loc_text:
+            continue
+        parsed = urlparse(loc_text)
+        base = posixpath.basename(parsed.path)
+        if not base:
+            continue
+        expected_keys.add(f"{prefix.rstrip('/')}/{base}")
+
+    click.echo(f"Found {len(expected_keys)} expected chunk(s) in index")
+
+    # Recency threshold
+    now_utc = datetime.now(timezone.utc)
+    threshold = now_utc - timedelta(hours=max_age_hours)
+
+    # Check index recency (unless skipped)
+    index_stale = False
+    if not skip_freshness and index_head is not None:
+        index_last_modified = index_head.get("LastModified")
+        if isinstance(index_last_modified, datetime) and index_last_modified < threshold:
+            index_stale = True
+            click.echo(
+                f"Index stale: {index_key} modified {index_last_modified.isoformat()} (threshold {threshold.isoformat()})"
+            )
+
+    # Verify existence of expected chunks
+    missing = []
+    old_chunks = []
+    for key in sorted(expected_keys):
+        try:
+            head = s3.head_object(Bucket=bucket, Key=key)
+            if not skip_freshness:
+                lm = head.get("LastModified")
+                if isinstance(lm, datetime) and lm < threshold:
+                    old_chunks.append((key, lm))
+        except Exception:
+            missing.append(key)
+
+    if missing:
+        click.echo("Missing chunks:")
+        for key in missing:
+            click.echo(f"  - s3://{bucket}/{key}")
+    else:
+        click.echo("All referenced chunks exist.")
+
+    if old_chunks and not skip_freshness:
+        click.echo("Out-of-date chunks (older than max-age):")
+        for key, lm in old_chunks:
+            click.echo(f"  - s3://{bucket}/{key} (LastModified: {lm.isoformat()})")
+
+    # List current chunks under prefix
+    current_keys = set()
+    continuation = None
+    while True:
+        kwargs = {"Bucket": bucket, "Prefix": prefix}
+        if continuation:
+            kwargs["ContinuationToken"] = continuation
+        resp = s3.list_objects_v2(**kwargs)
+        for item in resp.get("Contents", []):
+            key = item.get("Key")
+            if key and key.endswith(".xml") and posixpath.basename(key).startswith("sitemap-"):
+                current_keys.add(key)
+        if resp.get("IsTruncated"):
+            continuation = resp.get("NextContinuationToken")
+        else:
+            break
+
+    stale = sorted(current_keys - expected_keys)
+    if stale:
+        click.echo("Stale chunks (not listed in index):")
+        for key in stale:
+            click.echo(f"  - s3://{bucket}/{key}")
+        if not dry_run:
+            # Batch delete in groups of 1000
+            for i in range(0, len(stale), 1000):
+                batch = stale[i : i + 1000]
+                s3.delete_objects(
+                    Bucket=bucket,
+                    Delete={"Objects": [{"Key": k} for k in batch], "Quiet": True},
+                )
+            click.echo(f"Deleted {len(stale)} stale chunk(s)")
+        else:
+            click.echo("Dry run: no deletions performed")
+    else:
+        click.echo("No stale chunks found.")
+
+    # Final status
+    if missing or ((old_chunks or index_stale) and not skip_freshness):
+        raise click.ClickException(
+            "Verification finished with issues (missing or stale files). See output above."
+        )
+    click.echo("Verification complete: OK" + (" and recent" if not skip_freshness else ""))
