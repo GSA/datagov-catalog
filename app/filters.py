@@ -2,7 +2,7 @@
 
 import json
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Union
 
 from flask import url_for
 
@@ -48,5 +48,33 @@ def format_gov_type(gov_type: str) -> str:
         return gov_type.split()[0].lower()
     return "unknown"
 
+def fa_icon_from_extension(extension: str) -> str:
+    """Return a Font Awesome icon class based on file extension."""
+    extension = extension.lower() if extension else "default"
+    # if extension is a MIME type, extract the last part
+    # e.g. "application/json" -> "json"
+    if "/" in extension:
+        extension = extension.split("/")[-1]
+    if extension in ["csv"]:
+        return "fa-file-csv"
+    elif extension in ["xlsx", "xls", "ods"]:
+        return "fa-file-excel"
+    elif extension in ["pdf"]:
+        return "fa-file-pdf"
+    elif extension in ["html"]:
+        return "fa-arrow-up-right-from-square"
+    elif extension in ["api"]:
+        return "fa-plug"
+    else:
+        return "fa-file"
 
-__all__ = ["usa_icon", "format_dcat_value", "format_gov_type"]
+def format_contact_point_email(email: str) -> Union[str, None]:
+    """Format a contact point email for display."""
+    if email:
+        if ":" in email:
+            # If the email is in the format "mailto:email", return only the email part
+            return email.split(":")[-1].strip().lower()
+        return email.split().lower()
+    return None
+
+__all__ = ["usa_icon", "format_dcat_value", "format_gov_type", "fa_icon_from_extension", "format_contact_point_email"]

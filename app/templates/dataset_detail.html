@@ -2,6 +2,8 @@
 
 {% block title %}{{ dataset.dcat.get('title') or dataset.slug or dataset.id }} - Data.gov{% endblock %}
 
+{% block container_class %}grid-container-widescreen{% endblock %}
+
 {% block datalayer %}
 <script>
 window.dataLayer = window.dataLayer || [];
@@ -19,227 +21,621 @@ dataLayer.push({
 </script>
 {% endblock %}
 
+{% block script_head %}
+<style>
+/* Remove all padding/margin between header and content */
+/* TODO move to SCSS */
+#content {
+    padding-top: 0 !important;
+}
 
-{% block content %}
+.usa-section {
+    padding-top: 2rem;
+}
+
+.dataset-title {
+    font-size: 2.5rem;
+    line-height: 1.2;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #1b1b1b;
+}
+
+.dataset-meta {
+    font-size: 1rem;
+    color: #71767a;
+    margin-bottom: 1.5rem;
+}
+
+.dataset-meta a {
+    color: #005ea2;
+    text-decoration: none;
+}
+
+.dataset-meta a:hover {
+    text-decoration: underline;
+}
+
+.dataset-description {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.resource-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: white;
+    margin-bottom: 0.75rem;
+}
+
+.resource-icon--csv { background: #00a91c; }
+.resource-icon--json { background: #0d7ea2; }
+.resource-icon--xml { background: #e52207; }
+.resource-icon--pdf { background: #d83933; }
+.resource-icon--html { background: #ff7e00; }
+.resource-icon--api { background: #2e2e2e; }
+.resource-icon--default { background: #71767a; }
+
+.resource-card-compact {
+    border: 1px solid #dfe1e2;
+    padding: 1.25rem;
+    border-radius: 0.5rem;
+    height: 100%;
+    transition: border-color 0.2s;
+}
+
+.resource-card-compact:hover {
+    border-color: #005ea2;
+}
+
+.resource-card-compact__title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #1b1b1b;
+}
+
+.resource-card-compact__links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.resource-card-compact__link {
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tags-section {
+    background: #f0f0f0;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.tags-section__heading {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #1b1b1b;
+}
+
+.tags-section__subtitle {
+    font-size: 0.875rem;
+    color: #71767a;
+    margin-bottom: 1rem;
+}
+
+.tag-link {
+    display: inline-block;
+    background: white;
+    border: 2px solid #dfe1e2;
+    color: #005ea2;
+    padding: 0.5rem 1rem;
+    border-radius: 1.5rem;
+    text-decoration: none;
+    font-size: 0.9375rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s;
+}
+
+.tag-link:hover {
+    border-color: #005ea2;
+    background: #005ea2;
+    color: white;
+    text-decoration: none;
+}
+
+.sidebar-section {
+    background: #f9f9f9;
+    border: 1px solid #dfe1e2;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.sidebar-section__heading {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #1b1b1b;
+}
+
+.sidebar-section__item {
+    margin-bottom: 1rem;
+}
+
+.sidebar-section__item:last-child {
+    margin-bottom: 0;
+}
+
+.sidebar-section__label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #71767a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.sidebar-section__value {
+    font-size: 1rem;
+    color: #1b1b1b;
+}
+
+.metadata-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.metadata-table th,
+.metadata-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #dfe1e2;
+}
+
+.metadata-table th {
+    font-weight: 600;
+    width: 30%;
+    vertical-align: top;
+    color: #1b1b1b;
+}
+
+.metadata-table td {
+    color: #454545;
+}
+
+.metadata-table tr:last-child th,
+.metadata-table tr:last-child td {
+    border-bottom: none;
+}
+
+.metadata-table pre {
+    background: #f0f0f0;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    overflow-x: auto;
+    margin: 0;
+}
+
+.return-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    color: #005ea2;
+    text-decoration: none;
+}
+
+.return-link:hover {
+    text-decoration: underline;
+}
+
+.advanced-search-tip {
+    background: #e7f6f8;
+    border-left: 4px solid #0d7ea2;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0.25rem;
+}
+
+.advanced-search-tip__title {
+    font-weight: 600;
+    color: #1b1b1b;
+    margin-bottom: 0.5rem;
+}
+
+.advanced-search-tip__text {
+    font-size: 0.9375rem;
+    color: #454545;
+    margin: 0;
+}
+
+/* Resources dropdown in sidebar */
+.resources-dropdown {
+    border: 1px solid #dfe1e2;
+    border-radius: 0.25rem;
+    margin-top: 1rem;
+}
+
+.resources-dropdown summary {
+    padding: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.resources-dropdown summary::-webkit-details-marker {
+    display: none;
+}
+
+.resources-dropdown summary::after {
+    content: '▼';
+    font-size: 0.75rem;
+    transition: transform 0.2s;
+}
+
+.resources-dropdown[open] summary::after {
+    transform: rotate(-180deg);
+}
+
+.resources-dropdown summary:hover {
+    background: #f9f9f9;
+}
+
+.resources-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.resources-list__item {
+    border-top: 1px solid #dfe1e2;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: background 0.2s;
+}
+
+.resources-list__item:hover {
+    background: #f9f9f9;
+}
+
+.resources-list__icon {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    border-radius: 0.25rem;
+    color: #71767a;
+}
+
+.resources-list__icon i {
+    font-size: 1rem;
+}
+
+.resources-list__details {
+    flex: 1;
+    min-width: 0;
+}
+
+.resources-list__name {
+    font-size: 0.875rem;
+    color: #1b1b1b;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin: 0;
+}
+
+.resources-list__format {
+    font-size: 0.75rem;
+    color: #71767a;
+    text-transform: uppercase;
+    margin-top: 0.125rem;
+}
+
+.resources-list__link {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.resources-list__link:hover {
+    color: #005ea2;
+}
+
+.resources-list__link:hover .resources-list__name {
+    color: #005ea2;
+}
+</style>
+{% endblock %}
+
+{% block main_content %}
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_identifier = dataset.slug or dataset.id %}
-<nav class="usa-breadcrumb" aria-label="Breadcrumbs">
-    <ol class="usa-breadcrumb__list">
-        <li class="usa-breadcrumb__list-item">
-            <a href="{{ url_for('main.index') }}" class="usa-breadcrumb__link">Home</a>
-        </li>
-        <li class="usa-breadcrumb__list-item">
-            <a href="#" class="usa-breadcrumb__link">Datasets</a>
-        </li>
-        <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
-            <span>{{ dataset_title }}</span>
-        </li>
-    </ol>
-</nav>
-
-<div class="grid-row margin-top-4">
-    <div class="grid-col-12 usa-prose">
-        <h1 class="margin-bottom-1">{{ dataset_title }}</h1>
-        {% if dataset.dcat.get('publisher', {}).get('name') %}
-        <p class="usa-intro text-base-dark margin-top-0">
-            Published by {{ dataset.dcat.publisher.name }}
-        </p>
-        {% endif %}
-    </div>
-</div>
-
-<div class="grid-row grid-gap-lg margin-top-4">
-    <div class="desktop:grid-col-8">
-        <section class="margin-bottom-4 usa-prose">
-            <h2 class="text-primary-darker">Description</h2>
-            <button
-                class="usa-button usa-button--outline dataset-detail__feedback-button"
-                type="button"
-                id="contact-btn"
-                data-dataset-identifier="{{ dataset_identifier }}"
-                data-dataset-title="{{ dataset_title }}"
-                aria-label="Provide feedback on {{ dataset_title }}"
-            >
-                <span aria-hidden="true" class="dataset-detail__feedback-icon">
-                    <i class="fa-solid fa-comment-dots"></i>
-                </span>
-                <span>Feedback</span>
-            </button>
-            {% set description_value = dataset.dcat.get('description') %}
-            {% if description_value %}
-            <p class="dataset-detail__description-text">{{ description_value | format_dcat_value }}</p>
-            {% else %}
-            <p class="dataset-detail__description-text text-base-light">Not available</p>
-            {% endif %}
-        </section>
-
-        {% if dataset.dcat.get('keyword') %}
-        <section class="margin-bottom-4">
-            <h2 class="text-primary-darker">Tags</h2>
-            <div class="dataset-tags">
-                {% for keyword in dataset.dcat.keyword %}
-                <span class="usa-tag margin-right-1 margin-bottom-05 text-uppercase">{{ keyword }}</span>
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
-    </div>
-
-    <div class="desktop:grid-col-4">
-        <div class="usa-card">
-            <div class="usa-card__container">
-                <div class="usa-card__header">
-                    <h3 class="usa-card__heading">Dataset Information</h3>
-                </div>
-                <div class="usa-card__body">
-                    <dl class="usa-description-list">
-                        <div class="usa-description-list__row">
-                            <dt class="usa-description-list__term">Last Harvested</dt>
-                            <dd class="usa-description-list__description">
-                                {% if dataset.last_harvested_date %}
-                                {{ dataset.last_harvested_date.strftime('%B %d, %Y at %I:%M %p') }}
-                                {% else %}
-                                Not available
-                                {% endif %}
-                            </dd>
-                        </div>
-                        <div class="usa-description-list__row">
-                            <dt class="usa-description-list__term">Harvest Record</dt>
-                            <dd class="usa-description-list__description">
-                                <a href="{{ url_for('main.get_harvest_record_raw', record_id=dataset.harvest_record_id) }}"
-                                    class="usa-link">
-                                    View Record
-                                </a>
-                            </dd>
-                        </div>
-                    </dl>
-                </div>
-            </div>
-        </div>
-        <div class="usa-card margin-top-3">
-            <div class="usa-card__container">
-                <div class="usa-card__body">
-                    <form class="usa-form" method="get" action="{{ url_for('main.index') }}">
-                        <label class="usa-label margin-top-0" for="dataset-search">Try a different search</label>
-                        <input class="usa-input" id="dataset-search" name="q" type="search" placeholder="Search Data.gov...">
-                        <button class="usa-button margin-top-2" type="submit">Search</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% set distributions = dataset.dcat.get('distribution') %}
-{% if distributions %}
-<div class="grid-row margin-top-6">
-    <div class="grid-col-12">
-        <section class="usa-prose">
-            <h2 class="text-primary-darker">Resources</h2>
-        </section>
-        {% set resource_items = distributions %}
-        {% if resource_items is mapping or resource_items is string %}
-        {% set resource_items = [resource_items] %}
-        {% elif resource_items is not sequence %}
-        {% set resource_items = [resource_items] %}
-        {% endif %}
-        <div class="usa-table-container--scrollable">
-            <table class="usa-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Resource</th>
-                        <th scope="col">Format</th>
-                        <th scope="col">Access</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for resource in resource_items %}
-                    {% set resource_url = None %}
-                    {% set resource_title = resource|format_dcat_value %}
-                    {% set resource_format = None %}
-                    {% set resource_description = None %}
-                    {% set secondary_url = None %}
-                    {% set primary_label = 'Access' %}
-                    {% set secondary_label = 'Download' %}
-                    {% if resource is mapping %}
-                    {% set download_url = resource.get('downloadURL') %}
-                    {% set access_url = resource.get('accessURL') %}
-                    {% set resource_url = download_url or access_url %}
-                    {% set resource_title = resource.get('title') or resource.get('description') or resource_url or 'Resource ' ~ loop.index %}
-                    {% set resource_format = resource.get('format') or resource.get('mediaType') %}
-                    {% set resource_description = resource.get('description') %}
-                    {% if download_url and access_url and download_url != access_url %}
-                    {% set secondary_url = access_url if resource_url == download_url else download_url %}
+{% set description_value = dataset.dcat.get('description') %}
+
+<div class="usa-section">
+    <div class="grid-container-widescreen">
+        
+        <!-- Return to search link -->
+        <a href="{{ url_for('main.index') }}" class="return-link">
+            <i class="fa-solid fa-arrow-left"></i>
+            Return to search results
+        </a>
+
+        <div class="grid-row grid-gap-lg">
+            <!-- Main Content Column -->
+            <div class="desktop:grid-col-8">
+                
+                <!-- Title and Metadata -->
+                <h1 class="dataset-title">{{ dataset_title }}</h1>
+                
+                <div class="dataset-meta">
+                    {% if dataset.dcat.get('publisher', {}).get('name') %}
+                    Published by <strong>{{ dataset.dcat.publisher.name }}</strong>
                     {% endif %}
-                    {% set primary_label = 'Download' if download_url else 'Access' %}
-                    {% set secondary_label = 'Access' if download_url else 'Download' %}
+                    {% if organization %}
+                    {% if dataset.dcat.get('publisher', {}).get('name') %} | {% endif %}
+                    <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name }}</a>
                     {% endif %}
-                    <tr>
-                        <th scope="row">
-                            {% if resource_url %}
-                            <a href="{{ resource_url }}" target="_blank" rel="noopener">{{ resource_title }}</a>
-                            {% else %}
-                            {{ resource_title }}
+                    {% if dataset.last_harvested_date %}
+                    | Metadata Last Checked: <strong>{{ dataset.last_harvested_date.strftime('%B %d, %Y') }}</strong>
+                    {% endif %}
+                    {% if dataset.dcat.get('modified') %}
+                    | Last Modified: <strong>{{ dataset.dcat.modified }}</strong>
+                    {% endif %}
+                </div>
+
+                <!-- Description -->
+                {% if description_value %}
+                <div class="dataset-description">
+                    {{ description_value | format_dcat_value }}
+                </div>
+                {% else %}
+                <p class="dataset-description text-base-light">No description available</p>
+                {% endif %}
+
+                <!-- Advanced Search Tip -->
+                <div class="advanced-search-tip">
+                    <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
+                    <p class="advanced-search-tip__text">
+                        Use quotes for exact phrases: <code>"climate change"</code> | 
+                        Use AND/OR for multiple terms: <code>education AND funding</code> | 
+                        Search by organization or tag to find related datasets
+                    </p>
+                </div>
+
+
+                <!-- Tags as Search Actions -->
+                {% if dataset.dcat.get('keyword') %}
+                <div class="tags-section">
+                    <h3 class="tags-section__heading">Find Related Datasets</h3>
+                    <p class="tags-section__subtitle">Click any tag below to search for similar datasets</p>
+                    <div>
+                        {% for keyword in dataset.dcat.keyword %}
+                        <a href="{{ url_for('main.index', q=keyword) }}" class="tag-link">
+                            {{ keyword }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Complete Metadata -->
+                <section class="margin-top-4">
+                    <h2 class="text-primary-darker margin-bottom-2">Complete Metadata</h2>
+                    
+                    <table class="metadata-table">
+                        <tbody>
+                            {% set excluded_keys = ['title', 'description', 'distribution', 'keyword', '@type', 'publisher', 'modified', 'contactPoint', 'license', 'accessLevel', 'accrualPeriodicity'] %}
+                            {% for key, value in dataset.dcat|dictsort if key not in excluded_keys %}
+                            {% set rendered_value = value|format_dcat_value %}
+                            <tr>
+                                <th scope="row">{{ key }}</th>
+                                <td>
+                                    {% if '\n' in rendered_value %}
+                                    <pre>{{ rendered_value }}</pre>
+                                    {% else %}
+                                    {{ rendered_value }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="desktop:grid-col-4">
+                
+                <!-- Access and Use Information -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Access & Use</h3>
+                    
+                    {% if dataset.dcat.get('license') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">License</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.license }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if dataset.dcat.get('accessLevel') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Access Level</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.accessLevel }}</div>
+                    </div>
+                    {% endif %}                    
+                </div>
+
+                <!-- Contact Information -->
+                {% if dataset.dcat.get('contactPoint') %}
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Contact</h3>
+                    
+                    {% if dataset.dcat.contactPoint.get('fn') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Name</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if dataset.dcat.contactPoint.get('hasEmail') %}
+                    {% set email = dataset.dcat.contactPoint.get('hasEmail') | format_contact_point_email%}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Email</div>
+                        <div class="sidebar-section__value">
+                            <a href="mailto:{{ email }}">
+                                {{ email}}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Dataset Information -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Dataset Information</h3>
+                    
+                    {% if dataset.last_harvested_date %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Metadata Last Checked</div>
+                        <div class="sidebar-section__value">
+                            {{ dataset.last_harvested_date.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if dataset.harvest_record_id %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Harvest Record</div>
+                        <div class="sidebar-section__value">
+                            <a href="{{ url_for('main.get_harvest_record_raw', record_id=dataset.harvest_record_id) }}">
+                                View Raw Data
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Resources -->
+                {% if distributions %}
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Resources</h3>
+                    
+                    {% set resource_items = distributions %}
+                    {% if resource_items is mapping or resource_items is string %}
+                        {% set resource_items = [resource_items] %}
+                    {% elif resource_items is not sequence %}
+                        {% set resource_items = [resource_items] %}
+                    {% endif %}
+                    
+                    <p style="font-size: 0.9375rem; margin-bottom: 0.5rem; color: #71767a;">
+                        {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
+                    </p>
+                    
+                    <details class="resources-dropdown" open>
+                        <summary>View all resources</summary>
+                        <ul class="resources-list">
+                            {% for resource in resource_items %}
+                            {% set resource_url = None %}
+                            {% set resource_title = resource|format_dcat_value %}
+                            {% set resource_format = None %}
+                            
+                            {% if resource is mapping %}
+                                {% set download_url = resource.get('downloadURL') %}
+                                {% set access_url = resource.get('accessURL') %}
+                                {% set resource_url = download_url or access_url %}
+                                {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~ loop.index %}
+                                {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper %}
                             {% endif %}
-                            {% if resource_description and (resource_title != resource_description) %}
-                            <p class="margin-top-1 margin-bottom-0 text-base">{{ resource_description }}</p>
-                            {% endif %}
-                        </th>
-                        <td>
-                            {% if resource_format %}
-                            {{ resource_format|format_dcat_value }}
-                            {% else %}
-                            <span class="text-base-light">Not specified</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if resource_url %}
-                            <a href="{{ resource_url }}" target="_blank" rel="noopener">{{ primary_label }}</a>
-                            {% if secondary_url %}
-                            <br>
-                            <a href="{{ secondary_url }}" target="_blank" rel="noopener">{{ secondary_label }}</a>
-                            {% endif %}
-                            {% else %}
-                            <span class="text-base-light">Unavailable</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            
+                            <li class="resources-list__item">
+                                {% if resource_url %}
+                                <a href="{{ resource_url }}" target="_blank" rel="noopener" class="resources-list__link">
+                                    <div class="resources-list__icon">
+                                        <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                    </div>
+                                    <div class="resources-list__details">
+                                        <p class="resources-list__name" title="{{ resource_title }}">
+                                            {{ resource_title }}
+                                        </p>
+                                        <div class="resources-list__format">{{ resource_format or 'file' }}</div>
+                                    </div>
+                                </a>
+                                {% else %}
+                                <div class="resources-list__icon">
+                                    <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                </div>
+                                <div class="resources-list__details">
+                                    <p class="resources-list__name" title="{{ resource_title }}">
+                                        {{ resource_title }}
+                                    </p>
+                                    <div class="resources-list__format">{{ resource_format or 'file' }}</div>
+                                </div>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                </div>
+                {% endif %}
+
+                <!-- Feedback -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Provide Feedback</h3>
+                    <p style="font-size: 0.9375rem; margin-bottom: 1rem;">
+                        Have questions or suggestions about this dataset?
+                    </p>
+                    <button
+                        class="usa-button width-full"
+                        type="button"
+                        id="contact-btn"
+                        data-dataset-identifier="{{ dataset_identifier }}"
+                        data-dataset-title="{{ dataset_title }}"
+                        aria-label="Provide feedback on {{ dataset_title }}"
+                    >
+                        <i class="fa-solid fa-comment-dots margin-right-05"></i>
+                        Send Feedback
+                    </button>
+                </div>
+
+            </aside>
         </div>
     </div>
 </div>
-{% endif %}
-
-<div class="grid-row margin-top-6">
-    <div class="grid-col-12">
-        <section class="usa-prose">
-            <h2 class="text-primary-darker">DCAT Metadata</h2>
-        </section>
-        <div class="usa-table-container--scrollable">
-            <table class="usa-table">
-                <tbody>
-                    {% set excluded_keys = ['title', 'description', 'distribution', 'contactPoint', 'keyword', '@type'] %}
-                    {% for key, value in dataset.dcat|dictsort if key not in excluded_keys %}
-                    {% set rendered_value = value|format_dcat_value %}
-                    <tr>
-                        <th scope="row">{{ key }}</th>
-                        <td>
-                            {% if '\n' in rendered_value %}
-                            <pre class="margin-0 overflow-auto">{{ rendered_value }}</pre>
-                            {% else %}
-                            {{ rendered_value }}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-</div>
-</div>
-{% endblock %}
+{% endblock main_content %}
 
 {% block scripts %}
 {{ super() }}
