@@ -1,4 +1,5 @@
 import json
+import os
 import logging
 from datetime import datetime
 from math import ceil
@@ -23,6 +24,7 @@ from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
 from .models import Dataset
 from .utils import build_dataset_dict, json_not_found, valid_id_required
+from botocore.session import get_session
 
 logger = logging.getLogger(__name__)
 
@@ -86,69 +88,38 @@ def _dataset_lastmod(dataset: Dataset) -> Optional[str]:
 
 @main.route("/sitemap.xml", methods=["GET"])
 def sitemap_index() -> Response:
-    """Sitemap index that points to chunked sitemap files of datasets.
-
-    Each sitemap chunk contains up to 10,000 dataset URLs.
-    """
-    total = interface.db.query(Dataset).count()
-    total_chunks = (total + SITEMAP_PAGE_SIZE - 1) // SITEMAP_PAGE_SIZE if total else 0
-
-    # Build XML
-    lines = [
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-        "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
-    ]
-
-    for idx in range(total_chunks):
-        loc = url_for("main.sitemap_chunk", index=idx, _external=True)
-        lines.append("  <sitemap>")
-        lines.append(f"    <loc>{loc}</loc>")
-        lines.append("  </sitemap>")
-
-    lines.append("</sitemapindex>")
-    body = "\n".join(lines)
+    """Fetch sitemap index from S3 and return as XML."""
+    bucket = os.getenv("SITEMAP_S3_BUCKET")
+    index_key = os.getenv("SITEMAP_INDEX_KEY", "sitemap.xml")
+    if not bucket:
+        abort(404)
+    session = get_session()
+    s3 = session.create_client("s3", region_name=os.getenv("AWS_DEFAULT_REGION"))
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=index_key)
+        body = obj["Body"].read()
+    except Exception:
+        abort(404)
     return Response(body, mimetype="application/xml")
 
 
 @main.route("/sitemap/sitemap-<int:index>.xml", methods=["GET"])
 def sitemap_chunk(index: int) -> Response:
-    """Return a single sitemap file containing up to 10,000 dataset URLs."""
+    """Fetch a sitemap chunk file from S3 and return as XML."""
     if index < 0:
         abort(404)
-
-    offset = index * SITEMAP_PAGE_SIZE
-    # Fetch the specific window deterministically, ordered by slug
-    datasets = (
-        interface.db.query(Dataset)
-        .order_by(
-            Dataset.last_harvested_date.asc().nullslast(),
-            Dataset.slug.asc(),
-        )
-        .offset(offset)
-        .limit(SITEMAP_PAGE_SIZE)
-        .all()
-    )
-
-    if index > 0 and not datasets:
-        # Non-zero empty page is out of range
+    bucket = os.getenv("SITEMAP_S3_BUCKET")
+    prefix = os.getenv("SITEMAP_S3_PREFIX", "sitemap/")
+    if not bucket:
         abort(404)
-
-    lines = [
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
-    ]
-
-    for ds in datasets:
-        loc = url_for("main.dataset_detail_by_slug_or_id", slug_or_id=ds.slug, _external=True)
-        lastmod = _dataset_lastmod(ds)
-        lines.append("  <url>")
-        lines.append(f"    <loc>{loc}</loc>")
-        if lastmod:
-            lines.append(f"    <lastmod>{lastmod}</lastmod>")
-        lines.append("  </url>")
-
-    lines.append("</urlset>")
-    body = "\n".join(lines)
+    key = f"{prefix.rstrip('/')}/sitemap-{index}.xml"
+    session = get_session()
+    s3 = session.create_client("s3", region_name=os.getenv("AWS_DEFAULT_REGION"))
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=key)
+        body = obj["Body"].read()
+    except Exception:
+        abort(404)
     return Response(body, mimetype="application/xml")
 
 
