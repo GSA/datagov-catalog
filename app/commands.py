@@ -170,8 +170,8 @@ def sitemap_generate(chunk_size: int):
 @click.option(
     "--max-age-hours",
     type=int,
-    default=lambda: int(os.getenv("SITEMAP_MAX_AGE_HOURS", "24")),
-    help="Fail if index or chunks are older than this many hours (default 24)",
+    default=lambda: int(os.getenv("SITEMAP_MAX_AGE_HOURS", "1")),
+    help="Fail if index or chunks are older than this many hours (default 1)",
 )
 @click.option(
     "--skip-freshness",
