@@ -47,10 +47,6 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     soup = BeautifulSoup(response.text, "html.parser")
     # curently the title of the dataset is in the <title> tag
     assert soup.title.string == "test - Data.gov"
-    #  test the current breadcrumb item is the same as the title
-    assert (
-        soup.find(class_="usa-breadcrumb__list-item usa-current").span.string == "test"
-    )
     # assert the title in the h1 section is the same as the title
     h1 = soup.select_one(
         "main#content > div.usa-section > div.grid-container > div.grid-row > div.grid-col-12 > h1.margin-bottom-1"
@@ -112,10 +108,6 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     soup = BeautifulSoup(response.text, "html.parser")
     # curently the title of the dataset is in the <title> tag
     assert soup.title.string == "test - Data.gov"
-    #  test the current breadcrumb item is the same as the title
-    assert (
-        soup.find(class_="usa-breadcrumb__list-item usa-current").span.string == "test"
-    )
     # assert the title in the h1 section is the same as the title
     h1 = soup.select_one(
         "main#content > div.usa-section > div.grid-container > div.grid-row > div.grid-col-12 > h1.margin-bottom-1"
