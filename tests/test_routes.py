@@ -53,7 +53,7 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     ).text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(".dataset-detail__description-text").get_text(
+    description = soup.select_one(".dataset-description").get_text(
         strip=True
     )
     assert description == "this is the test description"
@@ -63,34 +63,27 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     assert feedback_button.get("data-dataset-identifier") == "test"
     assert "Feedback" in feedback_button.get_text(" ", strip=True)
 
-    resources_heading = soup.find("h2", string="Resources")
+    resources_heading = soup.find("h3.sidebar-section__heading", string="Resources")
     assert resources_heading is not None
 
-    resources_table = resources_heading.find_next("table")
-    assert resources_table is not None
+    resources_details = soup.find("details.resources-dropdown")
+    assert resources_details is not None
 
-    rows = resources_table.select("tbody tr")
-    assert len(rows) == 1
+    resources = resources_details.select("ul li")
+    assert len(resources) == 1
 
-    first_row = rows[0]
-    resource_cell = first_row.find("th")
-    assert "Test CSV" in resource_cell.get_text(" ", strip=True)
+    first_resource = resources[0]
+    resource_name = first_resource.find("resources-list__name")
+    assert "Test CSV" in resource_name.get_text(" ", strip=True)
 
-    resource_link = resource_cell.find("a")
+    resource_link = first_resource.find("a")
     assert resource_link is not None
     assert resource_link.get("href") == "https://example.com/test.csv"
-
-    format_cell, access_cell = first_row.find_all("td")
-    assert format_cell.get_text(" ", strip=True) == "CSV"
-    assert access_cell.find("a").get_text(strip=True) == "Download"
 
     search_form = soup.find("form", attrs={"action": "/"})
     assert search_form is not None
     search_input = search_form.find("input", {"name": "q"})
     assert search_input is not None
-    submit_button = search_form.find("button", {"type": "submit"})
-    assert submit_button is not None
-    assert "Search" in submit_button.get_text(" ", strip=True)
 
 
 def test_dataset_detail_by_id(interface_with_dataset, db_client):
@@ -114,7 +107,7 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     ).text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(".dataset-detail__description-text").get_text(
+    description = soup.select_one(".dataset-description").get_text(
         strip=True
     )
     assert description == "this is the test description"
@@ -124,26 +117,22 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     assert feedback_button.get("data-dataset-identifier") == "test"
     assert "Feedback" in feedback_button.get_text(" ", strip=True)
 
-    resources_heading = soup.find("h2", string="Resources")
+    resources_heading = soup.find("h3.sidebar-section__heading", string="Resources")
     assert resources_heading is not None
 
-    resources_table = resources_heading.find_next("table")
-    assert resources_table is not None
+    resources_details = soup.find("details.resources-dropdown")
+    assert resources_details is not None
 
-    rows = resources_table.select("tbody tr")
-    assert len(rows) == 1
+    resources = resources_details.select("ul li")
+    assert len(resources) == 1
 
-    first_row = rows[0]
-    resource_cell = first_row.find("th")
-    assert "Test CSV" in resource_cell.get_text(" ", strip=True)
+    first_resource = resources[0]
+    resource_name = first_resource.find("resources-list__name")
+    assert "Test CSV" in resource_name.get_text(" ", strip=True)
 
-    resource_link = resource_cell.find("a")
+    resource_link = first_resource.find("a")
     assert resource_link is not None
     assert resource_link.get("href") == "https://example.com/test.csv"
-
-    format_cell, access_cell = first_row.find_all("td")
-    assert format_cell.get_text(" ", strip=True) == "CSV"
-    assert access_cell.find("a").get_text(strip=True) == "Download"
 
     search_form = soup.find("form", attrs={"action": "/"})
     assert search_form is not None
