@@ -31,11 +31,22 @@ def test_search_api_pagination(interface_with_dataset, db_client):
         response = db_client.get("/search", query_string={"q": "test", "per_page": "5"})
         assert len(response.json) == 5
 
+        response = db_client.get("/search", query_string={"q": "test"})
+        # default page size is 20 elements but there are at least 11 datasets
+        assert len(response.json) >= 11
+
+
+def test_search_api_by_org_id(interface_with_dataset, db_client):
+    with patch("app.routes.interface", interface_with_dataset):
+        # test org has id "1"
+        response = db_client.get("/search", query_string={"q": "test", "org_id": "1"})
+        assert len(response.json) > 0
+
+        # non-existent org
         response = db_client.get(
-            "/search", query_string={"q": "test"}
+            "/search", query_string={"q": "test", "org_id": "non-existent"}
         )
-        # default page size is 20 elements
-        assert len(response.json) == 20
+        assert len(response.json) == 0
 
 
 def test_dataset_detail_by_slug(interface_with_dataset, db_client):

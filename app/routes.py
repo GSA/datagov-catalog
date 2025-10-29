@@ -125,13 +125,11 @@ def search():
     """
     # missing query parameter searches for everything
     query = request.args.get("q", "")
-    page = request.args.get("page", DEFAULT_PAGE, type=int)
-    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    per_page = request.args.get("per_page", DEFAULT_PER_PAGE)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     result = interface.search_datasets(
         query,
-        page=page,
         per_page=per_page,
         org_id=org_id,
         org_types=org_types,
@@ -140,12 +138,13 @@ def search():
     if htmx:
         total = result.total
         results = [build_dataset_dict(each) for each in result.results]
-        total_pages = max(ceil(total / per_page), 1) if per_page else 1
+        # TODO: Fix pagination to work with OpenSearch
+        total_pages = 2
         return render_template(
             "components/dataset_results.html",
             datasets=results,
-            page=page,
-            page_sequence=build_page_sequence(page, total_pages),
+            page=1,
+            page_sequence=build_page_sequence(1, total_pages),
             total=total,
             total_pages=total_pages,
         )

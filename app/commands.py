@@ -14,6 +14,10 @@ def sync_opensearch():
     client = OpenSearchInterface.from_environment()
     interface = CatalogDBInterface()
 
+    # enpty the index and then refill it
+    # THIS WILL CAUSE SEARCH QUERIES TO FAIL DURING THE PROCESS
+    click.echo("Emptying dataset index...")
+    client.delete_all_datasets()
     click.echo("Indexing datasets...")
     succeeded, failed = client.index_datasets(interface.db.query(Dataset))
 

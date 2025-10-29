@@ -161,6 +161,12 @@ class OpenSearchInterface:
             "organization": dataset.organization.to_dict(),
         }
 
+    def delete_all_datasets(self):
+        """Delete all documents from our index."""
+        self.client.delete_by_query(
+            index=self.INDEX_NAME, body={"query": {"match_all": {}}}
+        )
+
     def index_datasets(self, dataset_iter):
         """Index an iterator of dataset objects into OpenSearch.
 
@@ -181,12 +187,15 @@ class OpenSearchInterface:
         self.client.indices.refresh(index=self.INDEX_NAME)
         return (succeeded, failed)
 
-    def search(self, query, per_page=DEFAULT_PER_PAGE) -> SearchResult:
+    def search(self, query, per_page=DEFAULT_PER_PAGE, org_id=None) -> SearchResult:
         """Search our index for a query string.
 
         We use OpenSearch's multi-match to match our single query string
         against many fields. We use the "boost" numbers to score some fields
         higher than others.
+
+        If the org_id argument is given then we only return search results
+        that are in that organization.
         """
         search_body = {
             "query": {
@@ -211,6 +220,28 @@ class OpenSearchInterface:
             ],
             "size": per_page,
         }
+        if org_id is not None:
+            # need to add a filter query alongside the previous full-text
+            # query
+            search_body["query"] = {
+                "bool": {
+                    "filter": [
+                        {
+                            "nested": {
+                                "path": "organization",
+                                "query": {
+                                    "term": {"organization.id": org_id},
+                                },
+                            },
+                        },
+                    ],
+                    "must": [
+                        # use the previous query in here
+                        search_body["query"],
+                    ],
+                }
+            }
+
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict)
