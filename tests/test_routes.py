@@ -63,17 +63,17 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     assert feedback_button.get("data-dataset-identifier") == "test"
     assert "Feedback" in feedback_button.get_text(" ", strip=True)
 
-    resources_heading = soup.find("h3.sidebar-section__heading", string="Resources")
+    resources_heading = soup.select_one("h3.sidebar-section__heading")
     assert resources_heading is not None
 
-    resources_details = soup.find("details.resources-dropdown")
+    resources_details = soup.select_one("details.resources-dropdown")
     assert resources_details is not None
 
     resources = resources_details.select("ul li")
     assert len(resources) == 1
 
     first_resource = resources[0]
-    resource_name = first_resource.find("resources-list__name")
+    resource_name = first_resource.select_one(".resources-list__name")
     assert "Test CSV" in resource_name.get_text(" ", strip=True)
 
     resource_link = first_resource.find("a")
@@ -117,17 +117,17 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     assert feedback_button.get("data-dataset-identifier") == "test"
     assert "Feedback" in feedback_button.get_text(" ", strip=True)
 
-    resources_heading = soup.find("h3.sidebar-section__heading", string="Resources")
+    resources_heading = soup.select_one("h3.sidebar-section__heading")
     assert resources_heading is not None
 
-    resources_details = soup.find("details.resources-dropdown")
+    resources_details = soup.select_one("details.resources-dropdown")
     assert resources_details is not None
 
     resources = resources_details.select("ul li")
     assert len(resources) == 1
 
     first_resource = resources[0]
-    resource_name = first_resource.find("resources-list__name")
+    resource_name = first_resource.select_one(".resources-list__name")
     assert "Test CSV" in resource_name.get_text(" ", strip=True)
 
     resource_link = first_resource.find("a")
