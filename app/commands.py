@@ -125,6 +125,9 @@ def sitemap_generate(chunk_size: int):
 
     total = dbi.db.query(Dataset).count()
     total_chunks = (total + chunk_size - 1) // chunk_size if total else 0
+    # Always create at least one chunk file so that routes and verification
+    # have a consistent location even when there are no datasets yet.
+    total_chunks = max(total_chunks, 1)
     click.echo(f"Total datasets: {total}; generating {total_chunks} chunk(s) of size {chunk_size}")
 
     # order by last_harvested_date asc, then slug
