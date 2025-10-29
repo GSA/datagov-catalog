@@ -250,7 +250,11 @@ def test_index_page_renders(db_client):
     assert "Catalog - Data.gov" in soup.title.string
 
     # Check search form exists with expected attributes
-    search_form = soup.find("form", attrs={"action": "/"})
+    main_search_input = soup.find("input", {"id": "search-query", "name": "q"})
+    assert main_search_input is not None
+
+    # Find the form that contains this input (the main search form)
+    search_form = main_search_input.find_parent("form")
     assert search_form is not None
     assert search_form.get("method", "").lower() == "get"
 
