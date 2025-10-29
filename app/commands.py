@@ -96,9 +96,21 @@ def _s3_client_and_config():
         raise click.ClickException("SITEMAP_S3_BUCKET is required")
     prefix = os.getenv("SITEMAP_S3_PREFIX", "sitemap/")
     index_key = os.getenv("SITEMAP_INDEX_KEY", "sitemap.xml")
-    region = os.getenv("AWS_DEFAULT_REGION")
+
+    region = os.getenv("SITEMAP_AWS_REGION")
+    access_key = os.getenv("SITEMAP_AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("SITEMAP_AWS_SECRET_ACCESS_KEY")
+
     session = get_session()
-    s3 = session.create_client("s3", region_name=region)
+    create_kwargs = {"region_name": region}
+    if access_key and secret_key:
+        create_kwargs.update(
+            {
+                "aws_access_key_id": access_key,
+                "aws_secret_access_key": secret_key,
+            }
+        )
+    s3 = session.create_client("s3", **create_kwargs)
     return s3, bucket, prefix, index_key
 
 

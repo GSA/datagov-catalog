@@ -94,7 +94,19 @@ def sitemap_index() -> Response:
     if not bucket:
         abort(404)
     session = get_session()
-    s3 = session.create_client("s3", region_name=os.getenv("AWS_DEFAULT_REGION"))
+
+    region = os.getenv("SITEMAP_AWS_REGION")
+    access_key = os.getenv("SITEMAP_AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("SITEMAP_AWS_SECRET_ACCESS_KEY")
+    create_kwargs = {"region_name": region}
+    if access_key and secret_key:
+        create_kwargs.update(
+            {
+                "aws_access_key_id": access_key,
+                "aws_secret_access_key": secret_key,
+            }
+        )
+    s3 = session.create_client("s3", **create_kwargs)
     try:
         obj = s3.get_object(Bucket=bucket, Key=index_key)
         body = obj["Body"].read()
@@ -114,7 +126,19 @@ def sitemap_chunk(index: int) -> Response:
         abort(404)
     key = f"{prefix.rstrip('/')}/sitemap-{index}.xml"
     session = get_session()
-    s3 = session.create_client("s3", region_name=os.getenv("AWS_DEFAULT_REGION"))
+
+    region = os.getenv("SITEMAP_AWS_REGION")
+    access_key = os.getenv("SITEMAP_AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("SITEMAP_AWS_SECRET_ACCESS_KEY")
+    create_kwargs = {"region_name": region}
+    if access_key and secret_key:
+        create_kwargs.update(
+            {
+                "aws_access_key_id": access_key,
+                "aws_secret_access_key": secret_key,
+            }
+        )
+    s3 = session.create_client("s3", **create_kwargs)
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)
         body = obj["Body"].read()

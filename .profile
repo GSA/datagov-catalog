@@ -50,3 +50,11 @@ else
   export http_proxy=$proxy_url
   export https_proxy=$proxy_url
 fi
+
+# sitemap S3 settings
+export SITEMAP_AWS_REGION=$(vcap_get_service s3 .credentials.region)
+export SITEMAP_AWS_ACCESS_KEY_ID=$(vcap_get_service s3 .credentials.access_key_id)
+export SITEMAP_AWS_SECRET_ACCESS_KEY=$(vcap_get_service s3 .credentials.secret_access_key)
+export SITEMAP_S3_BUCKET=$(vcap_get_service s3 .credentials.bucket)
+export SITEMAP_S3_PREFIX=sitemap/
+export SITEMAP_INDEX_KEY=sitemap.xml
