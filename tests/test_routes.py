@@ -49,7 +49,7 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     assert soup.title.string == "test - Data.gov"
     # assert the title in the h1 section is the same as the title
     h1 = soup.select_one(
-        "main#content > div.usa-section > div.grid-container > div.grid-row > div.grid-col-12 > h1.margin-bottom-1"
+        "main#content > h1.dataset-title"
     ).text
     assert h1 == "test"
     # check the dataset description is present
@@ -110,7 +110,7 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     assert soup.title.string == "test - Data.gov"
     # assert the title in the h1 section is the same as the title
     h1 = soup.select_one(
-        "main#content > div.usa-section > div.grid-container > div.grid-row > div.grid-col-12 > h1.margin-bottom-1"
+        "main#content > h1.dataset-title"
     ).text
     assert h1 == "test"
     # check the dataset description is present
