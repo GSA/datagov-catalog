@@ -29,7 +29,7 @@
   <main id="content">
     {% block main_content %}
     <div class="usa-section">
-      <div class="grid-container-widescreen">
+      <div class="{% block container_class %}grid-container{% endblock %}">
         {% block content %}{% endblock %}
       </div>
     </div>
