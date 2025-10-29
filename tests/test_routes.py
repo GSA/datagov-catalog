@@ -713,7 +713,9 @@ def test_footer_exists(db_client):
     assert gsa_footer is not None
 
 
-def test_dataset_detail_includes_map_assets_when_spatial_bbox(interface_with_dataset, db_client):
+def test_dataset_detail_includes_map_assets_when_spatial_bbox(
+    interface_with_dataset, db_client
+):
     # Add spatial bbox and ensure map container and Leaflet assets are present
     ds = interface_with_dataset.get_dataset_by_slug("test")
     ds.dcat["spatial"] = "-90.155,27.155,-90.26,27.255"
@@ -739,7 +741,9 @@ def test_dataset_detail_includes_map_assets_when_spatial_bbox(interface_with_dat
     assert view_js is not None
 
 
-def test_dataset_detail_includes_map_assets_when_spatial_geometry(interface_with_dataset, db_client):
+def test_dataset_detail_includes_map_assets_when_spatial_geometry(
+    interface_with_dataset, db_client
+):
     # Add spatial geometry and ensure map container and Leaflet assets are present
     ds = interface_with_dataset.get_dataset_by_slug("test")
     ds.dcat["spatial"] = {
@@ -778,7 +782,9 @@ def test_dataset_detail_includes_map_assets_when_spatial_geometry(interface_with
     assert view_js is not None
 
 
-def test_dataset_detail_includes_map_assets_when_spatial_geometry_string(interface_with_dataset, db_client):
+def test_dataset_detail_includes_map_assets_when_spatial_geometry_string(
+    interface_with_dataset, db_client
+):
     ds = interface_with_dataset.get_dataset_by_slug("test")
     geometry = {
         "type": "Polygon",
@@ -817,7 +823,9 @@ def test_dataset_detail_includes_map_assets_when_spatial_geometry_string(interfa
     assert view_js is not None
 
 
-def test_dataset_detail_omits_map_when_spatial_missing(interface_with_dataset, db_client):
+def test_dataset_detail_omits_map_when_spatial_missing(
+    interface_with_dataset, db_client
+):
     # Ensure no spatial key and verify no map container or Leaflet assets
     ds = interface_with_dataset.get_dataset_by_slug("test")
     ds.dcat.pop("spatial", None)
@@ -838,7 +846,9 @@ def test_dataset_detail_omits_map_when_spatial_missing(interface_with_dataset, d
     assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
 
 
-def test_dataset_detail_logs_warning_when_spatial_unqualified(interface_with_dataset, db_client):
+def test_dataset_detail_logs_warning_when_spatial_unqualified(
+    interface_with_dataset, db_client
+):
     ds = interface_with_dataset.get_dataset_by_slug("test")
     ds.dcat["spatial"] = "Virginia, USA"
     interface_with_dataset.db.commit()
@@ -855,5 +865,7 @@ def test_dataset_detail_logs_warning_when_spatial_unqualified(interface_with_dat
     assert soup.select_one('script[src*="leaflet.js"]') is None
     assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
 
-    inline_scripts = [script.get_text() for script in soup.find_all("script") if not script.get("src")]
+    inline_scripts = [
+        script.get_text() for script in soup.find_all("script") if not script.get("src")
+    ]
     assert any("Map not displayed" in content for content in inline_scripts)

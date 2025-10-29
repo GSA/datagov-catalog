@@ -5,8 +5,9 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_htmx import HTMX
 
-from .filters import format_dcat_value, format_gov_type, usa_icon, fa_icon_from_extension, format_contact_point_email
 from .filters import (
+    fa_icon_from_extension,
+    format_contact_point_email,
     format_dcat_value,
     format_gov_type,
     geometry_to_mapping,

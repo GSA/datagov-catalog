@@ -49,6 +49,7 @@ def format_gov_type(gov_type: str) -> str:
         return gov_type.split()[0].lower()
     return "unknown"
 
+
 def fa_icon_from_extension(extension: str) -> str:
     """Return a Font Awesome icon class based on file extension."""
     extension = extension.lower() if extension else "default"
@@ -69,6 +70,7 @@ def fa_icon_from_extension(extension: str) -> str:
     else:
         return "fa-file"
 
+
 def format_contact_point_email(email: str) -> Union[str, None]:
     """Format a contact point email for display."""
     if email:
@@ -77,6 +79,7 @@ def format_contact_point_email(email: str) -> Union[str, None]:
             return email.split(":")[-1].strip().lower()
         return email.split().lower()
     return None
+
 
 def is_bbox_string(value: Any) -> bool:
     """Return True when value looks like a numeric bbox string."""
@@ -95,6 +98,8 @@ def is_bbox_string(value: Any) -> bool:
         return False
 
     return True
+
+
 def is_geometry_mapping(value: Any) -> bool:
     """Return True when value looks like a GeoJSON geometry mapping."""
 
@@ -135,5 +140,6 @@ __all__ = [
     "is_bbox_string",
     "is_geometry_mapping",
     "geometry_to_mapping",
-    "fa_icon_from_extension", "format_contact_point_email"
+    "fa_icon_from_extension",
+    "format_contact_point_email",
 ]
