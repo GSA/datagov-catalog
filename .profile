@@ -58,3 +58,4 @@ export SITEMAP_AWS_SECRET_ACCESS_KEY=$(vcap_get_service s3 .credentials.secret_a
 export SITEMAP_S3_BUCKET=$(vcap_get_service s3 .credentials.bucket)
 export SITEMAP_S3_PREFIX=sitemap/
 export SITEMAP_INDEX_KEY=sitemap.xml
+export SITEMAP_BASE_URL=${SITE_URL}
