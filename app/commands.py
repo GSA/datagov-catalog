@@ -11,7 +11,11 @@ from flask import Blueprint
 from .database import CatalogDBInterface
 from .models import Dataset
 from .opensearch import OpenSearchInterface
-from botocore.session import get_session
+from .sitemap_s3 import (
+    SitemapS3ConfigError,
+    create_sitemap_s3_client,
+    get_sitemap_s3_config,
+)
 
 search = Blueprint("search", __name__)
 sitemap = Blueprint("sitemap", __name__)
@@ -91,27 +95,13 @@ def _build_sitemap_index_xml(total_chunks: int) -> str:
 
 
 def _s3_client_and_config():
-    bucket = os.getenv("SITEMAP_S3_BUCKET")
-    if not bucket:
-        raise click.ClickException("SITEMAP_S3_BUCKET is required")
-    prefix = os.getenv("SITEMAP_S3_PREFIX", "sitemap/")
-    index_key = os.getenv("SITEMAP_INDEX_KEY", "sitemap.xml")
+    try:
+        config = get_sitemap_s3_config()
+    except SitemapS3ConfigError as exc:
+        raise click.ClickException(str(exc))
 
-    region = os.getenv("SITEMAP_AWS_REGION")
-    access_key = os.getenv("SITEMAP_AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("SITEMAP_AWS_SECRET_ACCESS_KEY")
-
-    session = get_session()
-    create_kwargs = {"region_name": region}
-    if access_key and secret_key:
-        create_kwargs.update(
-            {
-                "aws_access_key_id": access_key,
-                "aws_secret_access_key": secret_key,
-            }
-        )
-    s3 = session.create_client("s3", **create_kwargs)
-    return s3, bucket, prefix, index_key
+    s3 = create_sitemap_s3_client()
+    return s3, config.bucket, config.prefix, config.index_key
 
 
 @sitemap.cli.command("generate")

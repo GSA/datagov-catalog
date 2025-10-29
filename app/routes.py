@@ -1,5 +1,4 @@
 import json
-import os
 import logging
 from datetime import datetime
 from math import ceil
@@ -24,7 +23,11 @@ from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
 from .models import Dataset
 from .utils import build_dataset_dict, json_not_found, valid_id_required
-from botocore.session import get_session
+from .sitemap_s3 import (
+    SitemapS3ConfigError,
+    create_sitemap_s3_client,
+    get_sitemap_s3_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,26 +92,14 @@ def _dataset_lastmod(dataset: Dataset) -> Optional[str]:
 @main.route("/sitemap.xml", methods=["GET"])
 def sitemap_index() -> Response:
     """Fetch sitemap index from S3 and return as XML."""
-    bucket = os.getenv("SITEMAP_S3_BUCKET")
-    index_key = os.getenv("SITEMAP_INDEX_KEY", "sitemap.xml")
-    if not bucket:
-        abort(404)
-    session = get_session()
-
-    region = os.getenv("SITEMAP_AWS_REGION")
-    access_key = os.getenv("SITEMAP_AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("SITEMAP_AWS_SECRET_ACCESS_KEY")
-    create_kwargs = {"region_name": region}
-    if access_key and secret_key:
-        create_kwargs.update(
-            {
-                "aws_access_key_id": access_key,
-                "aws_secret_access_key": secret_key,
-            }
-        )
-    s3 = session.create_client("s3", **create_kwargs)
     try:
-        obj = s3.get_object(Bucket=bucket, Key=index_key)
+        config = get_sitemap_s3_config()
+    except SitemapS3ConfigError:
+        abort(404)
+
+    s3 = create_sitemap_s3_client()
+    try:
+        obj = s3.get_object(Bucket=config.bucket, Key=config.index_key)
         body = obj["Body"].read()
     except Exception:
         abort(404)
@@ -120,27 +111,14 @@ def sitemap_chunk(index: int) -> Response:
     """Fetch a sitemap chunk file from S3 and return as XML."""
     if index < 0:
         abort(404)
-    bucket = os.getenv("SITEMAP_S3_BUCKET")
-    prefix = os.getenv("SITEMAP_S3_PREFIX", "sitemap/")
-    if not bucket:
-        abort(404)
-    key = f"{prefix.rstrip('/')}/sitemap-{index}.xml"
-    session = get_session()
-
-    region = os.getenv("SITEMAP_AWS_REGION")
-    access_key = os.getenv("SITEMAP_AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("SITEMAP_AWS_SECRET_ACCESS_KEY")
-    create_kwargs = {"region_name": region}
-    if access_key and secret_key:
-        create_kwargs.update(
-            {
-                "aws_access_key_id": access_key,
-                "aws_secret_access_key": secret_key,
-            }
-        )
-    s3 = session.create_client("s3", **create_kwargs)
     try:
-        obj = s3.get_object(Bucket=bucket, Key=key)
+        config = get_sitemap_s3_config()
+    except SitemapS3ConfigError:
+        abort(404)
+    key = f"{config.prefix.rstrip('/')}/sitemap-{index}.xml"
+    s3 = create_sitemap_s3_client()
+    try:
+        obj = s3.get_object(Bucket=config.bucket, Key=key)
         body = obj["Body"].read()
     except Exception:
         abort(404)
