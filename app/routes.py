@@ -16,7 +16,6 @@ from flask import (
     request,
     url_for,
 )
-from flask_sqlalchemy.query import Query
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
@@ -85,27 +84,20 @@ def index():
 
     # Only search if there's a query
     if query:
-        results = interface.search_datasets(
+        result = interface.search_datasets(
             query,
             page=page,
             per_page=per_page,
-            paginate=False,
-            count=True,
-            include_org=True,
             org_id=org_id,
             org_types=org_types,
             sort_by=sort_by,
         )
 
         # Get total count
-        total = results.count()
-
-        # Apply pagination
-        offset = (page - 1) * per_page
-        results = results.limit(per_page).offset(offset).all()
+        total = result.total
 
         # Build dataset dictionaries with organization data
-        datasets = [build_dataset_dict(result) for result in results]
+        datasets = [build_dataset_dict(each) for each in result.results]
 
         # Calculate total pages
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
@@ -133,40 +125,31 @@ def search():
     """
     # missing query parameter searches for everything
     query = request.args.get("q", "")
-    page = request.args.get("page", DEFAULT_PAGE, type=int)
-    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    per_page = request.args.get("per_page", DEFAULT_PER_PAGE)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
-    results = interface.search_datasets(
+    result = interface.search_datasets(
         query,
-        page=page,
         per_page=per_page,
-        paginate=request.args.get("paginate", type=lambda x: x.lower() == "true"),
-        count=request.args.get("count", type=lambda x: x.lower() == "true"),
-        include_org=True,
         org_id=org_id,
         org_types=org_types,
     )
 
     if htmx:
-        # type hint that this is a Query object because paginate returns a query
-        #  if count is True.
-        results: Query
-        total = results.count()
-        offset = (page - 1) * per_page
-        results = results.limit(per_page).offset(offset).all()
-        results = [build_dataset_dict(result) for result in results]
-        total_pages = max(ceil(total / per_page), 1) if per_page else 1
+        total = result.total
+        results = [build_dataset_dict(each) for each in result.results]
+        # TODO: Fix pagination to work with OpenSearch
+        total_pages = 2
         return render_template(
             "components/dataset_results.html",
             datasets=results,
-            page=page,
-            page_sequence=build_page_sequence(page, total_pages),
+            page=1,
+            page_sequence=build_page_sequence(1, total_pages),
             total=total,
             total_pages=total_pages,
         )
 
-    return jsonify([build_dataset_dict(result) for result in results])
+    return jsonify([build_dataset_dict(result) for result in result.results])
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])

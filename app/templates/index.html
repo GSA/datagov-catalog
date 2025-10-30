@@ -45,7 +45,13 @@
             {% if datasets %}
             <div class="usa-prose">
                 <p class="text-base-dark">
-                    Found <strong>{{ total }}</strong> dataset(s){% if query %} matching "{{ query }}"{% endif %}.
+                {% if total < 2 %}
+                    Found <strong>{{ total }}</strong> dataset{% if query %} matching "{{ query }}"{% endif %}.
+                {% elif total < 10000 %}
+                    Found <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}.
+                {% else %}
+                    Found more than <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}.
+                {% endif %}
                 </p>
             </div>
 
@@ -58,7 +64,7 @@
                     {% set last_harvested = dataset.get('last_harvested_date') %}
                     {% set updated_display = dataset_meta.get('modified') %}
                     {% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') if last_harvested else None %}
-                    
+
                     <li class="usa-collection__item organization-datasets__item">
                         <div class="organization-datasets__body organization-datasets__body--{{ dataset.organization.organization_type | format_gov_type }}">
                             <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">

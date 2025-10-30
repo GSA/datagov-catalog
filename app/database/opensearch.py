@@ -1,7 +1,28 @@
 import os
+from dataclasses import dataclass
 
 from botocore.credentials import Credentials
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
+
+from .constants import DEFAULT_PER_PAGE
+
+
+@dataclass
+class SearchResult:
+    total: int
+    results: list[dict]
+
+    def __len__(self):
+        """Length of this is the length of results."""
+        return len(self.results)
+
+    @classmethod
+    def from_opensearch_result(cls, result_dict: dict):
+        """Make a results object from the result of an OpenSearch query."""
+        return cls(
+            total=result_dict["hits"]["total"]["value"],
+            results=[each["_source"] for each in result_dict["hits"]["hits"]],
+        )
 
 
 class OpenSearchInterface:
@@ -11,6 +32,8 @@ class OpenSearchInterface:
     MAPPINGS = {
         "properties": {
             "title": {"type": "text"},
+            "slug": {"type": "keyword"},
+            "dcat": {"type": "nested"},
             "description": {"type": "text"},
             "publisher": {"type": "text"},
             # Opensearch natively handles array-valued properties
@@ -18,7 +41,16 @@ class OpenSearchInterface:
             "theme": {"type": "text"},
             "identifier": {"type": "text"},
             # keyword for exact matches
-            "organization_id": {"type": "keyword"},
+            "organization": {
+                "type": "nested",
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "name": {"type": "text"},
+                    "description": {"type": "text"},
+                    "slug": {"type": "keyword"},
+                    "organization_type": {"type": "keyword"},
+                },
+            },
         }
     }
 
@@ -68,6 +100,19 @@ class OpenSearchInterface:
                 index=self.INDEX_NAME, body={"mappings": self.MAPPINGS}
             )
 
+    @classmethod
+    def from_environment(cls):
+        """Factory method to return a best-guess instance from environment variables.
+
+        Sniffs the OPENSEARCH_HOST environment variable to decide whether to
+        init with aws_host or test_host.
+        """
+        opensearch_host = os.getenv("OPENSEARCH_HOST")
+        if opensearch_host.endswith("es.amazonaws.com"):
+            return cls(aws_host=opensearch_host)
+        else:
+            return cls(test_host=opensearch_host)
+
     def __init__(self, test_host=None, aws_host=None):
         """Interface for our OpenSearch cluster.
 
@@ -105,14 +150,22 @@ class OpenSearchInterface:
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
             "title": dataset.dcat.get("title", ""),
+            "slug": dataset.slug,
             "description": dataset.dcat.get("description", ""),
             "publisher": dataset.dcat.get("publisher", {}).get("name", ""),
+            "dcat": dataset.dcat,
             # Opensearch handles array-value properties
             "keyword": dataset.dcat.get("keyword", []),
             "theme": dataset.dcat.get("theme", []),
             "identifier": dataset.dcat.get("identifier", ""),
-            "organization_id": dataset.organization_id,
+            "organization": dataset.organization.to_dict(),
         }
+
+    def delete_all_datasets(self):
+        """Delete all documents from our index."""
+        self.client.delete_by_query(
+            index=self.INDEX_NAME, body={"query": {"match_all": {}}}
+        )
 
     def index_datasets(self, dataset_iter):
         """Index an iterator of dataset objects into OpenSearch.
@@ -122,7 +175,9 @@ class OpenSearchInterface:
         succeeded = 0
         failed = 0
         for success, item in helpers.streaming_bulk(
-            self.client, map(self.dataset_to_document, dataset_iter)
+            self.client,
+            map(self.dataset_to_document, dataset_iter),
+            raise_on_error=False,
         ):
             if success:
                 succeeded += 1
@@ -132,12 +187,15 @@ class OpenSearchInterface:
         self.client.indices.refresh(index=self.INDEX_NAME)
         return (succeeded, failed)
 
-    def search(self, query):
+    def search(self, query, per_page=DEFAULT_PER_PAGE, org_id=None) -> SearchResult:
         """Search our index for a query string.
 
         We use OpenSearch's multi-match to match our single query string
         against many fields. We use the "boost" numbers to score some fields
         higher than others.
+
+        If the org_id argument is given then we only return search results
+        that are in that organization.
         """
         search_body = {
             "query": {
@@ -152,10 +210,38 @@ class OpenSearchInterface:
                         "theme",
                         "identifier",
                     ],
+                    "operator": "AND",
+                    "zero_terms_query": "all",
                 }
             },
-            "size": 10,
+            "sort": [
+                {"_score": {"order": "desc"}},
+                {"_id": {"order": "desc"}},
+            ],
+            "size": per_page,
         }
-        return self.client.search(index=self.INDEX_NAME, body=search_body)["hits"][
-            "hits"
-        ]
+        if org_id is not None:
+            # need to add a filter query alongside the previous full-text
+            # query
+            search_body["query"] = {
+                "bool": {
+                    "filter": [
+                        {
+                            "nested": {
+                                "path": "organization",
+                                "query": {
+                                    "term": {"organization.id": org_id},
+                                },
+                            },
+                        },
+                    ],
+                    "must": [
+                        # use the previous query in here
+                        search_body["query"],
+                    ],
+                }
+            }
+
+        result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
+        # print("OPENSEARCH:", result_dict)
+        return SearchResult.from_opensearch_result(result_dict)

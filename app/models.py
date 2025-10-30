@@ -4,10 +4,10 @@ import uuid
 
 from flask_sqlalchemy import SQLAlchemy
 from geoalchemy2 import Geometry
-from sqlalchemy import CheckConstraint, Column, Enum, String, func, Index
+from sqlalchemy import CheckConstraint, Column, Enum, Index, String, func
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
-from sqlalchemy.orm import DeclarativeBase, backref
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm import DeclarativeBase, backref
 
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
@@ -51,6 +51,7 @@ class Organization(db.Model):
         cascade="all, delete-orphan",
         lazy=True,
     )
+    datasets = db.relationship("Dataset", backref="organization")
 
 
 class HarvestSource(db.Model):
@@ -193,12 +194,7 @@ class Dataset(db.Model):
     # Base has a string `id` column that is uuid by default
 
     # slug is the string that we use in a URL for this dataset
-    slug = db.Column(
-        db.String,
-        nullable=False,
-        index=True,
-        unique=True
-    )
+    slug = db.Column(db.String, nullable=False, index=True, unique=True)
 
     # This is all of the details of the dataset in DCAT schema in a JSON column
     # make it mutable so that in-place mutations (e.g.,
@@ -207,6 +203,7 @@ class Dataset(db.Model):
 
     organization_id = db.Column(
         db.String(36),
+        db.ForeignKey("organization.id"),
         nullable=False,
         index=True,
     )
@@ -224,10 +221,7 @@ class Dataset(db.Model):
     )
 
     popularity = db.Column(db.Numeric)
-    last_harvested_date = db.Column(
-        db.DateTime,
-        index=True
-    )
+    last_harvested_date = db.Column(db.DateTime, index=True)
     search_vector = db.Column(TSVECTOR)
 
     __table_args__ = (

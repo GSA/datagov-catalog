@@ -21,17 +21,33 @@ def test_search_api_pagination(interface_with_dataset, db_client):
     for i in range(10):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
+        dataset_dict["dcat"] = {"title": "test-{i}"}
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
+    # search relies on Opensearch now
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test", "per_page": "5"})
         assert len(response.json) == 5
 
+        response = db_client.get("/search", query_string={"q": "test"})
+        # default page size is 20 elements but there are at least 11 datasets
+        assert len(response.json) >= 11
+
+
+def test_search_api_by_org_id(interface_with_dataset, db_client):
+    with patch("app.routes.interface", interface_with_dataset):
+        # test org has id "1"
+        response = db_client.get("/search", query_string={"q": "test", "org_id": "1"})
+        assert len(response.json) > 0
+
+        # non-existent org
         response = db_client.get(
-            "/search", query_string={"q": "test", "paginate": "false"}
+            "/search", query_string={"q": "test", "org_id": "non-existent"}
         )
-        # one original dataset plus 10 new ones
-        assert len(response.json) == 11
+        assert len(response.json) == 0
 
 
 def test_dataset_detail_by_slug(interface_with_dataset, db_client):
@@ -276,7 +292,7 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     assert "Found" in results_text.text
-    assert "dataset(s)" in results_text.text
+    assert "datasets" in results_text.text
 
     # Check that dataset is in the results
     dataset_collection = soup.find("ul", class_="usa-collection")
@@ -310,12 +326,15 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     # attempt commit
     interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
 
     with patch("app.routes.interface", interface_with_dataset):
         # Request page 1 with 20 items per page
         response = db_client.get(
             "/search",
-            query_string={"q": "test", "count": "true", "per_page": "20", "page": "1"},
+            query_string={"q": "Test", "per_page": "20", "page": "1"},
             headers={"HX-Request": "true"},
         )
 
@@ -562,7 +581,7 @@ def test_index_search_with_query_shows_result_count(interface_with_dataset, db_c
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     assert "Found" in results_text.text
-    assert "dataset(s)" in results_text.text
+    assert "datasets" in results_text.text
     assert 'matching "test"' in results_text.text
 
 

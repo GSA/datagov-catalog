@@ -10,10 +10,10 @@ from sqlalchemy import desc, func, or_
 
 from app.models import Dataset, HarvestRecord, Organization, db
 
-logger = logging.getLogger(__name__)
+from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
+from .opensearch import OpenSearchInterface
 
-DEFAULT_PER_PAGE = 20
-DEFAULT_PAGE = 1
+logger = logging.getLogger(__name__)
 
 
 def paginate(fn):
@@ -43,15 +43,22 @@ class CatalogDBInterface:
 
     def __init__(self, session=None):
         self.db = session or db.session
+        self.opensearch = OpenSearchInterface.from_environment()
 
     def get_harvest_record(self, record_id: str) -> HarvestRecord | None:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
-    @paginate
-    def search_datasets(self, query: str, *args, **kwargs):
-        return self._search_datasets(query, *args, **kwargs)
+    def search_datasets(
+        self, query: str, per_page=DEFAULT_PER_PAGE, org_id=None, *args, **kwargs
+    ):
+        """Text search for datasets from the OpenSearch index.
 
-    def _search_datasets(self, query: str, include_org=False, *args, **kwargs):
+        The query is in OpenSearch's "multi_match" search format where it analyzes
+        the text and matches against multiple fields.
+        """
+        return self.opensearch.search(query, per_page=per_page, org_id=org_id)
+
+    def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
         """Text search for datasets.
 
         Use the `query` to find matching datasets. The query is in Postgres's
@@ -181,7 +188,7 @@ class CatalogDBInterface:
         )
 
         if dataset_search_terms:
-            query = self._search_datasets(dataset_search_terms).filter(
+            query = self._postgres_search_datasets(dataset_search_terms).filter(
                 Dataset.organization_id == organization_id
             )
 
