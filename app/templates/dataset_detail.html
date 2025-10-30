@@ -2,6 +2,8 @@
 
 {% block title %}{{ dataset.dcat.get('title') or dataset.slug or dataset.id }} - Data.gov{% endblock %}
 
+{% block container_class %}grid-container-widescreen{% endblock %}
+
 {% block datalayer %}
 <script>
 window.dataLayer = window.dataLayer || [];
@@ -19,229 +21,296 @@ dataLayer.push({
 </script>
 {% endblock %}
 
+{% block script_head %}
+{% endblock %}
 
-{% block content %}
+{% block main_content %}
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_identifier = dataset.slug or dataset.id %}
-<nav class="usa-breadcrumb" aria-label="Breadcrumbs">
-    <ol class="usa-breadcrumb__list">
-        <li class="usa-breadcrumb__list-item">
-            <a href="{{ url_for('main.index') }}" class="usa-breadcrumb__link">Home</a>
-        </li>
-        <li class="usa-breadcrumb__list-item">
-            <a href="#" class="usa-breadcrumb__link">Datasets</a>
-        </li>
-        <li class="usa-breadcrumb__list-item usa-current" aria-current="page">
-            <span>{{ dataset_title }}</span>
-        </li>
-    </ol>
-</nav>
-
-<div class="grid-row margin-top-4">
-    <div class="grid-col-12 usa-prose">
-        <h1 class="margin-bottom-1">{{ dataset_title }}</h1>
-        {% if dataset.dcat.get('publisher', {}).get('name') %}
-        <p class="usa-intro text-base-dark margin-top-0">
-            Published by {{ dataset.dcat.publisher.name }}
-        </p>
-        {% endif %}
-    </div>
-</div>
-
-<div class="grid-row grid-gap-lg margin-top-4">
-    <div class="desktop:grid-col-8">
-        <section class="margin-bottom-4 usa-prose">
-            <h2 class="text-primary-darker">Description</h2>
-            <button
-                class="usa-button usa-button--outline dataset-detail__feedback-button"
-                type="button"
-                id="contact-btn"
-                data-dataset-identifier="{{ dataset_identifier }}"
-                data-dataset-title="{{ dataset_title }}"
-                aria-label="Provide feedback on {{ dataset_title }}"
-            >
-                <span aria-hidden="true" class="dataset-detail__feedback-icon">
-                    <i class="fa-solid fa-comment-dots"></i>
-                </span>
-                <span>Feedback</span>
-            </button>
-            {% set description_value = dataset.dcat.get('description') %}
-            {% if description_value %}
-            <p class="dataset-detail__description-text">{{ description_value | format_dcat_value }}</p>
-            {% else %}
-            <p class="dataset-detail__description-text text-base-light">Not available</p>
-            {% endif %}
-        </section>
-
-        {% if dataset.dcat.get('keyword') %}
-        <section class="margin-bottom-4">
-            <h2 class="text-primary-darker">Tags</h2>
-            <div class="dataset-tags">
-                {% for keyword in dataset.dcat.keyword %}
-                <span class="usa-tag margin-right-1 margin-bottom-05 text-uppercase">{{ keyword }}</span>
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
-    </div>
-
-    <div class="desktop:grid-col-4">
-        <div class="usa-card">
-            <div class="usa-card__container">
-                <div class="usa-card__header">
-                    <h3 class="usa-card__heading">Dataset Information</h3>
-                </div>
-                <div class="usa-card__body">
-                    <dl class="usa-description-list">
-                        <div class="usa-description-list__row">
-                            <dt class="usa-description-list__term">Last Harvested</dt>
-                            <dd class="usa-description-list__description">
-                                {% if dataset.last_harvested_date %}
-                                {{ dataset.last_harvested_date.strftime('%B %d, %Y at %I:%M %p') }}
-                                {% else %}
-                                Not available
-                                {% endif %}
-                            </dd>
-                        </div>
-                        <div class="usa-description-list__row">
-                            <dt class="usa-description-list__term">Harvest Record</dt>
-                            <dd class="usa-description-list__description">
-                                <a href="{{ url_for('main.get_harvest_record_raw', record_id=dataset.harvest_record_id) }}"
-                                    class="usa-link">
-                                    View Record
-                                </a>
-                            </dd>
-                        </div>
-                    </dl>
-                </div>
-            </div>
-        </div>
-        <div class="usa-card margin-top-3">
-            <div class="usa-card__container">
-                <div class="usa-card__body">
-                    <form class="usa-form" method="get" action="{{ url_for('main.index') }}">
-                        <label class="usa-label margin-top-0" for="dataset-search">Try a different search</label>
-                        <input class="usa-input" id="dataset-search" name="q" type="search" placeholder="Search Data.gov...">
-                        <button class="usa-button margin-top-2" type="submit">Search</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% set distributions = dataset.dcat.get('distribution') %}
-{% if distributions %}
-<div class="grid-row margin-top-6">
-    <div class="grid-col-12">
-        <section class="usa-prose">
-            <h2 class="text-primary-darker">Resources</h2>
-        </section>
-        {% set resource_items = distributions %}
-        {% if resource_items is mapping or resource_items is string %}
-        {% set resource_items = [resource_items] %}
-        {% elif resource_items is not sequence %}
-        {% set resource_items = [resource_items] %}
-        {% endif %}
-        <div class="usa-table-container--scrollable">
-            <table class="usa-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Resource</th>
-                        <th scope="col">Format</th>
-                        <th scope="col">Access</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for resource in resource_items %}
-                    {% set resource_url = None %}
-                    {% set resource_title = resource|format_dcat_value %}
-                    {% set resource_format = None %}
-                    {% set resource_description = None %}
-                    {% set secondary_url = None %}
-                    {% set primary_label = 'Access' %}
-                    {% set secondary_label = 'Download' %}
-                    {% if resource is mapping %}
-                    {% set download_url = resource.get('downloadURL') %}
-                    {% set access_url = resource.get('accessURL') %}
-                    {% set resource_url = download_url or access_url %}
-                    {% set resource_title = resource.get('title') or resource.get('description') or resource_url or 'Resource ' ~ loop.index %}
-                    {% set resource_format = resource.get('format') or resource.get('mediaType') %}
-                    {% set resource_description = resource.get('description') %}
-                    {% if download_url and access_url and download_url != access_url %}
-                    {% set secondary_url = access_url if resource_url == download_url else download_url %}
+{% set description_value = dataset.dcat.get('description') %}
+
+<div class="usa-section">
+    <div class="grid-container-widescreen">
+        
+        <!-- Return to search link -->
+        <a href="{{ url_for('main.index') }}" class="return-link">
+            <i class="fa-solid fa-arrow-left"></i>
+            Return to search results
+        </a>
+
+        <!-- Advanced Search Tip -->
+        <div class="advanced-search-tip">
+            <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
+            <p class="advanced-search-tip__text">
+                Use quotes for exact phrases: <code>"flood zones"</code> | 
+                Use AND/OR for multiple terms: <code>crops AND agriculture</code> | 
+                Search by organization or tag to find related datasets
+            </p>
+        </div>
+
+        <div class="grid-row grid-gap-lg">
+            <!-- Main Content Column -->
+            <div class="desktop:grid-col-8">
+                
+                <!-- Title and Metadata -->
+                <h1 class="dataset-title">{{ dataset_title }}</h1>
+                
+                <div class="dataset-meta">
+                    {% if dataset.dcat.get('publisher', {}).get('name') %}
+                    Published by <strong>{{ dataset.dcat.publisher.name }}</strong>
                     {% endif %}
-                    {% set primary_label = 'Download' if download_url else 'Access' %}
-                    {% set secondary_label = 'Access' if download_url else 'Download' %}
+                    {% if organization %}
+                    {% if dataset.dcat.get('publisher', {}).get('name') %} | {% endif %}
+                    <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name }}</a>
                     {% endif %}
-                    <tr>
-                        <th scope="row">
-                            {% if resource_url %}
-                            <a href="{{ resource_url }}" target="_blank" rel="noopener">{{ resource_title }}</a>
-                            {% else %}
-                            {{ resource_title }}
+                    {% if dataset.last_harvested_date %}
+                    | Metadata Last Checked: <strong>{{ dataset.last_harvested_date.strftime('%B %d, %Y') }}</strong>
+                    {% endif %}
+                    {% if dataset.dcat.get('modified') %}
+                    | Last Modified: <strong>{{ dataset.dcat.modified }}</strong>
+                    {% endif %}
+                </div>
+
+                <!-- Description -->
+                {% if description_value %}
+                <div class="dataset-description">
+                    {{ description_value | format_dcat_value }}
+                </div>
+                {% else %}
+                <p class="dataset-description text-base-light">No description available</p>
+                {% endif %}
+
+                <!-- Tags as Search Actions -->
+                {% if dataset.dcat.get('keyword') %}
+                <div class="tags-section">
+                    <h3 class="tags-section__heading">Find Related Datasets</h3>
+                    <p class="tags-section__subtitle">Click any tag below to search for similar datasets</p>
+                    <div>
+                        {% for keyword in dataset.dcat.keyword %}
+                        <a href="{{ url_for('main.index', q=keyword) }}" class="tag-link">
+                            {{ keyword }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Complete Metadata -->
+                <section class="margin-top-4">
+                    <h2 class="text-primary-darker margin-bottom-2">Complete Metadata</h2>
+                    
+                    <table class="metadata-table">
+                        <tbody>
+                            {% set excluded_keys = ['title', 'description', 'distribution', 'keyword', '@type', 'publisher', 'modified', 'contactPoint', 'license', 'accessLevel', 'accrualPeriodicity'] %}
+                            {% for key, value in dataset.dcat|dictsort if key not in excluded_keys %}
+                            {% set rendered_value = value|format_dcat_value %}
+                            <tr>
+                                <th scope="row">{{ key }}</th>
+                                <td>
+                                    {% if '\n' in rendered_value %}
+                                    <pre>{{ rendered_value }}</pre>
+                                    {% else %}
+                                    {{ rendered_value }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="desktop:grid-col-4">
+
+                <!-- Resources -->
+                {% if distributions %}
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Resources</h3>
+                    
+                    {% set resource_items = distributions %}
+                    {% if resource_items is mapping or resource_items is string %}
+                        {% set resource_items = [resource_items] %}
+                    {% elif resource_items is not sequence %}
+                        {% set resource_items = [resource_items] %}
+                    {% endif %}
+                    
+                    <p style="font-size: 0.9375rem; margin-bottom: 0.5rem; color: #71767a;">
+                        {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
+                    </p>
+                    
+                    <details class="resources-dropdown" open>
+                        <summary>View all resources</summary>
+                        <ul class="resources-list">
+                            {% for resource in resource_items %}
+                            {% set resource_url = None %}
+                            {% set resource_title = resource|format_dcat_value %}
+                            {% set resource_format = None %}
+                            
+                            {% if resource is mapping %}
+                                {% set download_url = resource.get('downloadURL') %}
+                                {% set access_url = resource.get('accessURL') %}
+                                {% set resource_url = download_url or access_url %}
+                                {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~ loop.index %}
+                                {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper %}
                             {% endif %}
-                            {% if resource_description and (resource_title != resource_description) %}
-                            <p class="margin-top-1 margin-bottom-0 text-base">{{ resource_description }}</p>
-                            {% endif %}
-                        </th>
-                        <td>
-                            {% if resource_format %}
-                            {{ resource_format|format_dcat_value }}
-                            {% else %}
-                            <span class="text-base-light">Not specified</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if resource_url %}
-                            <a href="{{ resource_url }}" target="_blank" rel="noopener">{{ primary_label }}</a>
-                            {% if secondary_url %}
-                            <br>
-                            <a href="{{ secondary_url }}" target="_blank" rel="noopener">{{ secondary_label }}</a>
-                            {% endif %}
-                            {% else %}
-                            <span class="text-base-light">Unavailable</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            
+                            <li class="resources-list__item">
+                                {% if resource_url %}
+                                <a href="{{ resource_url }}" target="_blank" rel="noopener" class="resources-list__link">
+                                    <div class="resources-list__icon">
+                                        <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                    </div>
+                                    <div class="resources-list__details">
+                                        <p class="resources-list__name" title="{{ resource_title }}">
+                                            {{ resource_title }}
+                                        </p>
+                                        <div class="resources-list__format">{{ resource_format or 'file' }}</div>
+                                    </div>
+                                </a>
+                                {% else %}
+                                <div class="resources-list__icon">
+                                    <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                </div>
+                                <div class="resources-list__details">
+                                    <p class="resources-list__name" title="{{ resource_title }}">
+                                        {{ resource_title }}
+                                    </p>
+                                    <div class="resources-list__format">{{ resource_format or 'file' }}</div>
+                                </div>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                </div>
+                {% endif %}
+
+                <!-- Access and Use Information -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Access & Use</h3>
+                    
+                    {% if dataset.dcat.get('license') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">License</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.license }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if dataset.dcat.get('accessLevel') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Access Level</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.accessLevel }}</div>
+                    </div>
+                    {% endif %}                    
+                </div>
+
+                <!-- Contact Information -->
+                {% if dataset.dcat.get('contactPoint') %}
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Contact</h3>
+                    
+                    {% if dataset.dcat.contactPoint.get('fn') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Name</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if dataset.dcat.contactPoint.get('hasEmail') %}
+                    {% set email = dataset.dcat.contactPoint.get('hasEmail') | format_contact_point_email%}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Email</div>
+                        <div class="sidebar-section__value">
+                            <a href="mailto:{{ email }}">
+                                {{ email}}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Dataset Information -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Dataset Information</h3>
+                    
+                    {% if dataset.last_harvested_date %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Metadata Last Checked</div>
+                        <div class="sidebar-section__value">
+                            {{ dataset.last_harvested_date.strftime('%B %d, %Y at %I:%M %p') }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if dataset.harvest_record_id %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Harvest Record</div>
+                        <div class="sidebar-section__value">
+                            <a href="{{ url_for('main.get_harvest_record_raw', record_id=dataset.harvest_record_id) }}">
+                                View Raw Data
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% set spatial_raw = dataset.dcat.get('spatial') %}
+                    {% set spatial_geometry_data = spatial_raw | geometry_to_mapping %}
+                    {% set spatial_has_bbox = spatial_raw | is_bbox_string %}
+                    {% set spatial_has_geometry = spatial_geometry_data is not none %}
+                    {% if spatial_has_bbox or spatial_has_geometry %}
+                    <div class="margin-top-3">
+                      <p class="margin-0"><strong>Location</strong></p>
+                      <div
+                        id="dataset-map"
+                        {% if spatial_has_bbox %}data-bbox="{{ spatial_raw }}"{% endif %}
+                        {% if spatial_has_geometry %}data-geometry='{{ spatial_geometry_data | tojson | forceescape }}'{% endif %}
+                        style="height: 220px; border-radius: 4px; overflow: hidden;"
+                      ></div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Feedback -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Provide Feedback</h3>
+                    <p style="font-size: 0.9375rem; margin-bottom: 1rem;">
+                        Have questions or suggestions about this dataset?
+                    </p>
+                    <button
+                        class="usa-button width-full"
+                        type="button"
+                        id="contact-btn"
+                        data-dataset-identifier="{{ dataset_identifier }}"
+                        data-dataset-title="{{ dataset_title }}"
+                        aria-label="Provide feedback on {{ dataset_title }}"
+                    >
+                        <i class="fa-solid fa-comment-dots margin-right-05"></i>
+                        Send Feedback
+                    </button>
+                </div>
+
+            </aside>
         </div>
     </div>
 </div>
-{% endif %}
-
-<div class="grid-row margin-top-6">
-    <div class="grid-col-12">
-        <section class="usa-prose">
-            <h2 class="text-primary-darker">DCAT Metadata</h2>
-        </section>
-        <div class="usa-table-container--scrollable">
-            <table class="usa-table">
-                <tbody>
-                    {% set excluded_keys = ['title', 'description', 'distribution', 'contactPoint', 'keyword', '@type'] %}
-                    {% for key, value in dataset.dcat|dictsort if key not in excluded_keys %}
-                    {% set rendered_value = value|format_dcat_value %}
-                    <tr>
-                        <th scope="row">{{ key }}</th>
-                        <td>
-                            {% if '\n' in rendered_value %}
-                            <pre class="margin-0 overflow-auto">{{ rendered_value }}</pre>
-                            {% else %}
-                            {{ rendered_value }}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-</div>
-</div>
-{% endblock %}
+{% endblock main_content %}
 
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
+{% set spatial_raw = dataset.dcat.get('spatial') %}
+{% set spatial_geometry_data = spatial_raw | geometry_to_mapping %}
+{% set spatial_has_bbox = spatial_raw | is_bbox_string %}
+{% set spatial_has_geometry = spatial_geometry_data is not none %}
+{% if spatial_has_bbox or spatial_has_geometry %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{{ url_for('static', filename='js/view_bbox_map.js') }}"></script>
+{% elif spatial_raw %}
+<script>
+  console.warn('Map not displayed: spatial value is not a supported geometry or bbox for {{ spatial_raw | tojson }}');
+</script>{% endif %}
 {% endblock %}

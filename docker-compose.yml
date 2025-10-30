@@ -35,6 +35,7 @@ services:
     volumes:
       - .:/app
     environment:
+      OPENSEARCH_HOST: opensearch
       DATABASE_URI: postgresql+psycopg://${DATABASE_USER}:${DATABASE_PASSWORD}@db:${DATABASE_PORT}/${DATABASE_NAME}
       FLASK_APP: run.py
       FLASK_ENV: development

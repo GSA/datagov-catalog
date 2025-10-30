@@ -5,7 +5,16 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_htmx import HTMX
 
-from .filters import format_dcat_value, format_gov_type, usa_icon
+from .filters import (
+    fa_icon_from_extension,
+    format_contact_point_email,
+    format_dcat_value,
+    format_gov_type,
+    geometry_to_mapping,
+    is_bbox_string,
+    is_geometry_mapping,
+    usa_icon,
+)
 from .models import db
 
 logger = logging.getLogger(__name__)
@@ -44,6 +53,11 @@ def create_app(config_name: str = "local") -> Flask:
     app.add_template_filter(usa_icon)
     app.add_template_filter(format_dcat_value)
     app.add_template_filter(format_gov_type)
+    app.add_template_filter(fa_icon_from_extension)
+    app.add_template_filter(format_contact_point_email)
+    app.add_template_filter(is_bbox_string)
+    app.add_template_filter(is_geometry_mapping)
+    app.add_template_filter(geometry_to_mapping)
 
     return app
 

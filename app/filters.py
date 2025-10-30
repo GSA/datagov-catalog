@@ -1,8 +1,9 @@
 """Jinja template filters for the catalog application."""
 
 import json
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Union
 
 from flask import url_for
 
@@ -49,4 +50,96 @@ def format_gov_type(gov_type: str) -> str:
     return "unknown"
 
 
-__all__ = ["usa_icon", "format_dcat_value", "format_gov_type"]
+def fa_icon_from_extension(extension: str) -> str:
+    """Return a Font Awesome icon class based on file extension."""
+    extension = extension.lower() if extension else "default"
+    # if extension is a MIME type, extract the last part
+    # e.g. "application/json" -> "json"
+    if "/" in extension:
+        extension = extension.split("/")[-1]
+    if extension in ["csv"]:
+        return "fa-file-csv"
+    elif extension in ["xlsx", "xls", "ods"]:
+        return "fa-file-excel"
+    elif extension in ["pdf"]:
+        return "fa-file-pdf"
+    elif extension in ["html"]:
+        return "fa-arrow-up-right-from-square"
+    elif extension in ["api"]:
+        return "fa-plug"
+    else:
+        return "fa-file"
+
+
+def format_contact_point_email(email: str) -> Union[str, None]:
+    """Format a contact point email for display."""
+    if email:
+        if ":" in email:
+            # If the email is in the format "mailto:email", return only the email part
+            return email.split(":")[-1].strip().lower()
+        return email.split().lower()
+    return None
+
+
+def is_bbox_string(value: Any) -> bool:
+    """Return True when value looks like a numeric bbox string."""
+
+    if not isinstance(value, str):
+        return False
+
+    parts = [part.strip() for part in value.split(",")]
+    if len(parts) != 4:
+        return False
+
+    try:
+        # Ensure all parts convert cleanly to floats.
+        [float(part) for part in parts]
+    except ValueError:
+        return False
+
+    return True
+
+
+def is_geometry_mapping(value: Any) -> bool:
+    """Return True when value looks like a GeoJSON geometry mapping."""
+
+    return geometry_to_mapping(value) is not None
+
+
+def geometry_to_mapping(value: Any) -> Mapping | None:
+    """Return a mapping version of the geometry, parsing JSON strings when needed."""
+
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+
+    if not isinstance(value, Mapping):
+        return None
+
+    geom_type = value.get("type")
+    coords = value.get("coordinates")
+
+    if not isinstance(geom_type, str):
+        return None
+    if coords is None:
+        return None
+    if isinstance(coords, (str, bytes)):
+        return None
+    if not isinstance(coords, Sequence):
+        return None
+
+    return value
+
+
+__all__ = [
+    "usa_icon",
+    "format_dcat_value",
+    "format_gov_type",
+    "is_bbox_string",
+    "is_geometry_mapping",
+    "geometry_to_mapping",
+    "fa_icon_from_extension",
+    "format_contact_point_email",
+]

@@ -8,9 +8,8 @@ import xml.etree.ElementTree as ET
 import click
 from flask import Blueprint
 
-from .database import CatalogDBInterface
+from .database import CatalogDBInterface, OpenSearchInterface
 from .models import Dataset
-from .opensearch import OpenSearchInterface
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -25,13 +24,14 @@ sitemap = Blueprint("sitemap", __name__)
 def sync_opensearch():
     """Sync the datasets to the OpenSearch system."""
 
-    opensearch_host = os.getenv("OPENSEARCH_HOST")
-    if opensearch_host.endswith("es.amazonaws.com"):
-        client = OpenSearchInterface(aws_host=opensearch_host)
-    else:
-        client = OpenSearchInterface(test_host=opensearch_host)
-
+    client = OpenSearchInterface.from_environment()
     interface = CatalogDBInterface()
+
+    # enpty the index and then refill it
+    # THIS WILL CAUSE SEARCH QUERIES TO FAIL DURING THE PROCESS
+    click.echo("Emptying dataset index...")
+    client.delete_all_datasets()
+    click.echo("Indexing datasets...")
     succeeded, failed = client.index_datasets(interface.db.query(Dataset))
 
     click.echo(f"Indexed {succeeded} items.")
