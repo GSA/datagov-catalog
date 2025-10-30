@@ -60,6 +60,11 @@ def db_client(dbapp):
 
 
 @pytest.fixture
+def cli_runner(dbapp):
+    yield dbapp.test_cli_runner()
+
+
+@pytest.fixture
 def session(dbapp):
     connection = db.engine.connect()
     transaction = connection.begin()

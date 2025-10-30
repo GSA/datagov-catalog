@@ -1,5 +1,6 @@
 import click
 from flask import Blueprint
+from opensearchpy.exceptions import OpenSearchException
 
 from .database import CatalogDBInterface, OpenSearchInterface
 from .models import Dataset
@@ -8,8 +9,8 @@ search = Blueprint("search", __name__)
 
 
 @search.cli.command("sync")
-@search.cli.option("--start-page", help="Number of page to start on", default=1)
-@search.cli.option("--per_page", help="Number of datasets per chunk", default=100)
+@click.option("--start-page", help="Number of page to start on", default=1)
+@click.option("--per_page", help="Number of datasets per page", default=100)
 def sync_opensearch(start_page=1, per_page=100):
     """Sync the datasets to the OpenSearch system."""
 
@@ -30,13 +31,13 @@ def sync_opensearch(start_page=1, per_page=100):
     # page numbers are 1-indexed
     for i in range(start_page, total_pages + 1):
         try:
-            succeeded, failed = client.index_datasets(
+            succeeded, failed = interface.index_datasets(
                 Dataset.query.paginate(page=i, per_page=per_page)
             )
         except OpenSearchException:
             # one more attempt after the exception
             # exceptions that this raises will propagate
-            succeeded, failed = client.index_datasets(
+            succeeded, failed = interface.index_datasets(
                 Dataset.query.paginate(page=i, per_page=per_page)
             )
 
