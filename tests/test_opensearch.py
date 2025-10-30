@@ -30,3 +30,8 @@ class TestOpenSearch:
         # One of the Americorps datasets has tnxs-meph in an identifier
         result_obj = opensearch_client.search("tnxs-meph")
         assert len(result_obj.results) > 0
+
+    def test_search_sync_command(self, cli_runner):
+        result = cli_runner.invoke(args=["search", "sync"])
+        assert "Indexing..." in result.output
+        assert " pages of datasets..." in result.output
