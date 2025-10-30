@@ -8,6 +8,7 @@ applications:
     services:
       - datagov-harvest-db
       - datagov-catalog-secrets
+      - datagov-catalog-opensearch
     instances: 1
     memory: 1G
     disk_quota: 2G
