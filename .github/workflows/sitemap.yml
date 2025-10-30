@@ -39,7 +39,8 @@ jobs:
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
           command: >
-            cf run-task datagov-catalog --command "flask sitemap generate" --name "$GEN_INSTANCE_NAME"
+            cf run-task datagov-catalog --command "flask sitemap generate"
+            --name "$GEN_INSTANCE_NAME" -k 2G -m 2G
       - name: Monitor generate task output
         uses: cloud-gov/cg-cli-tools@main
         with:
@@ -57,7 +58,8 @@ jobs:
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
           command: >
-            cf run-task datagov-catalog --command "flask sitemap verify" --name "$VER_INSTANCE_NAME"
+            cf run-task datagov-catalog --command "flask sitemap verify"
+            --name "$VER_INSTANCE_NAME" -k 2G -m 2G
       - name: Monitor verify task output
         uses: cloud-gov/cg-cli-tools@main
         with:
