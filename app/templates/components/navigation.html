@@ -28,6 +28,7 @@
           </a>
         </li>
       </ul>
+      {% if request.path != '/' %}
       <section aria-label="Search component">
         <form form method="GET" action="{{ url_for('main.index') }}" class="usa-search usa-search--small" role="search">
           <label class="usa-sr-only" for="search-field">Search</label>
@@ -38,6 +39,7 @@
           </button>
         </form>
       </section>
+      {% endif %}
     </nav>
   </div>
 </header>
