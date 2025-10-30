@@ -3,7 +3,7 @@
 import json
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Union
 
 from flask import url_for
 
@@ -50,6 +50,37 @@ def format_gov_type(gov_type: str) -> str:
     return "unknown"
 
 
+def fa_icon_from_extension(extension: str) -> str:
+    """Return a Font Awesome icon class based on file extension."""
+    extension = extension.lower() if extension else "default"
+    # if extension is a MIME type, extract the last part
+    # e.g. "application/json" -> "json"
+    if "/" in extension:
+        extension = extension.split("/")[-1]
+    if extension in ["csv"]:
+        return "fa-file-csv"
+    elif extension in ["xlsx", "xls", "ods"]:
+        return "fa-file-excel"
+    elif extension in ["pdf"]:
+        return "fa-file-pdf"
+    elif extension in ["html"]:
+        return "fa-arrow-up-right-from-square"
+    elif extension in ["api"]:
+        return "fa-plug"
+    else:
+        return "fa-file"
+
+
+def format_contact_point_email(email: str) -> Union[str, None]:
+    """Format a contact point email for display."""
+    if email:
+        if ":" in email:
+            # If the email is in the format "mailto:email", return only the email part
+            return email.split(":")[-1].strip().lower()
+        return email.split().lower()
+    return None
+
+
 def is_bbox_string(value: Any) -> bool:
     """Return True when value looks like a numeric bbox string."""
 
@@ -67,6 +98,8 @@ def is_bbox_string(value: Any) -> bool:
         return False
 
     return True
+
+
 def is_geometry_mapping(value: Any) -> bool:
     """Return True when value looks like a GeoJSON geometry mapping."""
 
@@ -107,4 +140,6 @@ __all__ = [
     "is_bbox_string",
     "is_geometry_mapping",
     "geometry_to_mapping",
+    "fa_icon_from_extension",
+    "format_contact_point_email",
 ]

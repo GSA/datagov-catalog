@@ -47,17 +47,13 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     soup = BeautifulSoup(response.text, "html.parser")
     # curently the title of the dataset is in the <title> tag
     assert soup.title.string == "test - Data.gov"
-    #  test the current breadcrumb item is the same as the title
-    assert (
-        soup.find(class_="usa-breadcrumb__list-item usa-current").span.string == "test"
-    )
     # assert the title in the h1 section is the same as the title
     h1 = soup.select_one(
-        "main#content > div.usa-section > div.grid-container > div.grid-row > div.grid-col-12 > h1.margin-bottom-1"
+        "main#content h1.dataset-title"
     ).text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(".dataset-detail__description-text").get_text(
+    description = soup.select_one(".dataset-description").get_text(
         strip=True
     )
     assert description == "this is the test description"
@@ -67,34 +63,27 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     assert feedback_button.get("data-dataset-identifier") == "test"
     assert "Feedback" in feedback_button.get_text(" ", strip=True)
 
-    resources_heading = soup.find("h2", string="Resources")
+    resources_heading = soup.select_one("h3.sidebar-section__heading")
     assert resources_heading is not None
 
-    resources_table = resources_heading.find_next("table")
-    assert resources_table is not None
+    resources_details = soup.select_one("details.resources-dropdown")
+    assert resources_details is not None
 
-    rows = resources_table.select("tbody tr")
-    assert len(rows) == 1
+    resources = resources_details.select("ul li")
+    assert len(resources) == 1
 
-    first_row = rows[0]
-    resource_cell = first_row.find("th")
-    assert "Test CSV" in resource_cell.get_text(" ", strip=True)
+    first_resource = resources[0]
+    resource_name = first_resource.select_one(".resources-list__name")
+    assert "Test CSV" in resource_name.get_text(" ", strip=True)
 
-    resource_link = resource_cell.find("a")
+    resource_link = first_resource.find("a")
     assert resource_link is not None
     assert resource_link.get("href") == "https://example.com/test.csv"
-
-    format_cell, access_cell = first_row.find_all("td")
-    assert format_cell.get_text(" ", strip=True) == "CSV"
-    assert access_cell.find("a").get_text(strip=True) == "Download"
 
     search_form = soup.find("form", attrs={"action": "/"})
     assert search_form is not None
     search_input = search_form.find("input", {"name": "q"})
     assert search_input is not None
-    submit_button = search_form.find("button", {"type": "submit"})
-    assert submit_button is not None
-    assert "Search" in submit_button.get_text(" ", strip=True)
 
 
 def test_dataset_detail_by_id(interface_with_dataset, db_client):
@@ -112,17 +101,13 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     soup = BeautifulSoup(response.text, "html.parser")
     # curently the title of the dataset is in the <title> tag
     assert soup.title.string == "test - Data.gov"
-    #  test the current breadcrumb item is the same as the title
-    assert (
-        soup.find(class_="usa-breadcrumb__list-item usa-current").span.string == "test"
-    )
     # assert the title in the h1 section is the same as the title
     h1 = soup.select_one(
-        "main#content > div.usa-section > div.grid-container > div.grid-row > div.grid-col-12 > h1.margin-bottom-1"
+        "main#content h1.dataset-title"
     ).text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(".dataset-detail__description-text").get_text(
+    description = soup.select_one(".dataset-description").get_text(
         strip=True
     )
     assert description == "this is the test description"
@@ -132,26 +117,22 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     assert feedback_button.get("data-dataset-identifier") == "test"
     assert "Feedback" in feedback_button.get_text(" ", strip=True)
 
-    resources_heading = soup.find("h2", string="Resources")
+    resources_heading = soup.select_one("h3.sidebar-section__heading")
     assert resources_heading is not None
 
-    resources_table = resources_heading.find_next("table")
-    assert resources_table is not None
+    resources_details = soup.select_one("details.resources-dropdown")
+    assert resources_details is not None
 
-    rows = resources_table.select("tbody tr")
-    assert len(rows) == 1
+    resources = resources_details.select("ul li")
+    assert len(resources) == 1
 
-    first_row = rows[0]
-    resource_cell = first_row.find("th")
-    assert "Test CSV" in resource_cell.get_text(" ", strip=True)
+    first_resource = resources[0]
+    resource_name = first_resource.select_one(".resources-list__name")
+    assert "Test CSV" in resource_name.get_text(" ", strip=True)
 
-    resource_link = resource_cell.find("a")
+    resource_link = first_resource.find("a")
     assert resource_link is not None
     assert resource_link.get("href") == "https://example.com/test.csv"
-
-    format_cell, access_cell = first_row.find_all("td")
-    assert format_cell.get_text(" ", strip=True) == "CSV"
-    assert access_cell.find("a").get_text(strip=True) == "Download"
 
     search_form = soup.find("form", attrs={"action": "/"})
     assert search_form is not None
@@ -250,7 +231,11 @@ def test_index_page_renders(db_client):
     assert "Catalog - Data.gov" in soup.title.string
 
     # Check search form exists with expected attributes
-    search_form = soup.find("form", attrs={"action": "/"})
+    main_search_input = soup.find("input", {"id": "search-query", "name": "q"})
+    assert main_search_input is not None
+
+    # Find the form that contains this input (the main search form)
+    search_form = main_search_input.find_parent("form")
     assert search_form is not None
     assert search_form.get("method", "").lower() == "get"
 
@@ -713,7 +698,9 @@ def test_footer_exists(db_client):
     assert gsa_footer is not None
 
 
-def test_dataset_detail_includes_map_assets_when_spatial_bbox(interface_with_dataset, db_client):
+def test_dataset_detail_includes_map_assets_when_spatial_bbox(
+    interface_with_dataset, db_client
+):
     # Add spatial bbox and ensure map container and Leaflet assets are present
     ds = interface_with_dataset.get_dataset_by_slug("test")
     ds.dcat["spatial"] = "-90.155,27.155,-90.26,27.255"
@@ -739,7 +726,9 @@ def test_dataset_detail_includes_map_assets_when_spatial_bbox(interface_with_dat
     assert view_js is not None
 
 
-def test_dataset_detail_includes_map_assets_when_spatial_geometry(interface_with_dataset, db_client):
+def test_dataset_detail_includes_map_assets_when_spatial_geometry(
+    interface_with_dataset, db_client
+):
     # Add spatial geometry and ensure map container and Leaflet assets are present
     ds = interface_with_dataset.get_dataset_by_slug("test")
     ds.dcat["spatial"] = {
@@ -778,7 +767,9 @@ def test_dataset_detail_includes_map_assets_when_spatial_geometry(interface_with
     assert view_js is not None
 
 
-def test_dataset_detail_includes_map_assets_when_spatial_geometry_string(interface_with_dataset, db_client):
+def test_dataset_detail_includes_map_assets_when_spatial_geometry_string(
+    interface_with_dataset, db_client
+):
     ds = interface_with_dataset.get_dataset_by_slug("test")
     geometry = {
         "type": "Polygon",
@@ -817,7 +808,9 @@ def test_dataset_detail_includes_map_assets_when_spatial_geometry_string(interfa
     assert view_js is not None
 
 
-def test_dataset_detail_omits_map_when_spatial_missing(interface_with_dataset, db_client):
+def test_dataset_detail_omits_map_when_spatial_missing(
+    interface_with_dataset, db_client
+):
     # Ensure no spatial key and verify no map container or Leaflet assets
     ds = interface_with_dataset.get_dataset_by_slug("test")
     ds.dcat.pop("spatial", None)
@@ -838,7 +831,9 @@ def test_dataset_detail_omits_map_when_spatial_missing(interface_with_dataset, d
     assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
 
 
-def test_dataset_detail_logs_warning_when_spatial_unqualified(interface_with_dataset, db_client):
+def test_dataset_detail_logs_warning_when_spatial_unqualified(
+    interface_with_dataset, db_client
+):
     ds = interface_with_dataset.get_dataset_by_slug("test")
     ds.dcat["spatial"] = "Virginia, USA"
     interface_with_dataset.db.commit()
@@ -855,5 +850,7 @@ def test_dataset_detail_logs_warning_when_spatial_unqualified(interface_with_dat
     assert soup.select_one('script[src*="leaflet.js"]') is None
     assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
 
-    inline_scripts = [script.get_text() for script in soup.find_all("script") if not script.get("src")]
+    inline_scripts = [
+        script.get_text() for script in soup.find_all("script") if not script.get("src")
+    ]
     assert any("Map not displayed" in content for content in inline_scripts)

@@ -27,11 +27,13 @@
   {% include "components/header.html" %}
   
   <main id="content">
+    {% block main_content %}
     <div class="usa-section">
-      <div class="grid-container">
+      <div class="{% block container_class %}grid-container{% endblock %}">
         {% block content %}{% endblock %}
       </div>
     </div>
+    {% endblock main_content %}
   </main>
 
   {% include "components/footer.html" %}

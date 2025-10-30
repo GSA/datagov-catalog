@@ -6,6 +6,8 @@ from flask import Flask
 from flask_htmx import HTMX
 
 from .filters import (
+    fa_icon_from_extension,
+    format_contact_point_email,
     format_dcat_value,
     format_gov_type,
     geometry_to_mapping,
@@ -51,6 +53,8 @@ def create_app(config_name: str = "local") -> Flask:
     app.add_template_filter(usa_icon)
     app.add_template_filter(format_dcat_value)
     app.add_template_filter(format_gov_type)
+    app.add_template_filter(fa_icon_from_extension)
+    app.add_template_filter(format_contact_point_email)
     app.add_template_filter(is_bbox_string)
     app.add_template_filter(is_geometry_mapping)
     app.add_template_filter(geometry_to_mapping)
