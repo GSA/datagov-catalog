@@ -178,6 +178,8 @@ class OpenSearchInterface:
             self.client,
             map(self.dataset_to_document, dataset_iter),
             raise_on_error=False,
+            # retry when we are making too many requests
+            max_retries=8,
         ):
             if success:
                 succeeded += 1
