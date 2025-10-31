@@ -9,6 +9,10 @@ from tests.conftest import HARVEST_RECORD_ID
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client):
+    # search relies on Opensearch now
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
@@ -64,14 +68,10 @@ def test_dataset_detail_by_slug(interface_with_dataset, db_client):
     # curently the title of the dataset is in the <title> tag
     assert soup.title.string == "test - Data.gov"
     # assert the title in the h1 section is the same as the title
-    h1 = soup.select_one(
-        "main#content h1.dataset-title"
-    ).text
+    h1 = soup.select_one("main#content h1.dataset-title").text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(".dataset-description").get_text(
-        strip=True
-    )
+    description = soup.select_one(".dataset-description").get_text(strip=True)
     assert description == "this is the test description"
 
     feedback_button = soup.find("button", id="contact-btn")
@@ -118,14 +118,10 @@ def test_dataset_detail_by_id(interface_with_dataset, db_client):
     # curently the title of the dataset is in the <title> tag
     assert soup.title.string == "test - Data.gov"
     # assert the title in the h1 section is the same as the title
-    h1 = soup.select_one(
-        "main#content h1.dataset-title"
-    ).text
+    h1 = soup.select_one("main#content h1.dataset-title").text
     assert h1 == "test"
     # check the dataset description is present
-    description = soup.select_one(".dataset-description").get_text(
-        strip=True
-    )
+    description = soup.select_one(".dataset-description").get_text(strip=True)
     assert description == "this is the test description"
 
     feedback_button = soup.find("button", id="contact-btn")
