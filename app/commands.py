@@ -2,7 +2,7 @@ import click
 from flask import Blueprint
 from opensearchpy.exceptions import OpenSearchException
 
-from .database import CatalogDBInterface, OpenSearchInterface
+from .database import OpenSearchInterface
 from .models import Dataset
 
 search = Blueprint("search", __name__)
@@ -15,7 +15,6 @@ def sync_opensearch(start_page=1, per_page=100):
     """Sync the datasets to the OpenSearch system."""
 
     client = OpenSearchInterface.from_environment()
-    interface = CatalogDBInterface()
 
     # enpty the index and then refill it
     # THIS WILL CAUSE INCONSISTENT SEARCH RESULTS DURING THE PROCESS
@@ -31,13 +30,13 @@ def sync_opensearch(start_page=1, per_page=100):
     # page numbers are 1-indexed
     for i in range(start_page, total_pages + 1):
         try:
-            succeeded, failed = interface.index_datasets(
+            succeeded, failed = client.index_datasets(
                 Dataset.query.paginate(page=i, per_page=per_page)
             )
         except OpenSearchException:
             # one more attempt after the exception
             # exceptions that this raises will propagate
-            succeeded, failed = interface.index_datasets(
+            succeeded, failed = client.index_datasets(
                 Dataset.query.paginate(page=i, per_page=per_page)
             )
 
