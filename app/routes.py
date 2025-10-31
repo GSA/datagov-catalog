@@ -77,6 +77,16 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 SITEMAP_PAGE_SIZE = 10000
 
 
+def _get_sitemap_body_or_404(bucket: str, key: str) -> bytes:
+    """Fetch an object body from S3 or abort with 404 on any error."""
+    s3 = create_sitemap_s3_client()
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=key)
+        return obj["Body"].read()
+    except Exception:
+        abort(404)
+
+
 @main.route("/sitemap.xml", methods=["GET"])
 def sitemap_index() -> Response:
     """Fetch sitemap index from S3 and return as XML."""
@@ -85,12 +95,7 @@ def sitemap_index() -> Response:
     except SitemapS3ConfigError:
         abort(404)
 
-    s3 = create_sitemap_s3_client()
-    try:
-        obj = s3.get_object(Bucket=config.bucket, Key=config.index_key)
-        body = obj["Body"].read()
-    except Exception:
-        abort(404)
+    body = _get_sitemap_body_or_404(config.bucket, config.index_key)
     return Response(body, mimetype="application/xml")
 
 
@@ -104,12 +109,7 @@ def sitemap_chunk(index: int) -> Response:
     except SitemapS3ConfigError:
         abort(404)
     key = f"{config.prefix.rstrip('/')}/sitemap-{index}.xml"
-    s3 = create_sitemap_s3_client()
-    try:
-        obj = s3.get_object(Bucket=config.bucket, Key=key)
-        body = obj["Body"].read()
-    except Exception:
-        abort(404)
+    body = _get_sitemap_body_or_404(config.bucket, key)
     return Response(body, mimetype="application/xml")
 
 
