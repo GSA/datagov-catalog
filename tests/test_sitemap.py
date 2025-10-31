@@ -31,8 +31,15 @@ def test_sitemap_generate_uploads_files(app, interface_with_dataset, s3_client, 
     # Base URL for loc entries
     monkeypatch.setenv("SITEMAP_BASE_URL", "http://localhost:8080")
     # Ensure at least one dataset is visible to the CLI's default DB session
-    from app.models import Dataset, db
+    from app.models import Dataset, Organization, db
     with app.app_context():
+        db.session.add(
+            Organization(
+                id="org1",
+                name="cli org",
+                slug="cli-org",
+            )
+        )
         db.session.add(
             Dataset(
                 id="cli-ds",
