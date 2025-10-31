@@ -2,12 +2,12 @@ name: Check DB Models
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - '**'
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  #   branches:
+  #     - '**'
 
 jobs:
   check-sync:
