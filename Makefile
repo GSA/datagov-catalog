@@ -18,20 +18,16 @@ update-dependencies: ## Updates requirements.txt and requirements_dev.txt from p
 	poetry export --without-hashes --without=dev --format=requirements.txt > requirements.txt
 	poetry export --without-hashes --only=dev --format=requirements.txt > requirements-dev.txt
 
-# OpenSearch takes a while to start up so sleep
-test-ci: up sleep test
-
-sleep:
-	sleep 20
+test-ci: up test
 
 test:
 	poetry run pytest
 
 up: ## Sets up local flask  docker environment.
-	docker compose up -d
+	docker compose up -d --wait
 
 up-debug: ## Sets up local docker environment with VSCODE debug support enabled
-	docker compose -f docker-compose.yml -f docker-compose_debug.yml up -d
+	docker compose -f docker-compose.yml -f docker-compose_debug.yml up -d --wait
 
 down: ## Tears down the flask and harvester containers
 	docker compose down

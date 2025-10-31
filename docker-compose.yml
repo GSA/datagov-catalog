@@ -27,10 +27,18 @@ services:
     ports:
       - "9200:9200"
       - "9600:9600"
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sk -u admin:admin https://localhost:9200/_cluster/health?wait_for_status=yellow\&timeout=1s | grep -q ''"timed_out":false''']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
   app:
     build: .
     depends_on:
       db:
+        condition: service_healthy
+      opensearch:
         condition: service_healthy
     volumes:
       - .:/app
