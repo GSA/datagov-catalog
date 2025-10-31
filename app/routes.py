@@ -77,17 +77,6 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 SITEMAP_PAGE_SIZE = 10000
 
 
-def _dataset_lastmod(dataset: Dataset) -> Optional[str]:
-    """Return ISO date string from dataset.last_harvested_date, if present."""
-    dt = getattr(dataset, "last_harvested_date", None)
-    if dt is not None:
-        try:
-            return dt.date().isoformat()
-        except Exception:
-            pass
-    return None
-
-
 @main.route("/sitemap.xml", methods=["GET"])
 def sitemap_index() -> Response:
     """Fetch sitemap index from S3 and return as XML."""

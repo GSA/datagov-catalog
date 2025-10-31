@@ -20,6 +20,7 @@ from .sitemap_s3 import (
 search = Blueprint("search", __name__)
 sitemap = Blueprint("sitemap", __name__)
 
+BASE_URL = os.getenv("SITEMAP_BASE_URL", "http://localhost:8080").rstrip("/")
 
 @search.cli.command("sync")
 @click.option("--start-page", help="Number of page to start on", default=1)
@@ -84,12 +85,11 @@ def _build_sitemap_chunk_xml(datasets: Iterable[Dataset]) -> str:
     for ds in datasets:
         # The app will serve these at /dataset/<slug>
         # Use absolute URLs with the public base
-        base_url = os.getenv("SITEMAP_BASE_URL", "http://localhost:8080").rstrip("/")
-        loc = f"{base_url}/dataset/{ds.slug}"
+        loc = f"{BASE_URL}/dataset/{ds.slug}"
         lastmod = _sitemap_lastmod(ds)
         lines.append("  <url>")
         lines.append(f"    <loc>{loc}</loc>")
-        if lastmod:
+        if lastmod is not None:
             lines.append(f"    <lastmod>{lastmod}</lastmod>")
         lines.append("  </url>")
     lines.append("</urlset>")
@@ -97,14 +97,13 @@ def _build_sitemap_chunk_xml(datasets: Iterable[Dataset]) -> str:
 
 
 def _build_sitemap_index_xml(total_chunks: int) -> str:
-    base_url = os.getenv("SITEMAP_BASE_URL", "http://localhost:8080").rstrip("/")
     today = date.today().isoformat()
     lines = [
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
         "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
     ]
     for idx in range(total_chunks):
-        loc = f"{base_url}/sitemap/sitemap-{idx}.xml"
+        loc = f"{BASE_URL}/sitemap/sitemap-{idx}.xml"
         lines.append("  <sitemap>")
         lines.append(f"    <loc>{loc}</loc>")
         lines.append(f"    <lastmod>{today}</lastmod>")
