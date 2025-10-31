@@ -2,6 +2,11 @@
 
 New Data.gov catalog UI
 
+## Local Development
+
+- Copy the sample environment file before starting the app: `cp .env.sample .env`.
+- Update values in `.env` as needed for your local services; the file is ignored by Git.
+
 ## Harvest Database Configuration
 
 - This application reuses the harvest database defined in the

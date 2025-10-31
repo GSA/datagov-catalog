@@ -20,6 +20,11 @@ from flask import (
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
 from .utils import build_dataset_dict, json_not_found, valid_id_required
+from .sitemap_s3 import (
+    SitemapS3ConfigError,
+    create_sitemap_s3_client,
+    get_sitemap_s3_config,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +70,45 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
             pages.append(num)
             last = num
     return pages
+
+
+SITEMAP_PAGE_SIZE = 10000
+
+
+def _get_sitemap_body_or_404(bucket: str, key: str) -> bytes:
+    """Fetch an object body from S3 or abort with 404 on any error."""
+    s3 = create_sitemap_s3_client()
+    try:
+        obj = s3.get_object(Bucket=bucket, Key=key)
+        return obj["Body"].read()
+    except Exception:
+        abort(404)
+
+
+@main.route("/sitemap.xml", methods=["GET"])
+def sitemap_index() -> Response:
+    """Fetch sitemap index from S3 and return as XML."""
+    try:
+        config = get_sitemap_s3_config()
+    except SitemapS3ConfigError:
+        abort(404)
+
+    body = _get_sitemap_body_or_404(config.bucket, config.index_key)
+    return Response(body, mimetype="application/xml")
+
+
+@main.route("/sitemap/sitemap-<int:index>.xml", methods=["GET"])
+def sitemap_chunk(index: int) -> Response:
+    """Fetch a sitemap chunk file from S3 and return as XML."""
+    if index < 0:
+        abort(404)
+    try:
+        config = get_sitemap_s3_config()
+    except SitemapS3ConfigError:
+        abort(404)
+    key = f"{config.prefix.rstrip('/')}/sitemap-{index}.xml"
+    body = _get_sitemap_body_or_404(config.bucket, key)
+    return Response(body, mimetype="application/xml")
 
 
 # Routes
