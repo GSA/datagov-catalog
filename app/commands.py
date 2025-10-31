@@ -9,7 +9,7 @@ import click
 from flask import Blueprint
 from opensearchpy.exceptions import OpenSearchException
 
-from .database import OpenSearchInterface
+from .database import CatalogDBInterface, OpenSearchInterface
 from .models import Dataset
 from .sitemap_s3 import (
     SitemapS3ConfigError,
