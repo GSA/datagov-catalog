@@ -2,7 +2,6 @@ import json
 import logging
 from datetime import datetime
 from math import ceil
-from typing import Optional
 from xml.etree import ElementTree
 
 from dotenv import load_dotenv
@@ -20,7 +19,6 @@ from flask import (
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
-from .models import Dataset
 from .utils import build_dataset_dict, json_not_found, valid_id_required
 from .sitemap_s3 import (
     SitemapS3ConfigError,
