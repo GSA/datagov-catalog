@@ -8,6 +8,8 @@ applications:
     services:
       - datagov-harvest-db
       - datagov-catalog-secrets
+      - datagov-catalog-s3
+      - datagov-catalog-opensearch
     instances: 1
     memory: 1G
     disk_quota: 2G
@@ -17,4 +19,5 @@ applications:
       NEW_RELIC_HOST: gov-collector.newrelic.com
       NEW_RELIC_MONITOR_MODE: false
       NEW_RELIC_CONFIG_FILE: /home/vcap/app/config/newrelic.ini
+      SITE_URL: https://datagov-catalog-dev.app.cloud.gov
     command: ./app-start.sh
