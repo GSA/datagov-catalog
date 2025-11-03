@@ -42,6 +42,35 @@ def test_search_api_pagination(interface_with_dataset, db_client):
         # default page size is 20 elements but there are at least 11 datasets
         assert len(response.json["results"]) >= 11
 
+def test_search_api_paginate_after(interface_with_dataset, db_client):
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(10):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        dataset_dict["dcat"] = {"title": f"test-{i}"}
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+    # search relies on Opensearch now
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/search", query_string={"q": "test", "per_page": "1"})
+        previous_slug = response.json["results"][0]["slug"]
+        assert len(response.json["results"]) == 1
+        assert "after" in response.json
+        after = response.json["after"]
+        # we made 10 new datasets, so we can follow the "after" 9 times and
+        # still have an "after"
+        for i in range(9):
+            response = db_client.get("/search", query_string={"q": "test", "per_page": "1", "after": after})
+            assert response.status_code == 200
+            assert len(response.json["results"]) == 1
+            assert "after" in response.json
+            assert response.json["results"][0]["slug"] != previous_slug
+            previous_slug = response.json["results"][0]["slug"]
+            after = response.json["after"]
+
 
 def test_search_api_by_org_id(interface_with_dataset, db_client):
     with patch("app.routes.interface", interface_with_dataset):
