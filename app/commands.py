@@ -45,16 +45,21 @@ def sync_opensearch(start_page=1, per_page=100):
     for i in range(start_page, total_pages + 1):
         try:
             succeeded, failed = client.index_datasets(
-                Dataset.query.paginate(page=i, per_page=per_page)
+                Dataset.query.paginate(page=i, per_page=per_page),
+                refresh_after=False
             )
         except OpenSearchException:
             # one more attempt after the exception
             # exceptions that this raises will propagate
             succeeded, failed = client.index_datasets(
-                Dataset.query.paginate(page=i, per_page=per_page)
+                Dataset.query.paginate(page=i, per_page=per_page),
+                refresh_after=False
             )
 
         click.echo(f"Indexed page {i} with {succeeded} successes and {failed} errors.")
+    click.echo("Refreshing index...")
+    client._refresh()
+    click.echo("Sync was successful")
 
 
 def register_commands(app):
