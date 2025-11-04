@@ -19,12 +19,12 @@ from flask import (
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
-from .utils import build_dataset_dict, json_not_found, valid_id_required
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
+from .utils import build_dataset_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
@@ -169,31 +169,35 @@ def search():
     """
     # missing query parameter searches for everything
     query = request.args.get("q", "")
-    per_page = request.args.get("per_page", DEFAULT_PER_PAGE)
+    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
+    after = request.args.get("after")
     result = interface.search_datasets(
         query,
         per_page=per_page,
         org_id=org_id,
         org_types=org_types,
+        after=after,
     )
 
     if htmx:
         total = result.total
         results = [build_dataset_dict(each) for each in result.results]
         # TODO: Fix pagination to work with OpenSearch
-        total_pages = 2
         return render_template(
             "components/dataset_results.html",
             datasets=results,
-            page=1,
-            page_sequence=build_page_sequence(1, total_pages),
             total=total,
-            total_pages=total_pages,
+            after=result.search_after_obscured(),
         )
 
-    return jsonify([build_dataset_dict(result) for result in result.results])
+    response_dict = {
+        "results": [build_dataset_dict(result) for result in result.results],
+    }
+    if result.search_after is not None:
+        response_dict["after"] = result.search_after_obscured()
+    return jsonify(response_dict)
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])

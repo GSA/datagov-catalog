@@ -11,7 +11,7 @@ from sqlalchemy import desc, func, or_
 from app.models import Dataset, HarvestRecord, Organization, db
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
-from .opensearch import OpenSearchInterface
+from .opensearch import OpenSearchInterface, SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -49,14 +49,31 @@ class CatalogDBInterface:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
     def search_datasets(
-        self, query: str, per_page=DEFAULT_PER_PAGE, org_id=None, *args, **kwargs
+        self,
+        query: str,
+        per_page=DEFAULT_PER_PAGE,
+        org_id=None,
+        after=None,
+        *args,
+        **kwargs,
     ):
         """Text search for datasets from the OpenSearch index.
 
         The query is in OpenSearch's "multi_match" search format where it analyzes
         the text and matches against multiple fields.
+
+        per_page paginates results with this many entries. If org_id is
+        specified, only datasets for that organization are searched. after is
+        an encoded string that will be passed through to Opensearch for
+        accessing further pages.
         """
-        return self.opensearch.search(query, per_page=per_page, org_id=org_id)
+        if after is not None:
+            search_after = SearchResult.decode_search_after(after)
+        else:
+            search_after = None
+        return self.opensearch.search(
+            query, per_page=per_page, org_id=org_id, search_after=search_after
+        )
 
     def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
         """Text search for datasets.

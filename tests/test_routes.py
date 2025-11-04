@@ -18,6 +18,7 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
     assert response.status_code == 200
     assert len(response.json) > 0
     assert all("search_vector" not in item for item in response.json)
+    assert "results" in response.json
 
 
 def test_search_api_pagination(interface_with_dataset, db_client):
@@ -34,24 +35,57 @@ def test_search_api_pagination(interface_with_dataset, db_client):
     )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test", "per_page": "5"})
-        assert len(response.json) == 5
+        assert len(response.json["results"]) == 5
+        assert "after" in response.json
 
         response = db_client.get("/search", query_string={"q": "test"})
         # default page size is 20 elements but there are at least 11 datasets
-        assert len(response.json) >= 11
+        assert len(response.json["results"]) >= 11
+
+
+def test_search_api_paginate_after(interface_with_dataset, db_client):
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(10):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        dataset_dict["dcat"] = {"title": f"test-{i}"}
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+    # search relies on Opensearch now
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/search", query_string={"q": "test", "per_page": "1"})
+        previous_slug = response.json["results"][0]["slug"]
+        assert len(response.json["results"]) == 1
+        assert "after" in response.json
+        after = response.json["after"]
+        # we made 10 new datasets, so we can follow the "after" 9 times and
+        # still have an "after"
+        for i in range(9):
+            response = db_client.get(
+                "/search", query_string={"q": "test", "per_page": "1", "after": after}
+            )
+            assert response.status_code == 200
+            assert len(response.json["results"]) == 1
+            assert "after" in response.json
+            assert response.json["results"][0]["slug"] != previous_slug
+            previous_slug = response.json["results"][0]["slug"]
+            after = response.json["after"]
 
 
 def test_search_api_by_org_id(interface_with_dataset, db_client):
     with patch("app.routes.interface", interface_with_dataset):
         # test org has id "1"
         response = db_client.get("/search", query_string={"q": "test", "org_id": "1"})
-        assert len(response.json) > 0
+        assert len(response.json["results"]) > 0
 
         # non-existent org
         response = db_client.get(
             "/search", query_string={"q": "test", "org_id": "non-existent"}
         )
-        assert len(response.json) == 0
+        assert len(response.json["results"]) == 0
 
 
 def test_dataset_detail_by_slug(interface_with_dataset, db_client):
@@ -330,7 +364,7 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
         # Request page 1 with 20 items per page
         response = db_client.get(
             "/search",
-            query_string={"q": "Test", "per_page": "20", "page": "1"},
+            query_string={"q": "Test", "per_page": "20"},
             headers={"HX-Request": "true"},
         )
 
@@ -345,11 +379,6 @@ def test_index_search_with_pagination(interface_with_dataset, db_client):
     # Check pagination has page numbers
     pagination_list = pagination.find("ul", class_="usa-pagination__list")
     assert pagination_list is not None
-
-    # Check for current page indicator
-    current_page = pagination.find("span", class_="usa-current")
-    assert current_page is not None
-    assert "1" in current_page.text
 
     # Check for Next button and ensure htmx attrs are there
     next_button = pagination.find("a", class_="usa-pagination__next-page")
