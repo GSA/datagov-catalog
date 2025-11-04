@@ -2,6 +2,7 @@ import base64
 import json
 import os
 from dataclasses import dataclass
+from typing import Any
 
 from botocore.credentials import Credentials
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
@@ -298,8 +299,8 @@ class OpenSearchInterface:
         value of the last `_sort` field from a previous search result with the
         same query.
         """
-        search_body = {
-            "query": {
+        if query and query.strip():
+            base_query: dict[str, Any] = {
                 "multi_match": {
                     "query": query,
                     "type": "most_fields",
@@ -314,7 +315,12 @@ class OpenSearchInterface:
                     "operator": "AND",
                     "zero_terms_query": "all",
                 }
-            },
+            }
+        else:
+            base_query = {"match_all": {}}
+
+        search_body = {
+            "query": base_query,
             "sort": self._build_sort_clause(sort_by),
             # ask for one more to help with pagination, see
             # from_opensearch_result above
@@ -337,7 +343,7 @@ class OpenSearchInterface:
                     ],
                     "must": [
                         # use the previous query in here
-                        search_body["query"],
+                        base_query,
                     ],
                 }
             }

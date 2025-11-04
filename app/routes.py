@@ -124,12 +124,11 @@ def index():
         sort_by = "relevance"
 
     # Initialize empty results
-    datasets = []
+    datasets: list[dict] = []
     total = 0
     total_pages = 1
 
-    # Only search if there's a query
-    if query:
+    try:
         result = interface.search_datasets(
             query,
             page=page,
@@ -138,14 +137,14 @@ def index():
             org_types=org_types,
             sort_by=sort_by,
         )
-
-        # Get total count
+    except Exception:
+        logger.exception("Dataset search failed", extra={"query": query})
+    else:
         total = result.total
 
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]
 
-        # Calculate total pages
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
 
     return render_template(

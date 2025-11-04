@@ -1,9 +1,10 @@
 import json
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
+from app.database.opensearch import SearchResult
 from app.models import Dataset
 from tests.conftest import HARVEST_RECORD_ID
 
@@ -615,6 +616,41 @@ def test_index_page_popularity_sort_preserved(db_client):
     hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
     assert hidden_sort_input is not None
     assert hidden_sort_input.get("value") == "popularity"
+
+
+def test_index_page_lists_results_without_query(db_client):
+    """Test that datasets render even when no query is provided."""
+    mock_dataset = {
+        "id": "mock-id",
+        "slug": "mock-slug",
+        "dcat": {
+            "title": "Mock Dataset",
+            "description": "Mock description",
+            "distribution": [],
+        },
+        "organization": {
+            "id": "org-id",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+        },
+        "popularity": 42,
+    }
+    mock_result = SearchResult(total=1, results=[mock_dataset], search_after=None)
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = mock_result
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    heading = soup.find("h3", class_="usa-collection__heading")
+    assert heading is not None
+    assert "Mock Dataset" in heading.text
+
+    mock_interface.search_datasets.assert_called_once()
 
 
 def test_index_search_with_query_shows_result_count(interface_with_dataset, db_client):
