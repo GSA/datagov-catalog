@@ -30,3 +30,13 @@ class TestOpenSearch:
         # One of the Americorps datasets has tnxs-meph in an identifier
         result_obj = opensearch_client.search("tnxs-meph")
         assert len(result_obj.results) > 0
+
+
+def test_relevance_sort_uses_popularity_tie_breaker():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    sort_clause = client._build_sort_clause("relevance")
+    assert sort_clause == [
+        {"_score": {"order": "desc"}},
+        {"popularity": {"order": "desc", "missing": "_last"}},
+        {"_id": {"order": "desc"}},
+    ]

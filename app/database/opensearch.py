@@ -270,9 +270,10 @@ class OpenSearchInterface:
                 {"_id": {"order": "desc"}},
             ]
 
-        # Default to relevance sorting
+        # Default to relevance sorting with popularity as a tie-breaker
         return [
             {"_score": {"order": "desc"}},
+            {"popularity": {"order": "desc", "missing": "_last"}},
             {"_id": {"order": "desc"}},
         ]
 
