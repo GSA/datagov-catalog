@@ -92,6 +92,7 @@ class OpenSearchInterface:
             "keyword": {"type": "text"},
             "theme": {"type": "text"},
             "identifier": {"type": "text"},
+            "popularity": {"type": "double"},
             # keyword for exact matches
             "organization": {
                 "type": "nested",
@@ -211,6 +212,9 @@ class OpenSearchInterface:
             "theme": dataset.dcat.get("theme", []),
             "identifier": dataset.dcat.get("identifier", ""),
             "organization": dataset.organization.to_dict(),
+            "popularity": float(dataset.popularity)
+            if dataset.popularity is not None
+            else None,
         }
 
     def delete_all_datasets(self):
@@ -247,8 +251,30 @@ class OpenSearchInterface:
 
         return (succeeded, failed)
 
+    def _build_sort_clause(self, sort_by: str) -> list[dict]:
+        """Return the OpenSearch sort clause for the requested key."""
+        sort_key = (sort_by or "relevance").lower()
+
+        if sort_key == "popularity":
+            return [
+                {"popularity": {"order": "desc", "missing": "_last"}},
+                {"_score": {"order": "desc"}},
+                {"_id": {"order": "desc"}},
+            ]
+
+        # Default to relevance sorting
+        return [
+            {"_score": {"order": "desc"}},
+            {"_id": {"order": "desc"}},
+        ]
+
     def search(
-        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, search_after: list = None
+        self,
+        query,
+        per_page=DEFAULT_PER_PAGE,
+        org_id=None,
+        search_after: list = None,
+        sort_by: str = "relevance",
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -280,10 +306,7 @@ class OpenSearchInterface:
                     "zero_terms_query": "all",
                 }
             },
-            "sort": [
-                {"_score": {"order": "desc"}},
-                {"_id": {"order": "desc"}},
-            ],
+            "sort": self._build_sort_clause(sort_by),
             # ask for one more to help with pagination, see
             # from_opensearch_result above
             "size": per_page + 1,

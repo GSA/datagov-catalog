@@ -199,6 +199,7 @@
                 <label class="usa-label" for="sort-select">Sort by</label>
                 <select class="usa-select" name="sort" id="sort-select" onchange="this.form.submit()">
                     <option value="relevance" {% if sort_by == 'relevance' %}selected{% endif %}>Relevance</option>
+                    <option value="popularity" {% if sort_by == 'popularity' %}selected{% endif %}>Popularity</option>
                 </select>
             </div>
 

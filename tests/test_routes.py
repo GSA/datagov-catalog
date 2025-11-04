@@ -550,6 +550,10 @@ def test_index_page_has_filters_sidebar(db_client):
     relevance_option = soup.find("option", {"value": "relevance"})
     assert relevance_option is not None
 
+    # Check sort has popularity option
+    popularity_option = soup.find("option", {"value": "popularity"})
+    assert popularity_option is not None
+
     # Check for organization type filters
     filter_form = soup.find("form", {"id": "filter-form"})
     assert filter_form is not None
@@ -592,6 +596,25 @@ def test_index_page_query_parameter_preserved_in_form(db_client):
     sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
     assert sort_input is not None
     assert sort_input.get("value") == "relevance"
+
+
+def test_index_page_popularity_sort_preserved(db_client):
+    """Test that popularity sort selection is preserved between requests."""
+    response = db_client.get("/?q=climate&per_page=10&sort=popularity")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    sort_select = soup.find("select", {"name": "sort", "id": "sort-select"})
+    assert sort_select is not None
+
+    popularity_option = sort_select.find("option", {"value": "popularity"})
+    assert popularity_option is not None
+    assert "selected" in popularity_option.attrs
+
+    hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
+    assert hidden_sort_input is not None
+    assert hidden_sort_input.get("value") == "popularity"
 
 
 def test_index_search_with_query_shows_result_count(interface_with_dataset, db_client):
