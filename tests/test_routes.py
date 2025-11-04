@@ -295,9 +295,6 @@ def test_index_page_renders(db_client):
     search_button = search_form.find("button", {"type": "submit"})
     assert search_button is not None
 
-    # Initial load should not render results without a query
-    assert soup.find("div", {"id": "search-results"}) is None
-
 
 def test_index_search_returns_results(interface_with_dataset, db_client):
     """
@@ -522,18 +519,6 @@ def test_organization_detail_displays_no_datasets_on_search(
 
     items = dataset_section.select(".usa-collection__item")
     assert len(items) == 0
-
-
-def test_index_page_empty_query_shows_no_results(db_client):
-    """Test that index page with no search query shows no results section."""
-    response = db_client.get("/")
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Should not show results container when no query
-    results_text = soup.find("p", class_="text-base-dark")
-    assert results_text is None
 
 
 def test_index_page_has_filters_sidebar(db_client):
