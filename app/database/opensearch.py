@@ -109,6 +109,7 @@ class OpenSearchInterface:
     @staticmethod
     def _create_test_opensearch_client(host):
         """Get an OpenSearch client instance configured for our test cluster."""
+        timeout = float(os.getenv("OPENSEARCH_TIMEOUT", "30"))
         return OpenSearch(
             hosts=[{"host": host, "port": 9200}],
             http_compress=True,  # enables gzip compression for request bodies
@@ -117,6 +118,8 @@ class OpenSearchInterface:
             verify_certs=False,
             ssl_assert_hostname=False,
             ssl_show_warn=False,
+            timeout=timeout,
+            retry_on_timeout=True,
         )
 
     @staticmethod
@@ -133,13 +136,19 @@ class OpenSearchInterface:
             "us-gov-west-1",
             "es",
         )
+        timeout = float(os.getenv("OPENSEARCH_TIMEOUT", "30"))
+        max_retries = int(os.getenv("OPENSEARCH_MAX_RETRIES", "5"))
         return OpenSearch(
             hosts=[{"host": host, "port": 443}],
+            http_compress=True,
             http_auth=auth,
             use_ssl=True,
             verify_certs=True,
             connection_class=RequestsHttpConnection,
             pool_maxsize=20,
+            timeout=timeout,
+            max_retries=max_retries,
+            retry_on_timeout=True,
         )
 
     def _ensure_index(self):
@@ -230,12 +239,19 @@ class OpenSearchInterface:
         """
         succeeded = 0
         failed = 0
+        bulk_timeout = float(
+            os.getenv(
+                "OPENSEARCH_BULK_TIMEOUT",
+                os.getenv("OPENSEARCH_TIMEOUT", "30"),
+            )
+        )
         for success, item in helpers.streaming_bulk(
             self.client,
             map(self.dataset_to_document, dataset_iter),
             raise_on_error=False,
             # retry when we are making too many requests
             max_retries=8,
+            request_timeout=bulk_timeout,
         ):
             if success:
                 succeeded += 1
