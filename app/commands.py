@@ -1,9 +1,9 @@
 import os
-from datetime import date, datetime, timezone, timedelta
-from typing import Iterable, Optional
-from urllib.parse import urlparse
 import posixpath
 import xml.etree.ElementTree as ET
+from datetime import date, datetime, timedelta, timezone
+from typing import Iterable, Optional
+from urllib.parse import urlparse
 
 import click
 from flask import Blueprint
@@ -21,6 +21,7 @@ search = Blueprint("search", __name__)
 sitemap = Blueprint("sitemap", __name__)
 
 BASE_URL = os.getenv("SITEMAP_BASE_URL", "http://localhost:8080").rstrip("/")
+
 
 @search.cli.command("sync")
 @click.option("--start-page", help="Number of page to start on", default=1)
@@ -45,15 +46,13 @@ def sync_opensearch(start_page=1, per_page=100):
     for i in range(start_page, total_pages + 1):
         try:
             succeeded, failed = client.index_datasets(
-                Dataset.query.paginate(page=i, per_page=per_page),
-                refresh_after=False
+                Dataset.query.paginate(page=i, per_page=per_page), refresh_after=False
             )
         except OpenSearchException:
             # one more attempt after the exception
             # exceptions that this raises will propagate
             succeeded, failed = client.index_datasets(
-                Dataset.query.paginate(page=i, per_page=per_page),
-                refresh_after=False
+                Dataset.query.paginate(page=i, per_page=per_page), refresh_after=False
             )
 
         click.echo(f"Indexed page {i} with {succeeded} successes and {failed} errors.")
@@ -71,6 +70,7 @@ def register_commands(app):
 # Sitemaps: Generate + Upload to S3
 # ----------------------
 
+
 def _sitemap_lastmod(dataset: Dataset) -> Optional[str]:
     dt = getattr(dataset, "last_harvested_date", None)
     if dt is None:
@@ -83,8 +83,8 @@ def _sitemap_lastmod(dataset: Dataset) -> Optional[str]:
 
 def _build_sitemap_chunk_xml(datasets: Iterable[Dataset]) -> str:
     lines = [
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
     for ds in datasets:
         # The app will serve these at /dataset/<slug>
@@ -103,8 +103,8 @@ def _build_sitemap_chunk_xml(datasets: Iterable[Dataset]) -> str:
 def _build_sitemap_index_xml(total_chunks: int) -> str:
     today = date.today().isoformat()
     lines = [
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-        "<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
     for idx in range(total_chunks):
         loc = f"{BASE_URL}/sitemap/sitemap-{idx}.xml"
@@ -152,7 +152,9 @@ def sitemap_generate(chunk_size: int):
     # Always create at least one chunk file so that routes and verification
     # have a consistent location even when there are no datasets yet.
     total_chunks = max(total_chunks, 1)
-    click.echo(f"Total datasets: {total}; generating {total_chunks} chunk(s) of size {chunk_size}")
+    click.echo(
+        f"Total datasets: {total}; generating {total_chunks} chunk(s) of size {chunk_size}"
+    )
 
     # order by last_harvested_date asc, then slug
     def get_window(offset: int, limit: int):
@@ -193,7 +195,9 @@ def sitemap_generate(chunk_size: int):
 
 
 @sitemap.cli.command("verify")
-@click.option("--dry-run", is_flag=True, default=False, help="Show actions without deleting")
+@click.option(
+    "--dry-run", is_flag=True, default=False, help="Show actions without deleting"
+)
 @click.option(
     "--max-age-hours",
     type=int,
@@ -256,7 +260,10 @@ def sitemap_verify(dry_run: bool, max_age_hours: int, skip_freshness: bool):
     index_stale = False
     if not skip_freshness and index_head is not None:
         index_last_modified = index_head.get("LastModified")
-        if isinstance(index_last_modified, datetime) and index_last_modified < threshold:
+        if (
+            isinstance(index_last_modified, datetime)
+            and index_last_modified < threshold
+        ):
             index_stale = True
             click.echo(
                 f"Index stale: {index_key} modified {index_last_modified.isoformat()} (threshold {threshold.isoformat()})"
@@ -297,7 +304,11 @@ def sitemap_verify(dry_run: bool, max_age_hours: int, skip_freshness: bool):
         resp = s3.list_objects_v2(**kwargs)
         for item in resp.get("Contents", []):
             key = item.get("Key")
-            if key and key.endswith(".xml") and posixpath.basename(key).startswith("sitemap-"):
+            if (
+                key
+                and key.endswith(".xml")
+                and posixpath.basename(key).startswith("sitemap-")
+            ):
                 current_keys.add(key)
         if resp.get("IsTruncated"):
             continuation = resp.get("NextContinuationToken")
@@ -328,4 +339,6 @@ def sitemap_verify(dry_run: bool, max_age_hours: int, skip_freshness: bool):
         raise click.ClickException(
             "Verification finished with issues (missing or stale files). See output above."
         )
-    click.echo("Verification complete: OK" + (" and recent" if not skip_freshness else ""))
+    click.echo(
+        "Verification complete: OK" + (" and recent" if not skip_freshness else "")
+    )

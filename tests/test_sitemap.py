@@ -27,11 +27,14 @@ def s3_client(monkeypatch):
         yield client
 
 
-def test_sitemap_generate_uploads_files(app, interface_with_dataset, s3_client, monkeypatch):
+def test_sitemap_generate_uploads_files(
+    app, interface_with_dataset, s3_client, monkeypatch
+):
     # Base URL for loc entries
     monkeypatch.setenv("SITEMAP_BASE_URL", "http://localhost:8080")
     # Ensure at least one dataset is visible to the CLI's default DB session
     from app.models import Dataset, Organization, db
+
     with app.app_context():
         db.session.add(
             Organization(
@@ -60,7 +63,9 @@ def test_sitemap_generate_uploads_files(app, interface_with_dataset, s3_client, 
     assert "sitemap.xml" in keys
     # Default prefix is sitemap/
     chunk_keys = [
-        k for k in keys if k.startswith("sitemap/") and k.endswith(".xml") and k != "sitemap.xml"
+        k
+        for k in keys
+        if k.startswith("sitemap/") and k.endswith(".xml") and k != "sitemap.xml"
     ]
     assert any(k.endswith("sitemap-0.xml") for k in chunk_keys)
 
@@ -79,17 +84,27 @@ def test_sitemap_generate_uploads_files(app, interface_with_dataset, s3_client, 
 
 def test_sitemap_routes_fetch_from_s3(app, s3_client):
     # Prepare stored index and chunk
-    s3_client.put_object(Bucket="test-bucket", Key="sitemap.xml", Body=b"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+    s3_client.put_object(
+        Bucket="test-bucket",
+        Key="sitemap.xml",
+        Body=b"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">
   <sitemap>
     <loc>http://localhost:8080/sitemap/sitemap-0.xml</loc>
     <lastmod>2025-01-01</lastmod>
   </sitemap>
-</sitemapindex>""", ContentType="application/xml")
-    s3_client.put_object(Bucket="test-bucket", Key="sitemap/sitemap-0.xml", Body=b"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+</sitemapindex>""",
+        ContentType="application/xml",
+    )
+    s3_client.put_object(
+        Bucket="test-bucket",
+        Key="sitemap/sitemap-0.xml",
+        Body=b"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">
   <url><loc>http://localhost:8080/dataset/test</loc></url>
-</urlset>""", ContentType="application/xml")
+</urlset>""",
+        ContentType="application/xml",
+    )
 
     client = app.test_client()
     r = client.get("/sitemap.xml")
@@ -103,13 +118,28 @@ def test_sitemap_routes_fetch_from_s3(app, s3_client):
 
 def test_sitemap_verify_deletes_stale(app, s3_client):
     # Create index referencing only sitemap-0
-    s3_client.put_object(Bucket="test-bucket", Key="sitemap.xml", Body=b"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+    s3_client.put_object(
+        Bucket="test-bucket",
+        Key="sitemap.xml",
+        Body=b"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">
   <sitemap><loc>http://localhost:8080/sitemap/sitemap-0.xml</loc></sitemap>
-</sitemapindex>""", ContentType="application/xml")
+</sitemapindex>""",
+        ContentType="application/xml",
+    )
     # Present two chunks; one is stale extra and should be deleted
-    s3_client.put_object(Bucket="test-bucket", Key="sitemap/sitemap-0.xml", Body=b"ok", ContentType="application/xml")
-    s3_client.put_object(Bucket="test-bucket", Key="sitemap/sitemap-99.xml", Body=b"stale", ContentType="application/xml")
+    s3_client.put_object(
+        Bucket="test-bucket",
+        Key="sitemap/sitemap-0.xml",
+        Body=b"ok",
+        ContentType="application/xml",
+    )
+    s3_client.put_object(
+        Bucket="test-bucket",
+        Key="sitemap/sitemap-99.xml",
+        Body=b"stale",
+        ContentType="application/xml",
+    )
 
     runner = app.test_cli_runner()
     # Use a generous freshness to avoid failing for timestamps
@@ -123,11 +153,21 @@ def test_sitemap_verify_deletes_stale(app, s3_client):
 
 def test_sitemap_verify_skip_freshness(app, s3_client):
     # Make index and chunk with old timestamps
-    s3_client.put_object(Bucket="test-bucket", Key="sitemap.xml", Body=b"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+    s3_client.put_object(
+        Bucket="test-bucket",
+        Key="sitemap.xml",
+        Body=b"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">
   <sitemap><loc>http://localhost:8080/sitemap/sitemap-0.xml</loc></sitemap>
-</sitemapindex>""", ContentType="application/xml")
-    s3_client.put_object(Bucket="test-bucket", Key="sitemap/sitemap-0.xml", Body=b"ok", ContentType="application/xml")
+</sitemapindex>""",
+        ContentType="application/xml",
+    )
+    s3_client.put_object(
+        Bucket="test-bucket",
+        Key="sitemap/sitemap-0.xml",
+        Body=b"ok",
+        ContentType="application/xml",
+    )
 
     from moto.s3.models import s3_backends
 

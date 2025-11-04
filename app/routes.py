@@ -19,12 +19,12 @@ from flask import (
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
-from .utils import build_dataset_dict, json_not_found, valid_id_required
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
+from .utils import build_dataset_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,6 @@ def search():
         total = result.total
         results = [build_dataset_dict(each) for each in result.results]
         # TODO: Fix pagination to work with OpenSearch
-        total_pages = 2
         return render_template(
             "components/dataset_results.html",
             datasets=results,

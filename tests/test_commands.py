@@ -1,4 +1,3 @@
-
 class TestCommands:
 
     def test_search_sync_command(self, cli_runner):
