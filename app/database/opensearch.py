@@ -33,12 +33,20 @@ class SearchResult:
         """
 
         total = result_dict["hits"]["total"]["value"]
-        results = [each["_source"] for each in result_dict["hits"]["hits"]]
+        hits = result_dict["hits"]["hits"]
+        results = [
+            {
+                **each["_source"],
+                "_score": each.get("_score"),
+                "_sort": each.get("sort"),
+            }
+            for each in hits
+        ]
         if per_page_hint:
             if len(results) > per_page_hint:
                 # more results than we need to return, there will be results if we
                 # use search_after from the last result we return
-                search_after = result_dict["hits"]["hits"][per_page_hint - 1]["sort"]
+                search_after = hits[per_page_hint - 1]["sort"]
                 results = results[:per_page_hint]
             else:
                 # no extra results, so no further search results
@@ -46,10 +54,10 @@ class SearchResult:
                 search_after = None
         else:
             # no page size hint
-            if results:
+            if hits:
                 # return everything we have and the search_after from the last
                 # result
-                search_after = result_dict["hits"]["hits"][-1]["sort"]
+                search_after = hits[-1]["sort"]
             else:
                 # no results in the list
                 search_after = None

@@ -54,7 +54,18 @@
                         </li>
                         {% endif %}
                     </ul>
-                    <p class="usa-collection__description">This study used DNA extracted from island marble butterfly (Euchloe ausonides insulanus) meconium, exuviae, and natural mortalities to generate microsatellite loci, ddRAD SNPs, and mitochondrial genomes.</p>
+                    <p class="usa-collection__description">
+                        {{ dataset_meta.get('description', 'No description available.') | truncate(200) }}
+                    </p>
+                    {% set search_score = dataset.get('_score') %}
+                    {% set popularity_value = dataset.get('popularity') %}
+                    {% if search_score is not none or popularity_value is not none %}
+                    <div class="dataset-debug margin-top-1">
+                        <small class="text-base-dark">
+                            DEBUG relevance: {{ '%.4f' % search_score if search_score is not none else 'n/a' }} | popularity: {{ popularity_value if popularity_value is not none else 'n/a' }}
+                        </small>
+                    </div>
+                    {% endif %}
                 </div>
             </li>
             {% endfor %}

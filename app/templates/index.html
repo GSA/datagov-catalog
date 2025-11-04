@@ -15,11 +15,11 @@
     <!-- Main search and results area -->
     <div class="tablet:grid-col-12 desktop:grid-col-9">
         <form method="GET" action="{{ url_for('main.index') }}" class="usa-form">
-            
+
             <label class="usa-label" for="search-query">Search datasets</label>
             <div class="grid-row grid-gap-1 flex-align-end">
                 <div class="grid-col-fill">
-                    <input class="usa-input margin-0" id="search-query" name="q" type="text" 
+                    <input class="usa-input margin-0" id="search-query" name="q" type="text"
                         placeholder="Search Data.gov..." autofocus value="{{ query }}">
                     <input type="hidden" name="per_page" value="{{ per_page }}">
                     {% for org_type in org_types %}
@@ -55,8 +55,8 @@
                     <div class="advanced-search-tip">
                         <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
                         <p class="advanced-search-tip__text">
-                            Use quotes for exact phrases: <code>"flood zones"</code> | 
-                            Use AND/OR for multiple terms: <code>crops AND agriculture</code> | 
+                            Use quotes for exact phrases: <code>"flood zones"</code> |
+                            Use AND/OR for multiple terms: <code>crops AND agriculture</code> |
                             Search by organization or tag to find related datasets
                         </p>
                     </div>
@@ -97,7 +97,7 @@
                                     {% if updated_display %}
                                     <strong>Updated:</strong> {{ updated_display or 'Not available' }}
                                     {% endif %}
-                                    {% if harvested_display %}                                
+                                    {% if harvested_display %}
                                     <span class="margin-left-1">|</span>
                                     <strong>Harvested:</strong> {{ harvested_display }}
                                     {% endif %}
@@ -123,6 +123,15 @@
                                 </li>
                                 {% endif %}
                             </ul>
+                            {% endif %}
+                            {% set search_score = dataset.get('_score') %}
+                            {% set popularity_value = dataset.get('popularity') %}
+                            {% if search_score is not none or popularity_value is not none %}
+                            <div class="dataset-debug margin-top-1">
+                                <small class="text-base-dark">
+                                    DEBUG relevance: {{ '%.4f' % search_score if search_score is not none else 'n/a' }} | popularity: {{ popularity_value if popularity_value is not none else 'n/a' }}
+                                </small>
+                            </div>
                             {% endif %}
                         </div>
                     </li>
@@ -193,7 +202,7 @@
         <form method="GET" action="{{ url_for('main.index') }}" id="filter-form">
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="per_page" value="{{ per_page }}">
-            
+
             <!-- Sort Section -->
             <div class="margin-bottom-4">
                 <label class="usa-label" for="sort-select">Sort by</label>
