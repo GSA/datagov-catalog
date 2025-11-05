@@ -119,6 +119,7 @@ def index():
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
+    keywords = request.args.getlist("keyword")
     sort_by = request.args.get("sort", "relevance")
 
     # Initialize empty results
@@ -126,16 +127,26 @@ def index():
     total = 0
     total_pages = 1
 
-    # Only search if there's a query
-    if query:
-        result = interface.search_datasets(
-            query,
-            page=page,
-            per_page=per_page,
-            org_id=org_id,
-            org_types=org_types,
-            sort_by=sort_by,
-        )
+    # Search if there's a query OR keywords selected
+    if query or keywords:
+        if keywords:
+            # Use keyword-based search when keywords are selected
+            result = interface.search_by_keywords(
+                keywords=keywords,
+                query=query,
+                per_page=per_page,
+                org_types=org_types,
+            )
+        else:
+            # Use regular text search when no keywords
+            result = interface.search_datasets(
+                query,
+                page=page,
+                per_page=per_page,
+                org_id=org_id,
+                org_types=org_types,
+                sort_by=sort_by,
+            )
 
         # Get total count
         total = result.total
@@ -157,9 +168,9 @@ def index():
         page_sequence=build_page_sequence(page, total_pages),
         org_id=org_id,
         org_types=org_types,
+        keywords=keywords,
         sort_by=sort_by,
     )
-
 
 @main.route("/search", methods=["GET"])
 def search():
@@ -404,6 +415,38 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         organization=org,
     )
 
-
+@main.route("/api/keywords", methods=["GET"])
+def get_keywords_api():
+    """API endpoint to get unique keywords with counts.
+    
+    Query parameters:
+        size: Maximum number of keywords to return (default 100, max 1000)
+        min_count: Minimum document count for keywords (default 1)
+    
+    Returns:
+        JSON with list of keywords and their counts
+    """
+    size = request.args.get("size", 100, type=int)
+    min_count = request.args.get("min_count", 1, type=int)
+    
+    # Validate parameters
+    size = max(min(size, 1000), 1)  # Between 1 and 1000
+    min_count = max(min_count, 1)  # At least 1
+    
+    try:
+        keywords = interface.get_unique_keywords(size=size, min_doc_count=min_count)
+        
+        return jsonify({
+            "keywords": keywords,
+            "total": len(keywords),
+            "size": size,
+            "min_count": min_count
+        })
+    except Exception as e:
+        return jsonify({
+            "error": "Failed to fetch keywords",
+            "message": str(e)
+        }), 500
+    
 def register_routes(app):
     app.register_blueprint(main)

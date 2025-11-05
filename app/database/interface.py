@@ -49,14 +49,51 @@ class CatalogDBInterface:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
     def search_datasets(
-        self, query: str, per_page=DEFAULT_PER_PAGE, org_id=None, *args, **kwargs
+        self, query: str, per_page=DEFAULT_PER_PAGE, org_id=None, org_types=None, *args, **kwargs
     ):
         """Text search for datasets from the OpenSearch index.
 
         The query is in OpenSearch's "multi_match" search format where it analyzes
         the text and matches against multiple fields.
         """
-        return self.opensearch.search(query, per_page=per_page, org_id=org_id)
+        return self.opensearch.search(
+            query, per_page=per_page, org_id=org_id, org_types=org_types
+        )
+
+    def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
+        """
+        Get unique keywords from all datasets with their document counts.
+
+        size: Maximum number of unique keywords to return (default 100)
+        min_doc_count: Minimum number of documents a keyword must appear in (default 1)
+        """
+        return self.opensearch.get_unique_keywords(size=size, min_doc_count=min_doc_count)
+
+    def search_by_keywords(
+        self,
+        keywords: list[str],
+        query: str = "",
+        per_page=DEFAULT_PER_PAGE,
+        org_id=None,
+        org_types=None,
+    ):
+        """
+        Search datasets that have specific keywords (exact match).
+
+        keywords: List of exact keywords to match
+        query: Optional text search query to combine with keyword filter
+        per_page: Number of results per page
+        org_id: Optional organization ID to filter by
+        org_types: Optional list of organization types to filter by
+        """
+        return self.opensearch.search_by_keywords(
+            keywords=keywords,
+            query=query,
+            per_page=per_page,
+            org_id=org_id,
+            org_types=org_types,
+        )
+
 
     def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
         """Text search for datasets.
@@ -64,9 +101,6 @@ class CatalogDBInterface:
         Use the `query` to find matching datasets. The query is in Postgres's
         "websearch" format which allows the use of quoted phrases with AND
         and OR keywords.
-
-        include_org
-            include org with dataset
         """
         # default sort to relevance
         sort_by = kwargs.get("sort_by", "relevance").lower()

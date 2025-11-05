@@ -25,6 +25,9 @@
                     {% for org_type in org_types %}
                     <input type="hidden" name="org_type" value="{{ org_type }}">
                     {% endfor %}
+                    {% for keyword in keywords %}
+                    <input type="hidden" name="keyword" value="{{ keyword }}">
+                    {% endfor %}
                     {% if org_id %}
                     <input type="hidden" name="org_id" value="{{ org_id }}">
                     {% endif %}
@@ -40,17 +43,17 @@
         </form>
 
         <!-- Results Section -->
-        {% if query %}
+        {% if query or keywords %}
         <div id="search-results" class="margin-top-3">
             {% if datasets %}
             <div class="usa-prose">
                 <p class="text-base-dark">
                 {% if total < 2 %}
-                    Found <strong>{{ total }}</strong> dataset{% if query %} matching "{{ query }}"{% endif %}.
+                    Found <strong>{{ total }}</strong> dataset{% if query %} matching "{{ query }}"{% endif %}{% if keywords %} with selected keywords{% endif %}.
                 {% elif total < 10000 %}
-                    Found <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}.
+                    Found <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}{% if keywords %} with selected keywords{% endif %}.
                 {% else %}
-                    Found more than <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}.
+                    Found more than <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}{% if keywords %} with selected keywords{% endif %}.
                     <!-- Advanced Search Tip -->
                     <div class="advanced-search-tip">
                         <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
@@ -137,7 +140,7 @@
                         <li class="usa-pagination__item usa-pagination__arrow">
                             {% if page > 1 %}
                             <a class="usa-pagination__link usa-pagination__previous-page"
-                                href="{{ url_for('main.index', q=query, page=page-1, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types)) }}"
+                                href="{{ url_for('main.index', q=query, page=page-1, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types, keyword=keywords)) }}"
                                 aria-label="Previous page">
                                 <span class="usa-pagination__link-text">Previous</span>
                             </a>
@@ -154,7 +157,7 @@
                         {% else %}
                         <li class="usa-pagination__item usa-pagination__page-no">
                             <a class="usa-pagination__button"
-                                href="{{ url_for('main.index', q=query, page=number, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types)) }}">
+                                href="{{ url_for('main.index', q=query, page=number, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types, keyword=keywords)) }}">
                                 {{ number }}
                             </a>
                         </li>
@@ -165,7 +168,7 @@
                         <li class="usa-pagination__item usa-pagination__arrow">
                             {% if page < total_pages %}
                             <a class="usa-pagination__link usa-pagination__next-page"
-                                href="{{ url_for('main.index', q=query, page=page+1, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types)) }}"
+                                href="{{ url_for('main.index', q=query, page=page+1, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types, keyword=keywords)) }}"
                                 aria-label="Next page">
                                 <span class="usa-pagination__link-text">Next</span>
                             </a>
@@ -179,7 +182,7 @@
             <div class="usa-alert usa-alert--info margin-top-3">
                 <div class="usa-alert__body">
                     <p class="usa-alert__text">
-                        No datasets found matching "{{ query }}". Try adjusting your search terms or filters.
+                        No datasets found{% if query %} matching "{{ query }}"{% endif %}{% if keywords %} with selected keywords{% endif %}. Try adjusting your search terms or filters.
                     </p>
                 </div>
             </div>
@@ -202,7 +205,36 @@
                 </select>
             </div>
 
-            <!-- Filters Section -->
+            <!-- Keyword Filter Section -->
+            <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
+                <h3 class="usa-accordion__heading">
+                    <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-keywords">
+                        Keywords
+                    </button>
+                </h3>
+                <div id="filter-keywords" class="usa-accordion__content usa-prose">
+                    <div class="keyword-autocomplete">
+                        <label class="usa-label" for="keyword-input">
+                            Filter by keyword
+                            <span class="usa-hint">Start typing to see suggestions</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="keyword-input" 
+                            class="keyword-autocomplete__input usa-input"
+                            placeholder="Type a keyword..."
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            aria-controls="keyword-suggestions"
+                            aria-expanded="false"
+                        >
+                        <div id="keyword-suggestions" class="keyword-suggestions" role="listbox"></div>
+                        <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organization Type Filter Section -->
             <div class="usa-accordion usa-accordion--bordered">
                 <h3 class="usa-accordion__heading">
                     <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization">
@@ -256,4 +288,9 @@
         </form>
     </aside>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/keyword_autocomplete.js') }}"></script>
 {% endblock %}

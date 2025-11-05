@@ -37,8 +37,13 @@ class OpenSearchInterface:
             "description": {"type": "text"},
             "publisher": {"type": "text"},
             # Opensearch natively handles array-valued properties
-            "keyword": {"type": "text"},
-            "theme": {"type": "text"},
+            # Use multi-field mapping: text for search, keyword for aggregations
+            "keyword": {
+                "type": "text",
+                "fields": {
+                    "raw": {"type": "keyword"}  # For exact matching and aggregations
+                }
+            },
             "identifier": {"type": "text"},
             # keyword for exact matches
             "organization": {
@@ -189,7 +194,9 @@ class OpenSearchInterface:
         self.client.indices.refresh(index=self.INDEX_NAME)
         return (succeeded, failed)
 
-    def search(self, query, per_page=DEFAULT_PER_PAGE, org_id=None) -> SearchResult:
+    def search(
+        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, org_types=None
+    ) -> SearchResult:
         """Search our index for a query string.
 
         We use OpenSearch's multi-match to match our single query string
@@ -222,21 +229,39 @@ class OpenSearchInterface:
             ],
             "size": per_page,
         }
+
+        # Build filter list for bool query
+        filters = []
+
         if org_id is not None:
-            # need to add a filter query alongside the previous full-text
-            # query
+            filters.append(
+                {
+                    "nested": {
+                        "path": "organization",
+                        "query": {
+                            "term": {"organization.id": org_id},
+                        },
+                    },
+                }
+            )
+
+        if org_types is not None and len(org_types) > 0:
+            filters.append(
+                {
+                    "nested": {
+                        "path": "organization",
+                        "query": {
+                            "terms": {"organization.organization_type": org_types},
+                        },
+                    },
+                }
+            )
+
+        # Apply filters if any exist
+        if filters:
             search_body["query"] = {
                 "bool": {
-                    "filter": [
-                        {
-                            "nested": {
-                                "path": "organization",
-                                "query": {
-                                    "term": {"organization.id": org_id},
-                                },
-                            },
-                        },
-                    ],
+                    "filter": filters,
                     "must": [
                         # use the previous query in here
                         search_body["query"],
@@ -246,4 +271,111 @@ class OpenSearchInterface:
 
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
+        return SearchResult.from_opensearch_result(result_dict)
+
+    def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
+        """
+        Get unique keywords from all datasets with their document counts.
+        """
+        agg_body = {
+            "size": 0,  # Don't return documents, just aggregations
+            "aggs": {
+                "unique_keywords": {
+                    "terms": {
+                        "field": "keyword.raw",
+                        "size": size,
+                        "min_doc_count": min_doc_count,
+                        "order": {"_count": "desc"},
+                    }
+                }
+            },
+        }
+
+        result = self.client.search(index=self.INDEX_NAME, body=agg_body)
+        buckets = result.get("aggregations", {}).get("unique_keywords", {}).get("buckets", [])
+
+        return [{"keyword": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets]
+
+    def search_by_keywords(
+        self,
+        keywords: list[str],
+        query: str = "",
+        per_page=DEFAULT_PER_PAGE,
+        org_id=None,
+        org_types=None,
+    ) -> SearchResult:
+        """
+        Search datasets that have specific keywords (exact match).
+        """
+        # Build filter list
+        filters = []
+
+        # Add keyword filter (exact match)
+        if keywords:
+            filters.append({"terms": {"keyword.raw": keywords}})
+
+        # Add org_id filter if provided
+        if org_id is not None:
+            filters.append(
+                {
+                    "nested": {
+                        "path": "organization",
+                        "query": {"term": {"organization.id": org_id}},
+                    }
+                }
+            )
+
+        # Add org_types filter if provided
+        if org_types is not None and len(org_types) > 0:
+            filters.append(
+                {
+                    "nested": {
+                        "path": "organization",
+                        "query": {"terms": {"organization.organization_type": org_types}},
+                    }
+                }
+            )
+
+        # Build the search body
+        if query:
+            # If there's a text query, combine with filters
+            search_body = {
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "multi_match": {
+                                    "query": query,
+                                    "type": "most_fields",
+                                    "fields": [
+                                        "title^5",
+                                        "description^3",
+                                        "publisher^3",
+                                        "keyword^2",
+                                        "theme",
+                                        "identifier",
+                                    ],
+                                    "operator": "AND",
+                                    "zero_terms_query": "all",
+                                }
+                            }
+                        ],
+                        "filter": filters,
+                    }
+                },
+                "sort": [
+                    {"_score": {"order": "desc"}},
+                    {"_id": {"order": "desc"}},
+                ],
+                "size": per_page,
+            }
+        else:
+            # No text query, just filter by keywords
+            search_body = {
+                "query": {"bool": {"filter": filters}},
+                "sort": [{"_id": {"order": "desc"}}],
+                "size": per_page,
+            }
+
+        result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         return SearchResult.from_opensearch_result(result_dict)
