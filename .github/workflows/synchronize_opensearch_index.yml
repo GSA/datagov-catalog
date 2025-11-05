@@ -34,7 +34,7 @@ jobs:
           cf_space: ${{ inputs.environment }}
           cf_username: ${{secrets.CF_SERVICE_USER}}
           cf_password: ${{secrets.CF_SERVICE_AUTH}}
-      - name: Monitor verify task output
+      - name: Monitor sync task output
         uses: cloud-gov/cg-cli-tools@main
         with:
           cf_org: gsa-datagov
