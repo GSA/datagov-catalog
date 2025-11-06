@@ -114,47 +114,51 @@ def sitemap_chunk(index: int) -> Response:
 # Routes
 @main.route("/", methods=["GET"])
 def index():
+    """Home page is also the search results page.
+
+    This page always loads the first results from the search. The number of
+    results is specified by the `results` query parameter. HTMX on the page
+    allows adding more results onto the page by using paging in the `/search`
+    API in the background.
+
+    """
     query = request.args.get("q", "")
-    page = request.args.get("page", DEFAULT_PAGE, type=int)
-    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    num_results = request.args.get("results", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     sort_by = request.args.get("sort", "relevance")
 
+    # there's a limit on how many results can be requested
+    num_results = min(num_results, 9999)
+
     # Initialize empty results
     datasets = []
     total = 0
-    total_pages = 1
 
     # Only search if there's a query
     if query:
         result = interface.search_datasets(
             query,
-            page=page,
-            per_page=per_page,
+            per_page=num_results,
             org_id=org_id,
             org_types=org_types,
             sort_by=sort_by,
         )
 
-        # Get total count
+        # Get total number of results for this search
         total = result.total
 
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]
 
-        # Calculate total pages
-        total_pages = max(ceil(total / per_page), 1) if per_page else 1
-
     return render_template(
         "index.html",
         query=query,
+        num_results=num_results,
+        per_page=DEFAULT_PER_PAGE,
+        after=result.search_after_obscured(),
         datasets=datasets,
-        page=page,
-        per_page=per_page,
         total=total,
-        total_pages=total_pages,
-        page_sequence=build_page_sequence(page, total_pages),
         org_id=org_id,
         org_types=org_types,
         sort_by=sort_by,
@@ -184,11 +188,11 @@ def search():
     if htmx:
         total = result.total
         results = [build_dataset_dict(each) for each in result.results]
-        # TODO: Fix pagination to work with OpenSearch
         return render_template(
             "components/dataset_results.html",
+            query=query,
             datasets=results,
-            total=total,
+            per_page=per_page,
             after=result.search_after_obscured(),
         )
 
