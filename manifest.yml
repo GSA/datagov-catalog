@@ -4,7 +4,7 @@ applications:
     buildpacks:
       - python_buildpack
     routes:
-      - route: datagov-catalog-dev.app.cloud.gov
+      - route: datagov-catalog-staging.app.cloud.gov
     services:
       - datagov-harvest-db
       - datagov-catalog-secrets
@@ -15,9 +15,9 @@ applications:
     disk_quota: 2G
     env:
       FLASK_APP: run.py
-      NEW_RELIC_APP_NAME: datagov-catalog-dev
+      NEW_RELIC_APP_NAME: datagov-catalog-staging
       NEW_RELIC_HOST: gov-collector.newrelic.com
       NEW_RELIC_MONITOR_MODE: false
       NEW_RELIC_CONFIG_FILE: /home/vcap/app/config/newrelic.ini
-      SITE_URL: https://datagov-catalog-dev.app.cloud.gov
+      SITE_URL: https://datagov-catalog-staging.app.cloud.gov
     command: ./app-start.sh
