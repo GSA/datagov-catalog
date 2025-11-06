@@ -11,7 +11,7 @@ applications:
       - datagov-catalog-s3
       - datagov-catalog-opensearch
     instances: 1
-    memory: 1G
+    memory: 2G
     disk_quota: 2G
     env:
       FLASK_APP: run.py
