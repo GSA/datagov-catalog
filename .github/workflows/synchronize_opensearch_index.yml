@@ -42,4 +42,4 @@ jobs:
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
           command: >
-            bash tools/monitor_cf_logs.sh fuhu-catalog "$OPENSEARCH_INSTANCE_NAME"
+            bash tools/monitor_cf_logs.sh datagov-catalog "$OPENSEARCH_INSTANCE_NAME"
