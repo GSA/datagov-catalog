@@ -19,12 +19,12 @@ from flask import (
 
 from . import htmx
 from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
-from .utils import build_dataset_dict, json_not_found, valid_id_required
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
+from .utils import build_dataset_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +157,10 @@ def index():
         # Calculate total pages
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
 
+    if not keywords:
+        suggeted_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
+        suggeted_keywords = [keyword["keyword"] for keyword in suggeted_keywords]
+
     return render_template(
         "index.html",
         query=query,
@@ -170,7 +174,9 @@ def index():
         org_types=org_types,
         keywords=keywords,
         sort_by=sort_by,
+        suggeted_keywords=suggeted_keywords,
     )
+
 
 @main.route("/search", methods=["GET"])
 def search():
@@ -415,38 +421,41 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         organization=org,
     )
 
+
 @main.route("/api/keywords", methods=["GET"])
 def get_keywords_api():
     """API endpoint to get unique keywords with counts.
-    
+
     Query parameters:
         size: Maximum number of keywords to return (default 100, max 1000)
         min_count: Minimum document count for keywords (default 1)
-    
+
     Returns:
         JSON with list of keywords and their counts
     """
     size = request.args.get("size", 100, type=int)
     min_count = request.args.get("min_count", 1, type=int)
-    
+
     # Validate parameters
-    size = max(min(size, 1000), 1)  # Between 1 and 1000
-    min_count = max(min_count, 1)  # At least 1
-    
+    # Between 1 and 1000
+    size = max(min(size, 1000), 1)
+    # At least 1
+    min_count = max(min_count, 1)
+
     try:
         keywords = interface.get_unique_keywords(size=size, min_doc_count=min_count)
-        
-        return jsonify({
-            "keywords": keywords,
-            "total": len(keywords),
-            "size": size,
-            "min_count": min_count
-        })
+
+        return jsonify(
+            {
+                "keywords": keywords,
+                "total": len(keywords),
+                "size": size,
+                "min_count": min_count,
+            }
+        )
     except Exception as e:
-        return jsonify({
-            "error": "Failed to fetch keywords",
-            "message": str(e)
-        }), 500
-    
+        return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
+
+
 def register_routes(app):
     app.register_blueprint(main)

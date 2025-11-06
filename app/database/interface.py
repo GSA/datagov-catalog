@@ -49,7 +49,13 @@ class CatalogDBInterface:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
     def search_datasets(
-        self, query: str, per_page=DEFAULT_PER_PAGE, org_id=None, org_types=None, *args, **kwargs
+        self,
+        query: str,
+        per_page=DEFAULT_PER_PAGE,
+        org_id=None,
+        org_types=None,
+        *args,
+        **kwargs,
     ):
         """Text search for datasets from the OpenSearch index.
 
@@ -67,7 +73,9 @@ class CatalogDBInterface:
         size: Maximum number of unique keywords to return (default 100)
         min_doc_count: Minimum number of documents a keyword must appear in (default 1)
         """
-        return self.opensearch.get_unique_keywords(size=size, min_doc_count=min_doc_count)
+        return self.opensearch.get_unique_keywords(
+            size=size, min_doc_count=min_doc_count
+        )
 
     def search_by_keywords(
         self,
@@ -93,7 +101,6 @@ class CatalogDBInterface:
             org_id=org_id,
             org_types=org_types,
         )
-
 
     def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
         """Text search for datasets.

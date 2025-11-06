@@ -42,7 +42,7 @@ class OpenSearchInterface:
                 "type": "text",
                 "fields": {
                     "raw": {"type": "keyword"}  # For exact matching and aggregations
-                }
+                },
             },
             "identifier": {"type": "text"},
             # keyword for exact matches
@@ -292,9 +292,14 @@ class OpenSearchInterface:
         }
 
         result = self.client.search(index=self.INDEX_NAME, body=agg_body)
-        buckets = result.get("aggregations", {}).get("unique_keywords", {}).get("buckets", [])
+        buckets = (
+            result.get("aggregations", {}).get("unique_keywords", {}).get("buckets", [])
+        )
 
-        return [{"keyword": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets]
+        return [
+            {"keyword": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in buckets
+        ]
 
     def search_by_keywords(
         self,
@@ -331,7 +336,9 @@ class OpenSearchInterface:
                 {
                     "nested": {
                         "path": "organization",
-                        "query": {"terms": {"organization.organization_type": org_types}},
+                        "query": {
+                            "terms": {"organization.organization_type": org_types}
+                        },
                     }
                 }
             )

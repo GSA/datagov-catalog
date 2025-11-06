@@ -199,7 +199,10 @@ ul.menu {
     margin-bottom: 0;
 }
 .organization-datasets__item {
+  max-width: 100%;
   border: none;
+  padding-top: 0;
+  margin-top: 0;
 }
 
 #menu-footer a {
