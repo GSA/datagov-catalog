@@ -18,7 +18,7 @@ from flask import (
 )
 
 from . import htmx
-from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
+from .database import DEFAULT_PER_PAGE, CatalogDBInterface
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -193,7 +193,6 @@ def search():
     )
 
     if htmx:
-        total = result.total
         results = [build_dataset_dict(each) for each in result.results]
         return render_template(
             "components/dataset_results.html",

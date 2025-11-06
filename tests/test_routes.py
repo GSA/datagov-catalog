@@ -474,7 +474,6 @@ def test_index_page_empty_query_shows_no_results(db_client):
     assert results_text is None
 
 
-
 def test_index_page_has_filters_sidebar(db_client):
     """Test that the index page contains the filters sidebar."""
     response = db_client.get("/")
