@@ -160,7 +160,7 @@ def index():
     return render_template(
         "index.html",
         query=query,
-        num_results=num_results,
+        results_hint=num_results,
         per_page=DEFAULT_PER_PAGE,
         after=after,
         datasets=datasets,
@@ -180,6 +180,7 @@ def search():
     # missing query parameter searches for everything
     query = request.args.get("q", "")
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    results_hint = request.args.get("results", 0, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     after = request.args.get("after")
@@ -199,6 +200,7 @@ def search():
             query=query,
             datasets=results,
             per_page=per_page,
+            results_hint=results_hint,
             after=result.search_after_obscured(),
         )
 

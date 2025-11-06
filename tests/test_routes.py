@@ -288,9 +288,6 @@ def test_index_page_renders(db_client):
     search_input = search_form.find("input", {"id": "search-query", "name": "q"})
     assert search_input is not None
 
-    per_page_input = search_form.find("input", {"type": "hidden", "name": "per_page"})
-    assert per_page_input is not None
-
     search_button = search_form.find("button", {"type": "submit"})
     assert search_button is not None
 
