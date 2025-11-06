@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from typing import Any, Callable, TypeVar
 
 from botocore.credentials import Credentials
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
@@ -12,6 +13,12 @@ from opensearchpy.exceptions import ConnectionTimeout
 from .constants import DEFAULT_PER_PAGE
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_TIMEOUT_RETRIES = 3
+DEFAULT_TIMEOUT_BACKOFF_BASE = 2.0
+DEFAULT_DELETE_REQUEST_TIMEOUT_SECONDS = 120
+DEFAULT_REFRESH_REQUEST_TIMEOUT_SECONDS = 120
 
 
 @dataclass
@@ -80,6 +87,9 @@ class SearchResult:
     def decode_search_after(encoded_after):
         """Decode the encoded representation of self.search_after."""
         return json.loads(base64.urlsafe_b64decode(encoded_after).decode("utf-8"))
+
+
+T = TypeVar("T")
 
 
 class OpenSearchInterface:
@@ -218,22 +228,90 @@ class OpenSearchInterface:
             "organization": dataset.organization.to_dict(),
         }
 
-    def delete_all_datasets(self):
+    def _run_with_timeout_retry(
+        self,
+        action: Callable[[], T],
+        *,
+        action_name: str,
+        timeout_retries: int,
+        timeout_backoff_base: float,
+    ) -> T:
+        attempt = 0
+
+        while True:
+            try:
+                return action()
+            except ConnectionTimeout as exc:
+                attempt += 1
+                if attempt > timeout_retries:
+                    logger.error(
+                        "%s timed out after %s retries; giving up.",
+                        action_name,
+                        timeout_retries,
+                        exc_info=exc,
+                    )
+                    raise
+
+                wait_seconds = min(timeout_backoff_base**attempt, 60)
+                logger.warning(
+                    "%s timed out (attempt %s/%s); retrying in %.1f seconds.",
+                    action_name,
+                    attempt,
+                    timeout_retries,
+                    wait_seconds,
+                    exc_info=exc,
+                )
+                time.sleep(wait_seconds)
+
+    def delete_all_datasets(
+        self,
+        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
+        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
+        request_timeout: int = DEFAULT_DELETE_REQUEST_TIMEOUT_SECONDS,
+    ):
         """Delete all documents from our index."""
-        self.client.delete_by_query(
-            index=self.INDEX_NAME, body={"query": {"match_all": {}}}
+
+        def _do_delete():
+            return self.client.delete_by_query(
+                index=self.INDEX_NAME,
+                body={"query": {"match_all": {}}},
+                # allow long-running deletions to finish before timing out
+                request_timeout=request_timeout,
+            )
+
+        self._run_with_timeout_retry(
+            _do_delete,
+            action_name="OpenSearch delete_by_query",
+            timeout_retries=timeout_retries,
+            timeout_backoff_base=timeout_backoff_base,
         )
 
-    def _refresh(self):
+    def _refresh(
+        self,
+        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
+        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
+        request_timeout: int = DEFAULT_REFRESH_REQUEST_TIMEOUT_SECONDS,
+    ):
         """Refresh our index."""
-        self.client.indices.refresh(index=self.INDEX_NAME)
+
+        def _do_refresh():
+            return self.client.indices.refresh(
+                index=self.INDEX_NAME, request_timeout=request_timeout
+            )
+
+        self._run_with_timeout_retry(
+            _do_refresh,
+            action_name="OpenSearch refresh",
+            timeout_retries=timeout_retries,
+            timeout_backoff_base=timeout_backoff_base,
+        )
 
     def index_datasets(
         self,
         dataset_iter,
         refresh_after=True,
-        timeout_retries: int = 3,
-        timeout_backoff_base: float = 2.0,
+        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
+        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
     ):
         """Index an iterator of dataset objects into OpenSearch.
 
@@ -242,44 +320,28 @@ class OpenSearchInterface:
         datasets = getattr(dataset_iter, "items", dataset_iter)
         documents = [self.dataset_to_document(dataset) for dataset in datasets]
 
-        attempt = 0
-        succeeded = 0
-        failed = 0
+        def _stream_bulk():
+            succeeded_local = 0
+            failed_local = 0
+            for success, item in helpers.streaming_bulk(
+                self.client,
+                documents,
+                raise_on_error=False,
+                # retry when we are making too many requests
+                max_retries=8,
+            ):
+                if success:
+                    succeeded_local += 1
+                else:
+                    failed_local += 1
+            return succeeded_local, failed_local
 
-        while True:
-            try:
-                succeeded = 0
-                failed = 0
-                for success, item in helpers.streaming_bulk(
-                    self.client,
-                    documents,
-                    raise_on_error=False,
-                    # retry when we are making too many requests
-                    max_retries=8,
-                ):
-                    if success:
-                        succeeded += 1
-                    else:
-                        failed += 1
-                break
-            except ConnectionTimeout as exc:
-                attempt += 1
-                if attempt > timeout_retries:
-                    logger.error(
-                        "OpenSearch bulk index timed out after %s retries; giving up.",
-                        timeout_retries,
-                        exc_info=exc,
-                    )
-                    raise
-                wait_seconds = min(timeout_backoff_base**attempt, 60)
-                logger.warning(
-                    "OpenSearch bulk index timed out (attempt %s/%s); retrying in %.1f seconds.",
-                    attempt,
-                    timeout_retries,
-                    wait_seconds,
-                    exc_info=exc,
-                )
-                time.sleep(wait_seconds)
+        succeeded, failed = self._run_with_timeout_retry(
+            _stream_bulk,
+            action_name="OpenSearch bulk index",
+            timeout_retries=timeout_retries,
+            timeout_backoff_base=timeout_backoff_base,
+        )
 
         if refresh_after:
             self._refresh()
