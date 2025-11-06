@@ -69,6 +69,19 @@
             <section class="organization-datasets margin-top-3">
                 <ul class="usa-collection organization-datasets__list">
                   {% include 'components/dataset_results.html' %}
+                  {% if after %}
+                  <div id="replaceMe">
+                  {% set new_results = num_results + per_page %}
+                  <button class='usa-button'
+                      hx-get="{{ url_for('main.search', q=query, per_page=per_page, after=after) }}"
+                      hx-target="#replaceMe"
+                      hx-swap="outerHTML"
+                      hx-push-url="{{ url_for('main.index', q=query, results=new_results) }}"
+                      hx-trigger="click">
+                    Show more results
+                  </button>
+                  </div>
+                  {% endif %}
                 </ul>
             </section>
             {% else %}
@@ -88,7 +101,6 @@
     <aside class="tablet:grid-col-12 desktop:grid-col-3">
         <form method="GET" action="{{ url_for('main.index') }}" id="filter-form">
             <input type="hidden" name="q" value="{{ query }}">
-            <input type="hidden" name="per_page" value="{{ per_page }}">
 
             <!-- Sort Section -->
             <div class="margin-bottom-4">

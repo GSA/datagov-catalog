@@ -133,6 +133,7 @@ def index():
 
     # Initialize empty results
     datasets = []
+    result = None
     total = 0
 
     # Only search if there's a query
@@ -151,12 +152,17 @@ def index():
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]
 
+    if result is not None:
+        after = result.search_after_obscured()
+    else:
+        after = None
+
     return render_template(
         "index.html",
         query=query,
         num_results=num_results,
         per_page=DEFAULT_PER_PAGE,
-        after=result.search_after_obscured(),
+        after=after,
         datasets=datasets,
         total=total,
         org_id=org_id,
