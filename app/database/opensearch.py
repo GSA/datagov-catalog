@@ -1,12 +1,17 @@
 import base64
 import json
+import logging
 import os
+import time
 from dataclasses import dataclass
 
 from botocore.credentials import Credentials
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
+from opensearchpy.exceptions import ConnectionTimeout
 
 from .constants import DEFAULT_PER_PAGE
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -223,24 +228,58 @@ class OpenSearchInterface:
         """Refresh our index."""
         self.client.indices.refresh(index=self.INDEX_NAME)
 
-    def index_datasets(self, dataset_iter, refresh_after=True):
+    def index_datasets(
+        self,
+        dataset_iter,
+        refresh_after=True,
+        timeout_retries: int = 3,
+        timeout_backoff_base: float = 2.0,
+    ):
         """Index an iterator of dataset objects into OpenSearch.
 
         Returns a tuple of number of (succeeded, failed) items.
         """
+        datasets = getattr(dataset_iter, "items", dataset_iter)
+        documents = [self.dataset_to_document(dataset) for dataset in datasets]
+
+        attempt = 0
         succeeded = 0
         failed = 0
-        for success, item in helpers.streaming_bulk(
-            self.client,
-            map(self.dataset_to_document, dataset_iter),
-            raise_on_error=False,
-            # retry when we are making too many requests
-            max_retries=8,
-        ):
-            if success:
-                succeeded += 1
-            else:
-                failed += 1
+
+        while True:
+            try:
+                succeeded = 0
+                failed = 0
+                for success, item in helpers.streaming_bulk(
+                    self.client,
+                    documents,
+                    raise_on_error=False,
+                    # retry when we are making too many requests
+                    max_retries=8,
+                ):
+                    if success:
+                        succeeded += 1
+                    else:
+                        failed += 1
+                break
+            except ConnectionTimeout as exc:
+                attempt += 1
+                if attempt > timeout_retries:
+                    logger.error(
+                        "OpenSearch bulk index timed out after %s retries; giving up.",
+                        timeout_retries,
+                        exc_info=exc,
+                    )
+                    raise
+                wait_seconds = min(timeout_backoff_base**attempt, 60)
+                logger.warning(
+                    "OpenSearch bulk index timed out (attempt %s/%s); retrying in %.1f seconds.",
+                    attempt,
+                    timeout_retries,
+                    wait_seconds,
+                    exc_info=exc,
+                )
+                time.sleep(wait_seconds)
 
         if refresh_after:
             self._refresh()
