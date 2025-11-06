@@ -35,6 +35,16 @@ class TestOpenSearch:
         assert len(result_obj.results) > 0
 
 
+def test_relevance_sort_uses_popularity_tie_breaker():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    sort_clause = client._build_sort_clause("relevance")
+    assert sort_clause == [
+        {"_score": {"order": "desc"}},
+        {"popularity": {"order": "desc", "missing": "_last"}},
+        {"_id": {"order": "desc"}},
+    ]
+
+
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
     interface = OpenSearchInterface.__new__(OpenSearchInterface)
     monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)

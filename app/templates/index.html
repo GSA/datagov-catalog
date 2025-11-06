@@ -15,11 +15,11 @@
     <!-- Main search and results area -->
     <div class="tablet:grid-col-12 desktop:grid-col-9">
         <form method="GET" action="{{ url_for('main.index') }}" class="usa-form">
-            
+
             <label class="usa-label" for="search-query">Search datasets</label>
             <div class="grid-row grid-gap-1 flex-align-end">
                 <div class="grid-col-fill">
-                    <input class="usa-input margin-0" id="search-query" name="q" type="text" 
+                    <input class="usa-input margin-0" id="search-query" name="q" type="text"
                         placeholder="Search Data.gov..." autofocus value="{{ query }}">
                     <input type="hidden" name="per_page" value="{{ per_page }}">
                     {% for org_type in org_types %}
@@ -40,30 +40,36 @@
         </form>
 
         <!-- Results Section -->
-        {% if query %}
         <div id="search-results" class="margin-top-3">
             {% if datasets %}
             <div class="usa-prose">
+                {% if query %}
                 <p class="text-base-dark">
                 {% if total < 2 %}
-                    Found <strong>{{ total }}</strong> dataset{% if query %} matching "{{ query }}"{% endif %}.
+                    Found <strong>{{ total }}</strong> dataset matching "{{ query }}".
                 {% elif total < 10000 %}
-                    Found <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}.
+                    Found <strong>{{ total }}</strong> datasets matching "{{ query }}".
                 {% else %}
-                    Found more than <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}.
-                    <!-- Advanced Search Tip -->
-                    <div class="advanced-search-tip">
-                        <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
-                        <p class="advanced-search-tip__text">
-                            Use quotes for exact phrases: <code>"flood zones"</code> | 
-                            Use AND/OR for multiple terms: <code>crops AND agriculture</code> | 
-                            Search by organization or tag to find related datasets
-                        </p>
-                    </div>
+                    Found over <strong>{{ total }}</strong> datasets matching "{{ query }}".
                 {% endif %}
                 </p>
+                {% if total >= 10000 %}
+                <div class="advanced-search-tip">
+                    <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
+                    <p class="advanced-search-tip__text">
+                        Use quotes for exact phrases: <code>"flood zones"</code> | 
+                        Use AND/OR for multiple terms: <code>crops AND agriculture</code> | 
+                        Search by organization or tag to find related datasets
+                    </p>
+                </div>
+                {% endif %}
+                {% else %}
+                <p class="text-base-dark">
+                    Most popular datasets on Data.gov.
+                </p>
+                {% endif %}
             </div>
-
+            
             <section class="organization-datasets margin-top-3">
                 <ul class="usa-collection organization-datasets__list">
                     {% for dataset in datasets %}
@@ -97,7 +103,7 @@
                                     {% if updated_display %}
                                     <strong>Updated:</strong> {{ updated_display or 'Not available' }}
                                     {% endif %}
-                                    {% if harvested_display %}                                
+                                    {% if harvested_display %}
                                     <span class="margin-left-1">|</span>
                                     <strong>Harvested:</strong> {{ harvested_display }}
                                     {% endif %}
@@ -123,6 +129,15 @@
                                 </li>
                                 {% endif %}
                             </ul>
+                            {% endif %}
+                            {% set search_score = dataset.get('_score') %}
+                            {% set popularity_value = dataset.get('popularity') %}
+                            {% if search_score is not none or popularity_value is not none %}
+                            <div class="dataset-debug margin-top-1">
+                                <small class="text-base-dark">
+                                    DEBUG relevance: {{ '%.4f' % search_score if search_score is not none else 'n/a' }} | popularity: {{ popularity_value if popularity_value is not none else 'n/a' }}
+                                </small>
+                            </div>
                             {% endif %}
                         </div>
                     </li>
@@ -179,13 +194,12 @@
             <div class="usa-alert usa-alert--info margin-top-3">
                 <div class="usa-alert__body">
                     <p class="usa-alert__text">
-                        No datasets found matching "{{ query }}". Try adjusting your search terms or filters.
+                        No datasets found{% if query %} matching "{{ query }}"{% endif %}. Try adjusting your search terms or filters.
                     </p>
                 </div>
             </div>
             {% endif %}
         </div>
-        {% endif %}
     </div>
 
     <!-- Sidebar for filters and sort -->
@@ -193,12 +207,13 @@
         <form method="GET" action="{{ url_for('main.index') }}" id="filter-form">
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="per_page" value="{{ per_page }}">
-            
+
             <!-- Sort Section -->
             <div class="margin-bottom-4">
                 <label class="usa-label" for="sort-select">Sort by</label>
                 <select class="usa-select" name="sort" id="sort-select" onchange="this.form.submit()">
                     <option value="relevance" {% if sort_by == 'relevance' %}selected{% endif %}>Relevance</option>
+                    <option value="popularity" {% if sort_by == 'popularity' %}selected{% endif %}>Popularity</option>
                 </select>
             </div>
 

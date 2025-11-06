@@ -119,15 +119,16 @@ def index():
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
-    sort_by = request.args.get("sort", "relevance")
+    sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
+    if sort_by not in {"relevance", "popularity"}:
+        sort_by = "relevance"
 
     # Initialize empty results
-    datasets = []
+    datasets: list[dict] = []
     total = 0
     total_pages = 1
 
-    # Only search if there's a query
-    if query:
+    try:
         result = interface.search_datasets(
             query,
             page=page,
@@ -136,14 +137,14 @@ def index():
             org_types=org_types,
             sort_by=sort_by,
         )
-
-        # Get total count
+    except Exception:
+        logger.exception("Dataset search failed", extra={"query": query})
+    else:
         total = result.total
 
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]
 
-        # Calculate total pages
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
 
     return render_template(
@@ -173,12 +174,16 @@ def search():
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     after = request.args.get("after")
+    sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
+    if sort_by not in {"relevance", "popularity"}:
+        sort_by = "relevance"
     result = interface.search_datasets(
         query,
         per_page=per_page,
         org_id=org_id,
         org_types=org_types,
         after=after,
+        sort_by=sort_by,
     )
 
     if htmx:
@@ -190,10 +195,12 @@ def search():
             datasets=results,
             total=total,
             after=result.search_after_obscured(),
+            sort_by=sort_by,
         )
 
     response_dict = {
         "results": [build_dataset_dict(result) for result in result.results],
+        "sort": sort_by,
     }
     if result.search_after is not None:
         response_dict["after"] = result.search_after_obscured()

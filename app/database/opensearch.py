@@ -4,7 +4,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from typing import Callable, TypeVar
+from typing import Any, Callable, TypeVar
 
 from botocore.credentials import Credentials
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
@@ -45,12 +45,20 @@ class SearchResult:
         """
 
         total = result_dict["hits"]["total"]["value"]
-        results = [each["_source"] for each in result_dict["hits"]["hits"]]
+        hits = result_dict["hits"]["hits"]
+        results = [
+            {
+                **each["_source"],
+                "_score": each.get("_score"),
+                "_sort": each.get("sort"),
+            }
+            for each in hits
+        ]
         if per_page_hint:
             if len(results) > per_page_hint:
                 # more results than we need to return, there will be results if we
                 # use search_after from the last result we return
-                search_after = result_dict["hits"]["hits"][per_page_hint - 1]["sort"]
+                search_after = hits[per_page_hint - 1]["sort"]
                 results = results[:per_page_hint]
             else:
                 # no extra results, so no further search results
@@ -58,10 +66,10 @@ class SearchResult:
                 search_after = None
         else:
             # no page size hint
-            if results:
+            if hits:
                 # return everything we have and the search_after from the last
                 # result
-                search_after = result_dict["hits"]["hits"][-1]["sort"]
+                search_after = hits[-1]["sort"]
             else:
                 # no results in the list
                 search_after = None
@@ -107,6 +115,7 @@ class OpenSearchInterface:
             "keyword": {"type": "text"},
             "theme": {"type": "text"},
             "identifier": {"type": "text"},
+            "popularity": {"type": "integer"},
             # keyword for exact matches
             "organization": {
                 "type": "nested",
@@ -226,6 +235,9 @@ class OpenSearchInterface:
             "theme": dataset.dcat.get("theme", []),
             "identifier": dataset.dcat.get("identifier", ""),
             "organization": dataset.organization.to_dict(),
+            "popularity": dataset.popularity
+            if dataset.popularity is not None
+            else None,
         }
 
     def _run_with_timeout_retry(
@@ -348,8 +360,31 @@ class OpenSearchInterface:
 
         return (succeeded, failed)
 
+    def _build_sort_clause(self, sort_by: str) -> list[dict]:
+        """Return the OpenSearch sort clause for the requested key."""
+        sort_key = (sort_by or "relevance").lower()
+
+        if sort_key == "popularity":
+            return [
+                {"popularity": {"order": "desc", "missing": "_last"}},
+                {"_score": {"order": "desc"}},
+                {"_id": {"order": "desc"}},
+            ]
+
+        # Default to relevance sorting with popularity as a tie-breaker
+        return [
+            {"_score": {"order": "desc"}},
+            {"popularity": {"order": "desc", "missing": "_last"}},
+            {"_id": {"order": "desc"}},
+        ]
+
     def search(
-        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, search_after: list = None
+        self,
+        query,
+        per_page=DEFAULT_PER_PAGE,
+        org_id=None,
+        search_after: list = None,
+        sort_by: str = "relevance",
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -364,8 +399,8 @@ class OpenSearchInterface:
         value of the last `_sort` field from a previous search result with the
         same query.
         """
-        search_body = {
-            "query": {
+        if query and query.strip():
+            base_query: dict[str, Any] = {
                 "multi_match": {
                     "query": query,
                     "type": "most_fields",
@@ -380,11 +415,13 @@ class OpenSearchInterface:
                     "operator": "AND",
                     "zero_terms_query": "all",
                 }
-            },
-            "sort": [
-                {"_score": {"order": "desc"}},
-                {"_id": {"order": "desc"}},
-            ],
+            }
+        else:
+            base_query = {"match_all": {}}
+
+        search_body = {
+            "query": base_query,
+            "sort": self._build_sort_clause(sort_by),
             # ask for one more to help with pagination, see
             # from_opensearch_result above
             "size": per_page + 1,
@@ -406,7 +443,7 @@ class OpenSearchInterface:
                     ],
                     "must": [
                         # use the previous query in here
-                        search_body["query"],
+                        base_query,
                     ],
                 }
             }
