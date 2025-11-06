@@ -1,7 +1,7 @@
 permissions:
   contents: read
 
-name: Synchronize the OpenSearch dataset index
+name: Sync OpenSearch
 
 on:
   workflow_dispatch:
@@ -21,13 +21,25 @@ jobs:
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
+      - name: Store task instance names
+        run: |
+          echo "OPENSEARCH_INSTANCE_NAME=search-sync-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_ENV
       - name: run task
         uses: cloud-gov/cg-cli-tools@main
         with:
           command: >
-            cf run-task datagov-catalog --name sync_opensearch
+            cf run-task datagov-catalog --name "$OPENSEARCH_INSTANCE_NAME"
             --command "flask search sync"
           cf_org: gsa-datagov
           cf_space: ${{ inputs.environment }}
           cf_username: ${{secrets.CF_SERVICE_USER}}
           cf_password: ${{secrets.CF_SERVICE_AUTH}}
+      - name: Monitor sync task output
+        uses: cloud-gov/cg-cli-tools@main
+        with:
+          cf_org: gsa-datagov
+          cf_space: ${{ env.CF_SPACE }}
+          cf_username: ${{ secrets.CF_SERVICE_USER }}
+          cf_password: ${{ secrets.CF_SERVICE_AUTH }}
+          command: >
+            bash tools/monitor_cf_logs.sh fuhu-catalog "$OPENSEARCH_INSTANCE_NAME"

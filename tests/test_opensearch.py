@@ -1,5 +1,8 @@
 import pytest
 
+import app.database.opensearch as opensearch_module
+from opensearchpy.exceptions import ConnectionTimeout
+
 from app.database import OpenSearchInterface
 from app.models import Dataset
 
@@ -40,3 +43,42 @@ def test_relevance_sort_uses_popularity_tie_breaker():
         {"popularity": {"order": "desc", "missing": "_last"}},
         {"_id": {"order": "desc"}},
     ]
+
+
+def test_run_with_timeout_retry_eventual_success(monkeypatch):
+    interface = OpenSearchInterface.__new__(OpenSearchInterface)
+    monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
+
+    attempts = {"count": 0}
+
+    def _action():
+        attempts["count"] += 1
+        if attempts["count"] < 3:
+            raise ConnectionTimeout("TIMEOUT")
+        return "done"
+
+    result = interface._run_with_timeout_retry(
+        _action,
+        action_name="test action",
+        timeout_retries=3,
+        timeout_backoff_base=2.0,
+    )
+
+    assert result == "done"
+    assert attempts["count"] == 3
+
+
+def test_run_with_timeout_retry_exhausted(monkeypatch):
+    interface = OpenSearchInterface.__new__(OpenSearchInterface)
+    monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
+
+    def _action():
+        raise ConnectionTimeout("TIMEOUT")
+
+    with pytest.raises(ConnectionTimeout):
+        interface._run_with_timeout_retry(
+            _action,
+            action_name="test action",
+            timeout_retries=2,
+            timeout_backoff_base=2.0,
+        )
