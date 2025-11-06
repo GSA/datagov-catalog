@@ -11,7 +11,7 @@ from sqlalchemy import desc, func, or_
 from app.models import Dataset, HarvestRecord, Organization, db
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
-from .opensearch import OpenSearchInterface
+from .opensearch import OpenSearchInterface, SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,7 @@ class CatalogDBInterface:
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         org_types=None,
+        after=None,
         *args,
         **kwargs,
     ):
@@ -61,9 +62,19 @@ class CatalogDBInterface:
 
         The query is in OpenSearch's "multi_match" search format where it analyzes
         the text and matches against multiple fields.
+
+        per_page paginates results with this many entries. If org_id is
+        specified, only datasets for that organization are searched. after is
+        an encoded string that will be passed through to Opensearch for
+        accessing further pages.
         """
+        if after is not None:
+            search_after = SearchResult.decode_search_after(after)
+        else:
+            search_after = None
+            
         return self.opensearch.search(
-            query, per_page=per_page, org_id=org_id, org_types=org_types
+            query, per_page=per_page, org_id=org_id, org_types=org_types, search_after=search_after
         )
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:

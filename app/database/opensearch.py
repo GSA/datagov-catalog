@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 from dataclasses import dataclass
 
@@ -11,18 +13,68 @@ from .constants import DEFAULT_PER_PAGE
 class SearchResult:
     total: int
     results: list[dict]
+    search_after: list
 
     def __len__(self):
         """Length of this is the length of results."""
         return len(self.results)
 
     @classmethod
-    def from_opensearch_result(cls, result_dict: dict):
-        """Make a results object from the result of an OpenSearch query."""
+    def from_opensearch_result(cls, result_dict: dict, per_page_hint=0):
+        """Make a results object from the result of an OpenSearch query.
+
+        To know if we should give a `search_after` in the result, we need
+        a hint for how many results "should" have been on the page and if
+        there is more than that in this result, then we should give a
+        value for search_after.
+
+        In the `search` method we asked for one more than the per_page size
+        to determine if there will be any more results left for another call.
+        """
+
+        total = result_dict["hits"]["total"]["value"]
+        results = [each["_source"] for each in result_dict["hits"]["hits"]]
+        if per_page_hint:
+            if len(results) > per_page_hint:
+                # more results than we need to return, there will be results if we
+                # use search_after from the last result we return
+                search_after = result_dict["hits"]["hits"][per_page_hint - 1]["sort"]
+                results = results[:per_page_hint]
+            else:
+                # no extra results, so no further search results
+                # return everything and None for search_after
+                search_after = None
+        else:
+            # no page size hint
+            if results:
+                # return everything we have and the search_after from the last
+                # result
+                search_after = result_dict["hits"]["hits"][-1]["sort"]
+            else:
+                # no results in the list
+                search_after = None
+
         return cls(
-            total=result_dict["hits"]["total"]["value"],
-            results=[each["_source"] for each in result_dict["hits"]["hits"]],
+            total=total,
+            results=results,
+            search_after=search_after,
         )
+
+    def search_after_obscured(self):
+        """An encoded string representation of self.search_after.
+
+        If self.search_after is None, don't encode it, just return None.
+        """
+        if self.search_after is None:
+            return None
+        return base64.urlsafe_b64encode(
+            json.dumps(self.search_after, separators=(",", ":")).encode("utf-8")
+        ).decode("utf-8")
+
+    @staticmethod
+    def decode_search_after(encoded_after):
+        """Decode the encoded representation of self.search_after."""
+        return json.loads(base64.urlsafe_b64decode(encoded_after).decode("utf-8"))
 
 
 class OpenSearchInterface:
@@ -172,7 +224,11 @@ class OpenSearchInterface:
             index=self.INDEX_NAME, body={"query": {"match_all": {}}}
         )
 
-    def index_datasets(self, dataset_iter):
+    def _refresh(self):
+        """Refresh our index."""
+        self.client.indices.refresh(index=self.INDEX_NAME)
+
+    def index_datasets(self, dataset_iter, refresh_after=True):
         """Index an iterator of dataset objects into OpenSearch.
 
         Returns a tuple of number of (succeeded, failed) items.
@@ -191,11 +247,13 @@ class OpenSearchInterface:
             else:
                 failed += 1
 
-        self.client.indices.refresh(index=self.INDEX_NAME)
+        if refresh_after:
+            self._refresh()
+
         return (succeeded, failed)
 
     def search(
-        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, org_types=None
+        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, search_after: list = None, org_types=None
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -205,6 +263,10 @@ class OpenSearchInterface:
 
         If the org_id argument is given then we only return search results
         that are in that organization.
+
+        We pass the `after` argument through to OpenSearch. It should be the
+        value of the last `_sort` field from a previous search result with the
+        same query.
         """
         search_body = {
             "query": {
@@ -227,7 +289,9 @@ class OpenSearchInterface:
                 {"_score": {"order": "desc"}},
                 {"_id": {"order": "desc"}},
             ],
-            "size": per_page,
+            # ask for one more to help with pagination, see
+            # from_opensearch_result above
+            "size": per_page + 1,
         }
 
         # Build filter list for bool query
@@ -268,10 +332,12 @@ class OpenSearchInterface:
                     ],
                 }
             }
+        if search_after is not None:
+            search_body["search_after"] = search_after
 
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
-        return SearchResult.from_opensearch_result(result_dict)
+        return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
         """
@@ -386,3 +452,4 @@ class OpenSearchInterface:
 
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         return SearchResult.from_opensearch_result(result_dict)
+

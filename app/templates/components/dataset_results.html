@@ -47,7 +47,7 @@
                             {% if updated_display %}
                             <strong>Updated:</strong> {{ updated_display or 'Not available' }}
                             {% endif %}
-                            {% if harvested_display %}                                
+                            {% if harvested_display %}
                             <span class="margin-left-1">|</span>
                             <strong>Harvested:</strong> {{ harvested_display }}
                             {% endif %}
@@ -62,56 +62,36 @@
         {% endif %}
 
         <!-- Pagination -->
-        {% if total_pages > 1 %}
+        {% if after %}
         <nav class="usa-pagination margin-top-4" aria-label="Datasets pagination">
             <ul class="usa-pagination__list">
                 <!-- Previous button -->
                 <li class="usa-pagination__item usa-pagination__arrow">
-                    {% if page > 1 %}
+                    {% if prev %}
                     <a class="usa-pagination__link usa-pagination__previous-page"
-                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), page=page-1, per_page=20, count='true') }}"
-                        hx-target="#search-results" 
-                        hx-swap="outerHTML show:.organization-datasets__list:top" 
+                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), after=prev) }}"
+                        hx-target="#search-results"
+                        hx-swap="outerHTML show:.organization-datasets__list:top"
                         hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true"
-                        href="#" 
+                        href="#"
                         aria-label="Previous page">
                         <span class="usa-pagination__link-text">Previous</span>
                     </a>
                     {% endif %}
                 </li>
 
-                {% for number in page_sequence %}
-                {% if number is none %}
-                <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
-                {% elif number == page %}
-                <li class="usa-pagination__item usa-pagination__page-no">
-                    <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
-                </li>
-                {% else %}
-                <li class="usa-pagination__item usa-pagination__page-no">
-                    <a class="usa-pagination__button"
-                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), page=number, per_page=20, count='true') }}"
-                        hx-target="#search-results" 
-                        hx-swap="outerHTML show:.organization-datasets__list:top" 
-                        hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true"
-                        href="#">{{ number }}</a>
-                </li>
-                {% endif %}
-                {% endfor %}
-
                 <!-- Next button -->
                 <li class="usa-pagination__item usa-pagination__arrow">
-                    {% if page < total_pages %}
                     <a class="usa-pagination__link usa-pagination__next-page"
-                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), page=page+1, per_page=20, count='true') }}"
-                        hx-target="#search-results" 
-                        hx-swap="outerHTML show:.organization-datasets__list:top" 
+                        hx-get="{{ url_for('main.search',
+                        q=request.args.get('q', ''), after=after, prev=prev) }}"
+                        hx-target="#search-results"
+                        hx-swap="outerHTML show:.organization-datasets__list:top"
                         hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true"
-                        href="#" 
+                        href="#"
                         aria-label="Next page">
                         <span class="usa-pagination__link-text">Next</span>
                     </a>
-                    {% endif %}
                 </li>
             </ul>
         </nav>
