@@ -101,7 +101,7 @@ class OpenSearchInterface:
             "keyword": {"type": "text"},
             "theme": {"type": "text"},
             "identifier": {"type": "text"},
-            "popularity": {"type": "double"},
+            "popularity": {"type": "integer"},
             # keyword for exact matches
             "organization": {
                 "type": "nested",
@@ -221,7 +221,7 @@ class OpenSearchInterface:
             "theme": dataset.dcat.get("theme", []),
             "identifier": dataset.dcat.get("identifier", ""),
             "organization": dataset.organization.to_dict(),
-            "popularity": float(dataset.popularity)
+            "popularity": dataset.popularity
             if dataset.popularity is not None
             else None,
         }
