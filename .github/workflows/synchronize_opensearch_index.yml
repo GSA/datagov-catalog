@@ -9,7 +9,12 @@ on:
       environment:
         description: "cf environment"
         required: true
-        default: "development" # TODO: pinning to dev. change to "choice"
+        default: development
+        type: choice
+        options:
+          - development
+          - staging
+          - prod
   schedule:
     - cron: "0 12 * * *" # Every day around 7 a.m. eastern time
 
@@ -17,7 +22,9 @@ jobs:
   opensearch-sync:
     runs-on: ubuntu-latest
     name: Sync OpenSearch index
-    environment: development # TODO: pinning to dev. change when needed.
+    environment: ${{ github.event.inputs.environment || 'development' }}
+    env:
+      CF_SPACE: ${{ github.event.inputs.environment || 'development' }}
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
@@ -31,7 +38,7 @@ jobs:
             cf run-task datagov-catalog --name "$OPENSEARCH_INSTANCE_NAME"
             --command "flask search sync"
           cf_org: gsa-datagov
-          cf_space: ${{ inputs.environment }}
+          cf_space: ${{ env.CF_SPACE }}
           cf_username: ${{secrets.CF_SERVICE_USER}}
           cf_password: ${{secrets.CF_SERVICE_AUTH}}
       - name: Monitor sync task output
