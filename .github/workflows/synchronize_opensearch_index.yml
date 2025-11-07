@@ -19,12 +19,31 @@ on:
     - cron: "0 12 * * *" # Every day around 7 a.m. eastern time
 
 jobs:
-  opensearch-sync:
+  determine-environments:
     runs-on: ubuntu-latest
+    outputs:
+      environments: ${{ steps.set-env.outputs.environments }}
+    steps:
+      - id: set-env
+        env:
+          SELECTED_ENV: ${{ inputs.environment || 'development' }}
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo 'environments=["staging","prod"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "environments=[\"$SELECTED_ENV\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+  opensearch-sync:
+    needs: determine-environments
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.determine-environments.outputs.environments) }}
     name: Sync OpenSearch index
-    environment: ${{ github.event.inputs.environment || 'development' }}
+    environment: ${{ matrix.environment }}
     env:
-      CF_SPACE: ${{ github.event.inputs.environment || 'development' }}
+      CF_SPACE: ${{ matrix.environment }}
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
