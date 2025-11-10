@@ -63,3 +63,37 @@ jobs:
 
       - name: Run Pytest
         run: make test-ci
+
+  deploy-development:
+    name: deploy to development space
+    if: github.ref == 'refs/heads/develop'
+    environment: development
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: Install node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: "app/static/package.json"
+      - name: Build static assets
+        run: make install-static
+      - name: Set up Python ${{ env.PY_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VERSION }}
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+          poetry-plugins: "poetry-plugin-export"
+      - name: Add requirements.txt
+        run: make update-dependencies && cat requirements.txt
+      - name: Deploy datagov-catalog app
+        uses: cloud-gov/cg-cli-tools@main
+        with:
+          command: cf push --strategy rolling --no-wait
+          cf_org: gsa-datagov
+          cf_space: development
+          cf_username: ${{secrets.CF_SERVICE_USER}}
+          cf_password: ${{secrets.CF_SERVICE_AUTH}}
