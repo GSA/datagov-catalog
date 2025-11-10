@@ -353,59 +353,34 @@ def organization_detail(slug: str):
             )
 
     organization_data = interface.to_dict(organization)
-    dataset_page = request.args.get("dataset_page", default=1, type=int)
-    dataset_per_page = request.args.get("dataset_per_page", default=20, type=int)
+    dataset_search_query = request.args.get( "q", default="", type=str).strip()
+    num_results = request.args.get("results", default=DEFAULT_PER_PAGE, type=int)
     sort_by = request.args.get("sort", default="popularity")
-    dataset_search_terms = request.args.get(
-        "dataset_search_terms", default="", type=str
-    ).strip()
 
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
-        page=dataset_page,
-        per_page=dataset_per_page,
+        dataset_search_query=dataset_search_query,
         sort_by=sort_by,
-        dataset_search_terms=dataset_search_terms,
+        num_results=num_results,
     )
+    after = dataset_result.search_after_obscured()
 
-    dataset_pagination = (
-        {
-            "page": dataset_result["page"],
-            "per_page": dataset_result["per_page"],
-            "total": dataset_result["total"],
-            "total_pages": dataset_result["total_pages"],
-            "page_sequence": build_page_sequence(
-                dataset_result["page"], dataset_result["total_pages"]
-            ),
-        }
-        if dataset_result["total"]
-        else {
-            "page": dataset_result["page"],
-            "per_page": dataset_result["per_page"],
-            "total": 0,
-            "total_pages": 0,
-            "page_sequence": [],
-        }
-    )
 
     if organization_data is not None:
-        organization_data["dataset_count"] = dataset_result["total"]
+        organization_data["dataset_count"] = dataset_result.total
 
     slug_or_id = organization.slug or slug
 
     return render_template(
         "organization_detail.html",
         organization=organization_data,
-        datasets=dataset_result["datasets"],
-        dataset_pagination=dataset_pagination,
+        datasets=dataset_result.results,
+        after=after,
+        per_page=num_results,
+        results_hint=num_results,
         organization_slug_or_id=slug_or_id,
-        selected_sort=dataset_result.get("sort", "popularity"),
-        sort_options={
-            "popularity": "Popularity",
-            "slug": "Title (shhh...it is slug)",
-            "harvested": "Harvested Date",
-        },
-        dataset_search_terms=dataset_search_terms,
+        selected_sort=sort_by,
+        dataset_search_query=dataset_search_query,
     )
 
 

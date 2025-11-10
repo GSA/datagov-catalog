@@ -32,6 +32,11 @@ class SearchResult:
         return len(self.results)
 
     @classmethod
+    def empty(cls):
+        """Return an empty search result instance."""
+        return cls(total=0, results=[], search_after=None)
+
+    @classmethod
     def from_opensearch_result(cls, result_dict: dict, per_page_hint=0):
         """Make a results object from the result of an OpenSearch query.
 

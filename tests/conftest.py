@@ -80,8 +80,13 @@ def session(dbapp):
 
 @pytest.fixture
 def interface(session) -> CatalogDBInterface:
-    return CatalogDBInterface(session=session)
-
+    interface = CatalogDBInterface(session=session)
+    # best effort to clear the opensearch index
+    try:
+        interface.opensearch.delete_all_datasets()
+    except:
+        pass
+    yield interface
 
 @pytest.fixture
 def interface_with_organization(interface):
@@ -181,6 +186,7 @@ def interface_with_dataset(interface_with_harvest_record):
         interface_with_harvest_record.db.add(Dataset(**dict(zip(fields, row))))
 
     interface_with_harvest_record.db.commit()
+    interface_with_harvest_record.opensearch.index_datasets(interface_with_harvest_record.db.query(Dataset))
 
     yield interface_with_harvest_record
 
