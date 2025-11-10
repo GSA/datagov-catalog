@@ -32,6 +32,8 @@ jobs:
           poetry-version: ${{ env.POETRY_VERSION }}
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
+          smoke-url: https://datagov-catalog-staging.app.cloud.gov/
+          smoke-path: /
 
   deploy-prod:
     name: deploy to prod space
@@ -46,3 +48,5 @@ jobs:
           poetry-version: ${{ env.POETRY_VERSION }}
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
+          smoke-url: https://catalog-beta.data.gov/
+          smoke-path: /

@@ -31,6 +31,26 @@ inputs:
   cf_password:
     description: "Cloud Foundry service auth"
     required: true
+  smoke-url:
+    description: "Base URL for smoke test (set per environment)"
+    required: false
+    default: ""
+  smoke-path:
+    description: "Path to hit for smoke test"
+    required: false
+    default: "/"
+  smoke-retries:
+    description: "Number of retries for smoke test"
+    required: false
+    default: "20"
+  smoke-delay-seconds:
+    description: "Delay between retries (seconds)"
+    required: false
+    default: "5"
+  smoke-timeout-seconds:
+    description: "Single request timeout (seconds)"
+    required: false
+    default: "10"
 
 runs:
   using: "composite"
@@ -70,4 +90,28 @@ runs:
         cf_space: ${{ inputs.cf_space }}
         cf_username: ${{ inputs.cf_username }}
         cf_password: ${{ inputs.cf_password }}
+
+    - name: Smoke test application
+      if: ${{ inputs.smoke-url != '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        base="${{ inputs.smoke-url }}"
+        path="${{ inputs.smoke-path }}"
+        retries=${{ inputs.smoke-retries }}
+        delay=${{ inputs.smoke-delay-seconds }}
+        timeout=${{ inputs.smoke-timeout-seconds }}
+        url="${base%/}${path}"
+        echo "Starting smoke test: $url"
+        for i in $(seq 1 "$retries"); do
+          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$timeout" "$url" || echo "000")
+          echo "Attempt $i/$retries -> HTTP $status"
+          if [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
+            echo "Smoke test passed."
+            exit 0
+          fi
+          sleep "$delay"
+        done
+        echo "Smoke test FAILED for $url"
+        exit 1
 
