@@ -20,3 +20,9 @@ def test_multiple(interface_with_dataset):
     # nonexistent isn't there so and should match nothing
     result = interface_with_dataset.search_datasets("test nonexistentword")
     assert len(result) == 0
+
+
+def test_search_popularity_sort(interface_with_dataset):
+    """Search returns results when using the popularity sort."""
+    result = interface_with_dataset.search_datasets("test", sort_by="popularity")
+    assert len(result) > 0

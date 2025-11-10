@@ -126,18 +126,19 @@ def index():
     num_results = request.args.get("results", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
-    sort_by = request.args.get("sort", "relevance")
+    sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
+    if sort_by not in {"relevance", "popularity"}:
+        sort_by = "relevance"
 
     # there's a limit on how many results can be requested
     num_results = min(num_results, 9999)
 
     # Initialize empty results
-    datasets = []
+    datasets: list[dict] = []
     result = None
     total = 0
 
-    # Only search if there's a query
-    if query:
+    try:
         result = interface.search_datasets(
             query,
             per_page=num_results,
@@ -145,6 +146,9 @@ def index():
             org_types=org_types,
             sort_by=sort_by,
         )
+    except Exception:
+        logger.exception("Dataset search failed", extra={"query": query})
+    else:
 
         # Get total number of results for this search
         total = result.total
@@ -184,12 +188,16 @@ def search():
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     after = request.args.get("after")
+    sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
+    if sort_by not in {"relevance", "popularity"}:
+        sort_by = "relevance"
     result = interface.search_datasets(
         query,
         per_page=per_page,
         org_id=org_id,
         org_types=org_types,
         after=after,
+        sort_by=sort_by,
     )
 
     if htmx:
@@ -201,10 +209,12 @@ def search():
             per_page=per_page,
             results_hint=results_hint,
             after=result.search_after_obscured(),
+            sort_by=sort_by,
         )
 
     response_dict = {
         "results": [build_dataset_dict(result) for result in result.results],
+        "sort": sort_by,
     }
     if result.search_after is not None:
         response_dict["after"] = result.search_after_obscured()

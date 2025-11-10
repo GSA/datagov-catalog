@@ -1,12 +1,24 @@
 import base64
 import json
+import logging
 import os
+import time
 from dataclasses import dataclass
+from typing import Any, Callable, TypeVar
 
 from botocore.credentials import Credentials
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
+from opensearchpy.exceptions import ConnectionTimeout
 
 from .constants import DEFAULT_PER_PAGE
+
+logger = logging.getLogger(__name__)
+
+
+DEFAULT_TIMEOUT_RETRIES = 3
+DEFAULT_TIMEOUT_BACKOFF_BASE = 2.0
+DEFAULT_DELETE_REQUEST_TIMEOUT_SECONDS = 120
+DEFAULT_REFRESH_REQUEST_TIMEOUT_SECONDS = 120
 
 
 @dataclass
@@ -33,12 +45,20 @@ class SearchResult:
         """
 
         total = result_dict["hits"]["total"]["value"]
-        results = [each["_source"] for each in result_dict["hits"]["hits"]]
+        hits = result_dict["hits"]["hits"]
+        results = [
+            {
+                **each["_source"],
+                "_score": each.get("_score"),
+                "_sort": each.get("sort"),
+            }
+            for each in hits
+        ]
         if per_page_hint:
             if len(results) > per_page_hint:
                 # more results than we need to return, there will be results if we
                 # use search_after from the last result we return
-                search_after = result_dict["hits"]["hits"][per_page_hint - 1]["sort"]
+                search_after = hits[per_page_hint - 1]["sort"]
                 results = results[:per_page_hint]
             else:
                 # no extra results, so no further search results
@@ -46,10 +66,10 @@ class SearchResult:
                 search_after = None
         else:
             # no page size hint
-            if results:
+            if hits:
                 # return everything we have and the search_after from the last
                 # result
-                search_after = result_dict["hits"]["hits"][-1]["sort"]
+                search_after = hits[-1]["sort"]
             else:
                 # no results in the list
                 search_after = None
@@ -77,6 +97,9 @@ class SearchResult:
         return json.loads(base64.urlsafe_b64decode(encoded_after).decode("utf-8"))
 
 
+T = TypeVar("T")
+
+
 class OpenSearchInterface:
 
     INDEX_NAME = "datasets"
@@ -92,6 +115,7 @@ class OpenSearchInterface:
             "keyword": {"type": "text"},
             "theme": {"type": "text"},
             "identifier": {"type": "text"},
+            "popularity": {"type": "integer"},
             # keyword for exact matches
             "organization": {
                 "type": "nested",
@@ -211,44 +235,156 @@ class OpenSearchInterface:
             "theme": dataset.dcat.get("theme", []),
             "identifier": dataset.dcat.get("identifier", ""),
             "organization": dataset.organization.to_dict(),
+            "popularity": dataset.popularity
+            if dataset.popularity is not None
+            else None,
         }
 
-    def delete_all_datasets(self):
+    def _run_with_timeout_retry(
+        self,
+        action: Callable[[], T],
+        *,
+        action_name: str,
+        timeout_retries: int,
+        timeout_backoff_base: float,
+    ) -> T:
+        attempt = 0
+
+        while True:
+            try:
+                return action()
+            except ConnectionTimeout as exc:
+                attempt += 1
+                if attempt > timeout_retries:
+                    logger.error(
+                        "%s timed out after %s retries; giving up.",
+                        action_name,
+                        timeout_retries,
+                        exc_info=exc,
+                    )
+                    raise
+
+                wait_seconds = min(timeout_backoff_base**attempt, 60)
+                logger.warning(
+                    "%s timed out (attempt %s/%s); retrying in %.1f seconds.",
+                    action_name,
+                    attempt,
+                    timeout_retries,
+                    wait_seconds,
+                    exc_info=exc,
+                )
+                time.sleep(wait_seconds)
+
+    def delete_all_datasets(
+        self,
+        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
+        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
+        request_timeout: int = DEFAULT_DELETE_REQUEST_TIMEOUT_SECONDS,
+    ):
         """Delete all documents from our index."""
-        self.client.delete_by_query(
-            index=self.INDEX_NAME, body={"query": {"match_all": {}}}
+
+        def _do_delete():
+            return self.client.delete_by_query(
+                index=self.INDEX_NAME,
+                body={"query": {"match_all": {}}},
+                # allow long-running deletions to finish before timing out
+                request_timeout=request_timeout,
+            )
+
+        self._run_with_timeout_retry(
+            _do_delete,
+            action_name="OpenSearch delete_by_query",
+            timeout_retries=timeout_retries,
+            timeout_backoff_base=timeout_backoff_base,
         )
 
-    def _refresh(self):
+    def _refresh(
+        self,
+        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
+        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
+        request_timeout: int = DEFAULT_REFRESH_REQUEST_TIMEOUT_SECONDS,
+    ):
         """Refresh our index."""
-        self.client.indices.refresh(index=self.INDEX_NAME)
 
-    def index_datasets(self, dataset_iter, refresh_after=True):
+        def _do_refresh():
+            return self.client.indices.refresh(
+                index=self.INDEX_NAME, request_timeout=request_timeout
+            )
+
+        self._run_with_timeout_retry(
+            _do_refresh,
+            action_name="OpenSearch refresh",
+            timeout_retries=timeout_retries,
+            timeout_backoff_base=timeout_backoff_base,
+        )
+
+    def index_datasets(
+        self,
+        dataset_iter,
+        refresh_after=True,
+        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
+        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
+    ):
         """Index an iterator of dataset objects into OpenSearch.
 
         Returns a tuple of number of (succeeded, failed) items.
         """
-        succeeded = 0
-        failed = 0
-        for success, item in helpers.streaming_bulk(
-            self.client,
-            map(self.dataset_to_document, dataset_iter),
-            raise_on_error=False,
-            # retry when we are making too many requests
-            max_retries=8,
-        ):
-            if success:
-                succeeded += 1
-            else:
-                failed += 1
+        datasets = getattr(dataset_iter, "items", dataset_iter)
+        documents = [self.dataset_to_document(dataset) for dataset in datasets]
+
+        def _stream_bulk():
+            succeeded_local = 0
+            failed_local = 0
+            for success, item in helpers.streaming_bulk(
+                self.client,
+                documents,
+                raise_on_error=False,
+                # retry when we are making too many requests
+                max_retries=8,
+            ):
+                if success:
+                    succeeded_local += 1
+                else:
+                    failed_local += 1
+            return succeeded_local, failed_local
+
+        succeeded, failed = self._run_with_timeout_retry(
+            _stream_bulk,
+            action_name="OpenSearch bulk index",
+            timeout_retries=timeout_retries,
+            timeout_backoff_base=timeout_backoff_base,
+        )
 
         if refresh_after:
             self._refresh()
 
         return (succeeded, failed)
 
+    def _build_sort_clause(self, sort_by: str) -> list[dict]:
+        """Return the OpenSearch sort clause for the requested key."""
+        sort_key = (sort_by or "relevance").lower()
+
+        if sort_key == "popularity":
+            return [
+                {"popularity": {"order": "desc", "missing": "_last"}},
+                {"_score": {"order": "desc"}},
+                {"_id": {"order": "desc"}},
+            ]
+
+        # Default to relevance sorting with popularity as a tie-breaker
+        return [
+            {"_score": {"order": "desc"}},
+            {"popularity": {"order": "desc", "missing": "_last"}},
+            {"_id": {"order": "desc"}},
+        ]
+
     def search(
-        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, search_after: list = None
+        self,
+        query,
+        per_page=DEFAULT_PER_PAGE,
+        org_id=None,
+        search_after: list = None,
+        sort_by: str = "relevance",
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -263,8 +399,8 @@ class OpenSearchInterface:
         value of the last `_sort` field from a previous search result with the
         same query.
         """
-        search_body = {
-            "query": {
+        if query and query.strip():
+            base_query: dict[str, Any] = {
                 "multi_match": {
                     "query": query,
                     "type": "most_fields",
@@ -279,11 +415,13 @@ class OpenSearchInterface:
                     "operator": "AND",
                     "zero_terms_query": "all",
                 }
-            },
-            "sort": [
-                {"_score": {"order": "desc"}},
-                {"_id": {"order": "desc"}},
-            ],
+            }
+        else:
+            base_query = {"match_all": {}}
+
+        search_body = {
+            "query": base_query,
+            "sort": self._build_sort_clause(sort_by),
             # ask for one more to help with pagination, see
             # from_opensearch_result above
             "size": per_page + 1,
@@ -305,7 +443,7 @@ class OpenSearchInterface:
                     ],
                     "must": [
                         # use the previous query in here
-                        search_body["query"],
+                        base_query,
                     ],
                 }
             }

@@ -71,8 +71,13 @@ class CatalogDBInterface:
             search_after = SearchResult.decode_search_after(after)
         else:
             search_after = None
+        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
-            query, per_page=per_page, org_id=org_id, search_after=search_after
+            query,
+            per_page=per_page,
+            org_id=org_id,
+            search_after=search_after,
+            sort_by=sort_by,
         )
 
     def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
