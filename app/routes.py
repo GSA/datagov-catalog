@@ -196,7 +196,7 @@ def search():
     org_types = request.args.getlist("org_type")
     after = request.args.get("after")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
-    
+
     result = interface.search_datasets(
         query,
         per_page=per_page,

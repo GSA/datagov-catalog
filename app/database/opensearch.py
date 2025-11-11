@@ -205,9 +205,9 @@ class OpenSearchInterface:
         document's `_id`.
         """
         # Check if dataset has spatial data
-        spatial_value = dataset.dcat.get('spatial')
+        spatial_value = dataset.dcat.get("spatial")
         has_spatial = bool(spatial_value and str(spatial_value).strip())
-        
+
         return {
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
@@ -259,7 +259,13 @@ class OpenSearchInterface:
         return (succeeded, failed)
 
     def search(
-        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, search_after: list = None, org_types=None, spatial_filter=None
+        self,
+        query,
+        per_page=DEFAULT_PER_PAGE,
+        org_id=None,
+        search_after: list = None,
+        org_types=None,
+        spatial_filter=None,
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -393,7 +399,7 @@ class OpenSearchInterface:
     ) -> SearchResult:
         """
         Search datasets that have specific keywords (exact match).
-        
+
         spatial_filter can be "geospatial" or "non-geospatial" to filter
         datasets by presence of spatial data.
         """

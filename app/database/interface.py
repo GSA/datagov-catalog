@@ -67,17 +67,21 @@ class CatalogDBInterface:
         per_page paginates results with this many entries. If org_id is
         specified, only datasets for that organization are searched. after is
         an encoded string that will be passed through to Opensearch for
-        accessing further pages. spatial_filter can be "geospatial" or 
+        accessing further pages. spatial_filter can be "geospatial" or
         "non-geospatial" to filter by presence of spatial data.
         """
         if after is not None:
             search_after = SearchResult.decode_search_after(after)
         else:
             search_after = None
-            
+
         return self.opensearch.search(
-            query, per_page=per_page, org_id=org_id, org_types=org_types, 
-            search_after=search_after, spatial_filter=spatial_filter
+            query,
+            per_page=per_page,
+            org_id=org_id,
+            org_types=org_types,
+            search_after=search_after,
+            spatial_filter=spatial_filter,
         )
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
