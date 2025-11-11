@@ -97,6 +97,7 @@ class OpenSearchInterface:
                 },
             },
             "identifier": {"type": "text"},
+            "has_spatial": {"type": "boolean"},  # Whether dataset has spatial data
             # keyword for exact matches
             "organization": {
                 "type": "nested",
@@ -203,6 +204,10 @@ class OpenSearchInterface:
         an `_id` and `_index` property. We use the dataset's `id` for the
         document's `_id`.
         """
+        # Check if dataset has spatial data
+        spatial_value = dataset.dcat.get('spatial')
+        has_spatial = bool(spatial_value and str(spatial_value).strip())
+        
         return {
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
@@ -215,6 +220,7 @@ class OpenSearchInterface:
             "keyword": dataset.dcat.get("keyword", []),
             "theme": dataset.dcat.get("theme", []),
             "identifier": dataset.dcat.get("identifier", ""),
+            "has_spatial": has_spatial,
             "organization": dataset.organization.to_dict(),
         }
 
@@ -253,7 +259,7 @@ class OpenSearchInterface:
         return (succeeded, failed)
 
     def search(
-        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, search_after: list = None, org_types=None
+        self, query, per_page=DEFAULT_PER_PAGE, org_id=None, search_after: list = None, org_types=None, spatial_filter=None
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -263,6 +269,9 @@ class OpenSearchInterface:
 
         If the org_id argument is given then we only return search results
         that are in that organization.
+
+        spatial_filter can be "geospatial" or "non-geospatial" to filter
+        datasets by presence of spatial data.
 
         We pass the `after` argument through to OpenSearch. It should be the
         value of the last `_sort` field from a previous search result with the
@@ -321,6 +330,12 @@ class OpenSearchInterface:
                 }
             )
 
+        # Add spatial filter
+        if spatial_filter == "geospatial":
+            filters.append({"term": {"has_spatial": True}})
+        elif spatial_filter == "non-geospatial":
+            filters.append({"term": {"has_spatial": False}})
+
         # Apply filters if any exist
         if filters:
             search_body["query"] = {
@@ -374,9 +389,13 @@ class OpenSearchInterface:
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         org_types=None,
+        spatial_filter=None,
     ) -> SearchResult:
         """
         Search datasets that have specific keywords (exact match).
+        
+        spatial_filter can be "geospatial" or "non-geospatial" to filter
+        datasets by presence of spatial data.
         """
         # Build filter list
         filters = []
@@ -408,6 +427,12 @@ class OpenSearchInterface:
                     }
                 }
             )
+
+        # Add spatial filter
+        if spatial_filter == "geospatial":
+            filters.append({"term": {"has_spatial": True}})
+        elif spatial_filter == "non-geospatial":
+            filters.append({"term": {"has_spatial": False}})
 
         # Build the search body
         if query:
@@ -452,4 +477,3 @@ class OpenSearchInterface:
 
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         return SearchResult.from_opensearch_result(result_dict)
-

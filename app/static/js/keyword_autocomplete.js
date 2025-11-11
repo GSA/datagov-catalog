@@ -32,6 +32,9 @@ class KeywordAutocomplete {
         // Load any existing keywords from URL parameters
         this.loadExistingKeywords();
         
+        // Initialize suggested keywords click handlers
+        this.initSuggestedKeywords();
+        
         // Event listeners
         this.input.addEventListener('input', (e) => this.handleInput(e));
         this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
@@ -70,6 +73,38 @@ class KeywordAutocomplete {
                 this.addKeyword(keyword.trim());
             }
         });
+    }
+    
+    initSuggestedKeywords() {
+        // Add click handlers to suggested keyword buttons
+        const suggestedContainer = document.getElementById('suggested-keywords');
+        if (!suggestedContainer) return;
+        
+        const suggestedButtons = suggestedContainer.querySelectorAll('.tag-link--suggested');
+        suggestedButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const keyword = button.dataset.keyword;
+                if (keyword) {
+                    this.addKeyword(keyword);
+                    // Hide suggested keywords container after selection
+                    this.hideSuggestedKeywords();
+                }
+            });
+        });
+    }
+    
+    hideSuggestedKeywords() {
+        const suggestedContainer = document.getElementById('suggested-keywords');
+        if (suggestedContainer) {
+            suggestedContainer.style.display = 'none';
+        }
+    }
+    
+    showSuggestedKeywords() {
+        const suggestedContainer = document.getElementById('suggested-keywords');
+        if (suggestedContainer && this.selectedKeywords.size === 0) {
+            suggestedContainer.style.display = 'block';
+        }
     }
     
     handleInput(e) {
@@ -187,6 +222,9 @@ class KeywordAutocomplete {
         
         this.selectedKeywords.add(keyword);
         this.renderChip(keyword);
+        
+        // Hide suggested keywords container
+        this.hideSuggestedKeywords();
     }
     
     removeKeyword(keyword) {
@@ -194,6 +232,11 @@ class KeywordAutocomplete {
         const chip = this.chipsContainer.querySelector(`[data-keyword="${this.escapeHtml(keyword)}"]`);
         if (chip) {
             chip.remove();
+        }
+        
+        // Show suggested keywords again if no keywords are selected
+        if (this.selectedKeywords.size === 0) {
+            this.showSuggestedKeywords();
         }
     }
     

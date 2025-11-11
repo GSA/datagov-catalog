@@ -121,11 +121,13 @@ def index():
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     sort_by = request.args.get("sort", "relevance")
+    spatial_filter = request.args.get("spatial_filter", None, type=str)
 
     # Initialize empty results
     datasets = []
     total = 0
     total_pages = 1
+    suggeted_keywords = []
 
     # Search if there's a query OR keywords selected
     if query or keywords:
@@ -136,6 +138,7 @@ def index():
                 query=query,
                 per_page=per_page,
                 org_types=org_types,
+                spatial_filter=spatial_filter,
             )
         else:
             # Use regular text search when no keywords
@@ -146,6 +149,7 @@ def index():
                 org_id=org_id,
                 org_types=org_types,
                 sort_by=sort_by,
+                spatial_filter=spatial_filter,
             )
 
         # Get total count
@@ -175,6 +179,7 @@ def index():
         keywords=keywords,
         sort_by=sort_by,
         suggeted_keywords=suggeted_keywords,
+        spatial_filter=spatial_filter,
     )
 
 
@@ -190,12 +195,15 @@ def search():
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     after = request.args.get("after")
+    spatial_filter = request.args.get("spatial_filter", None, type=str)
+    
     result = interface.search_datasets(
         query,
         per_page=per_page,
         org_id=org_id,
         org_types=org_types,
         after=after,
+        spatial_filter=spatial_filter,
     )
 
     if htmx:

@@ -26,6 +26,9 @@
                             {% if org_id %}
                             <input type="hidden" name="org_id" value="{{ org_id }}">
                             {% endif %}
+                            {% if spatial_filter %}
+                            <input type="hidden" name="spatial_filter" value="{{ spatial_filter }}">
+                            {% endif %}
                             <input type="hidden" name="sort" value="{{ sort_by }}">
                         </div>
                         <div class="grid-col-auto">
@@ -51,7 +54,7 @@
                             Found more than <strong>{{ total }}</strong> datasets{% if query %} matching "{{ query }}"{% endif %}{% if keywords %} with selected keywords{% endif %}.
                             <!-- Advanced Search Tip -->
                             <div class="advanced-search-tip">
-                                <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
+                                <div class="advanced-search-tip__title">Ã°Å¸â€™Â¡ Advanced Search Tip</div>
                                 <p class="advanced-search-tip__text">
                                     Use quotes for exact phrases: <code>"flood zones"</code> | 
                                     Use AND/OR for multiple terms: <code>crops AND agriculture</code> | 
@@ -135,7 +138,7 @@
                                 <li class="usa-pagination__item usa-pagination__arrow">
                                     {% if page > 1 %}
                                     <a class="usa-pagination__link usa-pagination__previous-page"
-                                        href="{{ url_for('main.index', q=query, page=page-1, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types, keyword=keywords)) }}"
+                                        href="{{ url_for('main.index', q=query, page=page-1, per_page=per_page, org_id=org_id, sort=sort_by, spatial_filter=spatial_filter, **dict(org_type=org_types, keyword=keywords)) }}"
                                         aria-label="Previous page">
                                         <span class="usa-pagination__link-text">Previous</span>
                                     </a>
@@ -144,7 +147,7 @@
 
                                 {% for number in page_sequence %}
                                 {% if number is none %}
-                                <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
+                                <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>Ã¢â‚¬Â¦</span></li>
                                 {% elif number == page %}
                                 <li class="usa-pagination__item usa-pagination__page-no">
                                     <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
@@ -152,7 +155,7 @@
                                 {% else %}
                                 <li class="usa-pagination__item usa-pagination__page-no">
                                     <a class="usa-pagination__button"
-                                        href="{{ url_for('main.index', q=query, page=number, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types, keyword=keywords)) }}">
+                                        href="{{ url_for('main.index', q=query, page=number, per_page=per_page, org_id=org_id, sort=sort_by, spatial_filter=spatial_filter, **dict(org_type=org_types, keyword=keywords)) }}">
                                         {{ number }}
                                     </a>
                                 </li>
@@ -163,7 +166,7 @@
                                 <li class="usa-pagination__item usa-pagination__arrow">
                                     {% if page < total_pages %}
                                     <a class="usa-pagination__link usa-pagination__next-page"
-                                        href="{{ url_for('main.index', q=query, page=page+1, per_page=per_page, org_id=org_id, sort=sort_by, **dict(org_type=org_types, keyword=keywords)) }}"
+                                        href="{{ url_for('main.index', q=query, page=page+1, per_page=per_page, org_id=org_id, sort=sort_by, spatial_filter=spatial_filter, **dict(org_type=org_types, keyword=keywords)) }}"
                                         aria-label="Next page">
                                         <span class="usa-pagination__link-text">Next</span>
                                     </a>
@@ -203,7 +206,7 @@
                     <!-- Keyword Filter Section -->
                     <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
                         <h3 class="usa-accordion__heading">
-                            <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-keywords">
+                            <button type="button" class="usa-accordion__button" aria-expanded="{{ 'true' if keywords else 'false' }}" aria-controls="filter-keywords">
                                 Keywords
                             </button>
                         </h3>
@@ -224,24 +227,31 @@
                                     aria-expanded="false"
                                 >
                                 <div id="keyword-suggestions" class="keyword-suggestions" role="listbox"></div>
-                                <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords">
-                                    {% for keyword in suggeted_keywords %}
-                                    <span class="tag-link" data-keyword="{{ keyword }}">
-                                        {{ keyword }}
-                                        <button type="button" class="keyword-chip__remove" aria-label="Remove keyword">
-                                            <i class="fa fa-times" aria-hidden="true"></i>
+                                
+                                <!-- Selected keywords chips -->
+                                <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords"></div>
+                                
+                                <!-- Suggested keywords (only shown when no keywords selected) -->
+                                {% if suggeted_keywords and not keywords %}
+                                <div id="suggested-keywords" class="suggested-keywords margin-top-2">
+                                    <p class="text-base-dark margin-bottom-1"><strong>Popular keywords:</strong></p>
+                                    <div class="suggested-keywords__list">
+                                        {% for keyword in suggeted_keywords %}
+                                        <button type="button" class="tag-link tag-link--suggested" data-keyword="{{ keyword }}">
+                                            {{ keyword }}
                                         </button>
-                                    </span>
-                                    {% endfor %}
+                                        {% endfor %}
+                                    </div>
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
 
                     <!-- Organization Type Filter Section -->
-                    <div class="usa-accordion usa-accordion--bordered">
+                    <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
                         <h3 class="usa-accordion__heading">
-                            <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization">
+                            <button type="button" class="usa-accordion__button" aria-expanded="{{ 'true' if org_types else 'false' }}" aria-controls="filter-organization">
                                 Organization Type
                             </button>
                         </h3>
@@ -281,6 +291,34 @@
                                     <input class="usa-checkbox__input" id="filter-nonprofit" type="checkbox" name="org_type" value="Non-Profit"
                                         {% if 'Non-Profit' in org_types %}checked{% endif %}>
                                     <label class="usa-checkbox__label" for="filter-nonprofit">Non-Profit</label>
+                                </div>
+                            </fieldset>
+                        </div>
+                    </div>
+
+                    <!-- Spatial Data Filter Section -->
+                    <div class="usa-accordion usa-accordion--bordered">
+                        <h3 class="usa-accordion__heading">
+                            <button type="button" class="usa-accordion__button" aria-expanded="false" aria-controls="filter-spatial">
+                                Spatial Data
+                            </button>
+                        </h3>
+                        <div id="filter-spatial" class="usa-accordion__content usa-prose">
+                            <fieldset class="usa-fieldset">
+                                <div class="usa-radio">
+                                    <input class="usa-radio__input" id="filter-spatial-all" type="radio" name="spatial_filter" value=""
+                                        {% if not spatial_filter %}checked{% endif %}>
+                                    <label class="usa-radio__label" for="filter-spatial-all">All datasets</label>
+                                </div>
+                                <div class="usa-radio">
+                                    <input class="usa-radio__input" id="filter-spatial-geo" type="radio" name="spatial_filter" value="geospatial"
+                                        {% if spatial_filter == 'geospatial' %}checked{% endif %}>
+                                    <label class="usa-radio__label" for="filter-spatial-geo">Geospatial only</label>
+                                </div>
+                                <div class="usa-radio">
+                                    <input class="usa-radio__input" id="filter-spatial-non-geo" type="radio" name="spatial_filter" value="non-geospatial"
+                                        {% if spatial_filter == 'non-geospatial' %}checked{% endif %}>
+                                    <label class="usa-radio__label" for="filter-spatial-non-geo">Non-geospatial only</label>
                                 </div>
                             </fieldset>
                         </div>
