@@ -21,9 +21,9 @@ jobs:
   sitemap-tasks:
     name: Generate and Verify Sitemap
     runs-on: ubuntu-latest
-    environment: ${{ env.CF_SPACE }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environ || 'development' }}
     env:
-      CF_SPACE: ${{ github.event.inputs.environ || 'development' }}
+      CF_SPACE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environ || 'development' }}
     steps:
       - name: checkout
         uses: actions/checkout@v5

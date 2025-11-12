@@ -1,9 +1,10 @@
 import json
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
+from app.database.opensearch import SearchResult
 from app.models import Dataset
 from tests.conftest import HARVEST_RECORD_ID
 
@@ -276,6 +277,8 @@ def test_index_page_renders(db_client):
     # Check page title
     assert "Catalog - Data.gov" in soup.title.string
 
+    assert soup.find(text="Search Data.gov") is None
+
     # Check search form exists with expected attributes
     main_search_input = soup.find("input", {"id": "search-query", "name": "q"})
     assert main_search_input is not None
@@ -294,8 +297,23 @@ def test_index_page_renders(db_client):
     search_button = search_form.find("button", {"type": "submit"})
     assert search_button is not None
 
-    # Initial load should not render results without a query
-    assert soup.find("div", {"id": "search-results"}) is None
+    # misc dataset checks
+    org_banner = soup.find("div", class_="dataset-org-banner")
+    assert org_banner is not None
+    assert org_banner.text == "Federal"
+
+    # default href is the dataset page if accessURL is null
+    html_resource = soup.find("a", {"data-format": "html"})
+    assert html_resource is not None
+    assert (
+        html_resource["href"]
+        == "/dataset/segal-americorps-education-award-detailed-payments-by-institution-2020"
+    )
+
+    # line arrow up is present and has a hover/title with view count
+    line_arrow = soup.find("i", class_="fa-arrow-trend-up")
+    assert line_arrow is not None
+    assert line_arrow["title"] == "345 views last month"
 
 
 def test_index_search_returns_results(interface_with_dataset, db_client):
@@ -523,18 +541,6 @@ def test_organization_detail_displays_no_datasets_on_search(
     assert len(items) == 0
 
 
-def test_index_page_empty_query_shows_no_results(db_client):
-    """Test that index page with no search query shows no results section."""
-    response = db_client.get("/")
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Should not show results container when no query
-    results_text = soup.find("p", class_="text-base-dark")
-    assert results_text is None
-
-
 def test_index_page_has_filters_sidebar(db_client):
     """Test that the index page contains the filters sidebar."""
     response = db_client.get("/")
@@ -549,6 +555,10 @@ def test_index_page_has_filters_sidebar(db_client):
     # Check sort has relevance option
     relevance_option = soup.find("option", {"value": "relevance"})
     assert relevance_option is not None
+
+    # Check sort has popularity option
+    popularity_option = soup.find("option", {"value": "popularity"})
+    assert popularity_option is not None
 
     # Check for organization type filters
     filter_form = soup.find("form", {"id": "filter-form"})
@@ -592,6 +602,60 @@ def test_index_page_query_parameter_preserved_in_form(db_client):
     sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
     assert sort_input is not None
     assert sort_input.get("value") == "relevance"
+
+
+def test_index_page_popularity_sort_preserved(db_client):
+    """Test that popularity sort selection is preserved between requests."""
+    response = db_client.get("/?q=climate&per_page=10&sort=popularity")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    sort_select = soup.find("select", {"name": "sort", "id": "sort-select"})
+    assert sort_select is not None
+
+    popularity_option = sort_select.find("option", {"value": "popularity"})
+    assert popularity_option is not None
+    assert "selected" in popularity_option.attrs
+
+    hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
+    assert hidden_sort_input is not None
+    assert hidden_sort_input.get("value") == "popularity"
+
+
+def test_index_page_lists_results_without_query(db_client):
+    """Test that datasets render even when no query is provided."""
+    mock_dataset = {
+        "id": "mock-id",
+        "slug": "mock-slug",
+        "dcat": {
+            "title": "Mock Dataset",
+            "description": "Mock description",
+            "distribution": [],
+        },
+        "organization": {
+            "id": "org-id",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+        },
+        "popularity": 42,
+    }
+    mock_result = SearchResult(total=1, results=[mock_dataset], search_after=None)
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = mock_result
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    heading = soup.find("h3", class_="usa-collection__heading")
+    assert heading is not None
+    assert "Mock Dataset" in heading.text
+
+    mock_interface.search_datasets.assert_called_once()
 
 
 def test_index_search_with_query_shows_result_count(interface_with_dataset, db_client):

@@ -54,7 +54,18 @@
                         </li>
                         {% endif %}
                     </ul>
-                    <p class="usa-collection__description">This study used DNA extracted from island marble butterfly (Euchloe ausonides insulanus) meconium, exuviae, and natural mortalities to generate microsatellite loci, ddRAD SNPs, and mitochondrial genomes.</p>
+                    <p class="usa-collection__description">
+                        {{ dataset_meta.get('description', 'No description available.') | truncate(200) }}
+                    </p>
+                    {% set search_score = dataset.get('_score') %}
+                    {% set popularity_value = dataset.get('popularity') %}
+                    {% if search_score is not none or popularity_value is not none %}
+                    <div class="dataset-debug margin-top-1">
+                        <small class="text-base-dark">
+                            DEBUG relevance: {{ '%.4f' % search_score if search_score is not none else 'n/a' }} | popularity: {{ popularity_value if popularity_value is not none else 'n/a' }}
+                        </small>
+                    </div>
+                    {% endif %}
                 </div>
             </li>
             {% endfor %}
@@ -69,10 +80,10 @@
                 <li class="usa-pagination__item usa-pagination__arrow">
                     {% if prev %}
                     <a class="usa-pagination__link usa-pagination__previous-page"
-                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), after=prev) }}"
+                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), after=prev, sort=sort_by) }}"
                         hx-target="#search-results"
                         hx-swap="outerHTML show:.organization-datasets__list:top"
-                        hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true"
+                        hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true&sort={{ sort_by }}"
                         href="#"
                         aria-label="Previous page">
                         <span class="usa-pagination__link-text">Previous</span>
@@ -83,11 +94,10 @@
                 <!-- Next button -->
                 <li class="usa-pagination__item usa-pagination__arrow">
                     <a class="usa-pagination__link usa-pagination__next-page"
-                        hx-get="{{ url_for('main.search',
-                        q=request.args.get('q', ''), after=after, prev=prev) }}"
+                        hx-get="{{ url_for('main.search', q=request.args.get('q', ''), after=after, prev=prev, sort=sort_by) }}"
                         hx-target="#search-results"
                         hx-swap="outerHTML show:.organization-datasets__list:top"
-                        hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true"
+                        hx-push-url="/?q={{request.args.get('q', '')}}&per_page=20&count=true&sort={{ sort_by }}"
                         href="#"
                         aria-label="Next page">
                         <span class="usa-pagination__link-text">Next</span>

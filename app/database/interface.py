@@ -75,6 +75,7 @@ class CatalogDBInterface:
         else:
             search_after = None
 
+        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
             query,
             per_page=per_page,
@@ -82,6 +83,7 @@ class CatalogDBInterface:
             org_types=org_types,
             search_after=search_after,
             spatial_filter=spatial_filter,
+            sort_by=sort_by,
         )
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
@@ -103,6 +105,9 @@ class CatalogDBInterface:
         org_id=None,
         org_types=None,
         spatial_filter=None,
+        after=None,
+        *args,
+        **kwargs,
     ):
         """
         Search datasets that have specific keywords (exact match).
@@ -114,6 +119,12 @@ class CatalogDBInterface:
         org_types: Optional list of organization types to filter by
         spatial_filter: Optional "geospatial" or "non-geospatial" filter
         """
+        if after is not None:
+            search_after = SearchResult.decode_search_after(after)
+        else:
+            search_after = None
+
+        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search_by_keywords(
             keywords=keywords,
             query=query,
@@ -121,6 +132,8 @@ class CatalogDBInterface:
             org_id=org_id,
             org_types=org_types,
             spatial_filter=spatial_filter,
+            search_after=search_after,
+            sort_by=sort_by,
         )
 
     def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
