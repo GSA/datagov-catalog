@@ -1,6 +1,3 @@
-from app.models import Dataset
-
-
 def test_search(interface_with_dataset):
     result = interface_with_dataset.search_datasets("test")
     assert len(result) > 0
