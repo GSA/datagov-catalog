@@ -33,16 +33,6 @@ def test_search_popularity_sort(interface_with_dataset):
 
 def test_search_by_keywords(interface_with_dataset):
     """Test searching datasets by exact keyword match."""
-    # First, we need to add keywords to a dataset
-    dataset = interface_with_dataset.db.query(Dataset).first()
-    dataset.dcat["keyword"] = ["health", "education", "employment"]
-    interface_with_dataset.db.commit()
-
-    # Reindex to OpenSearch
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
-
     # Search by single keyword
     result = interface_with_dataset.search_by_keywords(keywords=["health"])
     assert len(result) > 0
