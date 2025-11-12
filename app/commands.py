@@ -92,7 +92,9 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
                 Dataset.query.paginate(page=i, per_page=per_page), refresh_after=False
             )
 
-        click.echo(f"Indexed page {i}/{total_pages} with {succeeded} successes and {failed} errors.")
+        click.echo(
+            f"Indexed page {i}/{total_pages} with {succeeded} successes and {failed} errors."
+        )
     click.echo("Refreshing index...")
     client._refresh()
     click.echo("Sync was successful")

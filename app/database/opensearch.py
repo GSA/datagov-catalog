@@ -246,9 +246,9 @@ class OpenSearchInterface:
             "identifier": dataset.dcat.get("identifier", ""),
             "has_spatial": has_spatial,
             "organization": dataset.organization.to_dict(),
-            "popularity": dataset.popularity
-            if dataset.popularity is not None
-            else None,
+            "popularity": (
+                dataset.popularity if dataset.popularity is not None else None
+            ),
         }
 
     def _run_with_timeout_retry(
@@ -530,6 +530,8 @@ class OpenSearchInterface:
         org_id=None,
         org_types=None,
         spatial_filter=None,
+        search_after: list = None,
+        sort_by: str = "relevance",
     ) -> SearchResult:
         """
         Search datasets that have specific keywords (exact match).
@@ -577,43 +579,45 @@ class OpenSearchInterface:
         # Build the search body
         if query:
             # If there's a text query, combine with filters
+            base_query: dict[str, Any] = {
+                "multi_match": {
+                    "query": query,
+                    "type": "most_fields",
+                    "fields": [
+                        "title^5",
+                        "description^3",
+                        "publisher^3",
+                        "keyword^2",
+                        "theme",
+                        "identifier",
+                    ],
+                    "operator": "AND",
+                    "zero_terms_query": "all",
+                }
+            }
             search_body = {
                 "query": {
                     "bool": {
-                        "must": [
-                            {
-                                "multi_match": {
-                                    "query": query,
-                                    "type": "most_fields",
-                                    "fields": [
-                                        "title^5",
-                                        "description^3",
-                                        "publisher^3",
-                                        "keyword^2",
-                                        "theme",
-                                        "identifier",
-                                    ],
-                                    "operator": "AND",
-                                    "zero_terms_query": "all",
-                                }
-                            }
-                        ],
+                        "must": [base_query],
                         "filter": filters,
                     }
                 },
-                "sort": [
-                    {"_score": {"order": "desc"}},
-                    {"_id": {"order": "desc"}},
-                ],
-                "size": per_page,
+                "sort": self._build_sort_clause(sort_by),
+                # ask for one more to help with pagination
+                "size": per_page + 1,
             }
         else:
             # No text query, just filter by keywords
             search_body = {
                 "query": {"bool": {"filter": filters}},
-                "sort": [{"_id": {"order": "desc"}}],
-                "size": per_page,
+                "sort": self._build_sort_clause(sort_by),
+                # ask for one more to help with pagination
+                "size": per_page + 1,
             }
 
+        # Add search_after if provided for pagination
+        if search_after is not None:
+            search_body["search_after"] = search_after
+
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        return SearchResult.from_opensearch_result(result_dict)
+        return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)

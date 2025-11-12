@@ -1,8 +1,7 @@
 import pytest
-
-import app.database.opensearch as opensearch_module
 from opensearchpy.exceptions import ConnectionTimeout
 
+import app.database.opensearch as opensearch_module
 from app.database import OpenSearchInterface
 from app.models import Dataset
 

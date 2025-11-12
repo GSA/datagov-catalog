@@ -205,7 +205,7 @@
         <form method="GET" action="{{ url_for('main.index') }}" id="filter-form">
             <input type="hidden" name="q" value="{{ query }}">
             <input type="hidden" name="per_page" value="{{ per_page }}">
-
+            
             <!-- Sort Section -->
             <div class="margin-bottom-4">
                 <label class="usa-label" for="sort-select">Sort by</label>
@@ -215,10 +215,55 @@
                 </select>
             </div>
 
-            <!-- Filters Section -->
-            <div class="usa-accordion usa-accordion--bordered">
+            <!-- Keyword Filter Section -->
+            <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
                 <h3 class="usa-accordion__heading">
-                    <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization">
+                    <button type="button" class="usa-accordion__button" aria-expanded="{{ 'true' if keywords else 'false' }}" aria-controls="filter-keywords">
+                        Keywords
+                    </button>
+                </h3>
+                <div id="filter-keywords" class="usa-accordion__content usa-prose">
+                    <div class="keyword-autocomplete">
+                        <label class="usa-label" for="keyword-input">
+                            Filter by keyword
+                            <span class="usa-hint">Start typing to see suggestions</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="keyword-input" 
+                            class="keyword-autocomplete__input usa-input"
+                            placeholder="Type a keyword..."
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            aria-controls="keyword-suggestions"
+                            aria-expanded="false"
+                        >
+                        <div id="keyword-suggestions" class="keyword-suggestions" role="listbox"></div>
+                        
+                        <!-- Selected keywords chips -->
+                        <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords"></div>
+                        
+                        <!-- Suggested keywords (only shown when no keywords selected) -->
+                        {% if suggeted_keywords and not keywords %}
+                        <div id="suggested-keywords" class="suggested-keywords margin-top-2">
+                            <p class="text-base-dark margin-bottom-1"><strong>Popular keywords:</strong></p>
+                            <div class="suggested-keywords__list">
+                                {% for keyword in suggeted_keywords %}
+                                <button type="button" class="tag-link tag-link--suggested" data-keyword="{{ keyword }}">
+                                    {{ keyword }}
+                                </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organization Type Filter Section -->
+            <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
+                <h3 class="usa-accordion__heading">
+                    <button type="button" class="usa-accordion__button" aria-expanded="{{ 'true' if org_types else 'false' }}" aria-controls="filter-organization">
                         Organization Type
                     </button>
                 </h3>
@@ -263,10 +308,43 @@
                 </div>
             </div>
 
+            <!-- Spatial Data Filter Section -->
+            <div class="usa-accordion usa-accordion--bordered">
+                <h3 class="usa-accordion__heading">
+                    <button type="button" class="usa-accordion__button" aria-expanded="false" aria-controls="filter-spatial">
+                        Spatial Data
+                    </button>
+                </h3>
+                <div id="filter-spatial" class="usa-accordion__content usa-prose">
+                    <fieldset class="usa-fieldset">
+                        <div class="usa-radio">
+                            <input class="usa-radio__input" id="filter-spatial-all" type="radio" name="spatial_filter" value=""
+                                {% if not spatial_filter %}checked{% endif %}>
+                            <label class="usa-radio__label" for="filter-spatial-all">All datasets</label>
+                        </div>
+                        <div class="usa-radio">
+                            <input class="usa-radio__input" id="filter-spatial-geo" type="radio" name="spatial_filter" value="geospatial"
+                                {% if spatial_filter == 'geospatial' %}checked{% endif %}>
+                            <label class="usa-radio__label" for="filter-spatial-geo">Geospatial only</label>
+                        </div>
+                        <div class="usa-radio">
+                            <input class="usa-radio__input" id="filter-spatial-non-geo" type="radio" name="spatial_filter" value="non-geospatial"
+                                {% if spatial_filter == 'non-geospatial' %}checked{% endif %}>
+                            <label class="usa-radio__label" for="filter-spatial-non-geo">Non-geospatial only</label>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+
             <button type="submit" class="usa-button usa-button--outline width-full margin-top-2">
                 Apply Filters
             </button>
         </form>
     </aside>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/keyword_autocomplete.js') }}"></script>
 {% endblock %}

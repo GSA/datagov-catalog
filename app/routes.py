@@ -131,30 +131,28 @@ def index():
     total_pages = 1
     suggeted_keywords = []
 
-
     try:
-    # Search if there's a query OR keywords selected
-        if query or keywords:
-            if keywords:
-                # Use keyword-based search when keywords are selected
-                result = interface.search_by_keywords(
-                    keywords=keywords,
-                    query=query,
-                    per_page=per_page,
-                    org_types=org_types,
-                    spatial_filter=spatial_filter,
-                )
-            else:
-                # Use regular text search when no keywords
-                result = interface.search_datasets(
-                    query,
-                    page=page,
-                    per_page=per_page,
-                    org_id=org_id,
-                    org_types=org_types,
-                    sort_by=sort_by,
-                    spatial_filter=spatial_filter,
-                )
+        # Search if there's a query OR keywords selected
+        if keywords:
+            # Use keyword-based search when keywords are selected
+            result = interface.search_by_keywords(
+                keywords=keywords,
+                query=query,
+                per_page=per_page,
+                org_types=org_types,
+                spatial_filter=spatial_filter,
+            )
+        else:
+            # Use regular text search when no keywords
+            result = interface.search_datasets(
+                query,
+                page=page,
+                per_page=per_page,
+                org_id=org_id,
+                org_types=org_types,
+                sort_by=sort_by,
+                spatial_filter=spatial_filter,
+            )
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})
     else:
@@ -205,7 +203,7 @@ def search():
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
-        
+
     result = interface.search_datasets(
         query,
         per_page=per_page,

@@ -1,3 +1,6 @@
+from app.models import Dataset
+
+
 def test_search(interface_with_dataset):
     result = interface_with_dataset.search_datasets("test")
     assert len(result) > 0
@@ -26,3 +29,32 @@ def test_search_popularity_sort(interface_with_dataset):
     """Search returns results when using the popularity sort."""
     result = interface_with_dataset.search_datasets("test", sort_by="popularity")
     assert len(result) > 0
+
+
+def test_search_by_keywords(interface_with_dataset):
+    """Test searching datasets by exact keyword match."""
+    # First, we need to add keywords to a dataset
+    dataset = interface_with_dataset.db.query(Dataset).first()
+    dataset.dcat["keyword"] = ["health", "education", "employment"]
+    interface_with_dataset.db.commit()
+
+    # Reindex to OpenSearch
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    # Search by single keyword
+    result = interface_with_dataset.search_by_keywords(keywords=["health"])
+    assert len(result) > 0
+    assert any(
+        "health" in dataset.get("dcat", {}).get("keyword", [])
+        for dataset in result.results
+    )
+
+    # Search by multiple keywords
+    result = interface_with_dataset.search_by_keywords(keywords=["health", "education"])
+    assert len(result) > 0
+
+    # Search by non-existent keyword
+    result = interface_with_dataset.search_by_keywords(keywords=["nonexistent"])
+    assert len(result) == 0
