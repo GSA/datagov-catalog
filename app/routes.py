@@ -165,8 +165,12 @@ def index():
         total_pages = max(ceil(total / per_page), 1) if per_page else 1
 
     if not keywords:
-        suggeted_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
-        suggeted_keywords = [keyword["keyword"] for keyword in suggeted_keywords]
+        try:
+            suggeted_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
+            if suggeted_keywords:
+                suggeted_keywords = [keyword["keyword"] for keyword in suggeted_keywords]
+        except Exception:
+            logger.exception("Failed to fetch suggested keywords")
 
     return render_template(
         "index.html",
