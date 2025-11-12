@@ -1027,3 +1027,64 @@ class TestKeywordSearch:
         no_results_alert = soup.find("p", class_="usa-alert__text").text
         assert no_results_alert is not None
         assert "No datasets found" in no_results_alert.text
+
+class TestGeospatialSearch:
+    """Test geospatial search functionality on index page."""
+
+    def test_geospatial_filter_shows_only_spatial_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """Test that geospatial filter returns only datasets with spatial data."""
+        # Add spatial data to test dataset
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat["spatial"] = "-90.155,27.155,-90.26,27.255"
+        interface_with_dataset.db.commit()
+
+        # Index datasets in OpenSearch
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?spatial_filter=geospatial")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check that geospatial radio button is selected
+        geo_radio = soup.find("input", {"id": "filter-spatial-geo"})
+        assert geo_radio is not None
+        assert "checked" in geo_radio.attrs
+
+        # Verify results are displayed
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
+
+    def test_non_geospatial_filter_shows_only_non_spatial_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """Test that non-geospatial filter returns only datasets without spatial data."""
+        # Ensure test dataset has no spatial data
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat.pop("spatial", None)
+        interface_with_dataset.db.commit()
+
+        # Index datasets in OpenSearch
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?spatial_filter=non-geospatial")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check that non-geospatial radio button is selected
+        non_geo_radio = soup.find("input", {"id": "filter-spatial-non-geo"})
+        assert non_geo_radio is not None
+        assert "checked" in non_geo_radio.attrs
+
+        # Verify results are displayed
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
