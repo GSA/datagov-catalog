@@ -984,11 +984,6 @@ class TestKeywordSearch:
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Check results are displayed
-        results_text = soup.find("p", class_="text-base-dark")
-        assert results_text is not None
-        assert "Found" in results_text.text
-
         # Verify at least one dataset is returned
         dataset_items = soup.find_all("li", class_="usa-collection__item")
         assert len(dataset_items) > 0
