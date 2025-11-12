@@ -63,3 +63,22 @@ jobs:
 
       - name: Run Pytest
         run: make test-ci
+
+  deploy-development:
+    name: deploy to development space
+    if: github.ref == 'refs/heads/develop'
+    environment: development
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+      - name: Deploy via composite action
+        uses: ./.github/actions/deploy
+        with:
+          cf_space: development
+          python-version: ${{ env.PY_VERSION }}
+          poetry-version: ${{ env.POETRY_VERSION }}
+          cf_username: ${{ secrets.CF_SERVICE_USER }}
+          cf_password: ${{ secrets.CF_SERVICE_AUTH }}
+          smoke-url: https://datagov-catalog-dev.app.cloud.gov/
+          smoke-path: /
