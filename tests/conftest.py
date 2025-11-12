@@ -162,7 +162,7 @@ def interface_with_dataset(interface_with_harvest_record):
                         "mediaType": "text/csv",
                     }
                 ],
-                "keywords": ["health", "education", "employment", "test"],
+                "keyword": ["health", "education", "employment", "test"],
             },
             harvest_record_id=HARVEST_RECORD_ID,
             harvest_source_id="1",
