@@ -966,3 +966,29 @@ def test_dataset_detail_logs_warning_when_spatial_unqualified(
         script.get_text() for script in soup.find_all("script") if not script.get("src")
     ]
     assert any("Map not displayed" in content for content in inline_scripts)
+
+class TestKeywordSearch:
+    """Test keyword search functionality on index page."""
+
+    def test_single_keyword_filter_shows_matching_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """Test filtering by a single keyword returns matching datasets."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?keyword=health")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check results are displayed
+        results_text = soup.find("p", class_="text-base-dark")
+        assert results_text is not None
+        assert "Found" in results_text.text
+
+        # Verify at least one dataset is returned
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0

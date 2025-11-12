@@ -168,7 +168,9 @@ def index():
         try:
             suggeted_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
             if suggeted_keywords:
-                suggeted_keywords = [keyword["keyword"] for keyword in suggeted_keywords]
+                suggeted_keywords = [
+                    keyword["keyword"] for keyword in suggeted_keywords
+                ]
         except Exception:
             logger.exception("Failed to fetch suggested keywords")
 
