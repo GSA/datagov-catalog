@@ -987,3 +987,43 @@ class TestKeywordSearch:
         # Verify at least one dataset is returned
         dataset_items = soup.find_all("li", class_="usa-collection__item")
         assert len(dataset_items) > 0
+
+    def test_multiple_keywords_filter_shows_matching_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """Test filtering by multiple keywords returns datasets with all keywords."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?keyword=health&keyword=education")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        results_text = soup.find("p", class_="text-base-dark")
+        assert results_text is not None
+
+        # Verify at least one dataset is returned
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
+
+    def test_nonexistent_keyword_returns_no_results(
+        self, interface_with_dataset, db_client
+    ):
+        """Test that filtering by a non-existent keyword returns no results."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?keyword=nonexistentkeyword")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check for no results message
+        no_results_alert = soup.find("div", class_="usa-alert usa-alert--info")
+        assert no_results_alert is not None
+        assert "No datasets found" in no_results_alert.text
