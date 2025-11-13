@@ -43,10 +43,13 @@ def format_dcat_value(value: Any) -> str:
     return str(value)
 
 
-def format_gov_type(gov_type: str) -> str:
+def format_gov_type(gov_type: str, lower=True) -> str:
     """Format a government type value for display."""
     if gov_type in ORGANIZATION_TYPE_VALUES:
-        return gov_type.split()[0].lower()
+        data = gov_type.split()[0]
+        if lower:
+            return data.lower()
+        return data
     return "unknown"
 
 

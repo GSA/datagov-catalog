@@ -1,0 +1,7 @@
+---
+routes:
+  - route: datagov-catalog-staging.app.cloud.gov
+site_url: https://datagov-catalog-staging.app.cloud.gov
+new_relic_app_name: datagov-catalog-staging
+new_relic_monitor_mode: true
+instances: 1

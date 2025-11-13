@@ -3,20 +3,13 @@
 {% block title %}Catalog - Data.gov{% endblock %}
 
 {% block content %}
-<div class="grid-row">
-    <div class="grid-col-12">
-        <div class="usa-prose text-center margin-bottom-4">
-            <h1>Search Data.gov</h1>
-        </div>
-    </div>
-</div>
 
 <div class="grid-row grid-gap-lg">
     <!-- Main search and results area -->
     <div class="tablet:grid-col-12 desktop:grid-col-9">
         <form method="GET" action="{{ url_for('main.index') }}" class="usa-form">
 
-            <label class="usa-label" for="search-query">Search datasets</label>
+            <label class="usa-label" for="search-query"><b>Search datasets</b></label>
             <div class="grid-row grid-gap-1 flex-align-end">
                 <div class="grid-col-fill">
                     <input class="usa-input margin-0" id="search-query" name="q" type="text"
