@@ -451,5 +451,5 @@ class OpenSearchInterface:
             search_body["search_after"] = search_after
 
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        print("OPENSEARCH:", result_dict)
+        # print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)

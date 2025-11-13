@@ -1,0 +1,7 @@
+---
+routes:
+  - route: catalog-beta.data.gov
+site_url: https://catalog-beta.data.gov
+new_relic_app_name: datagov-catalog-prod
+new_relic_monitor_mode: true
+instances: 2
