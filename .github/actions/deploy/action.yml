@@ -85,7 +85,8 @@ runs:
     - name: Deploy datagov-catalog app
       uses: cloud-gov/cg-cli-tools@main
       with:
-        command: ${{ inputs.command }}
+        command: >-
+          ${{ inputs.command }} --vars-file vars.${{ inputs.cf_space }}.yml
         cf_org: ${{ inputs.cf_org }}
         cf_space: ${{ inputs.cf_space }}
         cf_username: ${{ inputs.cf_username }}
@@ -114,4 +115,3 @@ runs:
         done
         echo "Smoke test FAILED for $url"
         exit 1
-
