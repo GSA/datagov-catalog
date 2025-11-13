@@ -2,8 +2,6 @@
 
 {% block title %}{{ dataset.dcat.get('title') or dataset.slug or dataset.id }} - Data.gov{% endblock %}
 
-{% block container_class %}grid-container-widescreen{% endblock %}
-
 {% block datalayer %}
 <script>
 window.dataLayer = window.dataLayer || [];
@@ -23,6 +21,8 @@ dataLayer.push({
 
 {% block script_head %}
 {% endblock %}
+
+{% block container_class %}grid-container-widescreen{% endblock %}
 
 {% block main_content %}
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
