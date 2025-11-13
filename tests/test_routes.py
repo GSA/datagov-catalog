@@ -291,9 +291,6 @@ def test_index_page_renders(db_client):
     search_input = search_form.find("input", {"id": "search-query", "name": "q"})
     assert search_input is not None
 
-    per_page_input = search_form.find("input", {"type": "hidden", "name": "per_page"})
-    assert per_page_input is not None
-
     search_button = search_form.find("button", {"type": "submit"})
     assert search_button is not None
 
@@ -316,7 +313,7 @@ def test_index_page_renders(db_client):
     assert line_arrow["title"] == "345 views last month"
 
 
-def test_index_search_returns_results(interface_with_dataset, db_client):
+def test_htmx_search_returns_results(interface_with_dataset, db_client):
     """
     Test that searching via HTMX returns HTML results with dataset information.
     """
@@ -324,7 +321,7 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
         # Simulate HTMX request with HX-Request header
         response = db_client.get(
             "/search",
-            query_string={"q": "test", "count": "true", "per_page": "20"},
+            query_string={"q": "test", "per_page": "20"},
             headers={"HX-Request": "true"},
         )
 
@@ -332,21 +329,8 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
 
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Check that search results container is returned
-    results_container = soup.find("div", {"id": "search-results"})
-    assert results_container is not None
-
-    # Check that results count is displayed
-    results_text = soup.find("p", class_="text-base-dark")
-    assert results_text is not None
-    assert "Found" in results_text.text
-    assert "datasets" in results_text.text
-
-    # Check that dataset is in the results
-    dataset_collection = soup.find("ul", class_="usa-collection")
-    assert dataset_collection is not None
-
-    dataset_items = dataset_collection.find_all("li", class_="usa-collection__item")
+    # result contains list items
+    dataset_items = soup.find_all("li", class_="usa-collection__item")
     assert len(dataset_items) > 0
 
     # Check first dataset has expected elements
@@ -358,51 +342,6 @@ def test_index_search_returns_results(interface_with_dataset, db_client):
     # Check dataset has description
     dataset_description = first_dataset.find("p", class_="usa-collection__description")
     assert dataset_description is not None
-
-
-def test_index_search_with_pagination(interface_with_dataset, db_client):
-    """
-    Test that search results with pagination render correctly via HTMX.
-    Creates multiple datasets to trigger pagination display.
-    """
-    # Create multiple datasets to ensure pagination appears
-    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
-    for i in range(25):  # Create enough for multiple pages
-        dataset_dict["id"] = str(i)
-        dataset_dict["slug"] = f"test-{i}"
-        dataset_dict["dcat"]["title"] = f"Test Dataset {i}"
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
-    # attempt commit
-    interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
-
-    with patch("app.routes.interface", interface_with_dataset):
-        # Request page 1 with 20 items per page
-        response = db_client.get(
-            "/search",
-            query_string={"q": "Test", "per_page": "20"},
-            headers={"HX-Request": "true"},
-        )
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Check pagination exists
-    pagination = soup.find("nav", class_="usa-pagination")
-    assert pagination is not None
-
-    # Check pagination has page numbers
-    pagination_list = pagination.find("ul", class_="usa-pagination__list")
-    assert pagination_list is not None
-
-    # Check for Next button and ensure htmx attrs are there
-    next_button = pagination.find("a", class_="usa-pagination__next-page")
-    assert next_button is not None
-    assert "hx-get" in next_button.attrs
-    assert "hx-target" in next_button.attrs
 
 
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
@@ -584,7 +523,7 @@ def test_index_page_has_filters_sidebar(db_client):
 
 def test_index_page_query_parameter_preserved_in_form(db_client):
     """Test that query parameters are preserved in the search form."""
-    response = db_client.get("/?q=climate&per_page=10&sort=relevance")
+    response = db_client.get("/?q=climate&sort=relevance")
     assert response.status_code == 200
 
     soup = BeautifulSoup(response.text, "html.parser")
@@ -593,11 +532,6 @@ def test_index_page_query_parameter_preserved_in_form(db_client):
     search_input = soup.find("input", {"name": "q"})
     assert search_input is not None
     assert search_input.get("value") == "climate"
-
-    # Check hidden inputs preserve other parameters
-    per_page_input = soup.find("input", {"name": "per_page", "type": "hidden"})
-    assert per_page_input is not None
-    assert per_page_input.get("value") == "10"
 
     sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
     assert sort_input is not None
@@ -722,18 +656,36 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
     interface_with_dataset.db.commit()
 
     with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/?q=test&per_page=10&sort=relevance")
+        response = db_client.get("/?q=test&sort=relevance")
 
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
 
     # Check that pagination links preserve parameters
-    next_link = soup.find("a", class_="usa-pagination__next-page")
+    next_link = soup.find("button", class_="usa-button", string="Show more results")
     if next_link:
-        href = next_link.get("href")
+        href = next_link.get("hx-get")
         assert "q=test" in href
-        assert "per_page=10" in href
+        assert "per_page=50" in href
         assert "sort=relevance" in href
+
+
+def test_index_search_results_arg(interface_with_dataset, db_client):
+    """Results controls how many results show up on the page."""
+    # Create multiple datasets for pagination
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(25):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=test&results=7")
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    dataset_items = soup.find_all("li", class_="usa-collection__item")
+    assert len(dataset_items) == 7
 
 
 def test_index_filter_checkboxes_checked_when_selected(db_client):

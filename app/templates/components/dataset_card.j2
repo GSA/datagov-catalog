@@ -1,0 +1,75 @@
+{% macro dataset_card(dataset) -%}
+{% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
+{% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
+{% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
+{% set last_harvested = dataset.get('last_harvested_date') %}
+{% set updated_display = dataset_meta.get('modified') %}
+{% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') if last_harvested else None %}
+{% set view_count = dataset.get('popularity') %}
+
+<li class="usa-collection__item organization-datasets__item">
+  <div class="organization-datasets__body">
+    <div class="dataset-org-banner organization-datasets__body--{{ dataset.organization.organization_type | format_gov_type }}">{{ dataset.organization.organization_type | format_gov_type(lower=false) }}</div>
+      <div class="dataset-content">
+          <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">
+              <h3 class="usa-collection__heading margin-0">
+                  <a class="usa-link"
+                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                      {{ dataset_title }}
+                  </a>
+                  <i class="fa-solid fa-arrow-trend-up" title="{{ view_count | string + ' views last month' if view_count is not none else 'Not available' }}"></i>
+              </h3>
+          </div>
+          <ul class="usa-collection__meta">
+              <li class="usa-collection__meta-item">
+                  <strong>Organization:</strong>
+                  <a class="usa-link"
+                      href="{{ url_for('main.organization_detail', slug=dataset.organization.slug) }}">
+                      {{ dataset.organization.name }}
+                  </a>
+              </li>
+              {% if updated_display or harvested_display %}
+              <li class="usa-collection__meta-item">
+                  {% if updated_display %}
+                  <strong>Updated:</strong> {{ updated_display or 'Not available' }}
+                  {% endif %}
+                  {% if harvested_display %}
+                  <span class="margin-left-1">|</span>
+                  <strong>Harvested:</strong> {{ harvested_display }}
+                  {% endif %}
+              </li>
+              {% endif %}
+          </ul>
+          <p class="usa-collection__description">
+              {{ dataset_meta.get('description', 'No description available.') | truncate(200) }}
+          </p>
+          {% if dataset.dcat.distribution %}
+          <ul class="dataset-resources unstyled">
+              {% for resource in dataset.dcat.distribution[:6] %}
+              <li>
+                  <a href="{{ resource.accessURL or url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}" class="label label-default text-uppercase" data-format="{{ resource.format | default('HTML') | lower }}" data-organization="{{ dataset.organization.name }}">{{ resource.format | default('HTML') | lower }}</a>
+              </li>
+              {% endfor %}
+              {% if dataset.dcat.distribution|length > 6 %}
+              <li class="text-base-light">
+                  <a class="usa-link"
+                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                      +{{ dataset.dcat.distribution|length - 6 }} more
+                  </a>
+              </li>
+              {% endif %}
+          </ul>
+          {% endif %}
+          {% set search_score = dataset.get('_score') %}
+          {% set popularity_value = dataset.get('popularity') %}
+          {% if search_score is not none or popularity_value is not none %}
+          <div class="dataset-debug margin-top-1">
+              <small class="text-base-dark">
+                  DEBUG relevance: {{ '%.4f' % search_score if search_score is not none else 'n/a' }} | popularity: {{ popularity_value if popularity_value is not none else 'n/a' }}
+              </small>
+          </div>
+          {% endif %}
+      </div>
+  </div>
+</li>
+{% endmacro -%}

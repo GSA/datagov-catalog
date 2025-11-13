@@ -18,7 +18,7 @@ from flask import (
 )
 
 from . import htmx
-from .database import DEFAULT_PAGE, DEFAULT_PER_PAGE, CatalogDBInterface
+from .database import DEFAULT_PER_PAGE, CatalogDBInterface
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -114,25 +114,34 @@ def sitemap_chunk(index: int) -> Response:
 # Routes
 @main.route("/", methods=["GET"])
 def index():
+    """Home page is also the search results page.
+
+    This page always loads the first results from the search. The number of
+    results is specified by the `results` query parameter. HTMX on the page
+    allows adding more results onto the page by using paging in the `/search`
+    API in the background.
+
+    """
     query = request.args.get("q", "")
-    page = request.args.get("page", DEFAULT_PAGE, type=int)
-    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    num_results = request.args.get("results", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
 
+    # there's a limit on how many results can be requested
+    num_results = min(num_results, 9999)
+
     # Initialize empty results
     datasets: list[dict] = []
+    result = None
     total = 0
-    total_pages = 1
 
     try:
         result = interface.search_datasets(
             query,
-            page=page,
-            per_page=per_page,
+            per_page=num_results,
             org_id=org_id,
             org_types=org_types,
             sort_by=sort_by,
@@ -140,22 +149,26 @@ def index():
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})
     else:
+
+        # Get total number of results for this search
         total = result.total
 
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]
 
-        total_pages = max(ceil(total / per_page), 1) if per_page else 1
+    if result is not None:
+        after = result.search_after_obscured()
+    else:
+        after = None
 
     return render_template(
         "index.html",
         query=query,
+        results_hint=num_results,
+        per_page=DEFAULT_PER_PAGE,
+        after=after,
         datasets=datasets,
-        page=page,
-        per_page=per_page,
         total=total,
-        total_pages=total_pages,
-        page_sequence=build_page_sequence(page, total_pages),
         org_id=org_id,
         org_types=org_types,
         sort_by=sort_by,
@@ -171,6 +184,7 @@ def search():
     # missing query parameter searches for everything
     query = request.args.get("q", "")
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    results_hint = request.args.get("results", 0, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     after = request.args.get("after")
@@ -187,13 +201,13 @@ def search():
     )
 
     if htmx:
-        total = result.total
         results = [build_dataset_dict(each) for each in result.results]
-        # TODO: Fix pagination to work with OpenSearch
         return render_template(
             "components/dataset_results.html",
+            query=query,
             datasets=results,
-            total=total,
+            per_page=per_page,
+            results_hint=results_hint,
             after=result.search_after_obscured(),
             sort_by=sort_by,
         )
