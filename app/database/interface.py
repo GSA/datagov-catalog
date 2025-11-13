@@ -127,8 +127,25 @@ class CatalogDBInterface:
             .order_by(HarvestRecord.id.asc())
         )
 
-    def _organization_query(self, search: str | None = None):
+    def _organization_query(
+        self, search: str | None = None, ignore_empty_orgs: bool = False
+    ):
+        """
+        query organizations based on [search].
+
+        ignore_empty_orgs
+            omit organizations which have 0 datasets
+        """
         query = self.db.query(Organization)
+
+        if ignore_empty_orgs:
+            query = (
+                self.db.query(Organization)
+                .outerjoin(Organization.datasets)
+                .group_by(Organization.id)
+                .having(func.count(Dataset.id) > 0)
+            )
+
         if search:
             like_pattern = f"%{search}%"
             query = query.filter(
@@ -141,21 +158,31 @@ class CatalogDBInterface:
         return query.order_by(Organization.name.asc())
 
     @paginate
-    def _organization_paginated(self, search: str | None = None, **kwargs):
-        return self._organization_query(search=search)
+    def _organization_paginated(
+        self, search: str | None = None, ignore_empty_orgs: bool = False, **kwargs
+    ):
+        return self._organization_query(
+            search=search, ignore_empty_orgs=ignore_empty_orgs
+        )
 
     def list_organizations(
         self,
         page: int = 1,
         per_page: int = DEFAULT_PER_PAGE,
         search: str | None = None,
+        ignore_empty_orgs: bool = False,
     ) -> dict[str, Any]:
         page = max(page, 1)
         per_page = max(min(per_page, 100), 1)
-        base_query = self._organization_query(search=search)
+        base_query = self._organization_query(
+            search=search, ignore_empty_orgs=ignore_empty_orgs
+        )
         total = base_query.count()
         items = self._organization_paginated(
-            page=page, per_page=per_page, search=search
+            page=page,
+            per_page=per_page,
+            search=search,
+            ignore_empty_orgs=ignore_empty_orgs,
         )
         total_pages = max(((total + per_page - 1) // per_page), 1)
 
