@@ -5,6 +5,7 @@
 {% set last_harvested = dataset.get('last_harvested_date') %}
 {% set updated_display = dataset_meta.get('modified') %}
 {% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') if last_harvested else None %}
+{% set view_count = dataset.get('popularity') %}
 
 <li class="usa-collection__item organization-datasets__item">
   <div class="organization-datasets__body">
