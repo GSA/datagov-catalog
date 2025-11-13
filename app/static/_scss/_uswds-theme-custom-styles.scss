@@ -29,6 +29,19 @@ i.e.
 @import "components/footer";
 @import "components/header";
 
+.organization-datasets .usa-collection__item {
+  max-width: unset;
+}
+
+form.usa-form label.usa-label {
+  font-size: 1.5rem;
+}
+
+form.usa-form {
+  max-width: unset;
+}
+
+
 ul.menu {
   padding-inline-start: 0;
 
@@ -120,12 +133,10 @@ ul.menu {
 .dataset-tags .usa-tag {
   display: inline-flex;
 }
-
 .organization-datasets__body {
     background: #fff;
     border: 1px solid rgba(15,23,42,.12);
     border-radius: 1rem;
-    padding: 1rem 1.5rem;
     box-shadow: 0 14px 32px rgba(15,23,42,.1);
     position: relative;
     overflow: hidden;
@@ -140,27 +151,43 @@ ul.menu {
     gap: 1rem;
 }
 
+.fa-arrow-trend-up {
+  color: #538200;
+}
+
+.dataset-org-banner {
+  text-align: right;
+  padding-right: 1.0rem;
+  color: white;
+}
+.dataset-content {
+  padding: 1.0rem;
+}
+
 .organization-datasets__body--federal {
-  border-color: #2e75bb;
+  background-color: #71767a;
 }
 .organization-datasets__body--city { 
-  border-color: #c0c0c0;
+  background-color: #e52207;
 }
 .organization-datasets__body--state {
-  border-color: #8e719f;
+  background-color: #e66f0e;
 }
 .organization-datasets__body--county {
-  border-color: #d67a22;
+  background-color: #0076d6;
 }
 .organization-datasets__body--university {
-  border-color: #71769f;
+  background-color: #538200;
 }
 .organization-datasets__body--tribal {
-  border-color: #a45db5;
+  background-color: #8168b3;
 }
-.organization-datasets__body--other {
-  border-color: #7d7d7d;
-} 
+.organization-datasets__body--non-profit {
+  background-color: #1b1b1b;
+}
+.organization-datasets__body--unknown {
+  background-color: #d72d79;
+}
 
 .organization-datasets__label {
     position: absolute;
