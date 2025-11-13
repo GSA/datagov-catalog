@@ -15,6 +15,11 @@ on:
           - development
           - staging
           - prod
+      recreate_index:
+        description: "Recreate OpenSearch index. (For schema changes)"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "0 12 * * *" # Every day around 7 a.m. eastern time
 
@@ -55,7 +60,7 @@ jobs:
         with:
           command: >
             cf run-task datagov-catalog --name "$OPENSEARCH_INSTANCE_NAME"
-            --command "flask search sync"
+            --command "flask search sync ${{ inputs.recreate_index == true && '--recreate-index' || '' }}"
           cf_org: gsa-datagov
           cf_space: ${{ env.CF_SPACE }}
           cf_username: ${{secrets.CF_SERVICE_USER}}
