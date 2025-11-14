@@ -202,6 +202,20 @@ def search():
 
     if htmx:
         results = [build_dataset_dict(each) for each in result.results]
+        if org_id:
+            # specified organization so give org results
+            organization = interface.get_organization_by_id(org_id)
+            return render_template(
+                "components/dataset_results_organization.html",
+                dataset_search_query=query,
+                datasets=results,
+                per_page=per_page,
+                results_hint=results_hint,
+                after=result.search_after_obscured(),
+                selected_sort=sort_by,
+                organization=organization,
+                organization_slug_or_id=organization.slug,
+            )
         return render_template(
             "components/dataset_results.html",
             query=query,
@@ -308,7 +322,7 @@ def get_harvest_record_transformed(record_id: str) -> Response:
     return Response(body, mimetype="application/json")
 
 
-@main.route("/organization", methods=["GET"])
+@main.route("/organization", methods=["GET"], strict_slashes=False)
 def list_organizations():
     page = request.args.get("page", default=1, type=int)
     per_page = request.args.get("per_page", default=20, type=int)
@@ -352,10 +366,9 @@ def organization_detail(slug: str):
                 url_for("main.organization_detail", slug=organization.slug), code=302
             )
 
-    organization_data = interface.to_dict(organization)
-    dataset_search_query = request.args.get( "q", default="", type=str).strip()
+    dataset_search_query = request.args.get("q", default="", type=str).strip()
     num_results = request.args.get("results", default=DEFAULT_PER_PAGE, type=int)
-    sort_by = request.args.get("sort", default="popularity")
+    sort_by = request.args.get("sort", default="relevance")
 
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
@@ -365,18 +378,15 @@ def organization_detail(slug: str):
     )
     after = dataset_result.search_after_obscured()
 
-
-    if organization_data is not None:
-        organization_data["dataset_count"] = dataset_result.total
-
     slug_or_id = organization.slug or slug
 
     return render_template(
         "organization_detail.html",
-        organization=organization_data,
+        organization=organization,
         datasets=dataset_result.results,
+        num_matches=dataset_result.total,
         after=after,
-        per_page=num_results,
+        per_page=DEFAULT_PER_PAGE,
         results_hint=num_results,
         organization_slug_or_id=slug_or_id,
         selected_sort=sort_by,

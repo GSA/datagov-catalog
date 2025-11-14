@@ -54,6 +54,7 @@ class CatalogDBInterface:
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         after=None,
+        sort_by="relevance",
         *args,
         **kwargs,
     ):
@@ -71,7 +72,6 @@ class CatalogDBInterface:
             search_after = SearchResult.decode_search_after(after)
         else:
             search_after = None
-        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
             query,
             per_page=per_page,
@@ -202,7 +202,7 @@ class CatalogDBInterface:
     def list_datasets_for_organization(
         self,
         organization_id: str,
-        sort_by: str | None = None,
+        sort_by: str | None = "relevance",
         dataset_search_query: str = "",
         num_results=DEFAULT_PER_PAGE,
     ) -> SearchResult:
@@ -210,9 +210,12 @@ class CatalogDBInterface:
         if not organization_id:
             return SearchResult.empty()
 
-        return self.search_datasets(dataset_search_query,
-                                    org_id=organization_id, sort_by=sort_by,
-                                    per_page=num_results)
+        return self.search_datasets(
+            dataset_search_query,
+            org_id=organization_id,
+            sort_by=sort_by,
+            per_page=num_results,
+        )
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:

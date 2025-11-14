@@ -240,9 +240,9 @@ class OpenSearchInterface:
             "theme": dataset.dcat.get("theme", []),
             "identifier": dataset.dcat.get("identifier", ""),
             "organization": dataset.organization.to_dict(),
-            "popularity": dataset.popularity
-            if dataset.popularity is not None
-            else None,
+            "popularity": (
+                dataset.popularity if dataset.popularity is not None else None
+            ),
         }
 
     def _run_with_timeout_retry(
@@ -455,6 +455,7 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
+        # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)

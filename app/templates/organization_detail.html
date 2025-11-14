@@ -2,6 +2,8 @@
 
 {% block title %}{{ organization.name }} - Organization - Data.gov{% endblock %}
 
+{% block container_class %}grid-container-widescreen{% endblock %}
+
 {% block content %}
 <section class="organization-detail">
   <nav class="usa-breadcrumb" aria-label="Breadcrumbs">
@@ -23,7 +25,7 @@
   </div>
 
   <div class="grid-row grid-gap-lg margin-top-3">
-    <div class="desktop:grid-col-8">
+    <div class="desktop:grid-col-9">
       <div class="usa-summary-box" role="region" aria-label="Organization summary">
         <div class="usa-summary-box__body">
           <h2 class="usa-summary-box__heading">Organization Overview</h2>
@@ -32,17 +34,17 @@
               <strong>Type:</strong> {{ organization.organization_type or "Not specified" }}
             </li>
             <li class="usa-summary-box__item">
-              <strong>Total datasets:</strong> {{ organization.dataset_count }}
+              <strong>Total datasets:</strong> {{ organization.total_datasets }}
             </li>
           </ul>
         </div>
       </div>
     </div>
 
-    <div class="desktop:grid-col-4">
+    <div class="desktop:grid-col-3">
       <div class="display-flex flex-column flex-align-center flex-justify-center height-full">
         {% if organization.logo %}
-        <img src="{{ organization.logo }}" alt="{{ organization.name }} logo" class="border border-base-lighter radius-md"
+        <img src="{{ organization.logo }}" alt="{{ organization.name }} logo" 
           style="max-width: 160px; max-height: 160px; width: 100%; object-fit: contain;">
         {% else %}
         <div class="usa-alert usa-alert--info width-full">
@@ -62,46 +64,61 @@
   </section>
   {% endif %}
 
-  <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form margin-top-4">
-      <div class="grid-row grid-gap-1 flex-align-end">
-          <div class="grid-col-fill">
-              <label class="usa-sr-only" for="search-query">Search within organization</label>
-              <input class="usa-input margin-0" id="search-query" name="q" type="text" value="{{ dataset_search_query }}"
-                  placeholder="Search datasets..." autofocus>
-          </div>
-          <div class="grid-col-auto">
-              <button type="submit" class="usa-button margin-0">
-                  <i class="fa fa-search" aria-hidden="true"></i>
-                  <span class="margin-left-05">Search</span>
-              </button>
-          </div>
-      </div>
-  </form>
 
   <section class="organization-datasets margin-top-5">
-    <div class="usa-prose">
-      <h2>Datasets ({{ organization.dataset_count }})</h2>
-    </div>
-
     <div class="grid-row grid-gap-lg margin-top-2">
-      <div class="desktop:grid-col-8">
+      <div class="desktop:grid-col-9">
+        <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form margin-top-4">
+            <div class="grid-row grid-gap-1 flex-align-end">
+                <div class="grid-col-fill">
+                    <label class="usa-sr-only" for="search-query">Search within organization</label>
+                    <input class="usa-input margin-0" id="search-query" name="q" type="text" value="{{ dataset_search_query }}"
+                        placeholder="Search datasets..." autofocus>
+                </div>
+                <div class="grid-col-auto">
+                    <button type="submit" class="usa-button margin-0">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <span class="margin-left-05">Search</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+
         {% if datasets %}
+        <div class="usa-prose">
+          {% if dataset_search_query %}
+          <p class="text-base-dark">
+            {% if num_matches < 2 %}
+                Found <strong>{{ num_matches }}</strong> dataset matching "{{ dataset_search_query }}".
+            {% elif num_matches < 10000 %}
+                Found <strong>{{ num_matches }}</strong> datasets matching "{{ dataset_search_query }}".
+            {% else %}
+                Found over <strong>{{ num_matches }}</strong> datasets matching "{{ dataset_search_query }}".
+            {% endif %}
+          </p>
+          {% endif %}
+        </div>
+
         <ul class="usa-collection">
-          {% include 'components/dataset_results.html' %}
+          {% include 'components/dataset_results_organization.html' %}
         </ul>
+        {% else %}
+        <div class="usa-alert usa-alert--info margin-top-3">
+          <div class="usa-alert__body">
+            <p class="usa-alert__text">
+              No datasets found{% if query %} matching "{{ query }}"{% endif %}. Try adjusting your search terms or filters.
+            </p>
+          </div>
+        </div>
         {% endif %}
 
       </div>
 
-      <aside class="desktop:grid-col-4">
-        <div class="usa-card">
-          <div class="usa-card__container">
-            <div class="usa-card__header">
-              <h3 class="usa-card__heading">Display options</h3>
-            </div>
-            <div class="usa-card__body">
+      <aside class="desktop:grid-col-3">
               <form class="usa-form" method="get"
                 action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
+
+                <div class="margin-bottom-4">
                 <label class="usa-label" for="sort-by">Sort by</label>
                 <select class="usa-select" id="sort-by" name="sort">
                   {% set sort_options = { "popularity": "Popularity", "slug": "Title (shhh...it is slug)", "harvested": "Harvested Date",} %}
@@ -109,6 +126,8 @@
                   <option value="{{ value }}" {% if value == selected_sort %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
+                </div>
+
                 <button type="submit" class="usa-button usa-button--outline margin-top-2">
                   Apply
                 </button>
