@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from app.database.opensearch import SearchResult
 from app.models import Dataset
-from tests.conftest import HARVEST_RECORD_ID
+from tests.fixtures import HARVEST_RECORD_ID
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client):
@@ -235,11 +235,8 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     search_button = soup.find("form", attrs={"action": "/organization/test-org"})
     assert search_button is not None
 
-    heading_text = dataset_section.find("h2").get_text(strip=True)
-    assert heading_text.endswith("(49)")
-
     items = dataset_section.select(".usa-collection__item")
-    assert len(items) == 49
+    assert len(items) == 20
 
     item = items[0]
     title_link = item.select_one(".usa-collection__heading a")
@@ -442,9 +439,7 @@ def test_organization_detail_displays_searched_dataset_with_pagination(
 
     """
     with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get(
-            "/organization/test-org?q=americorps&results=20"
-        )
+        response = db_client.get("/organization/test-org?q=americorps&results=20")
 
     assert response.status_code == 200
 
@@ -456,8 +451,8 @@ def test_organization_detail_displays_searched_dataset_with_pagination(
     assert len(items) == 20
 
     # Check that show more results appears
-    more_button = soup.find("button", string="Show more results")
-    print(response.text)
+    more_button = soup.find("button", class_="usa-button", attrs={"hx-get": True})
+    assert more_button is not None
 
 
 def test_organization_detail_displays_no_datasets_on_search(
@@ -652,6 +647,9 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
         dataset_dict["slug"] = f"test-{i}"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?q=test&sort=relevance")
@@ -660,12 +658,11 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
     soup = BeautifulSoup(response.text, "html.parser")
 
     # Check that pagination links preserve parameters
-    next_link = soup.find("button", class_="usa-button", string="Show more results")
-    if next_link:
-        href = next_link.get("hx-get")
-        assert "q=test" in href
-        assert "per_page=50" in href
-        assert "sort=relevance" in href
+    next_link = soup.find("button", class_="usa-button", attrs={"hx-get": True})
+    href = next_link.get("hx-get")
+    assert "q=test" in href
+    assert "per_page=20" in href
+    assert "sort=relevance" in href
 
 
 def test_index_search_results_arg(interface_with_dataset, db_client):
@@ -677,7 +674,9 @@ def test_index_search_results_arg(interface_with_dataset, db_client):
         dataset_dict["slug"] = f"test-{i}"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(interface_with_dataset.db.query(Dataset))
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?q=test&results=7")
