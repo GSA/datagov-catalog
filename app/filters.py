@@ -4,6 +4,7 @@ import json
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, Union
+import re
 
 from flask import url_for
 
@@ -136,6 +137,13 @@ def geometry_to_mapping(value: Any) -> Mapping | None:
     return value
 
 
+def remove_html_tags(text: str) -> str:
+    """
+    removes html tags from [text]
+    """
+    return re.sub(r"<[^>]+>", "", text)
+
+
 __all__ = [
     "usa_icon",
     "format_dcat_value",
@@ -145,4 +153,5 @@ __all__ = [
     "geometry_to_mapping",
     "fa_icon_from_extension",
     "format_contact_point_email",
+    "remove_html_tags",
 ]
