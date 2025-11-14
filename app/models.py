@@ -53,6 +53,10 @@ class Organization(db.Model):
     )
     datasets = db.relationship("Dataset", backref="organization")
 
+    @property
+    def total_datasets(self):
+        return len(self.datasets)
+
 
 class HarvestSource(db.Model):
     __tablename__ = "harvest_source"

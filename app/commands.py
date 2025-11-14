@@ -10,7 +10,7 @@ from flask import Blueprint
 from opensearchpy.exceptions import OpenSearchException
 
 from .database import CatalogDBInterface, OpenSearchInterface
-from .models import Dataset
+from .models import Dataset, HarvestJob, HarvestRecord, HarvestSource, Organization
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -19,8 +19,31 @@ from .sitemap_s3 import (
 
 search = Blueprint("search", __name__)
 sitemap = Blueprint("sitemap", __name__)
+testdata = Blueprint("testdata", __name__)
 
 BASE_URL = os.getenv("SITEMAP_BASE_URL", "http://localhost:8080").rstrip("/")
+
+
+def register_commands(app):
+    app.register_blueprint(search)
+    app.register_blueprint(sitemap)
+    app.register_blueprint(testdata)
+
+
+@testdata.cli.command("load_test_data")
+def load_test_data():
+    from tests.fixtures import fixture_data
+
+    fixture = fixture_data()
+    interface = CatalogDBInterface()
+
+    interface.db.add(Organization(**fixture["organization"]))
+    interface.db.add(HarvestSource(**fixture["harvest_source"]))
+    interface.db.add(HarvestJob(**fixture["harvest_job"]))
+    interface.db.add(HarvestRecord(**fixture["harvest_record"]))
+    for data in fixture["dataset"]:
+        interface.db.add(Dataset(**data))
+    interface.db.commit()
 
 
 @search.cli.command("sync")
@@ -55,15 +78,12 @@ def sync_opensearch(start_page=1, per_page=100):
                 Dataset.query.paginate(page=i, per_page=per_page), refresh_after=False
             )
 
-        click.echo(f"Indexed page {i}/{total_pages} with {succeeded} successes and {failed} errors.")
+        click.echo(
+            f"Indexed page {i}/{total_pages} with {succeeded} successes and {failed} errors."
+        )
     click.echo("Refreshing index...")
     client._refresh()
     click.echo("Sync was successful")
-
-
-def register_commands(app):
-    app.register_blueprint(search)
-    app.register_blueprint(sitemap)
 
 
 # ----------------------

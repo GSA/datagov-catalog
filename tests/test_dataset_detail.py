@@ -1,4 +1,4 @@
-from tests.conftest import DATASET_ID
+from tests.fixtures import DATASET_ID
 
 
 class TestDatasetDetail:
