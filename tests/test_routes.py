@@ -227,6 +227,26 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert default_icon is not None
 
 
+def test_organization_list_search_empty(db_client, interface_with_dataset):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization?q=nonexistentsearchterm")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    cards = soup.select(".organization-list .usa-card")
+    assert not cards  # list is empty
+
+
+def test_organization_list_search_by_alias(db_client, interface_with_dataset):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization?q=aliasonly")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    cards = soup.select(".organization-list .usa-card")
+
+    # one org still appears
+    assert len(cards) == 1
+
+
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization/test-org")
