@@ -77,7 +77,8 @@ def interface(session) -> CatalogDBInterface:
 
 @pytest.fixture
 def interface_with_organization(interface, fixture_data):
-    interface.db.add(Organization(**fixture_data["organization"]))
+    for organization_data in fixture_data["organization"]:
+        interface.db.add(Organization(**organization_data))
     interface.db.commit()
     yield interface
 

@@ -21,12 +21,20 @@ def read_csv(file_path) -> list:
 
 def fixture_data():
     fixture_dict = {
-        "organization": dict(
-            id="1",
-            name="test org",
-            slug="test-org",
-            organization_type="Federal Government",
-        ),
+        "organization": [
+            dict(
+                id="1",
+                name="test org",
+                slug="test-org",
+                organization_type="Federal Government",
+            ),
+            dict(
+                id="2",
+                name="test org filtered",
+                slug="test-org-filtered",
+                organization_type="Federal Government",
+            ),
+        ],
         "harvest_source": dict(
             id="1",
             name="test-source",
