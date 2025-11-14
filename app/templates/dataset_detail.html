@@ -65,7 +65,7 @@ dataLayer.push({
                 <!-- Description -->
                 {% if description_value %}
                 <div class="dataset-description">
-                    {{ description_value | format_dcat_value }}
+                    {{ description_value | remove_html_tags | format_dcat_value }}
                 </div>
                 {% else %}
                 <p class="dataset-description text-base-light">No description available</p>
