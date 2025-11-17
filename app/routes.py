@@ -215,6 +215,7 @@ def search():
     results_hint = request.args.get("results", 0, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
+    keywords = request.args.getlist("keyword")
     after = request.args.get("after")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
 
@@ -222,15 +223,28 @@ def search():
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
 
-    result = interface.search_datasets(
-        query,
-        per_page=per_page,
-        org_id=org_id,
-        org_types=org_types,
-        after=after,
-        spatial_filter=spatial_filter,
-        sort_by=sort_by,
-    )
+    # Use keyword search if keywords are provided
+    if keywords:
+        result = interface.search_by_keywords(
+            keywords=keywords,
+            query=query,
+            per_page=per_page,
+            org_id=org_id,
+            org_types=org_types,
+            spatial_filter=spatial_filter,
+            after=after,
+            sort_by=sort_by,
+        )
+    else:
+        result = interface.search_datasets(
+            query,
+            per_page=per_page,
+            org_id=org_id,
+            org_types=org_types,
+            after=after,
+            spatial_filter=spatial_filter,
+            sort_by=sort_by,
+        )
 
     if htmx:
         results = [build_dataset_dict(each) for each in result.results]
@@ -242,6 +256,10 @@ def search():
             results_hint=results_hint,
             after=result.search_after_obscured(),
             sort_by=sort_by,
+            org_types=org_types,
+            keywords=keywords,
+            org_id=org_id,
+            spatial_filter=spatial_filter,
         )
 
     response_dict = {
@@ -343,11 +361,13 @@ def get_harvest_record_transformed(record_id: str) -> Response:
 @main.route("/organization", methods=["GET"])
 def list_organizations():
     page = request.args.get("page", default=1, type=int)
-    per_page = request.args.get("per_page", default=20, type=int)
+    # default 'per_page' of 24 is chosen to work well with different grid layouts
+    # so on different devices the grid (3x3, 2x2, 1x1) is completely full
+    per_page = request.args.get("per_page", default=24, type=int)
     search_query = request.args.get("q", default="", type=str).strip()
 
     result = interface.list_organizations(
-        page=page, per_page=per_page, search=search_query
+        page=page, per_page=per_page, search=search_query, ignore_empty_orgs=True
     )
 
     total = result["total"]

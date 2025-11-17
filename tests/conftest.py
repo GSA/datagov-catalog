@@ -85,6 +85,7 @@ def interface(session) -> CatalogDBInterface:
 
 @pytest.fixture
 def interface_with_organization(interface):
+    # primary org
     interface.db.add(
         Organization(
             id="1",
@@ -93,6 +94,17 @@ def interface_with_organization(interface):
             organization_type="Federal Government",
         )
     )
+
+    # secondary org to filter on /organization because of no datasets
+    interface.db.add(
+        Organization(
+            id="2",
+            name="test org filtered",
+            slug="test-org-filtered",
+            organization_type="Federal Government",
+        )
+    )
+
     interface.db.commit()
     yield interface
 

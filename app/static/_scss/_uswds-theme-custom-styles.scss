@@ -29,6 +29,29 @@ i.e.
 @import "components/footer";
 @import "components/header";
 
+.default-gov-svg-org-item {
+  width: 100%;
+  height: 100%;
+  background-image: url("../../img/default-org.svg");
+}
+
+.org-detail-logo {
+  max-width: 160px; 
+  max-height: 160px; 
+  width: 100%; 
+  object-fit: contain;
+  background-image: url("../../img/default-org.svg");
+}
+
+.organization-search {
+  width: 66%;
+  padding-left: 0.75rem;
+}
+
+.organization-search-header {
+  padding-left: 0.75rem;
+}
+
 .organization-datasets .usa-collection__item {
   max-width: unset;
 }

@@ -5,12 +5,14 @@ class KeywordAutocomplete {
         this.suggestionsId = options.suggestionsId;
         this.apiEndpoint = options.apiEndpoint || '/api/keywords';
         this.formId = options.formId;
+        this.mainSearchFormId = options.mainSearchFormId;
         this.debounceDelay = options.debounceDelay || 300;
         
         this.input = document.getElementById(this.inputId);
         this.chipsContainer = document.getElementById(this.chipsContainerId);
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
         this.form = document.getElementById(this.formId);
+        this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
         
         this.selectedKeywords = new Set();
         this.allKeywords = [];
@@ -50,6 +52,12 @@ class KeywordAutocomplete {
         // Sync chips to hidden inputs on form submit
         if (this.form) {
             this.form.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+        
+        if (this.mainSearchForm) {
+            this.mainSearchForm.addEventListener('submit', (e) => {
+                this.syncHiddenInputsToMainSearch();
+            });
         }
     }
     
@@ -260,7 +268,7 @@ class KeywordAutocomplete {
     }
     
     syncHiddenInputs() {
-        // Remove existing keyword hidden inputs
+        // Remove existing keyword hidden inputs from filter form
         const existingInputs = this.form.querySelectorAll('input[name="keyword"]');
         existingInputs.forEach(input => input.remove());
         
@@ -271,6 +279,24 @@ class KeywordAutocomplete {
             input.name = 'keyword';
             input.value = keyword;
             this.form.appendChild(input);
+        });
+    }
+
+    // Sync various args to hidden inputs in the main search form
+    syncHiddenInputsToMainSearch() {
+        if (!this.mainSearchForm) return;
+        
+        // Remove existing keyword hidden inputs from main search form
+        const existingInputs = this.mainSearchForm.querySelectorAll('input[name="keyword"][type="hidden"]');
+        existingInputs.forEach(input => input.remove());
+        
+        // Add hidden input for each selected keyword
+        this.selectedKeywords.forEach(keyword => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'keyword';
+            input.value = keyword;
+            this.mainSearchForm.appendChild(input);
         });
     }
     
@@ -288,6 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chipsContainerId: 'keyword-chips',
         suggestionsId: 'keyword-suggestions',
         formId: 'filter-form',
+        mainSearchFormId: 'main-search-form', // NEW: main search form ID
         apiEndpoint: '/api/keywords',
         debounceDelay: 300
     });

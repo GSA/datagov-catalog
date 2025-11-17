@@ -7,7 +7,7 @@
 <div class="grid-row grid-gap-lg">
     <!-- Main search and results area -->
     <div class="tablet:grid-col-12 desktop:grid-col-9">
-        <form method="GET" action="{{ url_for('main.index') }}" class="usa-form">
+        <form method="GET" action="{{ url_for('main.index') }}" class="usa-form" id="main-search-form">
 
             <label class="usa-label" for="search-query"><b>Search datasets</b></label>
             <div class="grid-row grid-gap-1 flex-align-end">
@@ -17,8 +17,14 @@
                     {% for org_type in org_types %}
                     <input type="hidden" name="org_type" value="{{ org_type }}">
                     {% endfor %}
+                    {% for keyword in keywords %}
+                    <input type="hidden" name="keyword" value="{{ keyword }}">
+                    {% endfor %}
                     {% if org_id %}
                     <input type="hidden" name="org_id" value="{{ org_id }}">
+                    {% endif %}
+                    {% if spatial_filter %}
+                    <input type="hidden" name="spatial_filter" value="{{ spatial_filter }}">
                     {% endif %}
                     <input type="hidden" name="sort" value="{{ sort_by }}">
                 </div>
