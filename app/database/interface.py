@@ -152,7 +152,6 @@ class CatalogDBInterface:
                 or_(
                     Organization.name.ilike(like_pattern),
                     Organization.slug.ilike(like_pattern),
-                    Organization.description.ilike(like_pattern),
                     func.array_to_string(Organization.aliases, ",").ilike(like_pattern),
                 )
             )
