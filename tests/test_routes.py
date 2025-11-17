@@ -1057,10 +1057,9 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     for i in range(30):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
-        dataset_dict["dcat"] = {
-            "title": f"test-{i}",
-            "keyword": ["health", "education"],
-        }
+        dataset_dict["dcat"]["title"] = f"test-{i}"
+        dataset_dict["dcat"]["keyword"] =["health", "education"]
+        dataset_dict["dcat"]["spatial"] = "-90.155,27.155,-90.26,27.255"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
 
