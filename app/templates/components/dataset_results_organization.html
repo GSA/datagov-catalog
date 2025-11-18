@@ -1,4 +1,3 @@
-{# templates/components/dataset_results.html #}
 {% import 'components/dataset_card.j2' as dataset_card -%}
 
 {% if datasets %}
@@ -9,10 +8,10 @@
     <div id="replaceMe">
     {% set new_results = results_hint + per_page %}
     <button class="usa-button margin-top-2"
-        hx-get="{{ url_for('main.search', q=query, per_page=per_page, after=after, results=new_results, sort=sort_by) }}"
+        hx-get="{{ url_for('main.search', q=dataset_search_query, org_id=organization.id, per_page=per_page, after=after, results=new_results, sort_by=selected_sort) }}"
         hx-target="#replaceMe"
         hx-swap="outerHTML"
-        hx-push-url="{{ url_for('main.index', q=query, results=new_results) }}"
+        hx-push-url="{{ url_for('main.organization_detail', slug=organization_slug_or_id,  q=dataset_search_query, results=new_results, sort_by=selected_sort) }}"
         hx-trigger="click">
       Show more results
     </button>
