@@ -195,6 +195,7 @@ def search():
     query = request.args.get("q", "")
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     results_hint = request.args.get("results", 0, type=int)
+    from_hint = request.args.get("from_hint")
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     after = request.args.get("after")
@@ -232,6 +233,7 @@ def search():
             datasets=results,
             per_page=per_page,
             results_hint=results_hint,
+            from_hint=from_hint,
             after=result.search_after_obscured(),
             sort_by=sort_by,
         )
