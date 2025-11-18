@@ -7,6 +7,8 @@
 {% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') if last_harvested else None %}
 {% set view_count = dataset.get('popularity') %}
 
+{% autoescape true %}
+
 <li class="usa-collection__item organization-datasets__item margin-0">
   <div class="organization-datasets__body">
     <div class="dataset-org-banner organization-datasets__body--{{ dataset.organization.organization_type | format_gov_type }}">{{ dataset.organization.organization_type | format_gov_type(lower=false) }}</div>
@@ -72,4 +74,5 @@
       </div>
   </div>
 </li>
+{% endautoescape %}
 {% endmacro -%}
