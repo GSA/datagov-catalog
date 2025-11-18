@@ -662,6 +662,9 @@ def test_index_search_result_includes_dataset_link(interface_with_dataset, db_cl
     dataset_link = first_item.find("a", href=lambda href: href and "/dataset/" in href)
     assert dataset_link is not None
 
+    # dataset link should include a from_hint
+    assert "from_hint=" in dataset_link.get("href")
+
 
 def test_index_pagination_preserves_query_params(interface_with_dataset, db_client):
     """Test that pagination links preserve query and filter parameters."""

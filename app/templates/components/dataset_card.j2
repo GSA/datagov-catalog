@@ -1,4 +1,4 @@
-{% macro dataset_card(dataset) -%}
+{% macro dataset_card(dataset, from_hint='') -%}
 {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
 {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
 {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
@@ -14,7 +14,12 @@
           <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">
               <h3 class="usa-collection__heading margin-0">
                   <a class="usa-link"
+                      {% if from_hint %}
+                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier, from_hint=from_hint) }}">
+                      {% else %}
                       href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                      {% endif %}
+
                       {{ dataset_title }}
                   </a>
                   <i class="fa-solid fa-arrow-trend-up" title="{{ view_count | string + ' views last month' if view_count is not none else 'Not available' }}"></i>

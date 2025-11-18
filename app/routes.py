@@ -24,7 +24,13 @@ from .sitemap_s3 import (
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
-from .utils import build_dataset_dict, json_not_found, valid_id_required
+from .utils import (
+    build_dataset_dict,
+    dict_from_hint,
+    hint_from_dict,
+    json_not_found,
+    valid_id_required,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +167,9 @@ def index():
     else:
         after = None
 
+    # construct a from-string for this search to go into the dataset links
+    from_hint = hint_from_dict(request.args)
+
     return render_template(
         "index.html",
         query=query,
@@ -172,6 +181,7 @@ def index():
         org_id=org_id,
         org_types=org_types,
         sort_by=sort_by,
+        from_hint=from_hint,
     )
 
 
@@ -410,10 +420,15 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
 
+    # Use from_hint to construct an arguments dict
+    from_hint = request.args.get("from_hint")
+    from_dict = dict_from_hint(from_hint)
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
         organization=org,
+        from_dict=from_dict,
     )
 
 

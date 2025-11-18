@@ -3,7 +3,11 @@
 
 {% if datasets %}
   {% for dataset in datasets %}
-    {{ dataset_card.dataset_card(dataset) }}
+    {% if from_hint %}
+      {{ dataset_card.dataset_card(dataset, from_hint) }}
+    {% else %}
+      {{ dataset_card.dataset_card(dataset, from_hint) }}
+    {% endif %}
   {% endfor %}
     {% if after %}
     <div id="replaceMe">
