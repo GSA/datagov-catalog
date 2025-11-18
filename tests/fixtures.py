@@ -27,6 +27,7 @@ def fixture_data():
                 name="test org",
                 slug="test-org",
                 organization_type="Federal Government",
+                aliases=["aliasonly"],
             ),
             dict(
                 id="2",

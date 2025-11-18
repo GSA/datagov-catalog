@@ -37,7 +37,8 @@ def load_test_data():
     fixture = fixture_data()
     interface = CatalogDBInterface()
 
-    interface.db.add(Organization(**fixture["organization"]))
+    for organization_data in fixture["organization"]:
+        interface.db.add(Organization(**organization_data))
     interface.db.add(HarvestSource(**fixture["harvest_source"]))
     interface.db.add(HarvestJob(**fixture["harvest_job"]))
     interface.db.add(HarvestRecord(**fixture["harvest_record"]))
