@@ -2,6 +2,8 @@
 
 {% block title %}{{ organization.name }} - Organization - Data.gov{% endblock %}
 
+{% block container_class %}grid-container-widescreen{% endblock %}
+
 {% block content %}
 <section class="organization-detail">
   <nav class="usa-breadcrumb" aria-label="Breadcrumbs">
@@ -23,7 +25,7 @@
   </div>
 
   <div class="grid-row grid-gap-lg margin-top-3">
-    <div class="desktop:grid-col-8">
+    <div class="desktop:grid-col-9 tablet:grid-col">
       <div class="usa-summary-box" role="region" aria-label="Organization summary">
         <div class="usa-summary-box__body">
           <h2 class="usa-summary-box__heading">Organization Overview</h2>
@@ -32,17 +34,17 @@
               <strong>Type:</strong> {{ organization.organization_type or "Not specified" }}
             </li>
             <li class="usa-summary-box__item">
-              <strong>Total datasets:</strong> {{ organization.dataset_count }}
+              <strong>Total datasets:</strong> {{ organization.total_datasets }}
             </li>
           </ul>
         </div>
       </div>
     </div>
 
-    <div class="desktop:grid-col-4">
+    <div class="desktop:grid-col-3 tablet:grid-col">
       <div class="display-flex flex-column flex-align-center flex-justify-center height-full">
         {% if organization.logo %}
-        <img src="{{ organization.logo }}" alt="{{ organization.name }} logo" class="border border-base-lighter radius-md org-detail-logo">
+        <img src="{{ organization.logo }}" alt="{{ organization.name }} logo" class="org-detail-logo">
         {% else %}
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" class="org-detail-logo">->
           <path d="M320 64C302.3 64 288 78.3 288 96C288 96.9 288 97.8 288.1 98.6C207.6 112 144.1 175.5 130.6 256L128 256C110.3 256 96 270.3 96 288C96 305.7 110.3 320 128 320L128 480L76.8 518.4C68.7 524.4 64 533.9 64 544C64 561.7 78.3 576 96 576L544 576C561.7 576 576 561.7 576 544C576 533.9 571.3 524.4 563.2 518.4L512 480L512 320C529.7 320 544 305.7 544 288C544 270.3 529.7 256 512 256L509.3 256C495.8 175.6 432.3 112.1 351.8 98.6C351.9 97.7 351.9 96.9 351.9 96C351.9 78.3 337.6 64 319.9 64zM400 320L464 320L464 480L400 480L400 320zM288 480L288 320L352 320L352 480L288 480zM176 320L240 320L240 480L176 480L176 320z"></path></svg>
@@ -58,144 +60,70 @@
   </section>
   {% endif %}
 
-  <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form margin-top-4">
-      <div class="grid-row grid-gap-1 flex-align-end">
-          <div class="grid-col-fill">
-              <label class="usa-sr-only" for="search-query">Search within organization</label>
-              <input class="usa-input margin-0" id="search-query" name="dataset_search_terms" type="text" value="{{ dataset_search_terms }}"
-                  placeholder="Search datasets..." autofocus>
-          </div>
-          <div class="grid-col-auto">
-              <button type="submit" class="usa-button margin-0">
-                  <i class="fa fa-search" aria-hidden="true"></i>
-                  <span class="margin-left-05">Search</span>
-              </button>
-          </div>
-      </div>
-  </form>
 
   <section class="organization-datasets margin-top-5">
-    <div class="usa-prose">
-      <h2>Datasets ({{ organization.dataset_count }})</h2>
-    </div>
-
     <div class="grid-row grid-gap-lg margin-top-2">
-      <div class="desktop:grid-col-8">
-        {% if datasets %}
-        <ul class="usa-collection">
-          {% for dataset in datasets %}
-          {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
-          {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
-          {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
-          {% set description_string = (dataset_meta.get('description') or '') | string %}
-          {% set truncated_description = description_string | trim | truncate(300, False, '…') %}
-          {% set updated_display = dataset_meta.get('modified') %}
-          {% set harvested_display = None %}
-          {% set last_harvested = dataset.get('last_harvested_date') %}
-          {% set view_count = dataset.get('popularity') %}
-          {% if last_harvested %}
-          {% set harvested_display = last_harvested.strftime('%B %d, %Y at %I:%M %p') %}
-          {% if not updated_display %}
-          {% set updated_display = harvested_display %}
-          {% endif %}
-          {% endif %}
-          <li class="usa-collection__item">
-            <div class="usa-collection__body">
-              <h3 class="usa-collection__heading">
-                <a class="usa-link" href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
-                  {{ dataset_title }}
-                </a>
-                <i class="fa-solid fa-arrow-trend-up" title="{{ view_count | string + ' views last month' if view_count is not none else 'Not available' }}"></i>
-              </h3>
-              <ul class="usa-collection__meta">
-                <li class="usa-collection__meta-item">
-                  <strong>Organization:</strong>
-                  <a class="usa-link" href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
-                    {{ organization.name }}
-                  </a>
-                </li>
-                <li class="usa-collection__meta-item">
-                  <strong>Updated:</strong> {{ updated_display or 'Not available' }}
-                  {% if harvested_display %}
-                  <span class="margin-left-1">|</span>
-                  <strong>Harvested:</strong> {{ harvested_display }}
-                  {% endif %}
-                </li>
-              </ul>
-              <p class="usa-collection__description">{{ truncated_description }}</p>
+      <div class="desktop:grid-col-9">
+        <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form margin-top-4">
+            <div class="grid-row grid-gap-1 flex-align-end">
+                <div class="grid-col-fill">
+                    <label class="usa-sr-only" for="search-query">Search within organization</label>
+                    <input class="usa-input margin-0" id="search-query" name="q" type="text" value="{{ dataset_search_query }}"
+                        placeholder="Search datasets..." autofocus>
+                </div>
+                <div class="grid-col-auto">
+                    <button type="submit" class="usa-button margin-0">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <span class="margin-left-05">Search</span>
+                    </button>
+                </div>
             </div>
-          </li>
-          {% endfor %}
-        </ul>
+        </form>
 
-        {% if dataset_pagination.total_pages > 1 %}
-        <nav class="usa-pagination margin-top-4" aria-label="Datasets pagination">
-          <ul class="usa-pagination__list">
-            {% set page = dataset_pagination.page %}
-            {% set total_pages = dataset_pagination.total_pages %}
-
-            <li class="usa-pagination__item usa-pagination__arrow">
-              {% if page > 1 %}
-              <a class="usa-pagination__link usa-pagination__previous-page"
-                href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page-1, dataset_per_page=dataset_pagination.per_page, sort=selected_sort) }}"
-                aria-label="Previous page">
-                <span class="usa-pagination__link-text">Previous</span>
-              </a>
-              {% endif %}
-            </li>
-
-            {% for number in dataset_pagination.page_sequence %}
-            {% if number is none %}
-            <li class="usa-pagination__item usa-pagination__overflow" aria-hidden="true"><span>…</span></li>
-            {% elif number == page %}
-            <li class="usa-pagination__item usa-pagination__page-no">
-              <span class="usa-pagination__button usa-current" aria-current="page">{{ number }}</span>
-            </li>
+        {% if datasets %}
+        <div class="usa-prose">
+          {% if dataset_search_query %}
+          <p class="text-base-dark">
+            {% if num_matches < 2 %}
+                Found <strong>{{ num_matches }}</strong> dataset matching "{{ dataset_search_query }}".
+            {% elif num_matches < 10000 %}
+                Found <strong>{{ num_matches }}</strong> datasets matching "{{ dataset_search_query }}".
             {% else %}
-            <li class="usa-pagination__item usa-pagination__page-no">
-              <a class="usa-pagination__button"
-                href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=number, dataset_per_page=dataset_pagination.per_page, sort=selected_sort) }}">{{ number }}</a>
-            </li>
+                Found over <strong>{{ num_matches }}</strong> datasets matching "{{ dataset_search_query }}".
             {% endif %}
-            {% endfor %}
+          </p>
+          {% endif %}
+        </div>
 
-            <li class="usa-pagination__item usa-pagination__arrow">
-              {% if page < total_pages %}
-              <a class="usa-pagination__link usa-pagination__next-page"
-                href="{{ url_for('main.organization_detail', slug=organization_slug_or_id, dataset_page=page+1, dataset_per_page=dataset_pagination.per_page, sort=selected_sort) }}"
-                aria-label="Next page">
-                <span class="usa-pagination__link-text">Next</span>
-              </a>
-              {% endif %}
-            </li>
-          </ul>
-        </nav>
-        {% endif %}
+        <ul class="usa-collection">
+          {% include 'components/dataset_results_organization.html' %}
+        </ul>
         {% else %}
         <div class="usa-alert usa-alert--info margin-top-3">
           <div class="usa-alert__body">
-            <p class="usa-alert__text">No datasets found for this organization.</p>
+            <p class="usa-alert__text">
+              No datasets found{% if query %} matching "{{ query }}"{% endif %}. Try adjusting your search terms or filters.
+            </p>
           </div>
         </div>
         {% endif %}
+
       </div>
 
-      <aside class="desktop:grid-col-4">
-        <div class="usa-card">
-          <div class="usa-card__container">
-            <div class="usa-card__header">
-              <h3 class="usa-card__heading">Display options</h3>
-            </div>
-            <div class="usa-card__body">
+      <aside class="desktop:grid-col-3">
               <form class="usa-form" method="get"
                 action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
-                <input type="hidden" name="dataset_per_page" value="{{ dataset_pagination.per_page }}">
+
+                <div class="margin-bottom-4">
                 <label class="usa-label" for="sort-by">Sort by</label>
                 <select class="usa-select" id="sort-by" name="sort">
+                  {% set sort_options = { "popularity": "Popularity", "slug": "Title (shhh...it is slug)", "harvested": "Harvested Date",} %}
                   {% for value, label in sort_options.items() %}
                   <option value="{{ value }}" {% if value == selected_sort %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
+                </div>
+
                 <button type="submit" class="usa-button usa-button--outline margin-top-2">
                   Apply
                 </button>

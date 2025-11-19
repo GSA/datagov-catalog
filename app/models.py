@@ -45,6 +45,7 @@ class Organization(db.Model):
             create_constraint=True,
         )
     )
+    aliases = db.Column(db.ARRAY(db.String))
     sources = db.relationship(
         "HarvestSource",
         backref=backref("org", lazy="joined"),
@@ -52,6 +53,10 @@ class Organization(db.Model):
         lazy=True,
     )
     datasets = db.relationship("Dataset", backref="organization")
+
+    @property
+    def total_datasets(self):
+        return len(self.datasets)
 
 
 class HarvestSource(db.Model):
