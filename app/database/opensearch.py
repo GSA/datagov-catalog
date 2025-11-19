@@ -32,6 +32,11 @@ class SearchResult:
         return len(self.results)
 
     @classmethod
+    def empty(cls):
+        """Return an empty search result instance."""
+        return cls(total=0, results=[], search_after=None)
+
+    @classmethod
     def from_opensearch_result(cls, result_dict: dict, per_page_hint=0):
         """Make a results object from the result of an OpenSearch query.
 
@@ -235,9 +240,9 @@ class OpenSearchInterface:
             "theme": dataset.dcat.get("theme", []),
             "identifier": dataset.dcat.get("identifier", ""),
             "organization": dataset.organization.to_dict(),
-            "popularity": dataset.popularity
-            if dataset.popularity is not None
-            else None,
+            "popularity": (
+                dataset.popularity if dataset.popularity is not None else None
+            ),
         }
 
     def _run_with_timeout_retry(
@@ -450,6 +455,7 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
+        # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
