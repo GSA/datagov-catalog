@@ -9,7 +9,6 @@ from flask import (
     Blueprint,
     Response,
     abort,
-    current_app,
     jsonify,
     redirect,
     render_template,
@@ -43,27 +42,6 @@ load_dotenv()
 STATUS_STRINGS_ENUM = {404: "Not Found"}
 
 interface = CatalogDBInterface()
-
-
-class UnsafeTemplateEnvError(RuntimeError):
-    pass
-
-
-def render_block(template_name: str, block_name: str, **context) -> Response:
-    """
-    Render a specific block from a Jinja template, while using the Flask's default environment.
-    """
-    env = current_app.jinja_env
-    if not getattr(env, "autoescape", None):
-        raise UnsafeTemplateEnvError(
-            "Jinja autoescape is disabled; enable it or use Flask's jinja_env."
-        )
-    template = env.get_template(template_name)
-
-    # Render only the named block (Jinja will still escape vars inside the block)
-    block_gen = template.blocks[block_name]
-    html = "".join(block_gen(template.new_context(context)))
-    return Response(html, mimetype="text/html; charset=utf-8")
 
 
 def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
