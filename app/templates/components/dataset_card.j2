@@ -24,7 +24,9 @@
 
                       {{ dataset_title }}
                   </a>
-                  <i class="fa-solid fa-arrow-trend-up" title="{{ view_count | string + ' views last month' if view_count is not none else 'Not available' }}"></i>
+                  {% if view_count >= 100 %}
+                    <i class="fa-solid fa-arrow-trend-up"></i>
+                  {% endif %}
               </h3>
           </div>
           <ul class="usa-collection__meta">
@@ -68,19 +70,18 @@
           </ul>
           {% endif %}
           {% set search_score = dataset.get('_score') %}
-          {% set popularity_value = dataset.get('popularity') %}
-          {% if search_score is not none or popularity_value is not none %}
-          <div class="dataset-debug margin-top-1">
+          {% if search_score is not none or view_count is not none %}
+          <div class="margin-top-1">
               <small class="text-base-dark">
                   {% if search_score is not none %}
-                    {% if popularity_value is not none %}
-                      Search relevance: {{ '%.2f' % search_score }} | Views last month: {{ popularity_value }}
+                    {% if view_count is not none %}
+                      Search relevance: {{ '%.2f' % search_score }} | Views last month: {{ view_count }}
                     {% else %}
                       Search relevance: {{ '%.2f' % search_score }}
                     {% endif %}
                   {% else %}
-                    {% if popularity_value is not none %}
-                      Views last month: {{ popularity_value }}
+                    {% if view_count is not none %}
+                      Views last month: {{ view_count }}
                     {% endif %}
                   {% endif %}
               </small>
