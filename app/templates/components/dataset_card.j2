@@ -72,7 +72,17 @@
           {% if search_score is not none or popularity_value is not none %}
           <div class="dataset-debug margin-top-1">
               <small class="text-base-dark">
-                  DEBUG relevance: {{ '%.4f' % search_score if search_score is not none else 'n/a' }} | popularity: {{ popularity_value if popularity_value is not none else 'n/a' }}
+                  {% if search_score is not none %}
+                    {% if popularity_value is not none %}
+                      Search relevance: {{ '%.2f' % search_score }} | Views last month: {{ popularity_value }}
+                    {% else %}
+                      Search relevance: {{ '%.2f' % search_score }}
+                    {% endif %}
+                  {% else %}
+                    {% if popularity_value is not none %}
+                      Views last month: {{ popularity_value }}
+                    {% endif %}
+                  {% endif %}
               </small>
           </div>
           {% endif %}
