@@ -1,9 +1,9 @@
 <div class="usa-overlay"></div>
 <header class="usa-header usa-header--basic">
-  <div class="usa-nav-container">
+  <div class="usa-nav-container usa-nav-container--widescreen">
     <div class="usa-navbar">
       <div class="usa-logo" id="logo">
-        <a href="https://data.gov" target="_blank" title="Home" aria-label="Home"></a>
+        <a href="/" target="_blank" title="Home" aria-label="Home"></a>
       </div>
       <button type="button" class="usa-menu-btn">Menu</button>
     </div>
@@ -14,7 +14,12 @@
       <ul class="usa-nav__primary usa-accordion">
         <li class="usa-nav__primary-item">
           <a href="{{ url_for('main.index') }}" class="usa-nav__link">
-            <span>Home</span>
+            <span>Data</span>
+          </a>
+        </li>
+        <li class="usa-nav__primary-item">
+          <a href="https://data.gov/metrics" class="usa-nav__link">
+            <span>Metrics</span>
           </a>
         </li>
         <li class="usa-nav__primary-item">
@@ -22,9 +27,14 @@
             <span>Organizations</span>
           </a>
         </li>
-                <li class="usa-nav__primary-item">
+        <li class="usa-nav__primary-item">
           <a href="https://data.gov/user-guide/" target="_blank" class="usa-nav__link">
             <span>User Guide</span>
+          </a>
+        </li>
+        <li class="usa-nav__primary-item">
+          <a href="https://data.gov/contact/" target="_blank" class="usa-nav__link">
+            <span>Contact</span>
           </a>
         </li>
       </ul>
