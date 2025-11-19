@@ -9,7 +9,6 @@ from flask import (
     Blueprint,
     Response,
     abort,
-    current_app,
     jsonify,
     redirect,
     render_template,
