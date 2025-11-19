@@ -9,7 +9,6 @@ from flask import (
     Blueprint,
     Response,
     abort,
-    current_app,
     jsonify,
     redirect,
     render_template,
@@ -24,7 +23,13 @@ from .sitemap_s3 import (
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
-from .utils import build_dataset_dict, json_not_found, valid_id_required
+from .utils import (
+    build_dataset_dict,
+    dict_from_hint,
+    hint_from_dict,
+    json_not_found,
+    valid_id_required,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,27 +42,6 @@ load_dotenv()
 STATUS_STRINGS_ENUM = {404: "Not Found"}
 
 interface = CatalogDBInterface()
-
-
-class UnsafeTemplateEnvError(RuntimeError):
-    pass
-
-
-def render_block(template_name: str, block_name: str, **context) -> Response:
-    """
-    Render a specific block from a Jinja template, while using the Flask's default environment.
-    """
-    env = current_app.jinja_env
-    if not getattr(env, "autoescape", None):
-        raise UnsafeTemplateEnvError(
-            "Jinja autoescape is disabled; enable it or use Flask's jinja_env."
-        )
-    template = env.get_template(template_name)
-
-    # Render only the named block (Jinja will still escape vars inside the block)
-    block_gen = template.blocks[block_name]
-    html = "".join(block_gen(template.new_context(context)))
-    return Response(html, mimetype="text/html; charset=utf-8")
 
 
 def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
@@ -185,6 +169,9 @@ def index():
                 ]
         except Exception:
             logger.exception("Failed to fetch suggested keywords")
+    
+    # construct a from-string for this search to go into the dataset links
+    from_hint = hint_from_dict(request.args)
 
     return render_template(
         "index.html",
@@ -200,6 +187,7 @@ def index():
         sort_by=sort_by,
         suggeted_keywords=suggeted_keywords,
         spatial_filter=spatial_filter,
+        from_hint=from_hint,
     )
 
 
@@ -213,6 +201,7 @@ def search():
     query = request.args.get("q", "")
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     results_hint = request.args.get("results", 0, type=int)
+    from_hint = request.args.get("from_hint")
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
@@ -268,6 +257,7 @@ def search():
             datasets=results,
             per_page=per_page,
             results_hint=results_hint,
+            from_hint=from_hint,
             after=result.search_after_obscured(),
             sort_by=sort_by,
             org_types=org_types,
@@ -460,10 +450,15 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
 
+    # Use from_hint to construct an arguments dict
+    from_hint = request.args.get("from_hint")
+    from_dict = dict_from_hint(from_hint)
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
         organization=org,
+        from_dict=from_dict,
     )
 
 

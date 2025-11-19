@@ -367,6 +367,27 @@ def test_htmx_search_returns_results(interface_with_dataset, db_client):
     assert dataset_description is not None
 
 
+def test_htmx_search_uses_from_hint(interface_with_dataset, db_client):
+    """
+    Test that HTMX results have from_hint in dataset links
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        # Simulate HTMX request with HX-Request header
+        response = db_client.get(
+            "/search",
+            query_string={"q": "test", "per_page": "20", "from_hint": "badhint"},
+            headers={"HX-Request": "true"},
+        )
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    dataset_items = soup.find_all("li", class_="usa-collection__item")
+    assert all(
+        "from_hint=badhint"
+        in item.find("a", href=lambda href: href and "/dataset/" in href).get("href")
+        for item in dataset_items
+    )
+
+
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
     with patch("app.routes.interface", interface_with_harvest_record):
         response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
@@ -667,6 +688,9 @@ def test_index_search_result_includes_dataset_link(interface_with_dataset, db_cl
     dataset_link = first_item.find("a", href=lambda href: href and "/dataset/" in href)
     assert dataset_link is not None
 
+    # dataset link should include a from_hint
+    assert "from_hint=" in dataset_link.get("href")
+
 
 def test_index_pagination_preserves_query_params(interface_with_dataset, db_client):
     """Test that pagination links preserve query and filter parameters."""
@@ -755,6 +779,27 @@ def test_index_apply_filters_button_exists(db_client):
     assert "usa-button" in apply_button.get("class", [])
 
 
+def test_index_from_hint_roundtrip(db_client, interface_with_dataset):
+    # load a search results page with query parameters
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=test&results=7")
+    # find a dataset link
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_link = soup.find("li", class_="usa-collection__item").find(
+        "a", href=lambda href: "/dataset/" in href
+    )
+    # now open the dataset details link
+    assert "from_hint=" in dataset_link.get("href")
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(dataset_link.get("href"))
+    # and check to make sure that the return to search link has those same
+    # query parameters
+    soup = BeautifulSoup(response.text, "html.parser")
+    return_link = soup.find("a", class_="return-link")
+    assert return_link is not None
+    assert "?q=test&results=7" in return_link.get("href")
+
+
 def test_header_exists(db_client):
     response = db_client.get("/")
     assert response.status_code == 200
@@ -770,8 +815,7 @@ def test_header_exists(db_client):
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert len(nav_parts) == 3  # "Home", "Organizations", "User Guide"
-
+    assert len(nav_parts) == 5  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
 
 def test_footer_exists(db_client):
     response = db_client.get("/")

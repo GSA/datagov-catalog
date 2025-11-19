@@ -32,20 +32,22 @@ dataLayer.push({
 
 <div class="usa-section">
     <div class="grid-container-widescreen">
-        
+
         <!-- Return to search link -->
-        <a href="{{ url_for('main.index') }}" class="return-link">
+        {% if from_dict %}
+        <a href="{{ url_for('main.index', **from_dict) }}" class="return-link">
             <i class="fa-solid fa-arrow-left"></i>
             Return to search results
         </a>
+        {% endif %}
 
         <div class="grid-row grid-gap-lg">
             <!-- Main Content Column -->
             <div class="desktop:grid-col-8">
-                
+
                 <!-- Title and Metadata -->
                 <h1 class="dataset-title">{{ dataset_title }}</h1>
-                
+
                 <div class="dataset-meta">
                     {% if dataset.dcat.get('publisher', {}).get('name') %}
                     Published by <strong>{{ dataset.dcat.publisher.name }}</strong>
