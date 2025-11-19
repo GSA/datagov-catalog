@@ -709,7 +709,6 @@ ul.dataset-resources {
   padding-right: var(--site-padding);
 }
 
-/* Responsive adjustments */
 @media (max-width: 63.99em) {
   :root {
     --site-padding: 1rem;
@@ -728,12 +727,10 @@ ul.dataset-resources {
 
 }
 
-/* Optional: Make navigation items spread out more */
 .usa-nav__primary-item {
   margin-right: 1.5rem;
 }
 
-/* Optional: Adjust search form in navigation */
 .usa-header .usa-search {
   margin-left: auto;
 }
