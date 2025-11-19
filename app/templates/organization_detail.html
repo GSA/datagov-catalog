@@ -21,14 +21,14 @@
   </nav>
 
   <div class="usa-prose">
-    <h1 class="margin-top-2">{{ organization.name }}</h1>
+    <h1>{{ organization.name }}</h1>
   </div>
 
   <div class="grid-row grid-gap-lg margin-top-3">
     <div class="desktop:grid-col-9 tablet:grid-col">
       <div class="usa-summary-box" role="region" aria-label="Organization summary">
         <div class="usa-summary-box__body">
-          <h2 class="usa-summary-box__heading">Organization Overview</h2>
+          <h2 class="usa-summary-box__heading">Overview</h2>
           <ul class="usa-summary-box__list">
             <li class="usa-summary-box__item">
               <strong>Type:</strong> {{ organization.organization_type or "Not specified" }}
@@ -61,10 +61,10 @@
   {% endif %}
 
 
-  <section class="organization-datasets margin-top-5">
-    <div class="grid-row grid-gap-lg margin-top-2">
+  <section class="organization-datasets">
+    <div class="grid-row grid-gap-lg magin-top-2">
       <div class="desktop:grid-col-9">
-        <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form margin-top-4">
+        <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form">
             <div class="grid-row grid-gap-1 flex-align-end">
                 <div class="grid-col-fill">
                     <label class="usa-sr-only" for="search-query">Search within organization</label>
@@ -114,7 +114,6 @@
               <form class="usa-form" method="get"
                 action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
 
-                <div class="margin-bottom-4">
                 <label class="usa-label" for="sort-by">Sort by</label>
                 <select class="usa-select" id="sort-by" name="sort">
                   {% set sort_options = { "popularity": "Popularity", "slug": "Title (shhh...it is slug)", "harvested": "Harvested Date",} %}
@@ -122,7 +121,6 @@
                   <option value="{{ value }}" {% if value == selected_sort %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
-                </div>
 
                 <button type="submit" class="usa-button usa-button--outline margin-top-2">
                   Apply
