@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import json
 from functools import wraps
 from typing import Callable, TypeVar
 from uuid import UUID
@@ -47,3 +49,29 @@ def build_dataset_dict(dataset_dict: dict) -> dict:
     # remove the search_vector from the dataset dict
     dataset_dict = {k: v for k, v in dataset_dict.items() if k != "search_vector"}
     return dataset_dict
+
+
+def dict_from_hint(hint_string):
+    """Compute a dict of args from our hint string.
+
+    The hint string is a base64 encoded JSON string. An argument of None
+    returns an empty dict and if there is an error decoding the hint,
+    it also returns an empty dict.
+    """
+    if hint_string is None:
+        return dict()
+
+    try:
+        return json.loads(base64.urlsafe_b64decode(hint_string).decode("utf-8"))
+    except ValueError:
+        return dict()
+
+
+def hint_from_dict(args_dict):
+    """Compute our URL hint from a dict of args.
+
+    The hint string is a base64 encoded JSON string.
+    """
+    return base64.urlsafe_b64encode(
+        json.dumps(args_dict, separators=(",", ":")).encode("utf-8")
+    ).decode("utf-8")
