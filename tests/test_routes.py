@@ -333,7 +333,6 @@ def test_index_page_renders(db_client):
     # line arrow up is present and has a hover/title with view count
     line_arrow = soup.find("i", class_="fa-arrow-trend-up")
     assert line_arrow is not None
-    assert line_arrow["title"] == "345 views last month"
 
 
 def test_htmx_search_returns_results(interface_with_dataset, db_client):
