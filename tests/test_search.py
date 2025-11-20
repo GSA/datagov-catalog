@@ -1,3 +1,5 @@
+from app.models import Dataset
+
 def test_search(interface_with_dataset):
     result = interface_with_dataset.search_datasets("test")
     assert len(result) > 0
@@ -30,6 +32,19 @@ def test_search_popularity_sort(interface_with_dataset):
 
 def test_search_by_keywords(interface_with_dataset):
     """Test searching datasets by exact keyword match."""
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(2):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        dataset_dict["dcat"]["title"] = f"test-{i}"
+        dataset_dict["dcat"]["keyword"] =["health", "education"]
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+
+    # Index datasets in OpenSearch
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
     # Search by single keyword
     result = interface_with_dataset.search_by_keywords(keywords=["health"])
     assert len(result) > 0
