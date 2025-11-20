@@ -114,11 +114,14 @@
 
                 <label class="usa-label" for="sort-by">Sort by</label>
                 <select class="usa-select" id="sort-by" name="sort">
-                  {% set sort_options = { "popularity": "Popularity", "slug": "Title (shhh...it is slug)", "harvested": "Harvested Date",} %}
+                  {% set sort_options = { "popularity": "Popularity", "relevance": "Relevance"} %}
                   {% for value, label in sort_options.items() %}
                   <option value="{{ value }}" {% if value == selected_sort %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
+                {% if dataset_search_query %}
+                <input type="hidden" name="q" value="{{ dataset_search_query }}">
+                {% endif %}
 
                 <button type="submit" class="usa-button usa-button--outline margin-top-2">
                   Apply
