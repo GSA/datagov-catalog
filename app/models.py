@@ -211,6 +211,7 @@ class Dataset(db.Model):
     # make it mutable so that in-place mutations (e.g.,
     # dcat["spatial"] = "...", for tests) are tracked
     dcat = db.Column(MutableDict.as_mutable(JSONB), nullable=False)
+    translated_spatial = db.Column(JSONB)
 
     organization_id = db.Column(
         db.String(36),
@@ -233,7 +234,7 @@ class Dataset(db.Model):
         index=True,
     )
 
-    popularity = db.Column(db.Numeric)
+    popularity = db.Column(db.Integer, server_default="0")
     last_harvested_date = db.Column(
         db.DateTime,
         index=True
