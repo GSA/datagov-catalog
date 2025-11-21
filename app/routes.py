@@ -410,7 +410,9 @@ def organization_detail(slug: str):
 
     dataset_search_query = request.args.get("q", default="", type=str).strip()
     num_results = request.args.get("results", default=DEFAULT_PER_PAGE, type=int)
-    sort_by = request.args.get("sort", default="relevance")
+    sort_by = request.args.get("sort", default="relevance").lower()
+    if sort_by not in {"relevance", "popularity"}:
+        sort_by = "relevance"
 
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
