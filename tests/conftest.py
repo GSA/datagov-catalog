@@ -120,3 +120,15 @@ def interface_with_dataset(interface_with_harvest_record, fixture_data):
 @pytest.fixture
 def opensearch_client():
     return OpenSearchInterface(test_host="localhost")
+
+
+@pytest.fixture
+def html_tags_within_text():
+    return """<p>The Division of Drinking Water requires laboratories to 
+    submit water quality data directly. The data is received, and published 
+    twice monthly on the Division's water quality 
+    <a href="https://www.waterboards.ca.gov/drinking_water/certlic/drinkingwater/EDTlibrary.html">
+    portal</a>. The resource here now is just a data dictionary for the 
+    laboratory analysis data available from that portal, and in the near 
+    future we plan to add curated data resources that include laboratory
+    water quality results.</p>"""
