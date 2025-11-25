@@ -334,6 +334,21 @@ def test_index_page_renders(db_client):
     assert line_arrow is not None
 
 
+def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
+    """
+    Test that the index page loads correctly and contains the search form.
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    # includes the dataset count
+    dataset_total = soup.find("span", class_="text-heavy")
+    assert dataset_total is not None
+    print(response.text)
+    assert int(dataset_total.text) > 0
+
 def test_htmx_search_returns_results(interface_with_dataset, db_client):
     """
     Test that searching via HTMX returns HTML results with dataset information.
@@ -620,6 +635,7 @@ def test_index_page_lists_results_without_query(db_client):
         {"keyword": "test", "count": 10},
         {"keyword": "data", "count": 5},
     ]
+    mock_interface.total_datasets.return_value = 1
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/")

@@ -120,6 +120,7 @@ def index():
     num_results = min(num_results, 9999)
 
     # Initialize empty results
+    total_datasets = interface.total_datasets() if not query else 0
     datasets: list[dict] = []
     result = None
     total = 0
@@ -158,7 +159,7 @@ def index():
                 ]
         except Exception:
             logger.exception("Failed to fetch suggested keywords")
-    
+
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
 
@@ -170,6 +171,7 @@ def index():
         after=after,
         datasets=datasets,
         total=total,
+        total_datasets=total_datasets,
         org_id=org_id,
         org_types=org_types,
         keywords=keywords,

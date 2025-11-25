@@ -45,6 +45,10 @@ class CatalogDBInterface:
         self.db = session or db.session
         self.opensearch = OpenSearchInterface.from_environment()
 
+    def total_datasets(self):
+        """Count how many records in the database table."""
+        return self.db.query(Dataset).count()
+
     def get_harvest_record(self, record_id: str) -> HarvestRecord | None:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
