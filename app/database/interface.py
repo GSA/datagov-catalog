@@ -54,6 +54,7 @@ class CatalogDBInterface:
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         after=None,
+        sort_by="relevance",
         *args,
         **kwargs,
     ):
@@ -71,7 +72,6 @@ class CatalogDBInterface:
             search_after = SearchResult.decode_search_after(after)
         else:
             search_after = None
-        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
             query,
             per_page=per_page,
@@ -152,7 +152,7 @@ class CatalogDBInterface:
                 or_(
                     Organization.name.ilike(like_pattern),
                     Organization.slug.ilike(like_pattern),
-                    Organization.description.ilike(like_pattern),
+                    func.array_to_string(Organization.aliases, ",").ilike(like_pattern),
                 )
             )
         return query.order_by(Organization.name.asc())
@@ -226,100 +226,23 @@ class CatalogDBInterface:
             .first()
         )
 
-    def _datasets_for_organization_query(
-        self,
-        organization_id: str,
-        sort_by: str | None = None,
-        dataset_search_terms: str = "",
-    ):
-        query = self.db.query(Dataset).filter(
-            Dataset.organization_id == organization_id
-        )
-
-        if dataset_search_terms:
-            query = self._postgres_search_datasets(dataset_search_terms).filter(
-                Dataset.organization_id == organization_id
-            )
-
-        sort_key = (sort_by or "popularity").lower()
-
-        if sort_key == "slug":
-            order_by = [Dataset.slug.asc()]
-        elif sort_key == "harvested":
-            order_by = [
-                Dataset.last_harvested_date.desc().nullslast(),
-                Dataset.slug.asc(),
-            ]
-        else:
-            # Default to popularity, highest first with slug tie-breaker
-            order_by = [Dataset.popularity.desc().nullslast(), Dataset.slug.asc()]
-
-        return query.order_by(*order_by)
-
-    @paginate
-    def _datasets_for_organization_paginated(
-        self,
-        organization_id: str,
-        sort_by: str | None = None,
-        dataset_search_terms: str = "",
-        **kwargs,
-    ):
-        return self._datasets_for_organization_query(
-            organization_id, sort_by=sort_by, dataset_search_terms=dataset_search_terms
-        )
-
     def list_datasets_for_organization(
         self,
         organization_id: str,
-        page: int = DEFAULT_PAGE,
-        per_page: int = DEFAULT_PER_PAGE,
-        sort_by: str | None = None,
-        dataset_search_terms: str = "",
-    ) -> dict[str, Any]:
-        allowed_sorts = {"popularity", "slug", "harvested"}
-        sort_key = (sort_by or "popularity").lower()
-        if sort_key == "published":
-            sort_key = "harvested"
-        if sort_key not in allowed_sorts:
-            sort_key = "popularity"
+        sort_by: str | None = "relevance",
+        dataset_search_query: str = "",
+        num_results=DEFAULT_PER_PAGE,
+    ) -> SearchResult:
 
         if not organization_id:
-            return {
-                "page": DEFAULT_PAGE,
-                "per_page": DEFAULT_PER_PAGE,
-                "total": 0,
-                "total_pages": 0,
-                "datasets": [],
-                "sort": sort_key,
-            }
+            return SearchResult.empty()
 
-        page = max(page, 1)
-        per_page = max(min(per_page, 100), 1)
-
-        base_query = self._datasets_for_organization_query(
-            organization_id,
-            sort_by=sort_key,
-            dataset_search_terms=dataset_search_terms,
+        return self.search_datasets(
+            dataset_search_query,
+            org_id=organization_id,
+            sort_by=sort_by,
+            per_page=num_results,
         )
-        total = base_query.count()
-        datasets = self._datasets_for_organization_paginated(
-            organization_id,
-            page=page,
-            per_page=per_page,
-            sort_by=sort_key,
-            dataset_search_terms=dataset_search_terms,
-        )
-
-        total_pages = (total + per_page - 1) // per_page if total else 0
-
-        return {
-            "page": page,
-            "per_page": per_page,
-            "total": total,
-            "total_pages": total_pages,
-            "datasets": [self.to_dict(dataset) for dataset in datasets],
-            "sort": sort_key,
-        }
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:

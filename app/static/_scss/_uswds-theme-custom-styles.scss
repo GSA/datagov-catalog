@@ -188,28 +188,28 @@ ul.menu {
 }
 
 .organization-datasets__body--federal {
-  background-color: #71767a;
-}
-.organization-datasets__body--city { 
-  background-color: #e52207;
+  background-color: color('blue-warm-70v');
 }
 .organization-datasets__body--state {
-  background-color: #e66f0e;
+  background-color: color('blue-cool-40v');
+}
+.organization-datasets__body--city {
+  background-color: color('red-50');
 }
 .organization-datasets__body--county {
-  background-color: #0076d6;
+  background-color: color('red-70v');
 }
 .organization-datasets__body--university {
-  background-color: #538200;
+  background-color: color('cyan-30v');
 }
 .organization-datasets__body--tribal {
-  background-color: #8168b3;
+  background-color: color('orange-20v');
 }
 .organization-datasets__body--non-profit {
-  background-color: #1b1b1b;
+  background-color: color('gray-90');
 }
 .organization-datasets__body--unknown {
-  background-color: #d72d79;
+  background-color: color('gray-cool-50');
 }
 
 .organization-datasets__label {
@@ -693,3 +693,59 @@ ul.dataset-resources {
     color: #005ea2;
 }
 // End Dataset Detail Page
+
+// navigation
+:root {
+  --site-max-width: 1400px;
+  --site-padding: 2rem;
+}
+
+.usa-header .usa-nav-container,
+.grid-container-widescreen {
+  max-width: var(--site-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--site-padding);
+  padding-right: var(--site-padding);
+}
+
+@media (max-width: 63.99em) {
+  :root {
+    --site-padding: 1rem;
+  }
+}
+
+@media (min-width: 64em) {
+  .usa-header .usa-nav-container,
+  .grid-container-widescreen {
+    max-width: var(--site-max-width);
+  }
+
+  a:hover::after{
+    background-color: #d54309 !important;
+  }
+
+}
+
+.usa-nav__primary-item {
+  margin-right: 1.5rem;
+}
+
+.usa-header .usa-search {
+  margin-left: auto;
+}
+
+// footer
+div.grid-row.grid-gap#menu-footer {
+  span {
+    padding: 0;
+    margin-top: .7rem;
+  }
+  ul {
+    li:last-child {
+      border-right-style: solid;
+      border-right-color: #428bca;
+      border-right-width: 1px;
+    }
+  }
+}

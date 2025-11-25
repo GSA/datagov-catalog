@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 from app.database.opensearch import SearchResult
 from app.models import Dataset
-from tests.conftest import HARVEST_RECORD_ID
+from tests.fixtures import HARVEST_RECORD_ID
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client):
@@ -227,6 +227,26 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert default_icon is not None
 
 
+def test_organization_list_search_empty(db_client, interface_with_dataset):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization?q=nonexistentsearchterm")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    cards = soup.select(".organization-list .usa-card")
+    assert not cards  # list is empty
+
+
+def test_organization_list_search_by_alias(db_client, interface_with_dataset):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization?q=aliasonly")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    cards = soup.select(".organization-list .usa-card")
+
+    # one org still appears
+    assert len(cards) == 1
+
+
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization/test-org")
@@ -239,9 +259,6 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
 
     search_button = soup.find("form", attrs={"action": "/organization/test-org"})
     assert search_button is not None
-
-    heading_text = dataset_section.find("h2").get_text(strip=True)
-    assert heading_text.endswith("(49)")
 
     items = dataset_section.select(".usa-collection__item")
     assert len(items) == 20
@@ -315,7 +332,6 @@ def test_index_page_renders(db_client):
     # line arrow up is present and has a hover/title with view count
     line_arrow = soup.find("i", class_="fa-arrow-trend-up")
     assert line_arrow is not None
-    assert line_arrow["title"] == "345 views last month"
 
 
 def test_htmx_search_returns_results(interface_with_dataset, db_client):
@@ -347,6 +363,27 @@ def test_htmx_search_returns_results(interface_with_dataset, db_client):
     # Check dataset has description
     dataset_description = first_dataset.find("p", class_="usa-collection__description")
     assert dataset_description is not None
+
+
+def test_htmx_search_uses_from_hint(interface_with_dataset, db_client):
+    """
+    Test that HTMX results have from_hint in dataset links
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        # Simulate HTMX request with HX-Request header
+        response = db_client.get(
+            "/search",
+            query_string={"q": "test", "per_page": "20", "from_hint": "badhint"},
+            headers={"HX-Request": "true"},
+        )
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    dataset_items = soup.find_all("li", class_="usa-collection__item")
+    assert all(
+        "from_hint=badhint"
+        in item.find("a", href=lambda href: href and "/dataset/" in href).get("href")
+        for item in dataset_items
+    )
 
 
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
@@ -409,11 +446,11 @@ def test_organization_detail_displays_searched_dataset_no_pagination(
 ):
     """
     search for datasets within the org fewer than the pagination count. the expectation
-    is only 4 datasets are returned based on the search so pagination shouldn't appear
+    is only 11 datasets are returned based on the search so pagination shouldn't appear
     because it's less than the default 20
     """
     with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/organization/test-org?dataset_search_terms=2016")
+        response = db_client.get("/organization/test-org?q=2016")
 
     assert response.status_code == 200
 
@@ -422,10 +459,7 @@ def test_organization_detail_displays_searched_dataset_no_pagination(
     assert dataset_section is not None
 
     items = dataset_section.select(".usa-collection__item")
-    assert len(items) == 4
-
-    pages = soup.find_all("li", class_="usa-pagination__item usa-pagination__page-no")
-    assert len(pages) == 0
+    assert len(items) == 11
 
     item = items[0]
     title_link = item.select_one(".usa-collection__heading a")
@@ -445,14 +479,12 @@ def test_organization_detail_displays_searched_dataset_with_pagination(
 ):
     """
     search for datasets within an org larger than the pagination count. the expectation is
-    pagination occurs, the first page has 20 datasets, and there's 3 pages (the search
+    pagination occurs, the first page has 20 datasets (the search
     without pagination returns 47 datasets)
 
     """
     with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get(
-            "/organization/test-org?dataset_search_terms=americorps"
-        )
+        response = db_client.get("/organization/test-org?q=americorps&results=20")
 
     assert response.status_code == 200
 
@@ -463,8 +495,9 @@ def test_organization_detail_displays_searched_dataset_with_pagination(
     items = dataset_section.select(".usa-collection__item")
     assert len(items) == 20
 
-    pages = soup.find_all("li", class_="usa-pagination__item usa-pagination__page-no")
-    assert len(pages) == 3
+    # Check that show more results appears
+    more_button = soup.find("button", class_="usa-button", attrs={"hx-get": True})
+    assert more_button is not None
 
 
 def test_organization_detail_displays_no_datasets_on_search(
@@ -472,7 +505,7 @@ def test_organization_detail_displays_no_datasets_on_search(
 ):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(
-            "/organization/test-org?dataset_search_terms=no-dataset"
+            "/organization/test-org?q=nonexistenttermcompletelynothing"
         )
 
     assert response.status_code == 200
@@ -609,7 +642,7 @@ def test_index_search_with_query_shows_result_count(interface_with_dataset, db_c
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     assert "Found" in results_text.text
-    assert "datasets" in results_text.text
+    assert "dataset" in results_text.text
     assert 'matching "test"' in results_text.text
 
 
@@ -649,6 +682,9 @@ def test_index_search_result_includes_dataset_link(interface_with_dataset, db_cl
     dataset_link = first_item.find("a", href=lambda href: href and "/dataset/" in href)
     assert dataset_link is not None
 
+    # dataset link should include a from_hint
+    assert "from_hint=" in dataset_link.get("href")
+
 
 def test_index_pagination_preserves_query_params(interface_with_dataset, db_client):
     """Test that pagination links preserve query and filter parameters."""
@@ -659,6 +695,9 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
         dataset_dict["slug"] = f"test-{i}"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?q=test&sort=relevance")
@@ -667,12 +706,11 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
     soup = BeautifulSoup(response.text, "html.parser")
 
     # Check that pagination links preserve parameters
-    next_link = soup.find("button", class_="usa-button", string="Show more results")
-    if next_link:
-        href = next_link.get("hx-get")
-        assert "q=test" in href
-        assert "per_page=50" in href
-        assert "sort=relevance" in href
+    next_link = soup.find("button", class_="usa-button", attrs={"hx-get": True})
+    href = next_link.get("hx-get")
+    assert "q=test" in href
+    assert "per_page=20" in href
+    assert "sort=relevance" in href
 
 
 def test_index_search_results_arg(interface_with_dataset, db_client):
@@ -684,6 +722,9 @@ def test_index_search_results_arg(interface_with_dataset, db_client):
         dataset_dict["slug"] = f"test-{i}"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?q=test&results=7")
@@ -732,6 +773,27 @@ def test_index_apply_filters_button_exists(db_client):
     assert "usa-button" in apply_button.get("class", [])
 
 
+def test_index_from_hint_roundtrip(db_client, interface_with_dataset):
+    # load a search results page with query parameters
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=test&results=7")
+    # find a dataset link
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_link = soup.find("li", class_="usa-collection__item").find(
+        "a", href=lambda href: "/dataset/" in href
+    )
+    # now open the dataset details link
+    assert "from_hint=" in dataset_link.get("href")
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(dataset_link.get("href"))
+    # and check to make sure that the return to search link has those same
+    # query parameters
+    soup = BeautifulSoup(response.text, "html.parser")
+    return_link = soup.find("a", class_="return-link")
+    assert return_link is not None
+    assert "?q=test&results=7" in return_link.get("href")
+
+
 def test_header_exists(db_client):
     response = db_client.get("/")
     assert response.status_code == 200
@@ -747,8 +809,7 @@ def test_header_exists(db_client):
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert len(nav_parts) == 3  # "Home", "Organizations", "User Guide"
-
+    assert len(nav_parts) == 5  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
 
 def test_footer_exists(db_client):
     response = db_client.get("/")

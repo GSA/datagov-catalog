@@ -9,7 +9,6 @@ from flask import (
     Blueprint,
     Response,
     abort,
-    current_app,
     jsonify,
     redirect,
     render_template,
@@ -24,7 +23,13 @@ from .sitemap_s3 import (
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
-from .utils import build_dataset_dict, json_not_found, valid_id_required
+from .utils import (
+    build_dataset_dict,
+    dict_from_hint,
+    hint_from_dict,
+    json_not_found,
+    valid_id_required,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,27 +42,6 @@ load_dotenv()
 STATUS_STRINGS_ENUM = {404: "Not Found"}
 
 interface = CatalogDBInterface()
-
-
-class UnsafeTemplateEnvError(RuntimeError):
-    pass
-
-
-def render_block(template_name: str, block_name: str, **context) -> Response:
-    """
-    Render a specific block from a Jinja template, while using the Flask's default environment.
-    """
-    env = current_app.jinja_env
-    if not getattr(env, "autoescape", None):
-        raise UnsafeTemplateEnvError(
-            "Jinja autoescape is disabled; enable it or use Flask's jinja_env."
-        )
-    template = env.get_template(template_name)
-
-    # Render only the named block (Jinja will still escape vars inside the block)
-    block_gen = template.blocks[block_name]
-    html = "".join(block_gen(template.new_context(context)))
-    return Response(html, mimetype="text/html; charset=utf-8")
 
 
 def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
@@ -161,6 +145,9 @@ def index():
     else:
         after = None
 
+    # construct a from-string for this search to go into the dataset links
+    from_hint = hint_from_dict(request.args)
+
     return render_template(
         "index.html",
         query=query,
@@ -172,6 +159,7 @@ def index():
         org_id=org_id,
         org_types=org_types,
         sort_by=sort_by,
+        from_hint=from_hint,
     )
 
 
@@ -185,6 +173,7 @@ def search():
     query = request.args.get("q", "")
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     results_hint = request.args.get("results", 0, type=int)
+    from_hint = request.args.get("from_hint")
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
     after = request.args.get("after")
@@ -202,12 +191,27 @@ def search():
 
     if htmx:
         results = [build_dataset_dict(each) for each in result.results]
+        if org_id:
+            # specified organization so give org results
+            organization = interface.get_organization_by_id(org_id)
+            return render_template(
+                "components/dataset_results_organization.html",
+                dataset_search_query=query,
+                datasets=results,
+                per_page=per_page,
+                results_hint=results_hint,
+                after=result.search_after_obscured(),
+                selected_sort=sort_by,
+                organization=organization,
+                organization_slug_or_id=organization.slug,
+            )
         return render_template(
             "components/dataset_results.html",
             query=query,
             datasets=results,
             per_page=per_page,
             results_hint=results_hint,
+            from_hint=from_hint,
             after=result.search_after_obscured(),
             sort_by=sort_by,
         )
@@ -308,7 +312,7 @@ def get_harvest_record_transformed(record_id: str) -> Response:
     return Response(body, mimetype="application/json")
 
 
-@main.route("/organization", methods=["GET"])
+@main.route("/organization", methods=["GET"], strict_slashes=False)
 def list_organizations():
     page = request.args.get("page", default=1, type=int)
     # default 'per_page' of 24 is chosen to work well with different grid layouts
@@ -354,60 +358,33 @@ def organization_detail(slug: str):
                 url_for("main.organization_detail", slug=organization.slug), code=302
             )
 
-    organization_data = interface.to_dict(organization)
-    dataset_page = request.args.get("dataset_page", default=1, type=int)
-    dataset_per_page = request.args.get("dataset_per_page", default=20, type=int)
-    sort_by = request.args.get("sort", default="popularity")
-    dataset_search_terms = request.args.get(
-        "dataset_search_terms", default="", type=str
-    ).strip()
+    dataset_search_query = request.args.get("q", default="", type=str).strip()
+    num_results = request.args.get("results", default=DEFAULT_PER_PAGE, type=int)
+    sort_by = request.args.get("sort", default="relevance").lower()
+    if sort_by not in {"relevance", "popularity"}:
+        sort_by = "relevance"
 
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
-        page=dataset_page,
-        per_page=dataset_per_page,
+        dataset_search_query=dataset_search_query,
         sort_by=sort_by,
-        dataset_search_terms=dataset_search_terms,
+        num_results=num_results,
     )
-
-    dataset_pagination = (
-        {
-            "page": dataset_result["page"],
-            "per_page": dataset_result["per_page"],
-            "total": dataset_result["total"],
-            "total_pages": dataset_result["total_pages"],
-            "page_sequence": build_page_sequence(
-                dataset_result["page"], dataset_result["total_pages"]
-            ),
-        }
-        if dataset_result["total"]
-        else {
-            "page": dataset_result["page"],
-            "per_page": dataset_result["per_page"],
-            "total": 0,
-            "total_pages": 0,
-            "page_sequence": [],
-        }
-    )
-
-    if organization_data is not None:
-        organization_data["dataset_count"] = dataset_result["total"]
+    after = dataset_result.search_after_obscured()
 
     slug_or_id = organization.slug or slug
 
     return render_template(
         "organization_detail.html",
-        organization=organization_data,
-        datasets=dataset_result["datasets"],
-        dataset_pagination=dataset_pagination,
+        organization=organization,
+        datasets=dataset_result.results,
+        num_matches=dataset_result.total,
+        after=after,
+        per_page=DEFAULT_PER_PAGE,
+        results_hint=num_results,
         organization_slug_or_id=slug_or_id,
-        selected_sort=dataset_result.get("sort", "popularity"),
-        sort_options={
-            "popularity": "Popularity",
-            "slug": "Title (shhh...it is slug)",
-            "harvested": "Harvested Date",
-        },
-        dataset_search_terms=dataset_search_terms,
+        selected_sort=sort_by,
+        dataset_search_query=dataset_search_query,
     )
 
 
@@ -425,10 +402,15 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
 
+    # Use from_hint to construct an arguments dict
+    from_hint = request.args.get("from_hint")
+    from_dict = dict_from_hint(from_hint)
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
         organization=org,
+        from_dict=from_dict,
     )
 
 
