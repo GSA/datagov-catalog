@@ -56,7 +56,14 @@ def test_search_with_keyword(interface_with_dataset):
     # Search by multiple keywords
     result = interface_with_dataset.search_datasets(keywords=["health", "education"])
     assert len(result) > 0
+    assert all(
+        "health" in dataset.get("dcat", {}).get("keyword", []) and
+        "education" in dataset.get("dcat", {}).get("keyword", [])
+        for dataset in result.results
+    )
 
     # Search by non-existent keyword
     result = interface_with_dataset.search_datasets(keywords=["nonexistent"])
     assert len(result) == 0
+    assert result.results == []
+    

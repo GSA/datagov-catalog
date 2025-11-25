@@ -455,9 +455,11 @@ class OpenSearchInterface:
         # Build filter list for bool query
         filters = []
 
-        # Add keyword filter (exact match)
+        # Add keyword filter (exact match) - AND logic
+        # Each keyword gets its own term filter, so all must match
         if keywords:
-            filters.append({"terms": {"keyword.raw": keywords}})
+            for keyword in keywords:
+                filters.append({"term": {"keyword.raw": keyword}})
 
         if org_id is not None:
             filters.append(
