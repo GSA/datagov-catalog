@@ -127,11 +127,11 @@
                         <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords"></div>
                         
                         <!-- Suggested keywords (only shown when no keywords selected) -->
-                        {% if suggeted_keywords and not keywords %}
+                        {% if suggested_keywords and not keywords %}
                         <div id="suggested-keywords" class="suggested-keywords margin-top-2">
                             <p class="text-base-dark margin-bottom-1"><strong>Popular keywords:</strong></p>
                             <div class="suggested-keywords__list">
-                                {% for keyword in suggeted_keywords %}
+                                {% for keyword in suggested_keywords %}
                                 <button type="button" class="tag-link tag-link--suggested" data-keyword="{{ keyword }}">
                                     {{ keyword }}
                                 </button>

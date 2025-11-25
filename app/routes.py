@@ -123,29 +123,18 @@ def index():
     datasets: list[dict] = []
     result = None
     total = 0
-    suggeted_keywords = []
+    suggested_keywords = []
 
     try:
-        # Search if there's a query OR keywords selected
-        if keywords:
-            # Use keyword-based search when keywords are selected
-            result = interface.search_by_keywords(
-                keywords=keywords,
-                query=query,
-                per_page=num_results,
-                org_types=org_types,
-                spatial_filter=spatial_filter,
-            )
-        else:
-            # Use regular text search when no keywords
-            result = interface.search_datasets(
-                query,
-                per_page=num_results,
-                org_id=org_id,
-                org_types=org_types,
-                sort_by=sort_by,
-                spatial_filter=spatial_filter,
-            )
+        result = interface.search_datasets(
+            query,
+            keywords=keywords,
+            per_page=num_results,
+            org_id=org_id,
+            org_types=org_types,
+            sort_by=sort_by,
+            spatial_filter=spatial_filter,
+        )
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})
     else:
@@ -162,10 +151,10 @@ def index():
 
     if not keywords:
         try:
-            suggeted_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
-            if suggeted_keywords:
-                suggeted_keywords = [
-                    keyword["keyword"] for keyword in suggeted_keywords
+            suggested_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
+            if suggested_keywords:
+                suggested_keywords = [
+                    keyword["keyword"] for keyword in suggested_keywords
                 ]
         except Exception:
             logger.exception("Failed to fetch suggested keywords")
@@ -185,7 +174,7 @@ def index():
         org_types=org_types,
         keywords=keywords,
         sort_by=sort_by,
-        suggeted_keywords=suggeted_keywords,
+        suggested_keywords=suggested_keywords,
         spatial_filter=spatial_filter,
         from_hint=from_hint,
     )
@@ -213,27 +202,16 @@ def search():
         sort_by = "relevance"
 
     # Use keyword search if keywords are provided
-    if keywords:
-        result = interface.search_by_keywords(
-            keywords=keywords,
-            query=query,
-            per_page=per_page,
-            org_id=org_id,
-            org_types=org_types,
-            spatial_filter=spatial_filter,
-            after=after,
-            sort_by=sort_by,
-        )
-    else:
-        result = interface.search_datasets(
-            query,
-            per_page=per_page,
-            org_id=org_id,
-            org_types=org_types,
-            after=after,
-            spatial_filter=spatial_filter,
-            sort_by=sort_by,
-        )
+    result = interface.search_datasets(
+        keywords=keywords,
+        query=query,
+        per_page=per_page,
+        org_id=org_id,
+        org_types=org_types,
+        spatial_filter=spatial_filter,
+        after=after,
+        sort_by=sort_by,
+    )
 
     if htmx:
         results = [build_dataset_dict(each) for each in result.results]

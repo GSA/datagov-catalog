@@ -50,12 +50,13 @@ class CatalogDBInterface:
 
     def search_datasets(
         self,
-        query: str,
+        query: str = "",
+        keywords: list[str]=[],
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         org_types=None,
-        after=None,
         spatial_filter=None,
+        after=None,
         sort_by="relevance",
         *args,
         **kwargs,
@@ -79,6 +80,7 @@ class CatalogDBInterface:
         sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
             query,
+            keywords=keywords,
             per_page=per_page,
             org_id=org_id,
             org_types=org_types,
@@ -96,45 +98,6 @@ class CatalogDBInterface:
         """
         return self.opensearch.get_unique_keywords(
             size=size, min_doc_count=min_doc_count
-        )
-
-    def search_by_keywords(
-        self,
-        keywords: list[str],
-        query: str = "",
-        per_page=DEFAULT_PER_PAGE,
-        org_id=None,
-        org_types=None,
-        spatial_filter=None,
-        after=None,
-        *args,
-        **kwargs,
-    ):
-        """
-        Search datasets that have specific keywords (exact match).
-
-        keywords: List of exact keywords to match
-        query: Optional text search query to combine with keyword filter
-        per_page: Number of results per page
-        org_id: Optional organization ID to filter by
-        org_types: Optional list of organization types to filter by
-        spatial_filter: Optional "geospatial" or "non-geospatial" filter
-        """
-        if after is not None:
-            search_after = SearchResult.decode_search_after(after)
-        else:
-            search_after = None
-
-        sort_by = kwargs.get("sort_by", "relevance")
-        return self.opensearch.search_by_keywords(
-            keywords=keywords,
-            query=query,
-            per_page=per_page,
-            org_id=org_id,
-            org_types=org_types,
-            spatial_filter=spatial_filter,
-            search_after=search_after,
-            sort_by=sort_by,
         )
 
     def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):

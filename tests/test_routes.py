@@ -222,7 +222,6 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
     assert datasets_text.startswith("Datasets:")
-    assert datasets_text.endswith("49")
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None

@@ -403,6 +403,7 @@ class OpenSearchInterface:
         org_types=None,
         spatial_filter=None,
         sort_by: str = "relevance",
+        keywords: list[str] = None,
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -412,6 +413,9 @@ class OpenSearchInterface:
 
         If the org_id argument is given then we only return search results
         that are in that organization.
+
+        If keywords are provided, only datasets with those exact keywords will
+        be returned (exact match on keyword.raw field).
 
         spatial_filter can be "geospatial" or "non-geospatial" to filter
         datasets by presence of spatial data.
@@ -450,6 +454,10 @@ class OpenSearchInterface:
 
         # Build filter list for bool query
         filters = []
+
+        # Add keyword filter (exact match)
+        if keywords:
+            filters.append({"terms": {"keyword.raw": keywords}})
 
         if org_id is not None:
             filters.append(
@@ -527,103 +535,3 @@ class OpenSearchInterface:
             {"keyword": bucket["key"], "count": bucket["doc_count"]}
             for bucket in buckets
         ]
-
-    def search_by_keywords(
-        self,
-        keywords: list[str],
-        query: str = "",
-        per_page=DEFAULT_PER_PAGE,
-        org_id=None,
-        org_types=None,
-        spatial_filter=None,
-        search_after: list = None,
-        sort_by: str = "relevance",
-    ) -> SearchResult:
-        """
-        Search datasets that have specific keywords (exact match).
-
-        spatial_filter can be "geospatial" or "non-geospatial" to filter
-        datasets by presence of spatial data.
-        """
-        # Build filter list
-        filters = []
-
-        # Add keyword filter (exact match)
-        if keywords:
-            filters.append({"terms": {"keyword.raw": keywords}})
-
-        # Add org_id filter if provided
-        if org_id is not None:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "organization",
-                        "query": {"term": {"organization.id": org_id}},
-                    }
-                }
-            )
-
-        # Add org_types filter if provided
-        if org_types is not None and len(org_types) > 0:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "organization",
-                        "query": {
-                            "terms": {"organization.organization_type": org_types}
-                        },
-                    }
-                }
-            )
-
-        # Add spatial filter
-        if spatial_filter == "geospatial":
-            filters.append({"term": {"has_spatial": True}})
-        elif spatial_filter == "non-geospatial":
-            filters.append({"term": {"has_spatial": False}})
-
-        # Build the search body
-        if query:
-            # If there's a text query, combine with filters
-            base_query: dict[str, Any] = {
-                "multi_match": {
-                    "query": query,
-                    "type": "most_fields",
-                    "fields": [
-                        "title^5",
-                        "description^3",
-                        "publisher^3",
-                        "keyword^2",
-                        "theme",
-                        "identifier",
-                    ],
-                    "operator": "AND",
-                    "zero_terms_query": "all",
-                }
-            }
-            search_body = {
-                "query": {
-                    "bool": {
-                        "must": [base_query],
-                        "filter": filters,
-                    }
-                },
-                "sort": self._build_sort_clause(sort_by),
-                # ask for one more to help with pagination
-                "size": per_page + 1,
-            }
-        else:
-            # No text query, just filter by keywords
-            search_body = {
-                "query": {"bool": {"filter": filters}},
-                "sort": self._build_sort_clause(sort_by),
-                # ask for one more to help with pagination
-                "size": per_page + 1,
-            }
-
-        # Add search_after if provided for pagination
-        if search_after is not None:
-            search_body["search_after"] = search_after
-
-        result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
