@@ -50,15 +50,52 @@ def load_test_data():
 @search.cli.command("sync")
 @click.option("--start-page", help="Number of page to start on", default=1)
 @click.option("--per_page", help="Number of datasets per page", default=100)
-def sync_opensearch(start_page=1, per_page=100):
-    """Sync the datasets to the OpenSearch system."""
+@click.option(
+    "--recreate-index",
+    is_flag=True,
+    help="Delete and recreate index with new schema",
+    default=False,
+)
+def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
+    """Sync the datasets to the OpenSearch system.
+
+    Use --recreate-index flag when you've updated the schema (e.g., added keyword.raw field)
+    to delete the old index and create a new one with the updated mapping.
+    """
 
     client = OpenSearchInterface.from_environment()
 
     # enpty the index and then refill it
     # THIS WILL CAUSE INCONSISTENT SEARCH RESULTS DURING THE PROCESS
-    click.echo("Emptying dataset index...")
-    client.delete_all_datasets()
+
+    if recreate_index:
+        click.echo("Deleting entire index to recreate with new schema...")
+        try:
+            client.client.indices.delete(index=client.INDEX_NAME)
+            click.echo("Index deleted")
+        except Exception as e:
+            click.echo(f"Could not delete index (may not exist): {e}")
+
+        # Recreate with new schema
+        click.echo("Creating index with new schema...")
+        client._ensure_index()
+        click.echo("Index created with updated mapping")
+
+        # Verify the new mapping
+        mapping = client.client.indices.get_mapping(index=client.INDEX_NAME)
+        keyword_mapping = mapping[client.INDEX_NAME]["mappings"]["properties"].get(
+            "keyword", {}
+        )
+        has_raw = "fields" in keyword_mapping and "raw" in keyword_mapping["fields"]
+        if has_raw:
+            click.echo("Verified: keyword.raw field exists in new mapping")
+        else:
+            click.echo(
+                "Warning: keyword.raw field not found in mapping - aggregations may not work"
+            )
+    else:
+        click.echo("Emptying dataset index (keeping existing schema)...")
+        client.delete_all_datasets()
 
     click.echo("Indexing...")
 

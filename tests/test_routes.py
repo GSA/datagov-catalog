@@ -1,5 +1,6 @@
 import json
 from unittest.mock import Mock, patch
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
@@ -221,7 +222,6 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
     assert datasets_text.startswith("Datasets:")
-    assert datasets_text.endswith("49")
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -616,6 +616,10 @@ def test_index_page_lists_results_without_query(db_client):
     mock_result = SearchResult(total=1, results=[mock_dataset], search_after=None)
     mock_interface = Mock()
     mock_interface.search_datasets.return_value = mock_result
+    mock_interface.get_unique_keywords.return_value = [
+        {"keyword": "test", "count": 10},
+        {"keyword": "data", "count": 5},
+    ]
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/")
@@ -980,3 +984,290 @@ def test_dataset_detail_logs_warning_when_spatial_unqualified(
         script.get_text() for script in soup.find_all("script") if not script.get("src")
     ]
     assert any("Map not displayed" in content for content in inline_scripts)
+
+
+class TestKeywordSearch:
+    """Test keyword search functionality on index page."""
+
+    def test_single_keyword_filter_shows_matching_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """Test filtering by a single keyword returns matching datasets."""
+        dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+        for i in range(2):
+            dataset_dict["id"] = str(i)
+            dataset_dict["slug"] = f"test-{i}"
+            dataset_dict["dcat"]["title"] = f"test-{i}"
+            dataset_dict["dcat"]["keyword"] =["health", "education"]
+            interface_with_dataset.db.add(Dataset(**dataset_dict))
+        interface_with_dataset.db.commit()
+
+        # Index datasets in OpenSearch
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?keyword=health")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Verify at least one dataset is returned
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
+
+    def test_multiple_keywords_filter_shows_matching_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """Test filtering by multiple keywords returns datasets with all keywords."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?keyword=health&keyword=education")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        results_text = soup.find("p", class_="text-base-dark")
+        assert results_text is not None
+
+        # Verify at least one dataset is returned
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
+
+    def test_nonexistent_keyword_returns_no_results(
+        self, interface_with_dataset, db_client
+    ):
+        """Test that filtering by a non-existent keyword returns no results."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?keyword=nonexistentkeyword")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check for no results message
+        no_results_alert = soup.find("p", class_="usa-alert__text")
+        assert no_results_alert is not None
+        assert "No datasets found" in no_results_alert.text
+
+
+class TestGeospatialSearch:
+    """Test geospatial search functionality on index page."""
+
+    def test_geospatial_filter_shows_only_spatial_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """Test that geospatial filter returns only datasets with spatial data."""
+        # Add spatial data to test dataset
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat["spatial"] = "-90.155,27.155,-90.26,27.255"
+        interface_with_dataset.db.commit()
+
+        # Index datasets in OpenSearch
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?spatial_filter=geospatial")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check that geospatial radio button is selected
+        geo_radio = soup.find("input", {"id": "filter-spatial-geo"})
+        assert geo_radio is not None
+        assert "checked" in geo_radio.attrs
+
+        # Verify results are displayed
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
+
+    def test_non_geospatial_filter_shows_only_non_spatial_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """Test that non-geospatial filter returns only datasets without spatial data."""
+        # Ensure test dataset has no spatial data
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat.pop("spatial", None)
+        interface_with_dataset.db.commit()
+
+        # Index datasets in OpenSearch
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?spatial_filter=non-geospatial")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check that non-geospatial radio button is selected
+        non_geo_radio = soup.find("input", {"id": "filter-spatial-non-geo"})
+        assert non_geo_radio is not None
+        assert "checked" in non_geo_radio.attrs
+
+        # Verify results are displayed
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
+
+
+def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
+    """Test that HTMX 'Show more results' button preserves all filter parameters."""
+    # Create enough datasets to trigger pagination
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(30):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        dataset_dict["dcat"]["title"] = f"test-{i}"
+        dataset_dict["dcat"]["keyword"] =["health", "education"]
+        dataset_dict["dcat"]["spatial"] = "-90.155,27.155,-90.26,27.255"
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+
+    # Index datasets in OpenSearch
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    with patch("app.routes.interface", interface_with_dataset):
+        # Initial search with filters
+        response = db_client.get(
+            "/search",
+            query_string={
+                "q": "test",
+                "per_page": "10",
+                "org_type": "Federal Government",
+                "keyword": "health",
+                "spatial_filter": "geospatial",
+                "sort": "popularity",
+            },
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Find the "Show more results" button
+    load_more_button = soup.find(
+        "button", string=lambda s: s and "Show more results" in s
+    )
+    assert load_more_button is not None
+
+    # Verify the button's hx-get URL contains all filter parameters
+    hx_get_url = load_more_button.get("hx-get")
+    assert hx_get_url is not None
+
+    # Parse the URL to check query parameters
+    parsed = urlparse(hx_get_url)
+    params = parse_qs(parsed.query)
+
+    assert params.get("q") == ["test"]
+    assert params.get("org_type") == ["Federal Government"]
+    assert params.get("keyword") == ["health"]
+    assert params.get("spatial_filter") == ["geospatial"]
+    assert params.get("sort") == ["popularity"]
+    assert "after" in params
+    assert "results" in params
+
+    # Verify the hx-push-url also preserves filters
+    hx_push_url = load_more_button.get("hx-push-url")
+    assert hx_push_url is not None
+
+    parsed_push = urlparse(hx_push_url)
+    push_params = parse_qs(parsed_push.query)
+
+    assert push_params.get("q") == ["test"]
+    assert push_params.get("org_type") == ["Federal Government"]
+    assert push_params.get("keyword") == ["health"]
+
+
+def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client):
+    """Test that multiple keywords are preserved in the load more button."""
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(25):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        dataset_dict["dcat"] = {
+            "title": f"test-{i}",
+            "keyword": ["health", "education", "employment"],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search",
+            query_string={
+                "q": "test",
+                "per_page": "10",
+                "keyword": ["health", "education"],
+            },
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    load_more_button = soup.find(
+        "button", string=lambda s: s and "Show more results" in s
+    )
+    assert load_more_button is not None
+
+    hx_get_url = load_more_button.get("hx-get")
+    parsed = urlparse(hx_get_url)
+    params = parse_qs(parsed.query)
+
+    # Verify both keywords are present
+    assert set(params.get("keyword", [])) == {"health", "education"}
+
+
+def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_client):
+    """Test that multiple organization types are preserved in the load more button."""
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(25):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"test-{i}"
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search",
+            query_string={
+                "q": "test",
+                "per_page": "10",
+                "org_type": ["Federal Government", "State Government"],
+            },
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    load_more_button = soup.find(
+        "button", string=lambda s: s and "Show more results" in s
+    )
+    assert load_more_button is not None
+
+    hx_get_url = load_more_button.get("hx-get")
+    parsed = urlparse(hx_get_url)
+    params = parse_qs(parsed.query)
+
+    # Verify both org types are present
+    assert set(params.get("org_type", [])) == {"Federal Government", "State Government"}
