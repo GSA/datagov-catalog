@@ -110,6 +110,8 @@ def index():
     num_results = request.args.get("results", DEFAULT_PER_PAGE, type=int)
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
+    keywords = request.args.getlist("keyword")
+    spatial_filter = request.args.get("spatial_filter", None, type=str)
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
@@ -121,20 +123,22 @@ def index():
     datasets: list[dict] = []
     result = None
     total = 0
+    suggested_keywords = []
 
     try:
         result = interface.search_datasets(
             query,
+            keywords=keywords,
             per_page=num_results,
             org_id=org_id,
             org_types=org_types,
             sort_by=sort_by,
+            spatial_filter=spatial_filter,
         )
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})
     else:
-
-        # Get total number of results for this search
+        # Get total count
         total = result.total
 
         # Build dataset dictionaries with organization data
@@ -145,6 +149,16 @@ def index():
     else:
         after = None
 
+    if not keywords:
+        try:
+            suggested_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
+            if suggested_keywords:
+                suggested_keywords = [
+                    keyword["keyword"] for keyword in suggested_keywords
+                ]
+        except Exception:
+            logger.exception("Failed to fetch suggested keywords")
+    
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
 
@@ -158,7 +172,10 @@ def index():
         total=total,
         org_id=org_id,
         org_types=org_types,
+        keywords=keywords,
         sort_by=sort_by,
+        suggested_keywords=suggested_keywords,
+        spatial_filter=spatial_filter,
         from_hint=from_hint,
     )
 
@@ -176,15 +193,22 @@ def search():
     from_hint = request.args.get("from_hint")
     org_id = request.args.get("org_id", None, type=str)
     org_types = request.args.getlist("org_type")
+    keywords = request.args.getlist("keyword")
     after = request.args.get("after")
+    spatial_filter = request.args.get("spatial_filter", None, type=str)
+
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
+
+    # Use keyword search if keywords are provided
     result = interface.search_datasets(
-        query,
+        keywords=keywords,
+        query=query,
         per_page=per_page,
         org_id=org_id,
         org_types=org_types,
+        spatial_filter=spatial_filter,
         after=after,
         sort_by=sort_by,
     )
@@ -214,6 +238,10 @@ def search():
             from_hint=from_hint,
             after=result.search_after_obscured(),
             sort_by=sort_by,
+            org_types=org_types,
+            keywords=keywords,
+            org_id=org_id,
+            spatial_filter=spatial_filter,
         )
 
     response_dict = {
@@ -412,6 +440,41 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         organization=org,
         from_dict=from_dict,
     )
+
+
+@main.route("/api/keywords", methods=["GET"])
+def get_keywords_api():
+    """API endpoint to get unique keywords with counts.
+
+    Query parameters:
+        size: Maximum number of keywords to return (default 100, max 1000)
+        min_count: Minimum document count for keywords (default 1)
+
+    Returns:
+        JSON with list of keywords and their counts
+    """
+    size = request.args.get("size", 100, type=int)
+    min_count = request.args.get("min_count", 1, type=int)
+
+    # Validate parameters
+    # Between 1 and 1000
+    size = max(min(size, 1000), 1)
+    # At least 1
+    min_count = max(min_count, 1)
+
+    try:
+        keywords = interface.get_unique_keywords(size=size, min_doc_count=min_count)
+
+        return jsonify(
+            {
+                "keywords": keywords,
+                "total": len(keywords),
+                "size": size,
+                "min_count": min_count,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
 
 
 def register_routes(app):

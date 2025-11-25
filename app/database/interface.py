@@ -50,9 +50,12 @@ class CatalogDBInterface:
 
     def search_datasets(
         self,
-        query: str,
+        query: str = "",
+        keywords: list[str]=[],
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
+        org_types=None,
+        spatial_filter=None,
         after=None,
         sort_by="relevance",
         *args,
@@ -66,18 +69,35 @@ class CatalogDBInterface:
         per_page paginates results with this many entries. If org_id is
         specified, only datasets for that organization are searched. after is
         an encoded string that will be passed through to Opensearch for
-        accessing further pages.
+        accessing further pages. spatial_filter can be "geospatial" or
+        "non-geospatial" to filter by presence of spatial data.
         """
         if after is not None:
             search_after = SearchResult.decode_search_after(after)
         else:
             search_after = None
+
+        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
             query,
+            keywords=keywords,
             per_page=per_page,
             org_id=org_id,
+            org_types=org_types,
             search_after=search_after,
+            spatial_filter=spatial_filter,
             sort_by=sort_by,
+        )
+
+    def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
+        """
+        Get unique keywords from all datasets with their document counts.
+
+        size: Maximum number of unique keywords to return (default 100)
+        min_doc_count: Minimum number of documents a keyword must appear in (default 1)
+        """
+        return self.opensearch.get_unique_keywords(
+            size=size, min_doc_count=min_doc_count
         )
 
     def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
@@ -86,9 +106,6 @@ class CatalogDBInterface:
         Use the `query` to find matching datasets. The query is in Postgres's
         "websearch" format which allows the use of quoted phrases with AND
         and OR keywords.
-
-        include_org
-            include org with dataset
         """
         # default sort to relevance
         sort_by = kwargs.get("sort_by", "relevance").lower()
