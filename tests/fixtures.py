@@ -65,6 +65,7 @@ def fixture_data():
                 dcat={
                     "title": "test",
                     "description": "this is the test description",
+                    "keyword": ["health", "education"],
                     "distribution": [
                         {
                             "title": "Test CSV",
@@ -79,6 +80,91 @@ def fixture_data():
                 harvest_source_id="1",
                 organization_id="1",
                 search_vector=func.to_tsvector("english", "test description"),
+            ),
+            dict(
+                id="test-dataset-2",
+                slug="test-health-data",
+                dcat={
+                    "title": "Health and Medical Research Data",
+                    "description": "Comprehensive health statistics and medical research findings",
+                    "keyword": ["health", "medical", "research"],
+                    "distribution": [
+                        {
+                            "title": "Health Statistics",
+                            "format": "JSON",
+                            "downloadURL": "https://example.com/health.json",
+                        }
+                    ],
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                popularity=100,
+                search_vector=func.to_tsvector("english", "health medical research"),
+            ),
+            dict(
+                id="test-dataset-3",
+                slug="test-climate-environment",
+                dcat={
+                    "title": "Climate Change Environmental Data",
+                    "description": "Environmental monitoring and climate science datasets",
+                    "keyword": ["environment", "science", "climate"],
+                    "spatial": "-122.4194,37.7749,-122.4094,37.7849",
+                    "distribution": [
+                        {
+                            "title": "Climate Measurements",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/climate.csv",
+                        }
+                    ],
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                popularity=250,
+                search_vector=func.to_tsvector("english", "climate environment science"),
+            ),
+            dict(
+                id="test-dataset-4",
+                slug="test-education-schools",
+                dcat={
+                    "title": "Education and School Performance Data",
+                    "description": "School statistics and educational outcomes",
+                    "keyword": [],
+                    "distribution": [
+                        {
+                            "title": "School Data",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/schools.xlsx",
+                        }
+                    ],
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                popularity=180,
+                search_vector=func.to_tsvector("english", "education schools performance"),
+            ),
+            dict(
+                id="test-dataset-5",
+                slug="test-technology-data",
+                dcat={
+                    "title": "Technology and Data Science Resources",
+                    "description": "Technology trends and data science methodologies",
+                    "keyword": ["technology", "data", "science"],
+                    "distribution": [
+                        {
+                            "title": "Tech Trends",
+                            "format": "PDF",
+                            "downloadURL": "https://example.com/tech.pdf",
+                        }
+                    ],
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                popularity=150,
+                search_vector=func.to_tsvector("english", "technology data science"),
             ),
         ],
     }
