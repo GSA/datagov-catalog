@@ -4,8 +4,8 @@ import json
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Any, Union
-import re
 
+from bs4 import BeautifulSoup
 from flask import url_for
 
 from shared.constants import ORGANIZATION_TYPE_VALUES
@@ -141,7 +141,8 @@ def remove_html_tags(text: str) -> str:
     """
     removes html tags from [text]
     """
-    return re.sub(r"<[^>]+>", "", text)
+    soup = BeautifulSoup(text, "html.parser")
+    return soup.get_text()
 
 
 __all__ = [
