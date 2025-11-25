@@ -50,7 +50,7 @@
               {% endif %}
           </ul>
           <p class="usa-collection__description">
-              {{ dataset_meta.get('description', 'No description available.') | truncate(200) }}
+              {{ dataset_meta.get('description', 'No description available.') | remove_html_tags | truncate(200) }}
           </p>
           {% if dataset.dcat.distribution %}
           <ul class="dataset-resources unstyled">
