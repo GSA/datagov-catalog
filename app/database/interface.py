@@ -6,7 +6,7 @@ import logging
 from functools import wraps
 from typing import Any
 
-from sqlalchemy import desc, func, or_
+from sqlalchemy import func, or_
 
 from app.models import Dataset, HarvestRecord, Organization, db
 
@@ -103,43 +103,6 @@ class CatalogDBInterface:
         return self.opensearch.get_unique_keywords(
             size=size, min_doc_count=min_doc_count
         )
-
-    def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
-        """Text search for datasets.
-
-        Use the `query` to find matching datasets. The query is in Postgres's
-        "websearch" format which allows the use of quoted phrases with AND
-        and OR keywords.
-        """
-        # default sort to relevance
-        sort_by = kwargs.get("sort_by", "relevance").lower()
-        ts_query = func.websearch_to_tsquery("english", query)
-
-        query = (
-            self.db.query(Dataset, Organization)
-            if include_org
-            else self.db.query(Dataset)
-        )
-
-        query = query.filter(Dataset.search_vector.op("@@")(ts_query))
-
-        if include_org:
-            query = query.join(Organization, Dataset.organization_id == Organization.id)
-
-            # we only want to filter by org type if we include the org join
-            if kwargs.get("org_types"):
-                org_types = kwargs["org_types"]
-                query = query.filter(Organization.organization_type.in_(org_types))
-
-        if sort_by == "relevance":
-            return query.order_by(
-                desc(
-                    func.ts_rank(
-                        Dataset.search_vector,
-                        ts_query,
-                    )
-                )
-            )
 
     def _success_harvest_record_ids_query(self):
         return (

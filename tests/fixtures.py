@@ -2,8 +2,6 @@ import csv
 import json
 from pathlib import Path
 
-from sqlalchemy import func
-
 HARVEST_RECORD_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 DATASET_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 TEST_DIR = Path(__file__).parent
@@ -47,17 +45,19 @@ def fixture_data():
             notification_frequency="always",
         ),
         "harvest_job": dict(id="1", harvest_source_id="1", status="complete"),
-        "harvest_record": dict(
-            id=HARVEST_RECORD_ID,
-            harvest_source_id="1",
-            harvest_job_id="1",
-            identifier="identifier",
-            source_raw='{"title": "test dataset"}',
-            source_transform={
-                "title": "test dataset",
-                "extras": {"foo": "bar"},
-            },
-        ),
+        "harvest_record": [
+            dict(
+                id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="identifier",
+                source_raw='{"title": "test dataset"}',
+                source_transform={
+                    "title": "test dataset",
+                    "extras": {"foo": "bar"},
+                },
+            )
+        ],
         "dataset": [
             dict(
                 id=DATASET_ID,
@@ -79,7 +79,6 @@ def fixture_data():
                 harvest_record_id=HARVEST_RECORD_ID,
                 harvest_source_id="1",
                 organization_id="1",
-                search_vector=func.to_tsvector("english", "test description"),
             ),
             dict(
                 id="test-dataset-2",
@@ -100,7 +99,6 @@ def fixture_data():
                 harvest_source_id="1",
                 organization_id="1",
                 popularity=100,
-                search_vector=func.to_tsvector("english", "health medical research"),
             ),
             dict(
                 id="test-dataset-3",
@@ -122,7 +120,6 @@ def fixture_data():
                 harvest_source_id="1",
                 organization_id="1",
                 popularity=250,
-                search_vector=func.to_tsvector("english", "climate environment science"),
             ),
             dict(
                 id="test-dataset-4",
@@ -143,7 +140,6 @@ def fixture_data():
                 harvest_source_id="1",
                 organization_id="1",
                 popularity=180,
-                search_vector=func.to_tsvector("english", "education schools performance"),
             ),
             dict(
                 id="test-dataset-5",
@@ -164,7 +160,6 @@ def fixture_data():
                 harvest_source_id="1",
                 organization_id="1",
                 popularity=150,
-                search_vector=func.to_tsvector("english", "technology data science"),
             ),
         ],
     }
@@ -172,10 +167,30 @@ def fixture_data():
     # add additional dataset records
     datasets = read_csv(TEST_DIR / "data" / "americorps_datasets.csv")
     fields = datasets[0]
+    org_id = fixture_dict["organization"][0]["id"]
+    harvest_source_id = fixture_dict["harvest_source"]["id"]
+    harvest_job_id = fixture_dict["harvest_job"]["id"]
 
     for row in datasets[1:]:
-        row[-2] = func.to_tsvector("english", row[1])  # search_vector
-        row[1] = json.loads(row[1])  # dcat
-        row[5] = int(row[5])  # popularity
+        slug = row[0]
+        dcat = json.loads(row[1])
+        harvest_record_id = row[4]
+        popularity = int(row[5])
+
+        fixture_dict["harvest_record"].append(
+            dict(
+                id=harvest_record_id,
+                harvest_source_id=harvest_source_id,
+                harvest_job_id=harvest_job_id,
+                identifier=slug,
+                source_raw=json.dumps(dcat),
+                source_transform=dcat,
+            )
+        )
+
+        row[1] = dcat
+        row[2] = org_id
+        row[3] = harvest_source_id
+        row[5] = popularity
         fixture_dict["dataset"].append(dict(zip(fields, row)))
     return fixture_dict
