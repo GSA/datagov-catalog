@@ -20,8 +20,6 @@ on:
         required: false
         default: false
         type: boolean
-  schedule:
-    - cron: "0 12 * * *" # Every day around 7 a.m. eastern time
 
 jobs:
   determine-environments:
