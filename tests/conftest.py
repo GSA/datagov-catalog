@@ -99,7 +99,11 @@ def interface_with_harvest_job(interface_with_harvest_source, fixture_data):
 
 @pytest.fixture
 def interface_with_harvest_record(interface_with_harvest_job, fixture_data):
-    interface_with_harvest_job.db.add(HarvestRecord(**fixture_data["harvest_record"]))
+    harvest_records = fixture_data["harvest_record"]
+    if isinstance(harvest_records, dict):
+        harvest_records = [harvest_records]
+    for harvest_record in harvest_records:
+        interface_with_harvest_job.db.add(HarvestRecord(**harvest_record))
     interface_with_harvest_job.db.commit()
     yield interface_with_harvest_job
 
