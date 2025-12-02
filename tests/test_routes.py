@@ -348,6 +348,7 @@ def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
     print(response.text)
     assert int(dataset_total.text) > 0
 
+
 def test_htmx_search_returns_results(interface_with_dataset, db_client):
     """
     Test that searching via HTMX returns HTML results with dataset information.
@@ -828,7 +829,10 @@ def test_header_exists(db_client):
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert len(nav_parts) == 5  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
+    assert (
+        len(nav_parts) == 5
+    )  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
+
 
 def test_footer_exists(db_client):
     response = db_client.get("/")
@@ -1013,7 +1017,7 @@ class TestKeywordSearch:
             dataset_dict["id"] = str(i)
             dataset_dict["slug"] = f"test-{i}"
             dataset_dict["dcat"]["title"] = f"test-{i}"
-            dataset_dict["dcat"]["keyword"] =["health", "education"]
+            dataset_dict["dcat"]["keyword"] = ["health", "education"]
             interface_with_dataset.db.add(Dataset(**dataset_dict))
         interface_with_dataset.db.commit()
 
@@ -1142,7 +1146,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"]["title"] = f"test-{i}"
-        dataset_dict["dcat"]["keyword"] =["health", "education"]
+        dataset_dict["dcat"]["keyword"] = ["health", "education"]
         dataset_dict["dcat"]["spatial"] = "-90.155,27.155,-90.26,27.255"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()

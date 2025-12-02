@@ -55,7 +55,7 @@ class CatalogDBInterface:
     def search_datasets(
         self,
         query: str = "",
-        keywords: list[str]=[],
+        keywords: list[str] = [],
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         org_types=None,
