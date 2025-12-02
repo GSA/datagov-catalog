@@ -33,6 +33,57 @@ class TestOpenSearch:
         result_obj = opensearch_client.search("tnxs-meph")
         assert len(result_obj.results) > 0
 
+    def test_search_spatial_geometry_intersects(
+        self, interface_with_dataset, opensearch_client
+    ):
+        dataset_iterator = interface_with_dataset.db.query(Dataset)
+        opensearch_client.index_datasets(dataset_iterator)
+        # This point is inside the polygon of the test dataset
+        result_obj = opensearch_client.search(
+            "",
+            spatial_geometry={"type": "point", "coordinates": [-75, 40]},
+            spatial_within=False,
+        )
+        assert len(result_obj.results) > 0
+
+    def test_search_spatial_geometry_within(
+        self, interface_with_dataset, opensearch_client
+    ):
+        dataset_iterator = interface_with_dataset.db.query(Dataset)
+        opensearch_client.index_datasets(dataset_iterator)
+        # This polygon contains the whole test dataset (and planet)
+        result_obj = opensearch_client.search(
+            "",
+            spatial_geometry={
+                "type": "polygon",
+                "coordinates": [
+                    [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]
+                ],
+            },
+            spatial_within=True,
+        )
+        assert len(result_obj.results) > 0
+
+    def test_search_spatial_geometry_intersects_not_within(
+        self, interface_with_dataset, opensearch_client
+    ):
+        dataset_iterator = interface_with_dataset.db.query(Dataset)
+        opensearch_client.index_datasets(dataset_iterator)
+        # This polygon intersects the test dataset but doesn't contain it
+        polygon = {
+            "type": "polygon",
+            "coordinates": [[[-85, 30], [-85, 40], [-75, 40], [-75, 30], [-85, 30]]],
+        }
+        result_obj = opensearch_client.search(
+            "", spatial_geometry=polygon, spatial_within=True
+        )
+        assert len(result_obj.results) == 0
+
+        result_obj = opensearch_client.search(
+            "", spatial_geometry=polygon, spatial_within=False
+        )
+        assert len(result_obj.results) > 0
+
 
 def test_relevance_sort_uses_popularity_tie_breaker():
     client = OpenSearchInterface.__new__(OpenSearchInterface)

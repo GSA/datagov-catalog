@@ -236,7 +236,9 @@ class OpenSearchInterface:
         """
         # Check if dataset has spatial data
         spatial_value = dataset.dcat.get("spatial")
-        has_spatial = bool(spatial_value and str(spatial_value).strip()) or (dataset.translated_spatial is not None)
+        has_spatial = bool(spatial_value and str(spatial_value).strip()) or (
+            dataset.translated_spatial is not None
+        )
 
         return {
             "_index": self.INDEX_NAME,
@@ -404,6 +406,8 @@ class OpenSearchInterface:
         search_after: list = None,
         org_types=None,
         spatial_filter=None,
+        spatial_geometry=None,
+        spatial_within=True,
         sort_by: str = "relevance",
         keywords: list[str] = None,
     ) -> SearchResult:
@@ -421,6 +425,15 @@ class OpenSearchInterface:
 
         spatial_filter can be "geospatial" or "non-geospatial" to filter
         datasets by presence of spatial data.
+
+        spatial_geometry is a GeoJSON object which will be used to search for
+        datasets
+
+        spatial_within is a flag for how to interpret spatial_geometry. If
+        spatial_within is True then matching datasets must be completely
+        WITHIN the specified spatial_geometry. If spatial_within is False then
+        matching datasets only need to INTERSECT the specified
+        spatial_geometry.
 
         We pass the `after` argument through to OpenSearch. It should be the
         value of the last `_sort` field from a previous search result with the
@@ -493,6 +506,19 @@ class OpenSearchInterface:
         elif spatial_filter == "non-geospatial":
             filters.append({"term": {"has_spatial": False}})
 
+        # Add spatial_geojson filter
+        if spatial_geometry is not None:
+            filters.append(
+                {
+                    "geo_shape": {
+                        "spatial_shape": {
+                            "shape": spatial_geometry,
+                            "relation": "WITHIN" if spatial_within else "INTERSECTS",
+                        }
+                    }
+                }
+            )
+
         # Apply filters if any exist
         if filters:
             search_body["query"] = {
@@ -507,9 +533,9 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
-        # print("QUERY:", search_body)
+        print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        # print("OPENSEARCH:", result_dict)
+        print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
