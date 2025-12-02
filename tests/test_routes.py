@@ -813,13 +813,16 @@ class TestKeywordSearch:
 class TestGeospatialSearch:
     """Test geospatial search functionality on index page."""
 
-    def test_geospatial_filter_shows_only_spatial_datasets(
+    def test_geospatial_filter_shows_dcat_spatial_datasets(
         self, interface_with_dataset, db_client
     ):
-        """Test that geospatial filter returns only datasets with spatial data."""
+        """
+        Test that geospatial filter returns datasets with spatial data in DCAT.
+        """
         # Add spatial data to test dataset
         ds = interface_with_dataset.get_dataset_by_slug("test")
         ds.dcat["spatial"] = "-90.155,27.155,-90.26,27.255"
+        ds.translated_spatial = None
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
@@ -828,7 +831,29 @@ class TestGeospatialSearch:
         )
 
         with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get("/?spatial_filter=geospatial")
+            response = db_client.get("/?q=test&spatial_filter=geospatial")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check that geospatial radio button is selected
+        geo_radio = soup.find("input", {"id": "filter-spatial-geo"})
+        assert geo_radio is not None
+        assert "checked" in geo_radio.attrs
+
+        # Verify results are displayed
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
+
+    def test_geospatial_filter_shows_translated_spatial_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        Test that geospatial filter returns datasets with translated_geospatial
+        """
+        # translated_spatial data is already one test dataset
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?q=test&spatial_filter=geospatial")
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
@@ -849,6 +874,7 @@ class TestGeospatialSearch:
         # Ensure test dataset has no spatial data
         ds = interface_with_dataset.get_dataset_by_slug("test")
         ds.dcat.pop("spatial", None)
+        ds.translated_spatial = None
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
@@ -857,7 +883,7 @@ class TestGeospatialSearch:
         )
 
         with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get("/?spatial_filter=non-geospatial")
+            response = db_client.get("/?q=test&spatial_filter=non-geospatial")
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")

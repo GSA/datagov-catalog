@@ -236,7 +236,7 @@ class OpenSearchInterface:
         """
         # Check if dataset has spatial data
         spatial_value = dataset.dcat.get("spatial")
-        has_spatial = bool(spatial_value and str(spatial_value).strip())
+        has_spatial = bool(spatial_value and str(spatial_value).strip()) or (dataset.translated_spatial is not None)
 
         return {
             "_index": self.INDEX_NAME,

@@ -41,7 +41,8 @@ def load_test_data():
         interface.db.add(Organization(**organization_data))
     interface.db.add(HarvestSource(**fixture["harvest_source"]))
     interface.db.add(HarvestJob(**fixture["harvest_job"]))
-    interface.db.add(HarvestRecord(**fixture["harvest_record"]))
+    for record in fixture["harvest_record"]:
+        interface.db.add(HarvestRecord(**record))
     for data in fixture["dataset"]:
         interface.db.add(Dataset(**data))
     interface.db.commit()
