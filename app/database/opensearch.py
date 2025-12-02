@@ -138,6 +138,7 @@ class OpenSearchInterface:
                     "organization_type": {"type": "keyword"},
                 },
             },
+            "spatial_shape": {"type": "geo_shape"},
         }
     }
 
@@ -254,6 +255,7 @@ class OpenSearchInterface:
             "popularity": (
                 dataset.popularity if dataset.popularity is not None else None
             ),
+            "spatial_shape": dataset.translated_spatial,
         }
 
     def _run_with_timeout_retry(
