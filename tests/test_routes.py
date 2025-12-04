@@ -1,5 +1,7 @@
+import json
+
 from unittest.mock import Mock, patch
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
@@ -86,6 +88,26 @@ def test_search_api_by_org_id(interface_with_dataset, db_client):
             "/search", query_string={"q": "test", "org_id": "non-existent"}
         )
         assert len(response.json["results"]) == 0
+
+
+def test_search_api_spatial_geometry(interface_with_dataset, db_client):
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    polygon = {
+                "type": "polygon",
+                "coordinates": [
+                    [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]
+                ],
+            }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search",
+            query_string={"spatial_geometry": polygon_escaped}
+        )
+        assert len(response.json["results"]) >= 1
 
 
 def test_organization_list_shows_type_and_count(db_client, interface_with_dataset):

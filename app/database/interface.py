@@ -60,6 +60,8 @@ class CatalogDBInterface:
         org_id=None,
         org_types=None,
         spatial_filter=None,
+        spatial_geometry=None,
+        spatial_within=True,
         after=None,
         sort_by="relevance",
         *args,
@@ -75,6 +77,8 @@ class CatalogDBInterface:
         an encoded string that will be passed through to Opensearch for
         accessing further pages. spatial_filter can be "geospatial" or
         "non-geospatial" to filter by presence of spatial data.
+        spatial_geometry and spatial_within allow searching geographically for
+        datasets. See OpenSearchInterface.search for details.
         """
         if after is not None:
             search_after = SearchResult.decode_search_after(after)

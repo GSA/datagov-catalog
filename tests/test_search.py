@@ -67,3 +67,15 @@ def test_search_with_keyword(interface_with_dataset):
     result = interface_with_dataset.search_datasets(keywords=["nonexistent"])
     assert len(result) == 0
     assert result.results == []
+
+
+def test_search_spatial_geometry(interface_with_dataset):
+    """Search_datasets accepts spatial_geometry."""
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    results = interface_with_dataset.search_datasets(
+        spatial_geometry={"type": "point", "coordinates": [-75, 40]},
+        spatial_within=False,
+    )
+    assert len(results) > 0

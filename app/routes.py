@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime
 from math import ceil
+from urllib.parse import unquote
 from xml.etree import ElementTree
 
 from dotenv import load_dotenv
@@ -198,10 +199,19 @@ def search():
     keywords = request.args.getlist("keyword")
     after = request.args.get("after")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
+    spatial_geometry = request.args.get("spatial_geometry", type=str)
+    spatial_within = request.args.get("spatial_within", True, type=bool)
 
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
+
+    if spatial_geometry is not None:
+        try:
+            # it's a URL parameter so it is probably URL-quoted
+            spatial_geometry = json.loads(unquote(spatial_geometry))
+        except json.JSONDecodeError:
+            return jsonify({"error": "Search failed", "message": "spatial_geometry parameter is malformed"}), 400
 
     # Use keyword search if keywords are provided
     result = interface.search_datasets(
@@ -211,6 +221,8 @@ def search():
         org_id=org_id,
         org_types=org_types,
         spatial_filter=spatial_filter,
+        spatial_geometry=spatial_geometry,
+        spatial_within=spatial_within,
         after=after,
         sort_by=sort_by,
     )
