@@ -211,7 +211,15 @@ def search():
             # it's a URL parameter so it is probably URL-quoted
             spatial_geometry = json.loads(unquote(spatial_geometry))
         except json.JSONDecodeError:
-            return jsonify({"error": "Search failed", "message": "spatial_geometry parameter is malformed"}), 400
+            return (
+                jsonify(
+                    {
+                        "error": "Search failed",
+                        "message": "spatial_geometry parameter is malformed",
+                    }
+                ),
+                400,
+            )
 
     # Use keyword search if keywords are provided
     result = interface.search_datasets(
@@ -489,6 +497,61 @@ def get_keywords_api():
         )
     except Exception as e:
         return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
+
+
+@main.route("/api/location", methods=["GET"])
+def get_locations_api():
+    """API endpoint to get location names and ids.
+
+    Query parameters:
+        size: Maximum number of locations to return (default 100, max 1000)
+
+    Returns:
+        JSON with list of location display names and their ids
+    """
+    size = request.args.get("size", 100, type=int)
+
+    # Validate parameters
+    # Between 1 and 1000
+    size = max(min(size, 1000), 1)
+
+    try:
+        locations = [
+            {
+                key: value
+                for key, value in loc.to_dict().items()
+                if key in ["display_name", "id"]
+            }
+            for loc in interface.get_locations(size=size)
+        ]
+
+        return jsonify(
+            {
+                "locations": locations,
+                "total": len(locations),
+                "size": size,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch locations", "message": str(e)}), 400
+
+
+@main.route("/api/location/<location_id>", methods=["GET"])
+def get_location_by_id_api(location_id):
+    """API endpoint to get geometry for one location
+
+    Returns:
+        JSON with at least a "geometry" with the location's GeoJSON.
+    """
+    location_obj = interface.get_location(location_id)
+    if location_obj is None:
+        return jsonify({"error": "Location not found"}), 404
+    return jsonify(
+        {
+            "id": location_obj[0],
+            "geometry": location_obj[1],
+        }
+    )
 
 
 def register_routes(app):

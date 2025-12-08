@@ -174,6 +174,17 @@ def fixture_data():
                 popularity=150,
             ),
         ],
+        "locations": [
+            {
+                "id": 1,
+                "name": "20006",
+                "type": "us_postalcode",
+                "display_name": "Washington, DC (20006)",
+                # geoalchemy needs WKT format geometries
+                "the_geom": "MULTIPOLYGON(((-77.0467 38.8878,-77.0467 38.9027,-77.0329 38.9027,-77.0329 38.8878,-77.0467 38.8878)))",
+                "type_order": 4,
+            },
+        ],
     }
 
     # add additional dataset records

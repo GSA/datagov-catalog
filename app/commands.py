@@ -10,7 +10,14 @@ from flask import Blueprint
 from opensearchpy.exceptions import OpenSearchException
 
 from .database import CatalogDBInterface, OpenSearchInterface
-from .models import Dataset, HarvestJob, HarvestRecord, HarvestSource, Organization
+from .models import (
+    Dataset,
+    HarvestJob,
+    HarvestRecord,
+    HarvestSource,
+    Locations,
+    Organization,
+)
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -45,6 +52,8 @@ def load_test_data():
         interface.db.add(HarvestRecord(**record))
     for data in fixture["dataset"]:
         interface.db.add(Dataset(**data))
+    for data in fixture["locations"]:
+        interface.db.add(Locations(**data))
     interface.db.commit()
 
 

@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy import func, or_
 
-from app.models import Dataset, HarvestRecord, Organization, db
+from app.models import Dataset, HarvestRecord, Locations, Organization, db
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
 from .opensearch import OpenSearchInterface, SearchResult
@@ -106,6 +106,26 @@ class CatalogDBInterface:
         """
         return self.opensearch.get_unique_keywords(
             size=size, min_doc_count=min_doc_count
+        )
+
+    def get_locations(self, size=100):
+        """
+        Get names of geographies from the database.
+
+        size: Maximum number of locations to return (default 100)
+        """
+        return self.db.query(Locations).limit(size)
+
+    def get_location(self, location_id):
+        """
+        Get information for a single location.
+
+        Returns a tuple of (id, GeoJSON), or None if the location id doesn't exist.
+        """
+        return (
+            self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
+            .filter(Locations.id == location_id)
+            .first()
         )
 
     def _success_harvest_record_ids_query(self):

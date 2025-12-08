@@ -1,5 +1,4 @@
 import json
-
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, quote, urlparse
 from uuid import uuid4
@@ -9,6 +8,27 @@ from bs4 import BeautifulSoup
 from app.database.opensearch import SearchResult
 from app.models import Dataset
 from tests.fixtures import HARVEST_RECORD_ID
+
+
+def test_location_api_endpoint(interface_with_location, db_client):
+    with patch("app.routes.interface", interface_with_location):
+        response = db_client.get("/api/location", query_string={"size": 1})
+    assert response.json is not None
+    assert "locations" in response.json
+    assert "total" in response.json
+    assert response.json["size"] == 1
+    assert "display_name" in response.json["locations"][0]
+    assert "id" in response.json["locations"][0]
+
+
+def test_location_api_by_id(interface_with_location, db_client):
+    with patch("app.routes.interface", interface_with_location):
+        response = db_client.get("/api/location/1")
+    assert response.json is not None
+    assert "id" in response.json
+    assert "geometry" in response.json
+    assert "type" in response.json["geometry"]
+    assert "coordinates" in response.json["geometry"]
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client):
@@ -95,17 +115,14 @@ def test_search_api_spatial_geometry(interface_with_dataset, db_client):
         interface_with_dataset.db.query(Dataset)
     )
     polygon = {
-                "type": "polygon",
-                "coordinates": [
-                    [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]
-                ],
-            }
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
     polygon_json = json.dumps(polygon, separators=(",", ":"))
     polygon_escaped = quote(polygon_json)
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(
-            "/search",
-            query_string={"spatial_geometry": polygon_escaped}
+            "/search", query_string={"spatial_geometry": polygon_escaped}
         )
         assert len(response.json["results"]) >= 1
 

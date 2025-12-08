@@ -124,10 +124,10 @@
                             aria-expanded="false"
                         >
                         <div id="keyword-suggestions" class="keyword-suggestions" role="listbox"></div>
-                        
+
                         <!-- Selected keywords chips -->
                         <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords"></div>
-                        
+
                         <!-- Suggested keywords (only shown when no keywords selected) -->
                         {% if suggested_keywords and not keywords %}
                         <div id="suggested-keywords" class="suggested-keywords margin-top-2">
@@ -193,6 +193,37 @@
                 </div>
             </div>
 
+            <!-- Geographic Filter Section -->
+            <div class="usa-accordion usa-accordion--bordered">
+                <h3 class="usa-accordion__heading">
+                    <button type="button" class="usa-accordion__button"
+                      aria-expanded="true" aria-controls="filter-geography">
+                        Geographic Area
+                    </button>
+                </h3>
+                <div id="filter-geography" class="usa-accordion__content usa-prose">
+                    <div class="keyword-autocomplete">
+                        <label class="usa-label" for="geography-input">
+                            Filter by Geography <br>
+                            <span class="usa-hint">Start typing to see suggestions</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            id="geography-input" 
+                            class="keyword-autocomplete__input usa-input"
+                            placeholder="Type a place..."
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            aria-controls="geography-suggestions"
+                            aria-expanded="false"
+                        >
+                        <div id="geography-suggestions" class="geography-suggestions" role="listbox"></div>
+
+                    </div>
+                    <div id="geography-map"></div>
+                </div>
+            </div>
+
             <!-- Spatial Data Filter Section -->
             <div class="usa-accordion usa-accordion--bordered">
                 <h3 class="usa-accordion__heading">
@@ -232,4 +263,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/keyword_autocomplete.js') }}"></script>
+<script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 {% endblock %}
