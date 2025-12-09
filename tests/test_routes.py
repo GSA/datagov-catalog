@@ -127,6 +127,25 @@ def test_search_api_spatial_geometry(interface_with_dataset, db_client):
         assert len(response.json["results"]) >= 1
 
 
+def test_index_spatial_geometry(interface_with_dataset, db_client):
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/", query_string={"spatial_geometry": polygon_escaped}
+        )
+    soup = BeautifulSoup(response.text, "html.parser")
+    dataset_items = soup.find_all("li", class_="usa-collection__item")
+    assert len(dataset_items) >= 1
+
+
 def test_organization_list_shows_type_and_count(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization")
