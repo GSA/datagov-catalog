@@ -4,6 +4,8 @@ from pathlib import Path
 
 HARVEST_RECORD_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 DATASET_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+STOPWORD_RECORD_ID = "health-food-record"
+STOPWORD_DATASET_ID = "health-food-dataset"
 TEST_DIR = Path(__file__).parent
 
 
@@ -56,7 +58,17 @@ def fixture_data():
                     "title": "test dataset",
                     "extras": {"foo": "bar"},
                 },
-            )
+            ),
+            dict(
+                id=STOPWORD_RECORD_ID,
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="health-food-dataset",
+                source_raw='{"title": "Health Food Access Statistics"}',
+                source_transform={
+                    "title": "Health Food Access Statistics",
+                },
+            ),
         ],
         "dataset": [
             dict(
@@ -160,6 +172,26 @@ def fixture_data():
                 harvest_source_id="1",
                 organization_id="1",
                 popularity=150,
+            ),
+            dict(
+                id=STOPWORD_DATASET_ID,
+                slug="health-food-access",
+                dcat={
+                    "title": "Health Food Access Statistics",
+                    "description": "National statistics on access to health food resources",
+                    "keyword": ["health", "food"],
+                    "distribution": [
+                        {
+                            "title": "Health Food Data",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/health-food.csv",
+                        }
+                    ],
+                },
+                harvest_record_id=STOPWORD_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                popularity=125,
             ),
         ],
     }
