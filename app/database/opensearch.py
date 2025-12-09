@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Any, Callable, TypeVar
 
 from botocore.credentials import Credentials
@@ -113,7 +114,13 @@ class OpenSearchInterface:
         "properties": {
             "title": {"type": "text"},
             "slug": {"type": "keyword"},
-            "dcat": {"type": "nested"},
+            "dcat": {
+                "type": "nested",
+                "properties": {
+                    "modified": {"type": "keyword"},  # Ensure modified is always text
+                    "issued": {"type": "keyword"},  # Also ensure issued is text
+                },
+            },
             "description": {"type": "text"},
             "publisher": {"type": "text"},
             # Opensearch natively handles array-valued properties
@@ -226,6 +233,31 @@ class OpenSearchInterface:
 
         self._ensure_index()
 
+    @staticmethod
+    def _normalize_dcat_dates(dcat: dict) -> dict:
+        """Normalize date fields in DCAT to ensure they're always strings.
+
+        dcat: DCAT dictionary that may contain datetime objects
+
+        the returned value is the modified dcat dict.
+        """
+        # Create a copy to avoid mutating the original
+        normalized_dcat = dcat.copy()
+
+        # Fields that should be converted to strings
+        date_fields = ["modified", "issued", "temporal"]
+
+        for field in date_fields:
+            if field in normalized_dcat:
+                value = normalized_dcat[field]
+                if isinstance(value, (datetime, date)):
+                    normalized_dcat[field] = value.isoformat()
+                elif value is not None and not isinstance(value, str):
+                    # Convert any other non-string type to string
+                    normalized_dcat[field] = str(value)
+
+        return normalized_dcat
+
     def dataset_to_document(self, dataset):
         """Map a dataset into a document for indexing.
 
@@ -237,6 +269,9 @@ class OpenSearchInterface:
         spatial_value = dataset.dcat.get("spatial")
         has_spatial = bool(spatial_value and str(spatial_value).strip())
 
+        # Normalize DCAT dates to ensure they're strings
+        normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
+
         return {
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
@@ -244,7 +279,7 @@ class OpenSearchInterface:
             "slug": dataset.slug,
             "description": dataset.dcat.get("description", ""),
             "publisher": dataset.dcat.get("publisher", {}).get("name", ""),
-            "dcat": dataset.dcat,
+            "dcat": normalized_dcat,
             # Opensearch handles array-value properties
             "keyword": dataset.dcat.get("keyword", []),
             "theme": dataset.dcat.get("theme", []),

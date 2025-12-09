@@ -1,3 +1,6 @@
+from datetime import date, datetime
+from unittest.mock import Mock
+
 import pytest
 from dotenv import load_dotenv
 from opensearchpy import OpenSearchException
@@ -136,3 +139,89 @@ def html_tags_within_text():
     laboratory analysis data available from that portal, and in the near 
     future we plan to add curated data resources that include laboratory
     water quality results.</p>"""
+
+
+@pytest.fixture
+def mock_organization():
+    """Mock organization for dataset tests."""
+    mock_org = Mock()
+    mock_org.to_dict.return_value = {
+        "id": "org-123",
+        "name": "Test Org",
+        "slug": "test-org",
+    }
+    return mock_org
+
+
+@pytest.fixture
+def mock_dataset_with_datetime(mock_organization):
+    """Mock dataset with datetime object in DCAT."""
+    mock_dataset = Mock()
+    mock_dataset.id = "test-id-123"
+    mock_dataset.slug = "test-dataset"
+    mock_dataset.dcat = {
+        "title": "Test Dataset",
+        "description": "Test description",
+        "modified": datetime(2023, 6, 22, 20, 25, 39, 652070),
+        "keyword": ["health", "education"],
+        "publisher": {"name": "Test Publisher"},
+    }
+    mock_dataset.popularity = 100
+    mock_dataset.organization = mock_organization
+    return mock_dataset
+
+
+@pytest.fixture
+def mock_dataset_with_date(mock_organization):
+    """Mock dataset with date object in DCAT."""
+    mock_dataset = Mock()
+    mock_dataset.id = "test-id-456"
+    mock_dataset.slug = "test-dataset-2"
+    mock_dataset.dcat = {
+        "title": "Test Dataset 2",
+        "description": "Test description 2",
+        "issued": date(2006, 5, 31),
+        "keyword": [],
+        "publisher": {"name": "Test Publisher"},
+    }
+    mock_dataset.popularity = 50
+    mock_dataset.organization = mock_organization
+    return mock_dataset
+
+
+@pytest.fixture
+def mock_dataset_with_string_dates(mock_organization):
+    """Mock dataset with string dates in DCAT."""
+    mock_dataset = Mock()
+    mock_dataset.id = "test-id-789"
+    mock_dataset.slug = "test-dataset-3"
+    mock_dataset.dcat = {
+        "title": "Test Dataset 3",
+        "description": "Test description 3",
+        "modified": "2023-06-22T20:25:39.652070",
+        "issued": "2006-05-31",
+        "keyword": [],
+        "publisher": {},
+    }
+    mock_dataset.popularity = None
+    mock_dataset.organization = mock_organization
+    return mock_dataset
+
+
+@pytest.fixture
+def mock_dataset_with_spatial(mock_organization):
+    """Mock dataset with spatial data and datetime in DCAT."""
+    mock_dataset = Mock()
+    mock_dataset.id = "test-id-spatial"
+    mock_dataset.slug = "test-spatial-dataset"
+    mock_dataset.dcat = {
+        "title": "Spatial Dataset",
+        "description": "Dataset with spatial info",
+        "modified": datetime(2023, 1, 15, 10, 30, 0),
+        "spatial": "United States",
+        "keyword": ["geography", "maps"],
+        "publisher": {},
+    }
+    mock_dataset.popularity = 200
+    mock_dataset.organization = mock_organization
+    return mock_dataset
