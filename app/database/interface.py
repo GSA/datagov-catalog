@@ -94,6 +94,8 @@ class CatalogDBInterface:
             org_types=org_types,
             search_after=search_after,
             spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
             sort_by=sort_by,
         )
 

@@ -113,12 +113,28 @@ def index():
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
+    spatial_geometry = request.args.get("spatial_geometry", type=str)
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
 
     # there's a limit on how many results can be requested
     num_results = min(num_results, 9999)
+
+    if spatial_geometry is not None:
+        try:
+            # it's a URL parameter so it is probably URL-quoted
+            spatial_geometry = json.loads(unquote(spatial_geometry))
+        except json.JSONDecodeError:
+            return (
+                jsonify(
+                    {
+                        "error": "Search failed",
+                        "message": "spatial_geometry parameter is malformed",
+                    }
+                ),
+                400,
+            )
 
     # Initialize empty results
     total_datasets = interface.total_datasets() if not query else 0
@@ -136,6 +152,7 @@ def index():
             org_types=org_types,
             sort_by=sort_by,
             spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
         )
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})

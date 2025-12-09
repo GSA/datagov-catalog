@@ -203,8 +203,8 @@
                 </h3>
                 <div id="filter-geography" class="usa-accordion__content usa-prose">
                     <div class="keyword-autocomplete">
-                        <label class="usa-label" for="geography-input">
-                            Filter by Geography <br>
+                        <label id="geography-input-label" class="usa-label" for="geography-input">
+                          Filter by Geography <br>
                             <span class="usa-hint">Start typing to see suggestions</span>
                         </label>
                         <input 
@@ -217,10 +217,10 @@
                             aria-controls="geography-suggestions"
                             aria-expanded="false"
                         >
-                        <div id="geography-suggestions" class="geography-suggestions" role="listbox"></div>
+                        <div id="geography-suggestions" class="keyword-suggestions" role="listbox"></div>
 
                     </div>
-                    <div id="geography-map"></div>
+                    <div id="geography-map" style="height: 220px; border-radius: 4px; overflow: hidden;"></div>
                 </div>
             </div>
 
