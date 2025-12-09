@@ -108,23 +108,68 @@ T = TypeVar("T")
 class OpenSearchInterface:
 
     INDEX_NAME = "datasets"
+    TEXT_ANALYZER = "datagov_text"
+    STOP_FILTER = "datagov_stop"
+
+    # Custom analyzer removes English stop words so connective terms like
+    # "and" do not reduce search recall.
+    SETTINGS = {
+        "analysis": {
+            "filter": {
+                STOP_FILTER: {
+                    "type": "stop",
+                    "stopwords": "_english_",
+                }
+            },
+            "analyzer": {
+                TEXT_ANALYZER: {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", STOP_FILTER],
+                }
+            },
+        }
+    }
 
     MAPPINGS = {
         "properties": {
-            "title": {"type": "text"},
+            "title": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
             "slug": {"type": "keyword"},
             "dcat": {"type": "nested"},
-            "description": {"type": "text"},
-            "publisher": {"type": "text"},
+            "description": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
+            "publisher": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
             # Opensearch natively handles array-valued properties
             # Use multi-field mapping: text for search, keyword for aggregations
             "keyword": {
                 "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
                 "fields": {
                     "raw": {"type": "keyword"}  # For exact matching and aggregations
                 },
             },
-            "identifier": {"type": "text"},
+            "theme": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
+            "identifier": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
             "has_spatial": {"type": "boolean"},  # Whether dataset has spatial data
             "popularity": {"type": "integer"},
             # keyword for exact matches
@@ -132,8 +177,16 @@ class OpenSearchInterface:
                 "type": "nested",
                 "properties": {
                     "id": {"type": "keyword"},
-                    "name": {"type": "text"},
-                    "description": {"type": "text"},
+                    "name": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                    },
+                    "description": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                    },
                     "slug": {"type": "keyword"},
                     "organization_type": {"type": "keyword"},
                 },
@@ -183,9 +236,10 @@ class OpenSearchInterface:
         Creates the index with the correct mapping if it does not exist.
         """
         if not self.client.indices.exists(index=self.INDEX_NAME):
-            self.client.indices.create(
-                index=self.INDEX_NAME, body={"mappings": self.MAPPINGS}
-            )
+            body = {"mappings": self.MAPPINGS}
+            if self.SETTINGS:
+                body["settings"] = self.SETTINGS
+            self.client.indices.create(index=self.INDEX_NAME, body=body)
 
     @classmethod
     def from_environment(cls):
