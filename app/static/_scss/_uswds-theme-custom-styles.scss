@@ -929,7 +929,9 @@ ul.dataset-resources {
 }
 
 .usa-header .usa-nav-container,
-.grid-container-widescreen {
+.grid-container-widescreen,
+.usa-banner__inner,
+.usa-banner__content {
   max-width: var(--site-max-width);
   margin-left: auto;
   margin-right: auto;
@@ -945,7 +947,9 @@ ul.dataset-resources {
 
 @media (min-width: 64em) {
   .usa-header .usa-nav-container,
-  .grid-container-widescreen {
+  .grid-container-widescreen,
+  .usa-banner__inner,
+  .usa-banner__content {
     max-width: var(--site-max-width);
   }
 
