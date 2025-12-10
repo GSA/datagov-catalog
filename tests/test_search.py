@@ -68,10 +68,10 @@ def test_search_with_keyword(interface_with_dataset):
     assert result.results == []
 
 
-def test_stop_words_removed_from_search_queries(interface_with_fresh_index):
+def test_stop_words_removed_from_search_queries(interface_with_dataset):
     """Searching with stop words yields the same results as without them."""
-    without_stop_word = interface_with_fresh_index.search_datasets("health food")
-    with_stop_word = interface_with_fresh_index.search_datasets("health and food")
+    without_stop_word = interface_with_dataset.search_datasets("health food")
+    with_stop_word = interface_with_dataset.search_datasets("health and food")
 
     assert without_stop_word.total > 0
     assert without_stop_word.total == with_stop_word.total
