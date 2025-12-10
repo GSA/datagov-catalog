@@ -1,3 +1,5 @@
+import copy
+
 from app.models import Dataset
 
 def test_search(interface_with_dataset):
@@ -28,6 +30,54 @@ def test_search_popularity_sort(interface_with_dataset):
     """Search returns results when using the popularity sort."""
     result = interface_with_dataset.search_datasets("test", sort_by="popularity")
     assert len(result) > 0
+
+
+def test_popularity_sort_orders_results(interface_with_dataset):
+    """Explicit popularity sorting should beat relevance."""
+
+    dataset_template = interface_with_dataset.db.query(Dataset).first().to_dict()
+
+    def make_dataset(id_suffix, slug, popularity, title, description):
+        dataset_data = copy.deepcopy(dataset_template)
+        dataset_data["id"] = id_suffix
+        dataset_data["slug"] = slug
+        dataset_data["popularity"] = popularity
+        dataset_data["dcat"]["title"] = title
+        dataset_data["dcat"]["description"] = description
+        return Dataset(**dataset_data)
+
+    high_popularity_dataset = make_dataset(
+        "popularity-dataset",
+        "popularity-dataset",
+        10_000,
+        "Economic indicators dataset",
+        "Contains the term test once for matching.",
+    )
+
+    high_score_dataset = make_dataset(
+        "relevance-dataset",
+        "relevance-dataset",
+        5,
+        "Test test test dataset for test search",
+        "This dataset says test more than the other: test test test.",
+    )
+
+    interface_with_dataset.db.add(high_popularity_dataset)
+    interface_with_dataset.db.add(high_score_dataset)
+    interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    relevance_sorted = interface_with_dataset.search_datasets(
+        "test", sort_by="relevance"
+    )
+    assert relevance_sorted.results[0]["slug"] == "relevance-dataset"
+
+    popularity_sorted = interface_with_dataset.search_datasets(
+        "test", sort_by="popularity"
+    )
+    assert popularity_sorted.results[0]["slug"] == "popularity-dataset"
 
 
 def test_search_with_keyword(interface_with_dataset):
@@ -78,4 +128,3 @@ def test_stop_words_removed_from_search_queries(interface_with_dataset):
     assert {dataset["slug"] for dataset in without_stop_word.results} == {
         dataset["slug"] for dataset in with_stop_word.results
     }
-    
