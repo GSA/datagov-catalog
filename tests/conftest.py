@@ -75,6 +75,7 @@ def interface(session) -> CatalogDBInterface:
         interface.opensearch.delete_all_datasets()
     except OpenSearchException:
         pass
+
     yield interface
 
 
@@ -225,3 +226,24 @@ def mock_dataset_with_spatial(mock_organization):
     mock_dataset.popularity = 200
     mock_dataset.organization = mock_organization
     return mock_dataset
+
+@pytest.fixture
+def interface_with_fresh_index(interface_with_dataset):
+    """Ensure the OpenSearch index is recreated with proper settings."""
+    # Delete the index if it exists
+    try:
+        interface_with_dataset.opensearch.client.indices.delete(
+            index=interface_with_dataset.opensearch.INDEX_NAME
+        )
+    except Exception:
+        pass
+    
+    # Recreate the index with proper settings
+    interface_with_dataset.opensearch._ensure_index()
+    
+    # Reindex all datasets
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    
+    return interface_with_dataset
