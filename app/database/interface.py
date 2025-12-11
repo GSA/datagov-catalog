@@ -84,8 +84,6 @@ class CatalogDBInterface:
             search_after = SearchResult.decode_search_after(after)
         else:
             search_after = None
-
-        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
             query,
             keywords=keywords,
