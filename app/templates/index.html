@@ -41,7 +41,7 @@
         <div id="search-results" class="margin-top-3">
             {% if datasets %}
             <div class="usa-prose">
-              {% if query %}
+              {% if query or org_types or keywords or org_id or spatial_filter %}
                 <p class="text-base-dark">
                 {% if total < 2 %}
                     Found <strong>{{ total }}</strong> dataset matching "{{ query }}".
@@ -63,7 +63,7 @@
                 {% endif %}
               {% else %}
                 <p class="text-base-dark">
-                <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total_datasets) }}</span>
+                <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
                 datasets available on Data.gov.
                 These are the most popular:
                 </p>
@@ -79,7 +79,7 @@
             <div class="usa-alert usa-alert--info margin-top-3">
                 <div class="usa-alert__body">
                     <p class="usa-alert__text">
-                        No datasets found{% if query %} matching "{{ query }}"{% endif %}. Try adjusting your search terms or filters.
+                        No datasets found. Try adjusting your search terms or filters.
                     </p>
                 </div>
             </div>
