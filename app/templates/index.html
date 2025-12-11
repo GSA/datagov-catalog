@@ -43,13 +43,17 @@
             <div class="usa-prose">
               {% if query or org_types or keywords or org_id or spatial_filter %}
                 <p class="text-base-dark">
-                {% if total < 2 %}
-                    Found <strong>{{ total }}</strong> dataset matching "{{ query }}".
-                {% elif total < 10000 %}
-                    Found <strong>{{ total }}</strong> datasets matching "{{ query }}".
-                {% else %}
-                    Found over <strong>{{ total }}</strong> datasets matching "{{ query }}".
-                {% endif %}
+                {%- if total < 2 -%}
+                    Found <strong>{{ total }}</strong> dataset matching
+                {%- elif total < 10000 -%}
+                    Found <strong>{{ total }}</strong> datasets matching
+                {%- else -%}
+                    Found over <strong>{{ total }}</strong> datasets matching
+                {%- endif %}
+                {%- if query and (org_types or keywords or org_id or spatial_filter) %} "{{ query }}" and filters.
+                {%- elif query %} "{{ query }}".
+                {%- else %} filters.
+                {%- endif -%}
                 </p>
                 {% if total >= 10000 %}
                 <div class="advanced-search-tip">
