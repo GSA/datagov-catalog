@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy import func, or_
 
-from app.models import Dataset, HarvestRecord, Organization, db
+from app.models import Dataset, HarvestRecord, Locations, Organization, db
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
 from .opensearch import OpenSearchInterface, SearchResult
@@ -60,6 +60,8 @@ class CatalogDBInterface:
         org_id=None,
         org_types=None,
         spatial_filter=None,
+        spatial_geometry=None,
+        spatial_within=True,
         after=None,
         sort_by="relevance",
         *args,
@@ -75,6 +77,8 @@ class CatalogDBInterface:
         an encoded string that will be passed through to Opensearch for
         accessing further pages. spatial_filter can be "geospatial" or
         "non-geospatial" to filter by presence of spatial data.
+        spatial_geometry and spatial_within allow searching geographically for
+        datasets. See OpenSearchInterface.search for details.
         """
         if after is not None:
             search_after = SearchResult.decode_search_after(after)
@@ -88,6 +92,8 @@ class CatalogDBInterface:
             org_types=org_types,
             search_after=search_after,
             spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
             sort_by=sort_by,
         )
 
@@ -100,6 +106,32 @@ class CatalogDBInterface:
         """
         return self.opensearch.get_unique_keywords(
             size=size, min_doc_count=min_doc_count
+        )
+
+    def search_locations(self, query, size=100):
+        """
+        Get locations from the database. These are in type_order with first
+        countries, then states, then counties, finally postal codes.
+
+        size: Maximum number of locations to return (default 100)
+        """
+        return (
+            self.db.query(Locations)
+            .filter(Locations.display_name.ilike(f"%{query}%"))
+            .order_by(Locations.type_order)
+            .limit(size)
+        )
+
+    def get_location(self, location_id):
+        """
+        Get information for a single location.
+
+        Returns a tuple of (id, GeoJSON), or None if the location id doesn't exist.
+        """
+        return (
+            self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
+            .filter(Locations.id == location_id)
+            .first()
         )
 
     def _success_harvest_record_ids_query(self):

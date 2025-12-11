@@ -46,6 +46,10 @@ i.e.
 .organization-search {
   width: 66%;
   padding-left: 0;
+
+  button.usa-button {
+    margin-right: 0;
+  }
 }
 
 .organization-search-header {
@@ -739,6 +743,12 @@ ul.dataset-resources {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     z-index: 1000;
     display: none;
+}
+
+/* leaflet controls are too "high" */
+.leaflet-control-container {
+  position: relative;
+  z-index: 400;
 }
 
 .keyword-suggestions--visible {

@@ -91,6 +91,18 @@ def fixture_data():
                 harvest_record_id=HARVEST_RECORD_ID,
                 harvest_source_id="1",
                 organization_id="1",
+                translated_spatial={
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [-80.542601, 36.666691],
+                            [-80.542601, 42.987042],
+                            [-74.580735, 42.987042],
+                            [-74.580735, 36.666691],
+                            [-80.542601, 36.666691],
+                        ]
+                    ],
+                },
             ),
             dict(
                 id="test-dataset-2",
@@ -193,6 +205,17 @@ def fixture_data():
                 organization_id="1",
                 popularity=125,
             ),
+        ],
+        "locations": [
+            {
+                "id": 1,
+                "name": "20006",
+                "type": "us_postalcode",
+                "display_name": "Washington, DC (20006)",
+                # geoalchemy needs WKT format geometries
+                "the_geom": "MULTIPOLYGON(((-77.0467 38.8878,-77.0467 38.9027,-77.0329 38.9027,-77.0329 38.8878,-77.0467 38.8878)))",
+                "type_order": 4,
+            },
         ],
     }
 
