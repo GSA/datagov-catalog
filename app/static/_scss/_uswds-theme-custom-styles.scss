@@ -991,6 +991,17 @@ ul.dataset-resources {
   margin-left: auto;
 }
 
+// provide left spacing between Contact nav link and search form
+.usa-nav > section[aria-label="Search component"] {
+  margin-left: 1.5rem;
+}
+
+@media (max-width: 63.99em) {
+  .usa-nav > section[aria-label="Search component"] {
+    margin-left: 0;
+  }
+}
+
 // footer
 div.grid-row.grid-gap#menu-footer {
   span {
