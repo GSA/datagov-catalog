@@ -110,13 +110,19 @@ class CatalogDBInterface:
             size=size, min_doc_count=min_doc_count
         )
 
-    def get_locations(self, size=100):
+    def search_locations(self, query, size=100):
         """
-        Get names of geographies from the database.
+        Get locations from the database. These are in type_order with first
+        countries, then states, then counties, finally postal codes.
 
         size: Maximum number of locations to return (default 100)
         """
-        return self.db.query(Locations).limit(size)
+        return (
+            self.db.query(Locations)
+            .filter(Locations.display_name.ilike(f"%{query}%"))
+            .order_by(Locations.type_order)
+            .limit(size)
+        )
 
     def get_location(self, location_id):
         """

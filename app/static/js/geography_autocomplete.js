@@ -1,10 +1,9 @@
 /* global L */
 class GeographyAutocomplete {
     constructor(options) {
-        console.log('Constructing GeographyAutocomplete')
         this.inputId = options.inputId;
         this.suggestionsId = options.suggestionsId;
-        this.apiEndpoint = options.apiEndpoint || '/api/geography';
+        this.apiEndpoint = options.apiEndpoint || '/api/location';
         this.formId = options.formId;
         this.mainSearchFormId = options.mainSearchFormId;
         this.debounceDelay = options.debounceDelay || 300;
@@ -30,13 +29,7 @@ class GeographyAutocomplete {
     }
 
     init() {
-        // Load all keywords from API
-        console.log('Loading geographies')
-        this.loadGeographies();
-        console.log('Loaded geographies', this.allGeographies)
-
         // Load any existing keywords from URL parameters
-        console.log('Loading existing geographies')
         this.loadExistingGeography();
 
         // Initialize suggested keywords click handlers
@@ -63,18 +56,6 @@ class GeographyAutocomplete {
             this.mainSearchForm.addEventListener('submit', (e) => {
                 this.syncHiddenInputsToMainSearch();
             });
-        }
-    }
-
-    async loadGeographies() {
-        try {
-            const response = await fetch(`${this.apiEndpoint}?size=500`);
-            const data = await response.json();
-            console.log("Got locations data", data);
-            this.allGeographies = data.locations || [];
-        } catch (error) {
-            console.error('Error loading geographies:', error);
-            this.allGeographies = [];
         }
     }
 
@@ -114,12 +95,14 @@ class GeographyAutocomplete {
     clearClicked() {
       this.selectedGeometry = null;
       this.displayNoGeometry();
+      if (this.map) this.map.removeLayer(this.geoLayer);
+
+      // now remove the clear button
       const labelDiv = document.getElementById('geography-input-label');
       if (!labelDiv) return;  // Can't find where it is
       const clearButton = labelDiv.querySelector('#geography-clear-button');
       if (!clearButton) return;
       labelDiv.removeChild(clearButton);
-      if (this.map) this.map.removeLayer(this.geoLayer);
     }
 
     _createMap() {
@@ -137,10 +120,9 @@ class GeographyAutocomplete {
 
     displayGeometry(geometry) {
         // Show this GeoJSON object on our map tile
-      console.log('Displaying existing geometry', geometry);
       this._createMap();  // map object is in this.map
       if (!this.map) {
-        console.log('Could not construct map');
+        console.error('Could not construct map');
         return;
       }
       this.geoLayer = L.geoJSON(geometry, {
@@ -163,14 +145,12 @@ class GeographyAutocomplete {
     }
 
     displayNoGeometry() {
-      console.log('Displaying no existing geometry');
       this._createMap();
       if (!this.map) {
-        console.log('Could not construct map');
+        console.error('Could not construct map');
         return;
       }
-      this.map.setView([44.967243, -103.77155], 1);
-      console.log('displaying map', this.map);
+      this.map.setView([44.967243, -103.77155], 2);
     }
 
     initSuggestedGeography() {
@@ -203,7 +183,8 @@ class GeographyAutocomplete {
         clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(() => {
             const query = e.target.value.trim().toLowerCase();
-            if (query.length === 0) {
+            // only show suggestions when we have 3 or more search characters
+            if (query.length < 2) {
                 this.hideSuggestions();
             } else {
                 this.filterAndShowSuggestions(query);
@@ -246,18 +227,16 @@ class GeographyAutocomplete {
         });
     }
 
-    filterAndShowSuggestions(query) {
-        // Filter keywords that match the query and aren't already selected
-        const filtered = this.allGeographies.filter(item => {
-            const name = item.display_name.toLowerCase();
-            return name.includes(query);
-        });
+    async filterAndShowSuggestions(query) {
+        // Filter keywords that match the query
+        // TODO: this calls the location search API every time, we could
+        // try some caching to save on calls 
+        query = query.toLowerCase();
+        const response = await fetch(`${this.apiEndpoint}s/search?q=${query}&size=10`);
+        const filtered = await response.json();
 
-        // Limit to top 10 results
-        const topResults = filtered.slice(0, 10);
-
-        if (topResults.length > 0) {
-            this.renderSuggestions(topResults);
+        if (filtered.locations.length > 0) {
+            this.renderSuggestions(filtered.locations);
             this.showSuggestions();
         } else {
             this.hideSuggestions();
@@ -299,12 +278,10 @@ class GeographyAutocomplete {
 
     async selectGeography(location_data) {
       // select this location, get the geometry and show it on the map
-      console.log("Selected location", location_data);
       var location_id = location_data.id;
       try {
         const response = await fetch(`${this.apiEndpoint}/${location_id}`);
         const data = await response.json();
-        console.log("Got location data", data);
         // data.geometry is a string of the GeoJSON geometry of that location
         this.selectedGeometry = JSON.parse(data.geometry);
         this.showClearButton();

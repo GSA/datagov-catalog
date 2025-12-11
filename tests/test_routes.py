@@ -10,9 +10,11 @@ from app.models import Dataset
 from tests.fixtures import HARVEST_RECORD_ID
 
 
-def test_location_api_endpoint(interface_with_location, db_client):
+def test_location_search_api_endpoint(interface_with_location, db_client):
     with patch("app.routes.interface", interface_with_location):
-        response = db_client.get("/api/location", query_string={"size": 1})
+        response = db_client.get(
+            "/api/locations/search", query_string={"q": "", "size": 1}
+        )
     assert response.json is not None
     assert "locations" in response.json
     assert "total" in response.json

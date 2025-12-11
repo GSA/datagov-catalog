@@ -516,21 +516,23 @@ def get_keywords_api():
         return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
 
 
-@main.route("/api/location", methods=["GET"])
+@main.route("/api/locations/search", methods=["GET"])
 def get_locations_api():
-    """API endpoint to get location names and ids.
+    """API endpoint to search location display names and ids.
 
     Query parameters:
-        size: Maximum number of locations to return (default 100, max 1000)
+        q: the text to search for in display names
+        size: Maximum number of locations to return (default 100, max 2000)
 
     Returns:
         JSON with list of location display names and their ids
     """
+    query = request.args.get("q", default="")
     size = request.args.get("size", 100, type=int)
 
     # Validate parameters
     # Between 1 and 1000
-    size = max(min(size, 1000), 1)
+    size = max(min(size, 2000), 1)
 
     try:
         locations = [
@@ -539,7 +541,7 @@ def get_locations_api():
                 for key, value in loc.to_dict().items()
                 if key in ["display_name", "id"]
             }
-            for loc in interface.get_locations(size=size)
+            for loc in interface.search_locations(query=query, size=size)
         ]
 
         return jsonify(
