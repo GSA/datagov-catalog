@@ -974,6 +974,19 @@ ul.dataset-resources {
   margin-right: 1.5rem;
 }
 
+.usa-nav__primary-item:last-child {
+  margin-right: 0;
+}
+
+.usa-nav__primary-item:last-child .usa-nav__link {
+  padding-right: 0;
+}
+
+.usa-header--basic .usa-nav__primary-item:last-child > .usa-nav__link::after,
+.usa-header--basic .usa-nav__primary-item:last-child > .usa-current::after {
+  right: 0;
+}
+
 .usa-header .usa-search {
   margin-left: auto;
 }
