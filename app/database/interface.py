@@ -55,7 +55,7 @@ class CatalogDBInterface:
     def search_datasets(
         self,
         query: str = "",
-        keywords: list[str]=[],
+        keywords: list[str] = [],
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         org_types=None,
@@ -80,8 +80,6 @@ class CatalogDBInterface:
             search_after = SearchResult.decode_search_after(after)
         else:
             search_after = None
-
-        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
             query,
             keywords=keywords,

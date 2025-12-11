@@ -212,6 +212,7 @@ class OpenSearchInterface:
             verify_certs=False,
             ssl_assert_hostname=False,
             ssl_show_warn=False,
+            timeout=10,
         )
 
     @staticmethod
@@ -235,6 +236,7 @@ class OpenSearchInterface:
             verify_certs=True,
             connection_class=RequestsHttpConnection,
             pool_maxsize=20,
+            timeout=60,
         )
 
     def _ensure_index(self):
