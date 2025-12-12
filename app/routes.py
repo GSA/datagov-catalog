@@ -108,7 +108,7 @@ def index():
     """
     query = request.args.get("q", "")
     num_results = request.args.get("results", DEFAULT_PER_PAGE, type=int)
-    org_id = request.args.get("org_id", None, type=str)
+    org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
@@ -124,13 +124,27 @@ def index():
     result = None
     total = 0
     suggested_keywords = []
+    suggested_organizations = []
+    selected_organization = None
+    org_filter_id = None
+
+    if org_slug_param:
+        try:
+            selected_organization = interface.get_organization_by_slug(org_slug_param)
+        except Exception:
+            logger.exception("Failed to resolve organization", extra={"org": org_slug_param})
+        else:
+            if selected_organization:
+                org_filter_id = selected_organization.id
+            else:
+                org_filter_id = org_slug_param
 
     try:
         result = interface.search_datasets(
             query,
             keywords=keywords,
             per_page=num_results,
-            org_id=org_id,
+            org_id=org_filter_id,
             org_types=org_types,
             sort_by=sort_by,
             spatial_filter=spatial_filter,
@@ -158,6 +172,12 @@ def index():
         except Exception:
             logger.exception("Failed to fetch suggested keywords")
 
+    if not org_slug_param:
+        try:
+            suggested_organizations = interface.get_top_organizations(limit=10)
+        except Exception:
+            logger.exception("Failed to fetch suggested organizations")
+
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
 
@@ -170,13 +190,15 @@ def index():
         datasets=datasets,
         total=total,
         total_datasets=total_datasets,
-        org_id=org_id,
+        org_slug=selected_organization.slug if selected_organization else org_slug_param,
         org_types=org_types,
         keywords=keywords,
         sort_by=sort_by,
         suggested_keywords=suggested_keywords,
+        suggested_organizations=suggested_organizations,
         spatial_filter=spatial_filter,
         from_hint=from_hint,
+        selected_organization=selected_organization,
     )
 
 
@@ -191,7 +213,7 @@ def search():
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     results_hint = request.args.get("results", 0, type=int)
     from_hint = request.args.get("from_hint")
-    org_id = request.args.get("org_id", None, type=str)
+    org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     after = request.args.get("after")
@@ -201,12 +223,24 @@ def search():
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
 
-    # Use keyword search if keywords are provided
+    selected_organization = None
+    org_filter_id = None
+    if org_slug_param:
+        try:
+            selected_organization = interface.get_organization_by_slug(org_slug_param)
+        except Exception:
+            logger.exception("Failed to resolve organization", extra={"org": org_slug_param})
+        else:
+            if selected_organization:
+                org_filter_id = selected_organization.id
+            else:
+                org_filter_id = org_slug_param
+
     result = interface.search_datasets(
         keywords=keywords,
         query=query,
         per_page=per_page,
-        org_id=org_id,
+        org_id=org_filter_id,
         org_types=org_types,
         spatial_filter=spatial_filter,
         after=after,
@@ -215,9 +249,8 @@ def search():
 
     if htmx:
         results = [build_dataset_dict(each) for each in result.results]
-        if org_id:
+        if selected_organization:
             # specified organization so give org results
-            organization = interface.get_organization_by_id(org_id)
             return render_template(
                 "components/dataset_results_organization.html",
                 dataset_search_query=query,
@@ -226,8 +259,8 @@ def search():
                 results_hint=results_hint,
                 after=result.search_after_obscured(),
                 selected_sort=sort_by,
-                organization=organization,
-                organization_slug_or_id=organization.slug,
+                organization=selected_organization,
+                organization_slug_or_id=selected_organization.slug,
             )
         return render_template(
             "components/dataset_results.html",
@@ -240,7 +273,7 @@ def search():
             sort_by=sort_by,
             org_types=org_types,
             keywords=keywords,
-            org_id=org_id,
+            org_slug=selected_organization.slug if selected_organization else org_slug_param,
             spatial_filter=spatial_filter,
         )
 
@@ -475,6 +508,29 @@ def get_keywords_api():
         )
     except Exception as e:
         return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
+
+
+@main.route("/api/organizations", methods=["GET"])
+def get_organizations_api():
+    """API endpoint to fetch organizations for autocomplete suggestions."""
+
+    size = request.args.get("size", 100, type=int)
+    size = max(min(size, 1000), 1)
+
+    try:
+        organizations = interface.get_top_organizations(limit=size)
+        return jsonify(
+            {
+                "organizations": organizations,
+                "total": len(organizations),
+                "size": size,
+            }
+        )
+    except Exception as e:
+        return (
+            jsonify({"error": "Failed to fetch organizations", "message": str(e)}),
+            500,
+        )
 
 
 def register_routes(app):

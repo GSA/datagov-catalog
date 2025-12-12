@@ -76,17 +76,62 @@ def test_search_api_paginate_after(interface_with_dataset, db_client):
             after = response.json["after"]
 
 
-def test_search_api_by_org_id(interface_with_dataset, db_client):
+def test_search_api_by_org_slug(interface_with_dataset, db_client):
     with patch("app.routes.interface", interface_with_dataset):
-        # test org has id "1"
-        response = db_client.get("/search", query_string={"q": "test", "org_id": "1"})
+        response = db_client.get(
+            "/search", query_string={"q": "test", "org_slug": "test-org"}
+        )
         assert len(response.json["results"]) > 0
 
         # non-existent org
         response = db_client.get(
-            "/search", query_string={"q": "test", "org_id": "non-existent"}
+            "/search", query_string={"q": "test", "org_slug": "non-existent"}
         )
         assert len(response.json["results"]) == 0
+
+
+def test_get_organizations_api_returns_data(db_client):
+    mock_interface = Mock()
+    mock_interface.get_top_organizations.return_value = [
+        {
+            "id": "org-1",
+            "name": "Org One",
+            "slug": "org-one",
+            "dataset_count": 5,
+            "organization_type": "Federal Government",
+            "aliases": ["Org 1"],
+        },
+        {
+            "id": "org-2",
+            "name": "Org Two",
+            "slug": "org-two",
+            "dataset_count": 0,
+            "organization_type": "City Government",
+            "aliases": [],
+        },
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/organizations?size=5")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data["organizations"]) == 2
+    assert data["organizations"][0]["id"] == "org-1"
+    assert data["organizations"][0]["aliases"] == ["Org 1"]
+    mock_interface.get_top_organizations.assert_called_once_with(limit=5)
+
+
+def test_get_organizations_api_handles_errors(db_client):
+    mock_interface = Mock()
+    mock_interface.get_top_organizations.side_effect = Exception("boom")
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/organizations")
+
+    assert response.status_code == 500
+    data = response.get_json()
+    assert data["error"] == "Failed to fetch organizations"
 
 
 def test_dataset_detail_by_slug(interface_with_dataset, db_client):
@@ -635,6 +680,7 @@ def test_index_page_lists_results_without_query(db_client):
         {"keyword": "data", "count": 5},
     ]
     mock_interface.total_datasets.return_value = 1
+    mock_interface.get_top_organizations.return_value = []
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/")
@@ -647,6 +693,61 @@ def test_index_page_lists_results_without_query(db_client):
     assert "Mock Dataset" in heading.text
 
     mock_interface.search_datasets.assert_called_once()
+
+
+def test_index_page_shows_top_organizations(db_client):
+    mock_dataset = {
+        "id": "mock-id",
+        "slug": "mock-slug",
+        "dcat": {
+            "title": "Mock Dataset",
+            "description": "Mock description",
+            "distribution": [],
+        },
+        "organization": {
+            "id": "org-id",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+        },
+        "popularity": 42,
+    }
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1, results=[mock_dataset], search_after=None
+    )
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.total_datasets.return_value = 1
+    mock_interface.get_top_organizations.return_value = [
+        {
+            "id": "org-1",
+            "name": "Org One",
+            "dataset_count": 2345,
+            "slug": "org-one",
+            "organization_type": "Federal Government",
+            "aliases": [],
+        },
+        {
+            "id": "org-2",
+            "name": "Org Two",
+            "dataset_count": 100,
+            "slug": "org-two",
+            "organization_type": "City Government",
+            "aliases": [],
+        },
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    container = soup.find(id="suggested-organizations")
+    assert container is not None
+    assert "Popular organizations" in container.get_text(" ", strip=True)
+    buttons = container.select("button[data-org-id]")
+    assert len(buttons) == 2
+    assert "Org One" in buttons[0].get_text(" ", strip=True)
 
 
 def test_index_search_with_query_shows_result_count(interface_with_dataset, db_client):
