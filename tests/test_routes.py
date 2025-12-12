@@ -99,6 +99,7 @@ def test_index_page_filters_by_org_slug(db_client):
     mock_interface.get_organization_by_slug.return_value = mock_org
     mock_interface.get_top_organizations.return_value = []
     mock_interface.total_datasets.return_value = 0
+    mock_interface.get_unique_keywords.return_value = []
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/?org_slug=test-org")
@@ -1423,7 +1424,7 @@ def test_index_search_message_with_query_only(interface_with_dataset, db_client)
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
-    
+
     # Should show query in quotes with period, no "and filters"
     assert 'matching "climate".' in text
     assert "and filters" not in text
@@ -1456,7 +1457,7 @@ def test_index_search_message_with_query_and_filters(interface_with_dataset, db_
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
-    
+
     # Should show query in quotes with "and filters"
     assert 'matching "test" and filters.' in text
 
@@ -1488,7 +1489,7 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
-    
+
     # Should show "filters" without quotes and without "and"
     assert "matching filters." in text
     # Should NOT contain quotes or "and"
