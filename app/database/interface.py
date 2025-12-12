@@ -226,6 +226,89 @@ class CatalogDBInterface:
             per_page=num_results,
         )
 
+    def get_top_organizations(self, limit: int = 10) -> list[dict]:
+        """Return organizations ordered by dataset count, using OpenSearch counts."""
+        limit = max(min(limit, 100), 1)
+
+        try:
+            org_counts = self.opensearch.get_organization_counts(size=limit)
+        except Exception:
+            logger.exception("Failed to fetch organization counts from OpenSearch")
+            return self._get_top_organizations_from_db(limit)
+
+        if not org_counts:
+            return self._get_top_organizations_from_db(limit)
+
+        slugs = [entry["slug"] for entry in org_counts if entry.get("slug")]
+        if not slugs:
+            return self._get_top_organizations_from_db(limit)
+
+        organizations = (
+            self.db.query(Organization)
+            .filter(Organization.slug.in_(slugs))
+            .all()
+        )
+        org_by_slug = {org.slug: org for org in organizations}
+
+        hydrated: list[dict] = []
+        for entry in org_counts:
+            slug = entry.get("slug")
+            if not slug:
+                continue
+            org = org_by_slug.get(slug)
+            if not org:
+                continue
+            hydrated.append(
+                {
+                    "id": org.id,
+                    "name": org.name,
+                    "slug": org.slug,
+                    "organization_type": org.organization_type,
+                    "dataset_count": entry.get("count", 0),
+                    "aliases": org.aliases or [],
+                }
+            )
+
+        if hydrated:
+            return hydrated
+
+        return self._get_top_organizations_from_db(limit)
+
+    def _get_top_organizations_from_db(self, limit: int) -> list[dict]:
+        rows = (
+            self.db.query(
+                Organization.id,
+                Organization.name,
+                Organization.slug,
+                Organization.organization_type,
+                Organization.aliases,
+                func.count(Dataset.id).label("dataset_count"),
+            )
+            .join(Dataset, Dataset.organization_id == Organization.id)
+            .group_by(
+                Organization.id,
+                Organization.name,
+                Organization.slug,
+                Organization.organization_type,
+                Organization.aliases,
+            )
+            .order_by(func.count(Dataset.id).desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            {
+                "id": row.id,
+                "name": row.name,
+                "slug": row.slug,
+                "organization_type": row.organization_type,
+                "dataset_count": row.dataset_count,
+                "aliases": row.aliases or [],
+            }
+            for row in rows
+        ]
+
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:
         if obj is None:
