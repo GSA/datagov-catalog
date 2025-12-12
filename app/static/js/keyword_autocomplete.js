@@ -307,6 +307,381 @@ class KeywordAutocomplete {
     }
 }
 
+class OrganizationAutocomplete {
+    constructor(options) {
+        this.inputId = options.inputId;
+        this.chipsContainerId = options.chipsContainerId;
+        this.suggestionsId = options.suggestionsId;
+        this.apiEndpoint = options.apiEndpoint || '/api/organizations';
+        this.formId = options.formId;
+        this.mainSearchFormId = options.mainSearchFormId;
+        this.debounceDelay = options.debounceDelay || 300;
+        this.requestSize = options.requestSize || 500;
+        this.suggestedContainerId = options.suggestedContainerId || 'suggested-organizations';
+
+        this.input = document.getElementById(this.inputId);
+        this.chipsContainer = document.getElementById(this.chipsContainerId);
+        this.suggestionsContainer = document.getElementById(this.suggestionsId);
+        this.form = document.getElementById(this.formId);
+        this.mainSearchForm = document.getElementById(this.mainSearchFormId);
+        this.suggestedContainer = null;
+
+        this.organizations = [];
+        this.selectedOrganization = null;
+        this.debounceTimer = null;
+        this.currentFocusIndex = -1;
+        this.numberFormatter = new Intl.NumberFormat();
+        this.initialSelection = options.initialSelection || this.getInitialSelection();
+
+        if (!this.input || !this.chipsContainer || !this.suggestionsContainer) {
+            console.error('OrganizationAutocomplete: Required elements not found');
+            return;
+        }
+
+        this.init();
+    }
+
+    init() {
+        this.loadOrganizations();
+        this.initSuggestedOrganizations();
+
+        if (this.initialSelection) {
+            this.setOrganization(this.initialSelection);
+            this.hideSuggestedOrganizations();
+        }
+
+        this.input.addEventListener('input', (e) => this.handleInput(e));
+        this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        this.input.addEventListener('focus', () => this.showSuggestions());
+
+        document.addEventListener('click', (e) => {
+            if (!this.input.contains(e.target) && !this.suggestionsContainer.contains(e.target)) {
+                this.hideSuggestions();
+            }
+        });
+
+        if (this.form) {
+            this.form.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+
+        if (this.mainSearchForm) {
+            this.mainSearchForm.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+    }
+
+    initSuggestedOrganizations() {
+        this.suggestedContainer = document.getElementById(this.suggestedContainerId);
+        if (!this.suggestedContainer) {
+            return;
+        }
+
+        const buttons = this.suggestedContainer.querySelectorAll('.tag-link--organization');
+        buttons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const orgId = button.dataset.orgId;
+                const orgName = button.dataset.orgName;
+                const orgSlug = button.dataset.orgSlug;
+                if (orgName) {
+                    this.setOrganization({ id: orgId, name: orgName, slug: orgSlug });
+                    this.input.value = '';
+                    this.hideSuggestedOrganizations();
+                }
+            });
+        });
+    }
+
+    getInitialSelection() {
+        if (!this.chipsContainer || !this.chipsContainer.dataset) {
+            return null;
+        }
+
+        const id = this.chipsContainer.dataset.initialOrgId;
+        const name = this.chipsContainer.dataset.initialOrgName;
+        const slug = this.chipsContainer.dataset.initialOrgSlug;
+
+        if ((id || slug) && name) {
+            return { id, name, slug };
+        }
+
+        return null;
+    }
+
+    async loadOrganizations() {
+        try {
+            const response = await fetch(`${this.apiEndpoint}?size=${this.requestSize}`);
+            const data = await response.json();
+            const organizations = data.organizations || [];
+            this.organizations = organizations
+                .sort((a, b) => {
+                    const countA = Number.isFinite(a.dataset_count) ? a.dataset_count : 0;
+                    const countB = Number.isFinite(b.dataset_count) ? b.dataset_count : 0;
+                    return countB - countA;
+                })
+                .map((item) => ({
+                    ...item,
+                    aliases: Array.isArray(item.aliases) ? item.aliases : [],
+                    slug: item.slug || '',
+                }));
+        } catch (error) {
+            console.error('Error loading organizations:', error);
+            this.organizations = [];
+        }
+    }
+
+    handleInput(e) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+            const query = e.target.value.trim().toLowerCase();
+            if (query.length === 0) {
+                this.hideSuggestions();
+            } else {
+                this.filterAndShowSuggestions(query);
+            }
+        }, this.debounceDelay);
+    }
+
+    handleKeyDown(e) {
+        const suggestions = this.suggestionsContainer.querySelectorAll('.keyword-suggestion');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.currentFocusIndex = Math.min(this.currentFocusIndex + 1, suggestions.length - 1);
+            this.updateSuggestionFocus(suggestions);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.currentFocusIndex = Math.max(this.currentFocusIndex - 1, 0);
+            this.updateSuggestionFocus(suggestions);
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
+                e.preventDefault();
+                const orgId = suggestions[this.currentFocusIndex].dataset.orgId;
+                const orgSlug = suggestions[this.currentFocusIndex].dataset.orgSlug;
+                const organization = this.organizations.find((item) => {
+                    if (orgSlug) {
+                        return (item.slug || '').toString() === orgSlug;
+                    }
+                    return String(item.id) === String(orgId);
+                });
+                if (organization) {
+                    this.setOrganization({
+                        id: organization.id != null ? String(organization.id) : undefined,
+                        name: organization.name,
+                        slug: organization.slug,
+                    });
+                }
+                this.input.value = '';
+                this.hideSuggestions();
+            }
+        } else if (e.key === 'Escape') {
+            this.hideSuggestions();
+        }
+    }
+
+    updateSuggestionFocus(suggestions) {
+        suggestions.forEach((item, index) => {
+            if (index === this.currentFocusIndex) {
+                item.classList.add('keyword-suggestion--focused');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('keyword-suggestion--focused');
+            }
+        });
+    }
+
+    filterAndShowSuggestions(query) {
+        const filtered = this.organizations.filter((item) => {
+            const name = (item.name || '').toLowerCase();
+            const slug = (item.slug || '').toLowerCase();
+            const aliases = Array.isArray(item.aliases)
+                ? item.aliases.map((alias) => (alias || '').toLowerCase())
+                : [];
+
+            const currentKey = this.selectedOrganization
+                ? (this.selectedOrganization.slug || this.selectedOrganization.id || '')
+                      .toString()
+                      .toLowerCase()
+                : null;
+            const itemKey = (item.slug || item.id || '').toString().toLowerCase();
+            const alreadySelected = currentKey && currentKey === itemKey;
+
+            if (alreadySelected) {
+                return false;
+            }
+
+            const aliasMatch = aliases.some((alias) => alias.includes(query));
+            return (
+                name.includes(query) || slug.includes(query) || aliasMatch
+            );
+        });
+
+        const topResults = filtered.slice(0, 10);
+
+        if (topResults.length > 0) {
+            this.renderSuggestions(topResults);
+            this.showSuggestions();
+        } else {
+            this.hideSuggestions();
+        }
+    }
+
+    renderSuggestions(items) {
+        this.suggestionsContainer.innerHTML = '';
+        this.currentFocusIndex = -1;
+
+        items.forEach((item) => {
+            const div = document.createElement('div');
+            div.className = 'keyword-suggestion';
+            if (item.id !== undefined) {
+                div.dataset.orgId = String(item.id);
+            }
+            if (item.slug) {
+                div.dataset.orgSlug = item.slug;
+            }
+            div.innerHTML = `
+                <span class="keyword-suggestion__text">${this.highlightMatch(item.name, this.input.value)}</span>
+                <span class="keyword-suggestion__count">${this.formatCount(item.dataset_count || 0)}</span>
+            `;
+
+            div.addEventListener('click', () => {
+                this.setOrganization({
+                    id: item.id != null ? String(item.id) : undefined,
+                    name: item.name,
+                    slug: item.slug,
+                });
+                this.input.value = '';
+                this.hideSuggestions();
+            });
+
+            this.suggestionsContainer.appendChild(div);
+        });
+    }
+
+    setOrganization(organization) {
+        if (!organization) {
+            return;
+        }
+
+        const normalizedId = organization.id != null ? String(organization.id) : '';
+        const normalizedSlug = organization.slug || '';
+        this.selectedOrganization = {
+            id: normalizedId,
+            name: organization.name || '',
+            slug: normalizedSlug,
+        };
+        this.renderChip(this.selectedOrganization);
+        this.syncHiddenInputs();
+        this.hideSuggestedOrganizations();
+    }
+
+    renderChip(organization) {
+        this.chipsContainer.innerHTML = '';
+
+        const chip = document.createElement('div');
+        chip.className = 'tag-link';
+        if (organization.id) {
+            chip.dataset.orgId = organization.id;
+        }
+        if (organization.slug) {
+            chip.dataset.orgSlug = organization.slug;
+        }
+        chip.innerHTML = `
+            <span class="keyword-chip__text">${this.escapeHtml(organization.name)}</span>
+            <button type="button" class="keyword-chip__remove" aria-label="Remove ${this.escapeHtml(organization.name)}">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        `;
+
+        const removeBtn = chip.querySelector('.keyword-chip__remove');
+        removeBtn.addEventListener('click', () => {
+            this.clearSelection();
+        });
+
+        this.chipsContainer.appendChild(chip);
+    }
+
+    clearSelection() {
+        this.selectedOrganization = null;
+        this.chipsContainer.innerHTML = '';
+        this.syncHiddenInputs();
+        this.showSuggestedOrganizations();
+    }
+
+    syncHiddenInputs() {
+        this.syncFormHiddenInputs(this.form);
+        this.syncFormHiddenInputs(this.mainSearchForm);
+    }
+
+    syncFormHiddenInputs(form) {
+        if (!form) {
+            return;
+        }
+
+        const existing = form.querySelectorAll('input[name="org_slug"][type="hidden"]');
+        existing.forEach((input) => input.remove());
+
+        if (this.selectedOrganization) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'org_slug';
+            input.value = this.selectedOrganization.slug || this.selectedOrganization.name;
+            form.appendChild(input);
+        }
+    }
+
+    highlightMatch(text, query) {
+        if (!text) {
+            return '';
+        }
+
+        const normalizedText = text.toLowerCase();
+        const normalizedQuery = query.toLowerCase();
+        const index = normalizedText.indexOf(normalizedQuery);
+        if (index === -1 || !query) {
+            return this.escapeHtml(text);
+        }
+
+        const before = this.escapeHtml(text.substring(0, index));
+        const match = this.escapeHtml(text.substring(index, index + query.length));
+        const after = this.escapeHtml(text.substring(index + query.length));
+
+        return `${before}<strong>${match}</strong>${after}`;
+    }
+
+    showSuggestions() {
+        this.suggestionsContainer.classList.add('keyword-suggestions--visible');
+        this.input.setAttribute('aria-expanded', 'true');
+    }
+
+    hideSuggestions() {
+        this.suggestionsContainer.classList.remove('keyword-suggestions--visible');
+        this.currentFocusIndex = -1;
+        this.input.setAttribute('aria-expanded', 'false');
+    }
+
+    formatCount(value) {
+        const count = Number.isFinite(value) ? value : 0;
+        return this.numberFormatter.format(count);
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    hideSuggestedOrganizations() {
+        if (this.suggestedContainer) {
+            this.suggestedContainer.style.display = 'none';
+        }
+    }
+
+    showSuggestedOrganizations() {
+        if (this.suggestedContainer && !this.selectedOrganization) {
+            this.suggestedContainer.style.display = 'block';
+        }
+    }
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     const keywordAutocomplete = new KeywordAutocomplete({
@@ -317,5 +692,17 @@ document.addEventListener('DOMContentLoaded', () => {
         mainSearchFormId: 'main-search-form', // NEW: main search form ID
         apiEndpoint: '/api/keywords',
         debounceDelay: 300
+    });
+
+    const organizationAutocomplete = new OrganizationAutocomplete({
+        inputId: 'organization-input',
+        chipsContainerId: 'organization-chips',
+        suggestionsId: 'organization-suggestions',
+        formId: 'filter-form',
+        mainSearchFormId: 'main-search-form',
+        apiEndpoint: '/api/organizations',
+        debounceDelay: 300,
+        requestSize: 500,
+        suggestedContainerId: 'suggested-organizations'
     });
 });
