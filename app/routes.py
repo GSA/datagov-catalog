@@ -119,7 +119,7 @@ def index():
     num_results = min(num_results, 9999)
 
     # Initialize empty results
-    total_datasets = interface.total_datasets()
+    total_datasets = interface.total_datasets() if not query else 0
     datasets: list[dict] = []
     result = None
     total = 0
