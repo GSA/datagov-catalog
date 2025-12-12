@@ -1110,3 +1110,86 @@ def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_clien
 
     # Verify both org types are present
     assert set(params.get("org_type", [])) == {"Federal Government", "State Government"}
+
+def test_index_search_message_with_query_only(interface_with_dataset, db_client):
+    """Test that search message displays query only when no filters are applied."""
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=climate")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    results_text = soup.find("p", class_="text-base-dark")
+    assert results_text is not None
+    text = results_text.get_text(strip=True)
+    
+    # Should show query in quotes with period, no "and filters"
+    assert 'matching "climate".' in text
+    assert "and filters" not in text
+
+
+def test_index_search_message_with_query_and_filters(interface_with_dataset, db_client):
+    """Test that search message displays both query and filters when both are present."""
+    # Add dataset with keywords for filtering
+    from app.models import Dataset
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    dataset_dict["id"] = "keyword-test"
+    dataset_dict["slug"] = "keyword-test"
+    dataset_dict["dcat"] = {
+        "title": "Keyword Test",
+        "description": "Test dataset with keywords",
+        "keyword": ["health", "education"],
+    }
+    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?q=test&keyword=health")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    results_text = soup.find("p", class_="text-base-dark")
+    assert results_text is not None
+    text = results_text.get_text(strip=True)
+    
+    # Should show query in quotes with "and filters"
+    assert 'matching "test" and filters.' in text
+
+
+def test_index_search_message_with_filters_only(interface_with_dataset, db_client):
+    """Test that search message displays filters only when no query is present."""
+    # Add dataset with keywords for filtering
+    from app.models import Dataset
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    dataset_dict["id"] = "filter-only-test"
+    dataset_dict["slug"] = "filter-only-test"
+    dataset_dict["dcat"] = {
+        "title": "Filter Only Test",
+        "description": "Test dataset for filter-only search",
+        "keyword": ["environment"],
+    }
+    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?keyword=environment")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    results_text = soup.find("p", class_="text-base-dark")
+    assert results_text is not None
+    text = results_text.get_text(strip=True)
+    
+    # Should show "filters" without quotes and without "and"
+    assert "matching filters." in text
+    # Should NOT contain quotes or "and"
+    assert '"' not in text
+    assert " and " not in text

@@ -117,7 +117,6 @@ def index():
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
-
     # there's a limit on how many results can be requested
     num_results = min(num_results, 9999)
 
@@ -159,7 +158,6 @@ def index():
     else:
         # Get total count
         total = result.total
-
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]
 
