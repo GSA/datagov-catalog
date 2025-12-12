@@ -90,6 +90,30 @@ def test_search_api_by_org_slug(interface_with_dataset, db_client):
         assert len(response.json["results"]) == 0
 
 
+def test_index_page_filters_by_org_slug(db_client):
+    mock_interface = Mock()
+    mock_org = type("Org", (), {"id": "org-1", "slug": "test-org", "name": "Test Org"})()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+    mock_interface.get_organization_by_slug.return_value = mock_org
+    mock_interface.get_top_organizations.return_value = []
+    mock_interface.total_datasets.return_value = 0
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/?org_slug=test-org")
+
+    assert response.status_code == 200
+    mock_interface.get_organization_by_slug.assert_called_once_with("test-org")
+    _, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs["org_id"] == "org-1"
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    hidden = soup.find("input", {"name": "org_slug", "type": "hidden"})
+    assert hidden is not None
+    assert hidden.get("value") == "test-org"
+
+
 def test_get_organizations_api_returns_data(db_client):
     mock_interface = Mock()
     mock_interface.get_top_organizations.return_value = [
