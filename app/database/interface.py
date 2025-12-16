@@ -295,3 +295,10 @@ class CatalogDBInterface:
         Get dataset by its guid. If the ID is not found, return None.
         """
         return self.db.query(Dataset).filter_by(id=dataset_id).first()
+
+
+    def count_all_datasets_in_search(self) -> int:
+        """
+        Get the total number of datasets from our index
+        """
+        return self.opensearch.count_all_datasets()
