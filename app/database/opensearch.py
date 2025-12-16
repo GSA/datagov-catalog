@@ -12,6 +12,7 @@ from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, he
 from opensearchpy.exceptions import ConnectionTimeout
 
 from .constants import DEFAULT_PER_PAGE
+from .query_parse import parse_search_query
 
 logger = logging.getLogger(__name__)
 
@@ -496,11 +497,9 @@ class OpenSearchInterface:
         sort_by: str = "relevance",
         keywords: list[str] = None,
     ) -> SearchResult:
-        """Search our index for a query string.
+        """
+        Search our index for a query string.
 
-        We use OpenSearch's multi-match to match our single query string
-        against many fields. We use the "boost" numbers to score some fields
-        higher than others.
 
         If the org_id argument is given then we only return search results
         that are in that organization.
@@ -515,25 +514,8 @@ class OpenSearchInterface:
         value of the last `_sort` field from a previous search result with the
         same query.
         """
-        if query and query.strip():
-            base_query: dict[str, Any] = {
-                "multi_match": {
-                    "query": query,
-                    "type": "most_fields",
-                    "fields": [
-                        "title^5",
-                        "description^3",
-                        "publisher^3",
-                        "keyword^2",
-                        "theme",
-                        "identifier",
-                    ],
-                    "operator": "AND",
-                    "zero_terms_query": "all",
-                }
-            }
-        else:
-            base_query = {"match_all": {}}
+        # create the base query string step into function for syntax handling.
+        base_query = parse_search_query(query)
 
         search_body = {
             "query": base_query,
