@@ -629,12 +629,15 @@ def test_index_page_lists_results_without_query(db_client):
     }
     mock_result = SearchResult(total=1, results=[mock_dataset], search_after=None)
     mock_interface = Mock()
+    # mock the count all to be 10, because below we have the `test`
+    # keyword set to 10 just to make it make sense.
+    mock_interface.count_all_datasets_in_search = 10
     mock_interface.search_datasets.return_value = mock_result
     mock_interface.get_unique_keywords.return_value = [
         {"keyword": "test", "count": 10},
         {"keyword": "data", "count": 5},
     ]
-    mock_interface.total_datasets.return_value = 1
+    mock_interface.total.return_value = 1
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/")
