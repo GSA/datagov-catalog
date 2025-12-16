@@ -14,58 +14,58 @@ from typing import Any
 def parse_search_query(query: str) -> dict[str, Any]:
     """
     Parse search query string into OpenSearch query structure.
-    
+
     Examples of potential outputs based on phrase/term/ use of OR:
         - parse_search_query("health food")
         {'multi_match': {'query': 'health food', 'operator': 'AND', ...}}
-        
+
         - parse_search_query("health OR food")
         {'bool': {'should': [{'multi_match': ...}, {'multi_match': ...}]}}
-        
+
         - parse_search_query('"health food"')
         {'multi_match': {'query': 'health food', 'type': 'phrase', ...}}
     """
     if not query or not query.strip():
         return {"match_all": {}}
-    
+
     query = query.strip()
-    
+
     # Extract quoted phrases
     phrases = []
     phrase_pattern = r'"([^"]+)"'
-    
+
     for match in re.finditer(phrase_pattern, query):
         phrases.append(match.group(1))
-    
+
     # Remove phrases from query to process remaining terms
-    remaining = re.sub(phrase_pattern, '', query).strip()
-    
+    remaining = re.sub(phrase_pattern, "", query).strip()
+
     # Clean up orphaned OR operators eg:
     # Remove leading OR (e.g., "OR nutrition" -> "nutrition")
-    remaining = re.sub(r'^\s*OR\s+', '', remaining, flags=re.IGNORECASE).strip()
+    remaining = re.sub(r"^\s*OR\s+", "", remaining, flags=re.IGNORECASE).strip()
     # Remove trailing OR (e.g., "environment OR" -> "environment")
-    remaining = re.sub(r'\s+OR\s*$', '', remaining, flags=re.IGNORECASE).strip()
-    
+    remaining = re.sub(r"\s+OR\s*$", "", remaining, flags=re.IGNORECASE).strip()
+
     # Check if there are OR operators in the remaining text
-    has_or_operator = ' OR ' in remaining.upper()
-    
+    has_or_operator = " OR " in remaining.upper()
+
     # If no special syntax, return simple multi_match (backward compatible)
     if not phrases and not has_or_operator:
         return _build_simple_query(query)
-    
+
     # Build complex query with phrases and/or OR logic
     clauses = []
-    
+
     # Add phrase queries
     for phrase in phrases:
         clauses.append(_build_phrase_query(phrase))
-    
+
     # Process remaining terms
     if remaining:
         # Split by OR operator (case insensitive)
-        or_parts = re.split(r'\s+OR\s+', remaining, flags=re.IGNORECASE)
+        or_parts = re.split(r"\s+OR\s+", remaining, flags=re.IGNORECASE)
         or_parts = [part.strip() for part in or_parts if part.strip()]
-        
+
         if len(or_parts) > 1:
             # Multiple terms with OR
             for part in or_parts:
@@ -74,7 +74,7 @@ def parse_search_query(query: str) -> dict[str, Any]:
         elif or_parts:
             # Single term without OR
             clauses.append(_build_term_query(or_parts[0]))
-    
+
     # If multiple clauses OR a single phrase, use bool query
     if len(clauses) > 1:
         # bool helps support the logic needed to do the OR because it works by
