@@ -12,7 +12,7 @@ inputs:
   command:
     description: "cf command to execute"
     required: false
-    default: "cf push --strategy rolling --no-wait"
+    default: "cf push datagov-catalog --strategy rolling --no-wait"
   node-version-file:
     description: "Path to node version file"
     required: false
@@ -87,6 +87,16 @@ runs:
       with:
         command: >-
           ${{ inputs.command }} --vars-file vars.${{ inputs.cf_space }}.yml
+        cf_org: ${{ inputs.cf_org }}
+        cf_space: ${{ inputs.cf_space }}
+        cf_username: ${{ inputs.cf_username }}
+        cf_password: ${{ inputs.cf_password }}
+
+    - name: Deploy datagov-catalog proxy
+      uses: cloud-gov/cg-cli-tools@main
+      with:
+        command: >-
+          cf push datagov-catalog-proxy --strategy rolling --no-wait --vars-file vars.${{ inputs.cf_space }}.yml
         cf_org: ${{ inputs.cf_org }}
         cf_space: ${{ inputs.cf_space }}
         cf_username: ${{ inputs.cf_username }}
