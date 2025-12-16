@@ -13,6 +13,7 @@ from .filters import (
     geometry_to_mapping,
     is_bbox_string,
     is_geometry_mapping,
+    remove_html_tags,
     usa_icon,
 )
 from .models import db
@@ -58,6 +59,7 @@ def create_app(config_name: str = "local") -> Flask:
     app.add_template_filter(is_bbox_string)
     app.add_template_filter(is_geometry_mapping)
     app.add_template_filter(geometry_to_mapping)
+    app.add_template_filter(remove_html_tags)
 
     return app
 

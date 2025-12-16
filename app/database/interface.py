@@ -6,9 +6,9 @@ import logging
 from functools import wraps
 from typing import Any
 
-from sqlalchemy import desc, func, or_
+from sqlalchemy import func, or_
 
-from app.models import Dataset, HarvestRecord, Organization, db
+from app.models import Dataset, HarvestRecord, Locations, Organization, db
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
 from .opensearch import OpenSearchInterface, SearchResult
@@ -45,17 +45,25 @@ class CatalogDBInterface:
         self.db = session or db.session
         self.opensearch = OpenSearchInterface.from_environment()
 
+    def total_datasets(self):
+        """Count how many records in the database table."""
+        return self.db.query(Dataset).count()
+
     def get_harvest_record(self, record_id: str) -> HarvestRecord | None:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
     def search_datasets(
         self,
-        query: str,
+        query: str = "",
+        keywords: list[str] = [],
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         org_types=None,
-        after=None,
         spatial_filter=None,
+        spatial_geometry=None,
+        spatial_within=True,
+        after=None,
+        sort_by="relevance",
         *args,
         **kwargs,
     ):
@@ -69,20 +77,23 @@ class CatalogDBInterface:
         an encoded string that will be passed through to Opensearch for
         accessing further pages. spatial_filter can be "geospatial" or
         "non-geospatial" to filter by presence of spatial data.
+        spatial_geometry and spatial_within allow searching geographically for
+        datasets. See OpenSearchInterface.search for details.
         """
         if after is not None:
             search_after = SearchResult.decode_search_after(after)
         else:
             search_after = None
-
-        sort_by = kwargs.get("sort_by", "relevance")
         return self.opensearch.search(
             query,
+            keywords=keywords,
             per_page=per_page,
             org_id=org_id,
             org_types=org_types,
             search_after=search_after,
             spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
             sort_by=sort_by,
         )
 
@@ -97,81 +108,31 @@ class CatalogDBInterface:
             size=size, min_doc_count=min_doc_count
         )
 
-    def search_by_keywords(
-        self,
-        keywords: list[str],
-        query: str = "",
-        per_page=DEFAULT_PER_PAGE,
-        org_id=None,
-        org_types=None,
-        spatial_filter=None,
-        after=None,
-        *args,
-        **kwargs,
-    ):
+    def search_locations(self, query, size=100):
         """
-        Search datasets that have specific keywords (exact match).
+        Get locations from the database. These are in type_order with first
+        countries, then states, then counties, finally postal codes.
 
-        keywords: List of exact keywords to match
-        query: Optional text search query to combine with keyword filter
-        per_page: Number of results per page
-        org_id: Optional organization ID to filter by
-        org_types: Optional list of organization types to filter by
-        spatial_filter: Optional "geospatial" or "non-geospatial" filter
+        size: Maximum number of locations to return (default 100)
         """
-        if after is not None:
-            search_after = SearchResult.decode_search_after(after)
-        else:
-            search_after = None
-
-        sort_by = kwargs.get("sort_by", "relevance")
-        return self.opensearch.search_by_keywords(
-            keywords=keywords,
-            query=query,
-            per_page=per_page,
-            org_id=org_id,
-            org_types=org_types,
-            spatial_filter=spatial_filter,
-            search_after=search_after,
-            sort_by=sort_by,
+        return (
+            self.db.query(Locations)
+            .filter(Locations.display_name.ilike(f"%{query}%"))
+            .order_by(Locations.type_order)
+            .limit(size)
         )
 
-    def _postgres_search_datasets(self, query: str, include_org=False, *args, **kwargs):
-        """Text search for datasets.
-
-        Use the `query` to find matching datasets. The query is in Postgres's
-        "websearch" format which allows the use of quoted phrases with AND
-        and OR keywords.
+    def get_location(self, location_id):
         """
-        # default sort to relevance
-        sort_by = kwargs.get("sort_by", "relevance").lower()
-        ts_query = func.websearch_to_tsquery("english", query)
+        Get information for a single location.
 
-        query = (
-            self.db.query(Dataset, Organization)
-            if include_org
-            else self.db.query(Dataset)
+        Returns a tuple of (id, GeoJSON), or None if the location id doesn't exist.
+        """
+        return (
+            self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
+            .filter(Locations.id == location_id)
+            .first()
         )
-
-        query = query.filter(Dataset.search_vector.op("@@")(ts_query))
-
-        if include_org:
-            query = query.join(Organization, Dataset.organization_id == Organization.id)
-
-            # we only want to filter by org type if we include the org join
-            if kwargs.get("org_types"):
-                org_types = kwargs["org_types"]
-                query = query.filter(Organization.organization_type.in_(org_types))
-
-        if sort_by == "relevance":
-            return query.order_by(
-                desc(
-                    func.ts_rank(
-                        Dataset.search_vector,
-                        ts_query,
-                    )
-                )
-            )
 
     def _success_harvest_record_ids_query(self):
         return (
@@ -205,7 +166,7 @@ class CatalogDBInterface:
                 or_(
                     Organization.name.ilike(like_pattern),
                     Organization.slug.ilike(like_pattern),
-                    Organization.description.ilike(like_pattern),
+                    func.array_to_string(Organization.aliases, ",").ilike(like_pattern),
                 )
             )
         return query.order_by(Organization.name.asc())
@@ -279,100 +240,23 @@ class CatalogDBInterface:
             .first()
         )
 
-    def _datasets_for_organization_query(
-        self,
-        organization_id: str,
-        sort_by: str | None = None,
-        dataset_search_terms: str = "",
-    ):
-        query = self.db.query(Dataset).filter(
-            Dataset.organization_id == organization_id
-        )
-
-        if dataset_search_terms:
-            query = self._postgres_search_datasets(dataset_search_terms).filter(
-                Dataset.organization_id == organization_id
-            )
-
-        sort_key = (sort_by or "popularity").lower()
-
-        if sort_key == "slug":
-            order_by = [Dataset.slug.asc()]
-        elif sort_key == "harvested":
-            order_by = [
-                Dataset.last_harvested_date.desc().nullslast(),
-                Dataset.slug.asc(),
-            ]
-        else:
-            # Default to popularity, highest first with slug tie-breaker
-            order_by = [Dataset.popularity.desc().nullslast(), Dataset.slug.asc()]
-
-        return query.order_by(*order_by)
-
-    @paginate
-    def _datasets_for_organization_paginated(
-        self,
-        organization_id: str,
-        sort_by: str | None = None,
-        dataset_search_terms: str = "",
-        **kwargs,
-    ):
-        return self._datasets_for_organization_query(
-            organization_id, sort_by=sort_by, dataset_search_terms=dataset_search_terms
-        )
-
     def list_datasets_for_organization(
         self,
         organization_id: str,
-        page: int = DEFAULT_PAGE,
-        per_page: int = DEFAULT_PER_PAGE,
-        sort_by: str | None = None,
-        dataset_search_terms: str = "",
-    ) -> dict[str, Any]:
-        allowed_sorts = {"popularity", "slug", "harvested"}
-        sort_key = (sort_by or "popularity").lower()
-        if sort_key == "published":
-            sort_key = "harvested"
-        if sort_key not in allowed_sorts:
-            sort_key = "popularity"
+        sort_by: str | None = "relevance",
+        dataset_search_query: str = "",
+        num_results=DEFAULT_PER_PAGE,
+    ) -> SearchResult:
 
         if not organization_id:
-            return {
-                "page": DEFAULT_PAGE,
-                "per_page": DEFAULT_PER_PAGE,
-                "total": 0,
-                "total_pages": 0,
-                "datasets": [],
-                "sort": sort_key,
-            }
+            return SearchResult.empty()
 
-        page = max(page, 1)
-        per_page = max(min(per_page, 100), 1)
-
-        base_query = self._datasets_for_organization_query(
-            organization_id,
-            sort_by=sort_key,
-            dataset_search_terms=dataset_search_terms,
+        return self.search_datasets(
+            dataset_search_query,
+            org_id=organization_id,
+            sort_by=sort_by,
+            per_page=num_results,
         )
-        total = base_query.count()
-        datasets = self._datasets_for_organization_paginated(
-            organization_id,
-            page=page,
-            per_page=per_page,
-            sort_by=sort_key,
-            dataset_search_terms=dataset_search_terms,
-        )
-
-        total_pages = (total + per_page - 1) // per_page if total else 0
-
-        return {
-            "page": page,
-            "per_page": per_page,
-            "total": total,
-            "total_pages": total_pages,
-            "datasets": [self.to_dict(dataset) for dataset in datasets],
-            "sort": sort_key,
-        }
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:

@@ -33,7 +33,14 @@ def test_sitemap_generate_uploads_files(
     # Base URL for loc entries
     monkeypatch.setenv("SITEMAP_BASE_URL", "http://localhost:8080")
     # Ensure at least one dataset is visible to the CLI's default DB session
-    from app.models import Dataset, Organization, db
+    from app.models import (
+        Dataset,
+        HarvestJob,
+        HarvestRecord,
+        HarvestSource,
+        Organization,
+        db,
+    )
 
     with app.app_context():
         db.session.add(
@@ -41,6 +48,33 @@ def test_sitemap_generate_uploads_files(
                 id="org1",
                 name="cli org",
                 slug="cli-org",
+            )
+        )
+        db.session.add(
+            HarvestSource(
+                id="hs1",
+                organization_id="org1",
+                name="cli source",
+                url="https://example.com/source",
+                frequency="manual",
+                schema_type="dcatus1.1: non-federal",
+                source_type="document",
+                notification_frequency="always",
+            )
+        )
+        db.session.add(
+            HarvestJob(
+                id="job-cli",
+                harvest_source_id="hs1",
+                status="complete",
+            )
+        )
+        db.session.add(
+            HarvestRecord(
+                id="hr1",
+                harvest_source_id="hs1",
+                harvest_job_id="job-cli",
+                identifier="cli-test",
             )
         )
         db.session.add(

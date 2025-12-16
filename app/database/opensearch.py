@@ -32,6 +32,11 @@ class SearchResult:
         return len(self.results)
 
     @classmethod
+    def empty(cls):
+        """Return an empty search result instance."""
+        return cls(total=0, results=[], search_after=None)
+
+    @classmethod
     def from_opensearch_result(cls, result_dict: dict, per_page_hint=0):
         """Make a results object from the result of an OpenSearch query.
 
@@ -103,23 +108,68 @@ T = TypeVar("T")
 class OpenSearchInterface:
 
     INDEX_NAME = "datasets"
+    TEXT_ANALYZER = "datagov_text"
+    STOP_FILTER = "datagov_stop"
+
+    # Custom analyzer removes English stop words so connective terms like
+    # "and" do not reduce search recall.
+    SETTINGS = {
+        "analysis": {
+            "filter": {
+                STOP_FILTER: {
+                    "type": "stop",
+                    "stopwords": "_english_",
+                }
+            },
+            "analyzer": {
+                TEXT_ANALYZER: {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", STOP_FILTER],
+                }
+            },
+        }
+    }
 
     MAPPINGS = {
         "properties": {
-            "title": {"type": "text"},
+            "title": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
             "slug": {"type": "keyword"},
             "dcat": {"type": "nested"},
-            "description": {"type": "text"},
-            "publisher": {"type": "text"},
+            "description": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
+            "publisher": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
             # Opensearch natively handles array-valued properties
             # Use multi-field mapping: text for search, keyword for aggregations
             "keyword": {
                 "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
                 "fields": {
                     "raw": {"type": "keyword"}  # For exact matching and aggregations
                 },
             },
-            "identifier": {"type": "text"},
+            "theme": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
+            "identifier": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
             "has_spatial": {"type": "boolean"},  # Whether dataset has spatial data
             "popularity": {"type": "integer"},
             # keyword for exact matches
@@ -127,12 +177,21 @@ class OpenSearchInterface:
                 "type": "nested",
                 "properties": {
                     "id": {"type": "keyword"},
-                    "name": {"type": "text"},
-                    "description": {"type": "text"},
+                    "name": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                    },
+                    "description": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                    },
                     "slug": {"type": "keyword"},
                     "organization_type": {"type": "keyword"},
                 },
             },
+            "spatial_shape": {"type": "geo_shape"},
         }
     }
 
@@ -147,6 +206,7 @@ class OpenSearchInterface:
             verify_certs=False,
             ssl_assert_hostname=False,
             ssl_show_warn=False,
+            timeout=10,
         )
 
     @staticmethod
@@ -170,6 +230,7 @@ class OpenSearchInterface:
             verify_certs=True,
             connection_class=RequestsHttpConnection,
             pool_maxsize=20,
+            timeout=60,
         )
 
     def _ensure_index(self):
@@ -178,9 +239,10 @@ class OpenSearchInterface:
         Creates the index with the correct mapping if it does not exist.
         """
         if not self.client.indices.exists(index=self.INDEX_NAME):
-            self.client.indices.create(
-                index=self.INDEX_NAME, body={"mappings": self.MAPPINGS}
-            )
+            body = {"mappings": self.MAPPINGS}
+            if self.SETTINGS:
+                body["settings"] = self.SETTINGS
+            self.client.indices.create(index=self.INDEX_NAME, body=body)
 
     @classmethod
     def from_environment(cls):
@@ -230,7 +292,9 @@ class OpenSearchInterface:
         """
         # Check if dataset has spatial data
         spatial_value = dataset.dcat.get("spatial")
-        has_spatial = bool(spatial_value and str(spatial_value).strip())
+        has_spatial = bool(spatial_value and str(spatial_value).strip()) or (
+            dataset.translated_spatial is not None
+        )
 
         return {
             "_index": self.INDEX_NAME,
@@ -249,6 +313,7 @@ class OpenSearchInterface:
             "popularity": (
                 dataset.popularity if dataset.popularity is not None else None
             ),
+            "spatial_shape": dataset.translated_spatial,
         }
 
     def _run_with_timeout_retry(
@@ -397,7 +462,10 @@ class OpenSearchInterface:
         search_after: list = None,
         org_types=None,
         spatial_filter=None,
+        spatial_geometry=None,
+        spatial_within=True,
         sort_by: str = "relevance",
+        keywords: list[str] = None,
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -408,8 +476,20 @@ class OpenSearchInterface:
         If the org_id argument is given then we only return search results
         that are in that organization.
 
+        If keywords are provided, only datasets with those exact keywords will
+        be returned (exact match on keyword.raw field).
+
         spatial_filter can be "geospatial" or "non-geospatial" to filter
         datasets by presence of spatial data.
+
+        spatial_geometry is a GeoJSON object which will be used to search for
+        datasets
+
+        spatial_within is a flag for how to interpret spatial_geometry. If
+        spatial_within is True then matching datasets must be completely
+        WITHIN the specified spatial_geometry. If spatial_within is False then
+        matching datasets only need to INTERSECT the specified
+        spatial_geometry.
 
         We pass the `after` argument through to OpenSearch. It should be the
         value of the last `_sort` field from a previous search result with the
@@ -446,6 +526,12 @@ class OpenSearchInterface:
         # Build filter list for bool query
         filters = []
 
+        # Add keyword filter (exact match) - AND logic
+        # Each keyword gets its own term filter, so all must match
+        if keywords:
+            for keyword in keywords:
+                filters.append({"term": {"keyword.raw": keyword}})
+
         if org_id is not None:
             filters.append(
                 {
@@ -476,6 +562,19 @@ class OpenSearchInterface:
         elif spatial_filter == "non-geospatial":
             filters.append({"term": {"has_spatial": False}})
 
+        # Add spatial_geojson filter
+        if spatial_geometry is not None:
+            filters.append(
+                {
+                    "geo_shape": {
+                        "spatial_shape": {
+                            "shape": spatial_geometry,
+                            "relation": "WITHIN" if spatial_within else "INTERSECTS",
+                        }
+                    }
+                }
+            )
+
         # Apply filters if any exist
         if filters:
             search_body["query"] = {
@@ -490,8 +589,9 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
+        print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        # print("OPENSEARCH:", result_dict)
+        print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
@@ -521,103 +621,3 @@ class OpenSearchInterface:
             {"keyword": bucket["key"], "count": bucket["doc_count"]}
             for bucket in buckets
         ]
-
-    def search_by_keywords(
-        self,
-        keywords: list[str],
-        query: str = "",
-        per_page=DEFAULT_PER_PAGE,
-        org_id=None,
-        org_types=None,
-        spatial_filter=None,
-        search_after: list = None,
-        sort_by: str = "relevance",
-    ) -> SearchResult:
-        """
-        Search datasets that have specific keywords (exact match).
-
-        spatial_filter can be "geospatial" or "non-geospatial" to filter
-        datasets by presence of spatial data.
-        """
-        # Build filter list
-        filters = []
-
-        # Add keyword filter (exact match)
-        if keywords:
-            filters.append({"terms": {"keyword.raw": keywords}})
-
-        # Add org_id filter if provided
-        if org_id is not None:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "organization",
-                        "query": {"term": {"organization.id": org_id}},
-                    }
-                }
-            )
-
-        # Add org_types filter if provided
-        if org_types is not None and len(org_types) > 0:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "organization",
-                        "query": {
-                            "terms": {"organization.organization_type": org_types}
-                        },
-                    }
-                }
-            )
-
-        # Add spatial filter
-        if spatial_filter == "geospatial":
-            filters.append({"term": {"has_spatial": True}})
-        elif spatial_filter == "non-geospatial":
-            filters.append({"term": {"has_spatial": False}})
-
-        # Build the search body
-        if query:
-            # If there's a text query, combine with filters
-            base_query: dict[str, Any] = {
-                "multi_match": {
-                    "query": query,
-                    "type": "most_fields",
-                    "fields": [
-                        "title^5",
-                        "description^3",
-                        "publisher^3",
-                        "keyword^2",
-                        "theme",
-                        "identifier",
-                    ],
-                    "operator": "AND",
-                    "zero_terms_query": "all",
-                }
-            }
-            search_body = {
-                "query": {
-                    "bool": {
-                        "must": [base_query],
-                        "filter": filters,
-                    }
-                },
-                "sort": self._build_sort_clause(sort_by),
-                # ask for one more to help with pagination
-                "size": per_page + 1,
-            }
-        else:
-            # No text query, just filter by keywords
-            search_body = {
-                "query": {"bool": {"filter": filters}},
-                "sort": self._build_sort_clause(sort_by),
-                # ask for one more to help with pagination
-                "size": per_page + 1,
-            }
-
-        # Add search_after if provided for pagination
-        if search_after is not None:
-            search_body["search_after"] = search_after
-
-        result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
