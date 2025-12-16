@@ -628,3 +628,14 @@ class OpenSearchInterface:
             {"keyword": bucket["key"], "count": bucket["doc_count"]}
             for bucket in buckets
         ]
+
+    def count_all_datasets(self) -> int:
+        """
+        Get the total count of all datasets in the index.        
+        """
+        try:
+            result = self.client.count(index=self.INDEX_NAME)
+            return result.get("count", 0)
+        except Exception as e:
+            logger.error(f"Error counting datasets in OpenSearch: {e}")
+            return 0
