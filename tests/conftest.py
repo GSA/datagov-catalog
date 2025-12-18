@@ -226,3 +226,27 @@ def mock_dataset_with_spatial(mock_organization):
     mock_dataset.popularity = 200
     mock_dataset.organization = mock_organization
     return mock_dataset
+
+
+@pytest.fixture
+def mock_opensearch_client():
+    """Mock OpenSearchInterface client for command testing."""
+    client = Mock()
+    client.INDEX_NAME = "datasets"
+    client.client = Mock()
+    client.client.indices = Mock()
+    client.client.indices.delete = Mock()
+    client.client.indices.get_mapping = Mock(
+        return_value={
+            "datasets": {
+                "mappings": {
+                    "properties": {"keyword": {"fields": {"raw": {"type": "keyword"}}}}
+                }
+            }
+        }
+    )
+    client.delete_all_datasets = Mock()
+    client._ensure_index = Mock()
+    client._refresh = Mock()
+    client.index_datasets = Mock(return_value=(100, 0))
+    return client
