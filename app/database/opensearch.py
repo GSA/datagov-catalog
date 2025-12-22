@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from datetime import date, datetime
 from typing import Any, Callable, TypeVar
 
 from botocore.credentials import Credentials
@@ -139,7 +140,13 @@ class OpenSearchInterface:
                 "search_analyzer": TEXT_ANALYZER,
             },
             "slug": {"type": "keyword"},
-            "dcat": {"type": "nested"},
+            "dcat": {
+                "type": "nested",
+                "properties": {
+                    "modified": {"type": "keyword"},  # Ensure modified is always text
+                    "issued": {"type": "keyword"},  # Also ensure issued is text
+                },
+            },
             "description": {
                 "type": "text",
                 "analyzer": TEXT_ANALYZER,
@@ -283,6 +290,31 @@ class OpenSearchInterface:
 
         self._ensure_index()
 
+    @staticmethod
+    def _normalize_dcat_dates(dcat: dict) -> dict:
+        """Normalize date fields in DCAT to ensure they're always strings.
+
+        dcat: DCAT dictionary that may contain datetime objects
+
+        the returned value is the modified dcat dict.
+        """
+        # Create a copy to avoid mutating the original
+        normalized_dcat = dcat.copy()
+
+        # Fields that should be converted to strings
+        date_fields = ["modified", "issued", "temporal"]
+
+        for field in date_fields:
+            if field in normalized_dcat:
+                value = normalized_dcat[field]
+                if isinstance(value, (datetime, date)):
+                    normalized_dcat[field] = value.isoformat()
+                elif value is not None and not isinstance(value, str):
+                    # Convert any other non-string type to string
+                    normalized_dcat[field] = str(value)
+
+        return normalized_dcat
+
     def dataset_to_document(self, dataset):
         """Map a dataset into a document for indexing.
 
@@ -296,6 +328,9 @@ class OpenSearchInterface:
             dataset.translated_spatial is not None
         )
 
+        # Normalize DCAT dates to ensure they're strings
+        normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
+
         return {
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
@@ -303,7 +338,7 @@ class OpenSearchInterface:
             "slug": dataset.slug,
             "description": dataset.dcat.get("description", ""),
             "publisher": dataset.dcat.get("publisher", {}).get("name", ""),
-            "dcat": dataset.dcat,
+            "dcat": normalized_dcat,
             # Opensearch handles array-value properties
             "keyword": dataset.dcat.get("keyword", []),
             "theme": dataset.dcat.get("theme", []),
@@ -621,3 +656,14 @@ class OpenSearchInterface:
             {"keyword": bucket["key"], "count": bucket["doc_count"]}
             for bucket in buckets
         ]
+
+    def count_all_datasets(self) -> int:
+        """
+        Get the total count of all datasets in the index.        
+        """
+        try:
+            result = self.client.count(index=self.INDEX_NAME)
+            return result.get("count", 0)
+        except Exception as e:
+            logger.error(f"Error counting datasets in OpenSearch: {e}")
+            return 0

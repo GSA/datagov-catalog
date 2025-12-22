@@ -1,5 +1,6 @@
 import os
 import posixpath
+import time
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from typing import Iterable, Optional
@@ -7,7 +8,8 @@ from urllib.parse import urlparse
 
 import click
 from flask import Blueprint
-from opensearchpy.exceptions import OpenSearchException
+from opensearchpy.exceptions import ConnectionTimeout, OpenSearchException
+from sqlalchemy.exc import OperationalError
 
 from .database import CatalogDBInterface, OpenSearchInterface
 from .models import (
@@ -71,11 +73,18 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
 
     Use --recreate-index flag when you've updated the schema (e.g., added keyword.raw field)
     to delete the old index and create a new one with the updated mapping.
+
+    Retries added for when we may have multiple jobs running and causes the sync to break.
+    There are 3 exponential retries, the initial retry being 2 seconds. 
     """
+
+    # Retry configuration
+    max_retries = 3
+    retry_delay = 2.0
 
     client = OpenSearchInterface.from_environment()
 
-    # enpty the index and then refill it
+    # empty the index and then refill it
     # THIS WILL CAUSE INCONSISTENT SEARCH RESULTS DURING THE PROCESS
 
     if recreate_index:
@@ -113,25 +122,86 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
     # index_datasets method
     total_pages = Dataset.query.paginate(per_page=per_page).pages
     click.echo(f"Indexing {total_pages} pages of datasets...")
-    # page numbers are 1-indexed
-    for i in range(start_page, total_pages + 1):
-        try:
-            succeeded, failed = client.index_datasets(
-                Dataset.query.paginate(page=i, per_page=per_page), refresh_after=False
-            )
-        except OpenSearchException:
-            # one more attempt after the exception
-            # exceptions that this raises will propagate
-            succeeded, failed = client.index_datasets(
-                Dataset.query.paginate(page=i, per_page=per_page), refresh_after=False
-            )
 
-        click.echo(
-            f"Indexed page {i}/{total_pages} with {succeeded} successes and {failed} errors."
-        )
-    click.echo("Refreshing index...")
-    client._refresh()
-    click.echo("Sync was successful")
+    try:
+        # page numbers are 1-indexed
+        for i in range(start_page, total_pages + 1):
+            retry_count = 0
+            last_exception = None
+
+            while retry_count <= max_retries:
+                try:
+                    # Get the paginated dataset query
+                    paginated_datasets = Dataset.query.paginate(
+                        page=i, per_page=per_page
+                    )
+
+                    # Index the datasets
+                    succeeded, failed = client.index_datasets(
+                        paginated_datasets, refresh_after=False
+                    )
+
+                    # Success - break out of retry loop
+                    click.echo(
+                        f"Indexed page {i}/{total_pages} with {succeeded} successes and {failed} errors."
+                    )
+                    break
+
+                except (OpenSearchException, ConnectionTimeout, OperationalError) as e:
+                    last_exception = e
+                    retry_count += 1
+
+                    error_type = type(e).__name__
+
+                    # Check if this is a PostgreSQL serialization failure
+                    # Safely convert exception to string
+                    try:
+                        error_str = str(e)
+                    except Exception:
+                        error_str = repr(e)
+
+                    is_serialization_error = (
+                        isinstance(e, OperationalError)
+                        and "conflict with recovery" in error_str
+                    )
+
+                    if retry_count <= max_retries:
+                        # Calculate exponential backoff delay
+                        wait_time = retry_delay * (2 ** (retry_count - 1))
+
+                        click.echo(
+                            f"Page {i}/{total_pages}: {error_type} - "
+                            f"{'Database serialization conflict' if is_serialization_error else 'Error'} "
+                            f"(attempt {retry_count}/{max_retries + 1}). "
+                            f"Retrying in {wait_time:.1f} seconds..."
+                        )
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        # Max retries exceeded
+                        try:
+                            error_msg = str(last_exception)
+                        except Exception:
+                            error_msg = repr(last_exception)
+                        click.echo(
+                            f"Page {i}/{total_pages}: Failed after {max_retries + 1} attempts. "
+                            f"Last error: {error_type} - {error_msg[:200] if error_msg else 'Unknown error'}"
+                        )
+                        # Exit with error code
+                        raise click.ClickException(
+                            f"Sync failed after {max_retries + 1} attempts"
+                        )
+
+        click.echo("Refreshing index...")
+        client._refresh()
+        click.echo("Sync was successful")
+    except click.ClickException:
+        # Re-raise Click exceptions (these exit cleanly with proper exit code)
+        raise
+    except Exception as e:
+        # Catch any other unexpected errors
+        click.echo(f"Unexpected error during sync: {type(e).__name__}")
+        raise click.ClickException(f"Sync failed: {type(e).__name__}")
 
 
 # ----------------------

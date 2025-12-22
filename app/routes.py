@@ -136,12 +136,13 @@ def index():
             )
 
     # Initialize empty results
-    total_datasets = interface.total_datasets() if not query else 0
     datasets: list[dict] = []
     result = None
     total = 0
     suggested_keywords = []
 
+    has_filters = query or org_types or keywords or org_id or spatial_filter
+    
     try:
         result = interface.search_datasets(
             query,
@@ -153,11 +154,22 @@ def index():
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
         )
+        
+        # For homepage without filters, get accurate total count
+        if not has_filters:
+            try:
+                total = interface.count_all_datasets_in_search()
+            except Exception:
+                logger.exception("Failed to get accurate dataset count")
+                # Fallback to search result total
+                total = result.total
+        else:
+            # For filtered searches, use the search result total (may be capped at 10k)
+            total = result.total
+            
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})
     else:
-        # Get total count
-        total = result.total
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]
 
@@ -178,7 +190,6 @@ def index():
 
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
-
     return render_template(
         "index.html",
         query=query,
@@ -187,7 +198,6 @@ def index():
         after=after,
         datasets=datasets,
         total=total,
-        total_datasets=total_datasets,
         org_id=org_id,
         org_types=org_types,
         keywords=keywords,
@@ -196,7 +206,6 @@ def index():
         spatial_filter=spatial_filter,
         from_hint=from_hint,
     )
-
 
 @main.route("/search", methods=["GET"])
 def search():
