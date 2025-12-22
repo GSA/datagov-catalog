@@ -59,6 +59,34 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 SITEMAP_PAGE_SIZE = 10000
 
 
+def _homepage_dataset_total(default_total: int) -> int:
+    """Return dataset total for the homepage, using the best available source."""
+
+    methods_to_try = [
+        getattr(interface, "count_all_datasets_in_search", None),
+        getattr(interface, "total_datasets", None),
+    ]
+
+    for method in methods_to_try:
+        if not callable(method):  # method may be stubbed or missing in tests
+            continue
+        try:
+            total = method()
+        except Exception:
+            logger.exception("Failed to fetch dataset count for homepage")
+            continue
+        try:
+            return int(total)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Dataset count is not numeric; falling back to search result total",
+                extra={"count": total},
+            )
+            continue
+
+    return default_total
+
+
 def _get_sitemap_body_or_404(bucket: str, key: str) -> bytes:
     """Fetch an object body from S3 or abort with 404 on any error."""
     s3 = create_sitemap_s3_client()
@@ -138,7 +166,7 @@ def index():
             else:
                 org_filter_id = org_slug_param
 
-    has_filters = query or org_types or keywords or org_id or spatial_filter
+    has_filters = query or org_types or keywords or org_filter_id or spatial_filter
 
     try:
         result = interface.search_datasets(
@@ -152,16 +180,12 @@ def index():
         )
 
         # For homepage without filters, get accurate total count
+        result_total = result.total if result is not None else 0
         if not has_filters:
-            try:
-                total = interface.count_all_datasets_in_search()
-            except Exception:
-                logger.exception("Failed to get accurate dataset count")
-                # Fallback to search result total
-                total = result.total
+            total = _homepage_dataset_total(result_total)
         else:
             # For filtered searches, use the search result total (may be capped at 10k)
-            total = result.total
+            total = result_total
 
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})
