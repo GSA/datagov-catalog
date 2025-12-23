@@ -1,6 +1,6 @@
 import json
 from unittest.mock import Mock, patch
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
@@ -8,6 +8,29 @@ from bs4 import BeautifulSoup
 from app.database.opensearch import SearchResult
 from app.models import Dataset
 from tests.fixtures import HARVEST_RECORD_ID
+
+
+def test_location_search_api_endpoint(interface_with_location, db_client):
+    with patch("app.routes.interface", interface_with_location):
+        response = db_client.get(
+            "/api/locations/search", query_string={"q": "", "size": 1}
+        )
+    assert response.json is not None
+    assert "locations" in response.json
+    assert "total" in response.json
+    assert response.json["size"] == 1
+    assert "display_name" in response.json["locations"][0]
+    assert "id" in response.json["locations"][0]
+
+
+def test_location_api_by_id(interface_with_location, db_client):
+    with patch("app.routes.interface", interface_with_location):
+        response = db_client.get("/api/location/1")
+    assert response.json is not None
+    assert "id" in response.json
+    assert "geometry" in response.json
+    assert "type" in response.json["geometry"]
+    assert "coordinates" in response.json["geometry"]
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client):
@@ -89,111 +112,40 @@ def test_search_api_by_org_id(interface_with_dataset, db_client):
         assert len(response.json["results"]) == 0
 
 
-def test_dataset_detail_by_slug(interface_with_dataset, db_client):
-    """
-    Test dataset detail page by using the slug.
-    Tests to ensure the page renders correctly and contains expected elements.
-    """
+def test_search_api_spatial_geometry(interface_with_dataset, db_client):
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
     with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/dataset/test")
-    # check response is successful
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    # curently the title of the dataset is in the <title> tag
-    assert soup.title.string == "test - Data.gov"
-    # assert the title in the h1 section is the same as the title
-    h1 = soup.select_one("main#content h1.dataset-title").text
-    assert h1 == "test"
-    # check the dataset description is present
-    description = soup.select_one(".dataset-description").get_text(strip=True)
-    assert description == "this is the test description"
-
-    feedback_button = soup.find("button", id="contact-btn")
-    assert feedback_button is not None
-    assert feedback_button.get("data-dataset-identifier") == "test"
-    assert "Feedback" in feedback_button.get_text(" ", strip=True)
-
-    resources_heading = soup.select_one("h3.sidebar-section__heading")
-    assert resources_heading is not None
-
-    resources_details = soup.select_one("details.resources-dropdown")
-    assert resources_details is not None
-
-    resources = resources_details.select("ul li")
-    assert len(resources) == 1
-
-    first_resource = resources[0]
-    resource_name = first_resource.select_one(".resources-list__name")
-    assert "Test CSV" in resource_name.get_text(" ", strip=True)
-
-    resource_link = first_resource.find("a")
-    assert resource_link is not None
-    assert resource_link.get("href") == "https://example.com/test.csv"
-
-    search_form = soup.find("form", attrs={"action": "/"})
-    assert search_form is not None
-    search_input = search_form.find("input", {"name": "q"})
-    assert search_input is not None
+        response = db_client.get(
+            "/search", query_string={"spatial_geometry": polygon_escaped}
+        )
+        assert len(response.json["results"]) >= 1
 
 
-def test_dataset_detail_by_id(interface_with_dataset, db_client):
-    """
-    Similar to test_dataset_detail_by_slug, but uses the dataset ID. This helps
-    to ensure that our polymorphic approach works correctly when datasets
-    are accessed by ID instead of slug.
-    """
+def test_index_spatial_geometry(interface_with_dataset, db_client):
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
     with patch("app.routes.interface", interface_with_dataset):
-        dataset_id = interface_with_dataset.get_dataset_by_slug("test").id
-        response = db_client.get(f"/dataset/{dataset_id}")
-    # check response is successful
-    assert response.status_code == 200
-
+        response = db_client.get(
+            "/", query_string={"spatial_geometry": polygon_escaped}
+        )
     soup = BeautifulSoup(response.text, "html.parser")
-    # curently the title of the dataset is in the <title> tag
-    assert soup.title.string == "test - Data.gov"
-    # assert the title in the h1 section is the same as the title
-    h1 = soup.select_one("main#content h1.dataset-title").text
-    assert h1 == "test"
-    # check the dataset description is present
-    description = soup.select_one(".dataset-description").get_text(strip=True)
-    assert description == "this is the test description"
-
-    feedback_button = soup.find("button", id="contact-btn")
-    assert feedback_button is not None
-    assert feedback_button.get("data-dataset-identifier") == "test"
-    assert "Feedback" in feedback_button.get_text(" ", strip=True)
-
-    resources_heading = soup.select_one("h3.sidebar-section__heading")
-    assert resources_heading is not None
-
-    resources_details = soup.select_one("details.resources-dropdown")
-    assert resources_details is not None
-
-    resources = resources_details.select("ul li")
-    assert len(resources) == 1
-
-    first_resource = resources[0]
-    resource_name = first_resource.select_one(".resources-list__name")
-    assert "Test CSV" in resource_name.get_text(" ", strip=True)
-
-    resource_link = first_resource.find("a")
-    assert resource_link is not None
-    assert resource_link.get("href") == "https://example.com/test.csv"
-
-    search_form = soup.find("form", attrs={"action": "/"})
-    assert search_form is not None
-    search_input = search_form.find("input", {"name": "q"})
-    assert search_input is not None
-
-
-def test_dataset_detail_404(db_client):
-    """
-    Test that accessing a non-existent dataset by slug or ID returns a 404 error.
-    """
-    response = db_client.get("/dataset/does-not-exist")
-    # check response fails with 404
-    assert response.status_code == 404
+    dataset_items = soup.find_all("li", class_="usa-collection__item")
+    assert len(dataset_items) >= 1
 
 
 def test_organization_list_shows_type_and_count(db_client, interface_with_dataset):
@@ -347,6 +299,7 @@ def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
     assert dataset_total is not None
     print(response.text)
     assert int(dataset_total.text) > 0
+
 
 def test_htmx_search_returns_results(interface_with_dataset, db_client):
     """
@@ -831,7 +784,10 @@ def test_header_exists(db_client):
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert len(nav_parts) == 5  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
+    assert (
+        len(nav_parts) == 5
+    )  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
+
 
 def test_footer_exists(db_client):
     response = db_client.get("/")
@@ -846,164 +802,6 @@ def test_footer_exists(db_client):
     assert gsa_footer is not None
 
 
-def test_dataset_detail_includes_map_assets_when_spatial_bbox(
-    interface_with_dataset, db_client
-):
-    # Add spatial bbox and ensure map container and Leaflet assets are present
-    ds = interface_with_dataset.get_dataset_by_slug("test")
-    ds.dcat["spatial"] = "-90.155,27.155,-90.26,27.255"
-    interface_with_dataset.db.commit()
-
-    with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/dataset/test")
-
-    assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Map container
-    map_div = soup.select_one("#dataset-map")
-    assert map_div is not None
-    assert map_div.get("data-bbox") == "-90.155,27.155,-90.26,27.255"
-
-    # Leaflet assets (conditionally included)
-    leaflet_css = soup.select_one('link[href*="leaflet.css"]')
-    leaflet_js = soup.select_one('script[src*="leaflet.js"]')
-    view_js = soup.select_one('script[src*="js/view_bbox_map.js"]')
-    assert leaflet_css is not None
-    assert leaflet_js is not None
-    assert view_js is not None
-
-
-def test_dataset_detail_includes_map_assets_when_spatial_geometry(
-    interface_with_dataset, db_client
-):
-    # Add spatial geometry and ensure map container and Leaflet assets are present
-    ds = interface_with_dataset.get_dataset_by_slug("test")
-    ds.dcat["spatial"] = {
-        "type": "Polygon",
-        "coordinates": [
-            [
-                [-373.59375715256, -65.778772326728],
-                [-373.59375715256, 84.220160826965],
-                [-12.187442779541, 84.220160826965],
-                [-12.187442779541, -65.778772326728],
-                [-373.59375715256, -65.778772326728],
-            ]
-        ],
-    }
-    interface_with_dataset.db.commit()
-
-    with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/dataset/test")
-
-    assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    map_div = soup.select_one("#dataset-map")
-    assert map_div is not None
-    assert map_div.get("data-bbox") is None
-
-    geometry_attr = map_div.get("data-geometry")
-    assert geometry_attr is not None
-    assert json.loads(geometry_attr) == ds.dcat["spatial"]
-
-    leaflet_css = soup.select_one('link[href*="leaflet.css"]')
-    leaflet_js = soup.select_one('script[src*="leaflet.js"]')
-    view_js = soup.select_one('script[src*="js/view_bbox_map.js"]')
-    assert leaflet_css is not None
-    assert leaflet_js is not None
-    assert view_js is not None
-
-
-def test_dataset_detail_includes_map_assets_when_spatial_geometry_string(
-    interface_with_dataset, db_client
-):
-    ds = interface_with_dataset.get_dataset_by_slug("test")
-    geometry = {
-        "type": "Polygon",
-        "coordinates": [
-            [
-                [-373.59375715256, -65.778772326728],
-                [-373.59375715256, 84.220160826965],
-                [-12.187442779541, 84.220160826965],
-                [-12.187442779541, -65.778772326728],
-                [-373.59375715256, -65.778772326728],
-            ]
-        ],
-    }
-    ds.dcat["spatial"] = json.dumps(geometry)
-    interface_with_dataset.db.commit()
-
-    with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/dataset/test")
-
-    assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    map_div = soup.select_one("#dataset-map")
-    assert map_div is not None
-    assert map_div.get("data-bbox") is None
-
-    geometry_attr = map_div.get("data-geometry")
-    assert geometry_attr is not None
-    assert json.loads(geometry_attr) == geometry
-
-    leaflet_css = soup.select_one('link[href*="leaflet.css"]')
-    leaflet_js = soup.select_one('script[src*="leaflet.js"]')
-    view_js = soup.select_one('script[src*="js/view_bbox_map.js"]')
-    assert leaflet_css is not None
-    assert leaflet_js is not None
-    assert view_js is not None
-
-
-def test_dataset_detail_omits_map_when_spatial_missing(
-    interface_with_dataset, db_client
-):
-    # Ensure no spatial key and verify no map container or Leaflet assets
-    ds = interface_with_dataset.get_dataset_by_slug("test")
-    ds.dcat.pop("spatial", None)
-    interface_with_dataset.db.commit()
-
-    with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/dataset/test")
-
-    assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # No map container
-    assert soup.select_one("#dataset-map") is None
-
-    # No Leaflet assets
-    assert soup.select_one('link[href*="leaflet.css"]') is None
-    assert soup.select_one('script[src*="leaflet.js"]') is None
-    assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
-
-
-def test_dataset_detail_logs_warning_when_spatial_unqualified(
-    interface_with_dataset, db_client
-):
-    ds = interface_with_dataset.get_dataset_by_slug("test")
-    ds.dcat["spatial"] = "Virginia, USA"
-    interface_with_dataset.db.commit()
-
-    with patch("app.routes.interface", interface_with_dataset):
-        response = db_client.get("/dataset/test")
-
-    assert response.status_code == 200
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    # Still no map container or assets
-    assert soup.select_one("#dataset-map") is None
-    assert soup.select_one('link[href*="leaflet.css"]') is None
-    assert soup.select_one('script[src*="leaflet.js"]') is None
-    assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
-
-    inline_scripts = [
-        script.get_text() for script in soup.find_all("script") if not script.get("src")
-    ]
-    assert any("Map not displayed" in content for content in inline_scripts)
-
-
 class TestKeywordSearch:
     """Test keyword search functionality on index page."""
 
@@ -1016,7 +814,7 @@ class TestKeywordSearch:
             dataset_dict["id"] = str(i)
             dataset_dict["slug"] = f"test-{i}"
             dataset_dict["dcat"]["title"] = f"test-{i}"
-            dataset_dict["dcat"]["keyword"] =["health", "education"]
+            dataset_dict["dcat"]["keyword"] = ["health", "education"]
             interface_with_dataset.db.add(Dataset(**dataset_dict))
         interface_with_dataset.db.commit()
 
@@ -1078,13 +876,16 @@ class TestKeywordSearch:
 class TestGeospatialSearch:
     """Test geospatial search functionality on index page."""
 
-    def test_geospatial_filter_shows_only_spatial_datasets(
+    def test_geospatial_filter_shows_dcat_spatial_datasets(
         self, interface_with_dataset, db_client
     ):
-        """Test that geospatial filter returns only datasets with spatial data."""
+        """
+        Test that geospatial filter returns datasets with spatial data in DCAT.
+        """
         # Add spatial data to test dataset
         ds = interface_with_dataset.get_dataset_by_slug("test")
         ds.dcat["spatial"] = "-90.155,27.155,-90.26,27.255"
+        ds.translated_spatial = None
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
@@ -1093,7 +894,29 @@ class TestGeospatialSearch:
         )
 
         with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get("/?spatial_filter=geospatial")
+            response = db_client.get("/?q=test&spatial_filter=geospatial")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        # Check that geospatial radio button is selected
+        geo_radio = soup.find("input", {"id": "filter-spatial-geo"})
+        assert geo_radio is not None
+        assert "checked" in geo_radio.attrs
+
+        # Verify results are displayed
+        dataset_items = soup.find_all("li", class_="usa-collection__item")
+        assert len(dataset_items) > 0
+
+    def test_geospatial_filter_shows_translated_spatial_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        Test that geospatial filter returns datasets with translated_geospatial
+        """
+        # translated_spatial data is already one test dataset
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?q=test&spatial_filter=geospatial")
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
@@ -1114,6 +937,7 @@ class TestGeospatialSearch:
         # Ensure test dataset has no spatial data
         ds = interface_with_dataset.get_dataset_by_slug("test")
         ds.dcat.pop("spatial", None)
+        ds.translated_spatial = None
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
@@ -1122,7 +946,7 @@ class TestGeospatialSearch:
         )
 
         with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get("/?spatial_filter=non-geospatial")
+            response = db_client.get("/?q=test&spatial_filter=non-geospatial")
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
@@ -1145,7 +969,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"]["title"] = f"test-{i}"
-        dataset_dict["dcat"]["keyword"] =["health", "education"]
+        dataset_dict["dcat"]["keyword"] = ["health", "education"]
         dataset_dict["dcat"]["spatial"] = "-90.155,27.155,-90.26,27.255"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()

@@ -745,6 +745,12 @@ ul.dataset-resources {
     display: none;
 }
 
+/* leaflet controls are too "high" */
+.leaflet-control-container {
+  position: relative;
+  z-index: 400;
+}
+
 .keyword-suggestions--visible {
     display: block;
 }
