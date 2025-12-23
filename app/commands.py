@@ -71,8 +71,13 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
     # Retry configuration
     max_retries = 3
     retry_delay = 2.0
+    opensearch_errors = []
 
     client = OpenSearchInterface.from_environment()
+    interface = CatalogDBInterface()
+
+    # get the count of datasets before new indexing
+    pre_os_dataset_count = client.count_all_datasets()
 
     # empty the index and then refill it
     # THIS WILL CAUSE INCONSISTENT SEARCH RESULTS DURING THE PROCESS
@@ -127,10 +132,11 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
                     )
 
                     # Index the datasets
-                    succeeded, failed = client.index_datasets(
+                    succeeded, failed, errors = client.index_datasets(
                         paginated_datasets, refresh_after=False
                     )
-
+                    # add errors to render later
+                    opensearch_errors.extend(errors)
                     # Success - break out of retry loop
                     click.echo(
                         f"Indexed page {i}/{total_pages} with {succeeded} successes and {failed} errors."
@@ -192,6 +198,23 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
         # Catch any other unexpected errors
         click.echo(f"Unexpected error during sync: {type(e).__name__}")
         raise click.ClickException(f"Sync failed: {type(e).__name__}")
+    
+    click.echo("="*20 + "STATS" + "=" *20)
+    click.echo(f"Total Datasets in Database: {interface.total_datasets()}")
+    click.echo(f"Total Datasets in Index Before Sync: {pre_os_dataset_count}")
+    click.echo(f"Total Datasets in Index After Sync: {client.count_all_datasets()}")
+    click.echo(f"Recreate Index: {recreate_index}")
+    click.echo(f"Total Errors: {len(opensearch_errors)}")
+    if opensearch_errors:
+        click.echo("="*20 + "ERRORS" + "=" *20)
+        for opensearch_error in opensearch_errors:
+            click.echo(
+                f"Dataset ID: {opensearch_error.get("dataset_id")}, "
+                f"Status Code: {opensearch_error.get("status_code")}, "
+                f"Error Type: {opensearch_error.get("error_type")}, "
+                f"Error Reason: {opensearch_error.get("error_reason")}, "
+                f"Caused By: {opensearch_error.get("caused_by")}"                
+            )
 
 
 # ----------------------
