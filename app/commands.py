@@ -65,7 +65,7 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
     to delete the old index and create a new one with the updated mapping.
 
     Retries added for when we may have multiple jobs running and causes the sync to break.
-    There are 3 exponential retries, the initial retry being 2 seconds. 
+    There are 3 exponential retries, the initial retry being 2 seconds.
     """
 
     # Retry configuration
@@ -198,22 +198,22 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
         # Catch any other unexpected errors
         click.echo(f"Unexpected error during sync: {type(e).__name__}")
         raise click.ClickException(f"Sync failed: {type(e).__name__}")
-    
-    click.echo("="*20 + "STATS" + "=" *20)
+
+    click.echo("=" * 20 + "STATS" + "=" * 20)
     click.echo(f"Total Datasets in Database: {interface.total_datasets()}")
     click.echo(f"Total Datasets in Index Before Sync: {pre_os_dataset_count}")
     click.echo(f"Total Datasets in Index After Sync: {client.count_all_datasets()}")
     click.echo(f"Recreate Index: {recreate_index}")
     click.echo(f"Total Errors: {len(opensearch_errors)}")
     if opensearch_errors:
-        click.echo("="*20 + "ERRORS" + "=" *20)
+        click.echo("=" * 20 + "ERRORS" + "=" * 20)
         for opensearch_error in opensearch_errors:
             click.echo(
                 f"Dataset ID: {opensearch_error.get("dataset_id")}, "
                 f"Status Code: {opensearch_error.get("status_code")}, "
                 f"Error Type: {opensearch_error.get("error_type")}, "
                 f"Error Reason: {opensearch_error.get("error_reason")}, "
-                f"Caused By: {opensearch_error.get("caused_by")}"                
+                f"Caused By: {opensearch_error.get("caused_by")}"
             )
 
 

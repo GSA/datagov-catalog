@@ -462,9 +462,9 @@ class OpenSearchInterface:
                                     "status_code": index_info["_shards"].get("status"),
                                     "error_type": "Silent Error",
                                     "error_reason": "Unknown",
-                                    "caused_by": index_info
+                                    "caused_by": index_info,
                                 }
-                            )                        
+                            )
                 else:
                     failed_local += 1
                     if index_info and index_error:
@@ -474,7 +474,7 @@ class OpenSearchInterface:
                                 "status_code": index_info.get("status"),
                                 "error_type": index_error.get("type"),
                                 "error_reason": index_error.get("reason"),
-                                "caused_by": index_error.get("caused_by")
+                                "caused_by": index_error.get("caused_by"),
                             }
                         )
             return succeeded_local, failed_local, errors
@@ -655,7 +655,7 @@ class OpenSearchInterface:
 
     def count_all_datasets(self) -> int:
         """
-        Get the total count of all datasets in the index.        
+        Get the total count of all datasets in the index.
         """
         try:
             result = self.client.count(index=self.INDEX_NAME)
