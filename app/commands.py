@@ -51,6 +51,7 @@ def load_test_data():
 
 
 @search.cli.command("sync")
+@click.argument("dataset_id_or_slug", required=False)
 @click.option("--start-page", help="Number of page to start on", default=1)
 @click.option("--per_page", help="Number of datasets per page", default=100)
 @click.option(
@@ -59,8 +60,16 @@ def load_test_data():
     help="Delete and recreate index with new schema",
     default=False,
 )
-def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
-    """Sync the datasets to the OpenSearch system.
+def sync_opensearch(
+    dataset_id_or_slug: Optional[str] = None,
+    start_page: int = 1,
+    per_page: int = 100,
+    recreate_index: bool = False,
+):
+    """Sync datasets to the OpenSearch system.
+
+    Provide a DATASET_ID_OR_SLUG argument to reindex a single dataset without
+    touching the rest of the index.
 
     Use --recreate-index flag when you've updated the schema (e.g., added keyword.raw field)
     to delete the old index and create a new one with the updated mapping.
@@ -74,6 +83,35 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
     retry_delay = 2.0
 
     client = OpenSearchInterface.from_environment()
+
+    if dataset_id_or_slug:
+        interface = CatalogDBInterface()
+        if recreate_index:
+            raise click.ClickException(
+                "Cannot use --recreate-index when syncing a single dataset."
+            )
+
+        dataset = interface.get_dataset_by_id(dataset_id_or_slug)
+        if dataset is None:
+            dataset = interface.get_dataset_by_slug(dataset_id_or_slug)
+
+        if dataset is None:
+            raise click.ClickException(
+                f"Dataset '{dataset_id_or_slug}' was not found by id or slug."
+            )
+
+        click.echo(
+            f"Indexing dataset {dataset.id} (slug: {dataset.slug}) into OpenSearch..."
+        )
+        succeeded, failed = client.index_datasets([dataset])
+
+        if failed:
+            raise click.ClickException(
+                f"Failed to index dataset {dataset.id}; see logs for details."
+            )
+
+        click.echo("Dataset indexed successfully.")
+        return
 
     # empty the index and then refill it
     # THIS WILL CAUSE INCONSISTENT SEARCH RESULTS DURING THE PROCESS
