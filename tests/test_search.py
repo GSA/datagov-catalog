@@ -2,6 +2,7 @@ import copy
 
 from app.models import Dataset
 
+
 def test_search(interface_with_dataset):
     result = interface_with_dataset.search_datasets("test")
     assert len(result) > 0
@@ -87,7 +88,7 @@ def test_search_with_keyword(interface_with_dataset):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"]["title"] = f"test-{i}"
-        dataset_dict["dcat"]["keyword"] =["health", "education"]
+        dataset_dict["dcat"]["keyword"] = ["health", "education"]
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
 
@@ -107,8 +108,8 @@ def test_search_with_keyword(interface_with_dataset):
     result = interface_with_dataset.search_datasets(keywords=["health", "education"])
     assert len(result) > 0
     assert all(
-        "health" in dataset.get("dcat", {}).get("keyword", []) and
-        "education" in dataset.get("dcat", {}).get("keyword", [])
+        "health" in dataset.get("dcat", {}).get("keyword", [])
+        and "education" in dataset.get("dcat", {}).get("keyword", [])
         for dataset in result.results
     )
 
@@ -116,6 +117,18 @@ def test_search_with_keyword(interface_with_dataset):
     result = interface_with_dataset.search_datasets(keywords=["nonexistent"])
     assert len(result) == 0
     assert result.results == []
+
+
+def test_search_spatial_geometry(interface_with_dataset):
+    """Search_datasets accepts spatial_geometry."""
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    results = interface_with_dataset.search_datasets(
+        spatial_geometry={"type": "point", "coordinates": [-75, 40]},
+        spatial_within=False,
+    )
+    assert len(results) > 0
 
 
 def test_stop_words_removed_from_search_queries(interface_with_dataset):

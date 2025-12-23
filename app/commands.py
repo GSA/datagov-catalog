@@ -12,7 +12,14 @@ from opensearchpy.exceptions import ConnectionTimeout, OpenSearchException
 from sqlalchemy.exc import OperationalError
 
 from .database import CatalogDBInterface, OpenSearchInterface
-from .models import Dataset, HarvestJob, HarvestRecord, HarvestSource, Organization
+from .models import (
+    Dataset,
+    HarvestJob,
+    HarvestRecord,
+    HarvestSource,
+    Locations,
+    Organization,
+)
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -43,9 +50,12 @@ def load_test_data():
         interface.db.add(Organization(**organization_data))
     interface.db.add(HarvestSource(**fixture["harvest_source"]))
     interface.db.add(HarvestJob(**fixture["harvest_job"]))
-    interface.db.add(HarvestRecord(**fixture["harvest_record"]))
+    for record in fixture["harvest_record"]:
+        interface.db.add(HarvestRecord(**record))
     for data in fixture["dataset"]:
         interface.db.add(Dataset(**data))
+    for data in fixture["locations"]:
+        interface.db.add(Locations(**data))
     interface.db.commit()
 
 
