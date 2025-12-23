@@ -59,6 +59,34 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 SITEMAP_PAGE_SIZE = 10000
 
 
+def _homepage_dataset_total(default_total: int) -> int:
+    """Return dataset total for the homepage, using the best available source."""
+
+    methods_to_try = [
+        getattr(interface, "count_all_datasets_in_search", None),
+        getattr(interface, "total_datasets", None),
+    ]
+
+    for method in methods_to_try:
+        if not callable(method):  # method may be stubbed or missing in tests
+            continue
+        try:
+            total = method()
+        except Exception:
+            logger.exception("Failed to fetch dataset count for homepage")
+            continue
+        try:
+            return int(total)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Dataset count is not numeric; falling back to search result total",
+                extra={"count": total},
+            )
+            continue
+
+    return default_total
+
+
 def _get_sitemap_body_or_404(bucket: str, key: str) -> bytes:
     """Fetch an object body from S3 or abort with 404 on any error."""
     s3 = create_sitemap_s3_client()
@@ -119,7 +147,6 @@ def index():
     num_results = min(num_results, 9999)
 
     # Initialize empty results
-    total_datasets = interface.total_datasets() if not query else 0
     datasets: list[dict] = []
     result = None
     total = 0
@@ -139,6 +166,8 @@ def index():
             else:
                 org_filter_id = org_slug_param
 
+    has_filters = query or org_types or keywords or org_filter_id or spatial_filter
+
     try:
         result = interface.search_datasets(
             query,
@@ -149,11 +178,18 @@ def index():
             sort_by=sort_by,
             spatial_filter=spatial_filter,
         )
+
+        # For homepage without filters, get accurate total count
+        result_total = result.total if result is not None else 0
+        if not has_filters:
+            total = _homepage_dataset_total(result_total)
+        else:
+            # For filtered searches, use the search result total (may be capped at 10k)
+            total = result_total
+
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})
     else:
-        # Get total count
-        total = result.total
         # Build dataset dictionaries with organization data
         datasets = [build_dataset_dict(each) for each in result.results]
 
@@ -180,7 +216,6 @@ def index():
 
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
-
     return render_template(
         "index.html",
         query=query,
@@ -189,7 +224,6 @@ def index():
         after=after,
         datasets=datasets,
         total=total,
-        total_datasets=total_datasets,
         org_slug=selected_organization.slug if selected_organization else org_slug_param,
         org_types=org_types,
         keywords=keywords,
@@ -200,7 +234,6 @@ def index():
         from_hint=from_hint,
         selected_organization=selected_organization,
     )
-
 
 @main.route("/search", methods=["GET"])
 def search():
