@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime
 from math import ceil
+from urllib.parse import unquote
 from xml.etree import ElementTree
 
 from dotenv import load_dotenv
@@ -140,11 +141,27 @@ def index():
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
+    spatial_geometry = request.args.get("spatial_geometry", type=str)
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
     # there's a limit on how many results can be requested
     num_results = min(num_results, 9999)
+
+    if spatial_geometry is not None:
+        try:
+            # it's a URL parameter so it is probably URL-quoted
+            spatial_geometry = json.loads(unquote(spatial_geometry))
+        except json.JSONDecodeError:
+            return (
+                jsonify(
+                    {
+                        "error": "Search failed",
+                        "message": "spatial_geometry parameter is malformed",
+                    }
+                ),
+                400,
+            )
 
     # Initialize empty results
     datasets: list[dict] = []
@@ -177,6 +194,7 @@ def index():
             org_types=org_types,
             sort_by=sort_by,
             spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
         )
 
         # For homepage without filters, get accurate total count
@@ -251,6 +269,8 @@ def search():
     keywords = request.args.getlist("keyword")
     after = request.args.get("after")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
+    spatial_geometry = request.args.get("spatial_geometry", type=str)
+    spatial_within = request.args.get("spatial_within", True, type=bool)
 
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
@@ -269,6 +289,22 @@ def search():
             else:
                 org_filter_id = org_slug_param
 
+    if spatial_geometry is not None:
+        try:
+            # it's a URL parameter so it is probably URL-quoted
+            spatial_geometry = json.loads(unquote(spatial_geometry))
+        except json.JSONDecodeError:
+            return (
+                jsonify(
+                    {
+                        "error": "Search failed",
+                        "message": "spatial_geometry parameter is malformed",
+                    }
+                ),
+                400,
+            )
+
+    # Use keyword search if keywords are provided
     result = interface.search_datasets(
         keywords=keywords,
         query=query,
@@ -276,6 +312,8 @@ def search():
         org_id=org_filter_id,
         org_types=org_types,
         spatial_filter=spatial_filter,
+        spatial_geometry=spatial_geometry,
+        spatial_within=spatial_within,
         after=after,
         sort_by=sort_by,
     )
@@ -564,6 +602,63 @@ def get_organizations_api():
             jsonify({"error": "Failed to fetch organizations", "message": str(e)}),
             500,
         )
+
+
+@main.route("/api/locations/search", methods=["GET"])
+def get_locations_api():
+    """API endpoint to search location display names and ids.
+
+    Query parameters:
+        q: the text to search for in display names
+        size: Maximum number of locations to return (default 100, max 2000)
+
+    Returns:
+        JSON with list of location display names and their ids
+    """
+    query = request.args.get("q", default="")
+    size = request.args.get("size", 100, type=int)
+
+    # Validate parameters
+    # Between 1 and 1000
+    size = max(min(size, 2000), 1)
+
+    try:
+        locations = [
+            {
+                key: value
+                for key, value in loc.to_dict().items()
+                if key in ["display_name", "id"]
+            }
+            for loc in interface.search_locations(query=query, size=size)
+        ]
+
+        return jsonify(
+            {
+                "locations": locations,
+                "total": len(locations),
+                "size": size,
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch locations", "message": str(e)}), 400
+
+
+@main.route("/api/location/<location_id>", methods=["GET"])
+def get_location_by_id_api(location_id):
+    """API endpoint to get geometry for one location
+
+    Returns:
+        JSON with at least a "geometry" with the location's GeoJSON.
+    """
+    location_obj = interface.get_location(location_id)
+    if location_obj is None:
+        return jsonify({"error": "Location not found"}), 404
+    return jsonify(
+        {
+            "id": location_obj[0],
+            "geometry": location_obj[1],
+        }
+    )
 
 
 def register_routes(app):

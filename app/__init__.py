@@ -13,8 +13,8 @@ from .filters import (
     geometry_to_mapping,
     is_bbox_string,
     is_geometry_mapping,
-    usa_icon,
     remove_html_tags,
+    usa_icon,
 )
 from .models import db
 

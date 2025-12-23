@@ -13,6 +13,7 @@ from app.models import (
     HarvestJob,
     HarvestRecord,
     HarvestSource,
+    Locations,
     Organization,
     db,
 )
@@ -76,6 +77,14 @@ def interface(session) -> CatalogDBInterface:
     except OpenSearchException:
         pass
 
+    yield interface
+
+
+@pytest.fixture
+def interface_with_location(interface, fixture_data):
+    for location_data in fixture_data["locations"]:
+        interface.db.add(Locations(**location_data))
+    interface.db.commit()
     yield interface
 
 

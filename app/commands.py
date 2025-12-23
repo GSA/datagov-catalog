@@ -9,10 +9,18 @@ from urllib.parse import urlparse
 import click
 from flask import Blueprint
 from opensearchpy.exceptions import ConnectionTimeout, OpenSearchException
+from opensearchpy.helpers import scan
 from sqlalchemy.exc import OperationalError
 
 from .database import CatalogDBInterface, OpenSearchInterface
-from .models import Dataset, HarvestJob, HarvestRecord, HarvestSource, Organization
+from .models import (
+    Dataset,
+    HarvestJob,
+    HarvestRecord,
+    HarvestSource,
+    Locations,
+    Organization,
+)
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -43,13 +51,17 @@ def load_test_data():
         interface.db.add(Organization(**organization_data))
     interface.db.add(HarvestSource(**fixture["harvest_source"]))
     interface.db.add(HarvestJob(**fixture["harvest_job"]))
-    interface.db.add(HarvestRecord(**fixture["harvest_record"]))
+    for record in fixture["harvest_record"]:
+        interface.db.add(HarvestRecord(**record))
     for data in fixture["dataset"]:
         interface.db.add(Dataset(**data))
+    for data in fixture["locations"]:
+        interface.db.add(Locations(**data))
     interface.db.commit()
 
 
 @search.cli.command("sync")
+@click.argument("dataset_id_or_slug", required=False)
 @click.option("--start-page", help="Number of page to start on", default=1)
 @click.option("--per_page", help="Number of datasets per page", default=100)
 @click.option(
@@ -58,14 +70,22 @@ def load_test_data():
     help="Delete and recreate index with new schema",
     default=False,
 )
-def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
-    """Sync the datasets to the OpenSearch system.
+def sync_opensearch(
+    dataset_id_or_slug: Optional[str] = None,
+    start_page: int = 1,
+    per_page: int = 100,
+    recreate_index: bool = False,
+):
+    """Sync datasets to the OpenSearch system.
+
+    Provide a DATASET_ID_OR_SLUG argument to reindex a single dataset without
+    touching the rest of the index.
 
     Use --recreate-index flag when you've updated the schema (e.g., added keyword.raw field)
     to delete the old index and create a new one with the updated mapping.
 
     Retries added for when we may have multiple jobs running and causes the sync to break.
-    There are 3 exponential retries, the initial retry being 2 seconds. 
+    There are 3 exponential retries, the initial retry being 2 seconds.
     """
 
     # Retry configuration
@@ -73,6 +93,35 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
     retry_delay = 2.0
 
     client = OpenSearchInterface.from_environment()
+
+    if dataset_id_or_slug:
+        interface = CatalogDBInterface()
+        if recreate_index:
+            raise click.ClickException(
+                "Cannot use --recreate-index when syncing a single dataset."
+            )
+
+        dataset = interface.get_dataset_by_id(dataset_id_or_slug)
+        if dataset is None:
+            dataset = interface.get_dataset_by_slug(dataset_id_or_slug)
+
+        if dataset is None:
+            raise click.ClickException(
+                f"Dataset '{dataset_id_or_slug}' was not found by id or slug."
+            )
+
+        click.echo(
+            f"Indexing dataset {dataset.id} (slug: {dataset.slug}) into OpenSearch..."
+        )
+        succeeded, failed = client.index_datasets([dataset])
+
+        if failed:
+            raise click.ClickException(
+                f"Failed to index dataset {dataset.id}; see logs for details."
+            )
+
+        click.echo("Dataset indexed successfully.")
+        return
 
     # empty the index and then refill it
     # THIS WILL CAUSE INCONSISTENT SEARCH RESULTS DURING THE PROCESS
@@ -192,6 +241,134 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
         # Catch any other unexpected errors
         click.echo(f"Unexpected error during sync: {type(e).__name__}")
         raise click.ClickException(f"Sync failed: {type(e).__name__}")
+
+
+@search.cli.command("compare")
+@click.option(
+    "--sample-size",
+    default=10,
+    show_default=True,
+    help="How many example IDs to print for each discrepancy type.",
+)
+@click.option(
+    "--fix",
+    is_flag=True,
+    help="Automatically index missing datasets and delete extra docs from OpenSearch.",
+)
+def compare_opensearch(sample_size: int, fix: bool):
+    """Report (and optionally fix) dataset ID discrepancies between DB and OpenSearch."""
+
+    interface = CatalogDBInterface()
+    client = OpenSearchInterface.from_environment()
+
+    click.echo("Collecting dataset IDs from DB…")
+    db_ids = {row[0] for row in interface.db.query(Dataset.id).all()}
+    click.echo(f"Database datasets: {len(db_ids)}")
+
+    click.echo("Collecting document IDs from OpenSearch…")
+    os_ids = {
+        hit["_id"]
+        for hit in scan(client.client, index=client.INDEX_NAME, _source=False)
+    }
+    click.echo(f"OpenSearch documents: {len(os_ids)}")
+
+    missing = sorted(db_ids - os_ids)
+    extra = sorted(os_ids - db_ids)
+
+    click.echo(
+        f"Missing in OpenSearch (should be indexed): {len(missing)}"
+    )
+    if missing:
+        click.echo(
+            "Example missing IDs: " + ", ".join(missing[:sample_size])
+        )
+    else:
+        click.echo("Example missing IDs: none")
+
+    click.echo(
+        f"Extra in OpenSearch (should be deleted): {len(extra)}"
+    )
+    if extra:
+        click.echo("Example extra IDs: " + ", ".join(extra[:sample_size]))
+    else:
+        click.echo("Example extra IDs: none")
+
+    if not fix:
+        return
+
+    click.echo("\nFixing discrepancies…")
+
+    if missing:
+        click.echo(f"Indexing {len(missing)} missing datasets…")
+        batch_size = 1000
+        total_indexed = 0
+        total_skipped = 0
+
+        for batch_number, batch_ids in enumerate(
+            (missing[i : i + batch_size] for i in range(0, len(missing), batch_size)),
+            start=1,
+        ):
+            click.echo(
+                f"  Batch {batch_number}: indexing {len(batch_ids)} dataset(s)…"
+            )
+            datasets = (
+                interface.db.query(Dataset)
+                .filter(Dataset.id.in_(batch_ids))
+                .all()
+            )
+
+            found_ids = {dataset.id for dataset in datasets}
+            skipped = [dataset_id for dataset_id in batch_ids if dataset_id not in found_ids]
+            total_skipped += len(skipped)
+
+            if skipped:
+                click.echo(
+                    "    Warning: Skipping missing DB IDs: "
+                    + ", ".join(skipped[:sample_size])
+                )
+
+            if datasets:
+                succeeded, failed = client.index_datasets(
+                    datasets, refresh_after=False
+                )
+                total_indexed += succeeded
+                if failed:
+                    click.echo(
+                        f"    Warning: {failed} dataset(s) failed to index in this batch."
+                    )
+            else:
+                click.echo("    No datasets found for this batch; skipping.")
+
+        click.echo(
+            f"Indexed {total_indexed} datasets. Skipped {total_skipped} missing DB rows."
+        )
+
+    if extra:
+        click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
+        deleted = 0
+        batch_size = 1000
+        for batch_number, batch_ids in enumerate(
+            (extra[i : i + batch_size] for i in range(0, len(extra), batch_size)),
+            start=1,
+        ):
+            click.echo(
+                f"  Batch {batch_number}: deleting {len(batch_ids)} document(s)…"
+            )
+            for doc_id in batch_ids:
+                try:
+                    client.client.delete(index=client.INDEX_NAME, id=doc_id)
+                    deleted += 1
+                except Exception as exc:  # pragma: no cover - best-effort cleanup
+                    click.echo(f"    Failed to delete document {doc_id}: {exc}")
+
+        click.echo(f"Deleted {deleted} documents from OpenSearch.")
+
+    if missing or extra:
+        click.echo("Refreshing OpenSearch index…")
+        client._refresh()
+        click.echo("Done.")
+    else:
+        click.echo("Nothing to fix; datasets and index are already in sync.")
 
 
 # ----------------------
