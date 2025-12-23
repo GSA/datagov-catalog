@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import click
 from flask import Blueprint
 from opensearchpy.exceptions import ConnectionTimeout, OpenSearchException
+from opensearchpy.helpers import scan
 from sqlalchemy.exc import OperationalError
 
 from .database import CatalogDBInterface, OpenSearchInterface
@@ -65,7 +66,7 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
     to delete the old index and create a new one with the updated mapping.
 
     Retries added for when we may have multiple jobs running and causes the sync to break.
-    There are 3 exponential retries, the initial retry being 2 seconds. 
+    There are 3 exponential retries, the initial retry being 2 seconds.
     """
 
     # Retry configuration
@@ -192,6 +193,52 @@ def sync_opensearch(start_page=1, per_page=100, recreate_index=False):
         # Catch any other unexpected errors
         click.echo(f"Unexpected error during sync: {type(e).__name__}")
         raise click.ClickException(f"Sync failed: {type(e).__name__}")
+
+
+@search.cli.command("compare")
+@click.option(
+    "--sample-size",
+    default=10,
+    show_default=True,
+    help="How many example IDs to print for each discrepancy type.",
+)
+def compare_opensearch(sample_size: int):
+    """Report dataset ID discrepancies between DB and OpenSearch."""
+
+    interface = CatalogDBInterface()
+    client = OpenSearchInterface.from_environment()
+
+    click.echo("Collecting dataset IDs from DB…")
+    db_ids = {row[0] for row in interface.db.query(Dataset.id).all()}
+    click.echo(f"Database datasets: {len(db_ids)}")
+
+    click.echo("Collecting document IDs from OpenSearch…")
+    os_ids = {
+        hit["_id"]
+        for hit in scan(client.client, index=client.INDEX_NAME, _source=False)
+    }
+    click.echo(f"OpenSearch documents: {len(os_ids)}")
+
+    missing = sorted(db_ids - os_ids)
+    extra = sorted(os_ids - db_ids)
+
+    click.echo(
+        f"Missing in OpenSearch (should be indexed): {len(missing)}"
+    )
+    if missing:
+        click.echo(
+            "Example missing IDs: " + ", ".join(missing[:sample_size])
+        )
+    else:
+        click.echo("Example missing IDs: none")
+
+    click.echo(
+        f"Extra in OpenSearch (should be deleted): {len(extra)}"
+    )
+    if extra:
+        click.echo("Example extra IDs: " + ", ".join(extra[:sample_size]))
+    else:
+        click.echo("Example extra IDs: none")
 
 
 # ----------------------
