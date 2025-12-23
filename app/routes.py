@@ -1,5 +1,6 @@
 import json
 import logging
+from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
 from urllib.parse import unquote
@@ -228,9 +229,19 @@ def index():
 
     if not org_slug_param:
         try:
-            suggested_organizations = interface.get_top_organizations(limit=10)
+            org_suggestions = interface.get_top_organizations(limit=10)
         except Exception:
             logger.exception("Failed to fetch suggested organizations")
+        else:
+            if isinstance(org_suggestions, Iterable) and not isinstance(
+                org_suggestions, (str, bytes)
+            ):
+                suggested_organizations = list(org_suggestions)
+            elif org_suggestions not in (None, []):
+                logger.warning(
+                    "Suggested organizations response is not iterable; ignoring",
+                    extra={"type": type(org_suggestions).__name__},
+                )
 
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
