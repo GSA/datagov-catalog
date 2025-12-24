@@ -22,7 +22,7 @@
     if (!geometry) return;
 
     var map = L.map(el, { zoomControl: true, attributionControl: false });
-    var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    var tiles = L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
       maxZoom: 19
     }).addTo(map);
 
