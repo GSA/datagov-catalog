@@ -301,6 +301,7 @@ def compare_opensearch(sample_size: int, fix: bool):
     if missing:
         click.echo(f"Indexing {len(missing)} missing datasets…")
         batch_size = 1000
+        total_batches = (len(missing) + batch_size - 1) // batch_size
         total_indexed = 0
         total_skipped = 0
 
@@ -309,7 +310,7 @@ def compare_opensearch(sample_size: int, fix: bool):
             start=1,
         ):
             click.echo(
-                f"  Batch {batch_number}: indexing {len(batch_ids)} dataset(s)…"
+                f"  Batch {batch_number}/{total_batches}: indexing {len(batch_ids)} dataset(s)…"
             )
             datasets = (
                 interface.db.query(Dataset)
@@ -347,12 +348,13 @@ def compare_opensearch(sample_size: int, fix: bool):
         click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
         deleted = 0
         batch_size = 1000
+        total_batches = (len(extra) + batch_size - 1) // batch_size
         for batch_number, batch_ids in enumerate(
             (extra[i : i + batch_size] for i in range(0, len(extra), batch_size)),
             start=1,
         ):
             click.echo(
-                f"  Batch {batch_number}: deleting {len(batch_ids)} document(s)…"
+                f"  Batch {batch_number}/{total_batches}: deleting {len(batch_ids)} document(s)…"
             )
             for doc_id in batch_ids:
                 try:
