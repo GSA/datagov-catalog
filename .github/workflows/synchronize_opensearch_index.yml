@@ -6,6 +6,14 @@ name: Sync OpenSearch
 on:
   workflow_dispatch:
     inputs:
+      command:
+        description: "Select which OpenSearch command to run"
+        required: true
+        default: sync
+        type: choice
+        options:
+          - sync
+          - compare
       environment:
         description: "cf environment"
         required: true
@@ -15,6 +23,11 @@ on:
           - development
           - staging
           - prod
+      compare_fix:
+        description: "When running compare, also pass --fix"
+        required: false
+        default: false
+        type: boolean
       recreate_index:
         description: "Recreate OpenSearch index. (For schema changes)"
         required: false
@@ -55,12 +68,31 @@ jobs:
       - name: Store task instance names
         run: |
           echo "OPENSEARCH_INSTANCE_NAME=search-sync-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_ENV
+      - name: Determine command for manual run
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ "${{ inputs.command }}" == "compare" ]]; then
+            cmd="flask search compare"
+            if [[ "${{ inputs.compare_fix }}" == 'true' ]]; then
+              cmd="$cmd --fix"
+            fi
+          else
+            cmd="flask search sync"
+            if [[ "${{ inputs.recreate_index }}" == 'true' ]]; then
+              cmd="$cmd --recreate-index"
+            fi
+          fi
+          echo "TASK_COMMAND=$cmd" >> $GITHUB_ENV
+      - name: Determine command for scheduled run
+        if: github.event_name == 'schedule'
+        run: |
+          echo 'TASK_COMMAND=flask search compare --fix' >> $GITHUB_ENV
       - name: run task
         uses: cloud-gov/cg-cli-tools@main
         with:
           command: >
             cf run-task datagov-catalog --name "$OPENSEARCH_INSTANCE_NAME"
-            --command "flask search sync ${{ inputs.recreate_index == true && '--recreate-index' || '' }}"
+            --command "$TASK_COMMAND"
           cf_org: gsa-datagov
           cf_space: ${{ env.CF_SPACE }}
           cf_username: ${{secrets.CF_SERVICE_USER}}
