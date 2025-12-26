@@ -6,7 +6,6 @@ from sqlalchemy.exc import OperationalError
 from app.models import Dataset
 
 
-
 class TestSyncCommand:
     """
     Test the sync command that is used to sync all datasets within the database
@@ -55,7 +54,7 @@ class TestSyncCommand:
             side_effect=[
                 OpenSearchException("Connection error"),
                 OpenSearchException("Connection error"),
-                (100, 0),
+                (100, 0, []),
             ]
         )
 
@@ -74,9 +73,9 @@ class TestSyncCommand:
                     args=["search", "sync", "--start-page", "1", "--per_page", "10"]
                 )
 
-        assert "Retrying" in result.output
-        assert "attempt 1/4" in result.output
-        assert "attempt 2/4" in result.output
+        assert "Retrying in" in result.output
+        assert "(attempt 1/4)" in result.output
+        assert "(attempt 2/4)" in result.output
         assert "Sync was successful" in result.output
         assert result.exit_code == 0
         # Should have been called 3 times total
@@ -100,7 +99,7 @@ class TestSyncCommand:
 
         # Make index_datasets fail once with serialization error, then succeed
         mock_opensearch_client.index_datasets = Mock(
-            side_effect=[serialization_error, (100, 0)]
+            side_effect=[serialization_error, (100, 0, [])]
         )
 
         # Mock Dataset.query to return pages with data
@@ -117,7 +116,7 @@ class TestSyncCommand:
                 result = cli_runner.invoke(args=["search", "sync", "--per_page", "10"])
 
         assert "Database serialization conflict" in result.output
-        assert "Retrying" in result.output
+        assert "Retrying in" in result.output
         assert "Sync was successful" in result.output
         assert result.exit_code == 0
 
@@ -172,7 +171,7 @@ class TestSyncCommand:
                 OpenSearchException("Error 1"),
                 OpenSearchException("Error 2"),
                 OpenSearchException("Error 3"),
-                (100, 0),  # Success
+                (100, 0, []),  # Success
             ]
         )
 
@@ -212,7 +211,7 @@ class TestSyncCommand:
             # Fail on the second page's first attempt (call #2)
             if call_count["count"] == 2:
                 raise OpenSearchException("Temporary error on page 2")
-            return (100, 0)
+            return (100, 0, [])
 
         mock_opensearch_client.index_datasets = Mock(side_effect=index_side_effect)
 
@@ -230,7 +229,7 @@ class TestSyncCommand:
                 result = cli_runner.invoke(args=["search", "sync", "--per_page", "10"])
 
         # Should see retry message for page 2 but overall success
-        assert "Retrying" in result.output
+        assert "Retrying in" in result.output
         assert "Sync was successful" in result.output
         assert result.exit_code == 0
 
@@ -261,7 +260,7 @@ class TestSyncCommand:
             ):
                 result = cli_runner.invoke(args=["search", "sync", "--per_page", "10"])
 
-        # Error output should include the error type and message
+        # Error output should include the error type
         assert "ConnectionTimeout" in result.output
         assert result.exit_code != 0
 
@@ -280,7 +279,7 @@ class TestSyncCommand:
             side_effect=[
                 serialization_error,
                 OpenSearchException("Connection error"),
-                (100, 0),  # Success
+                (100, 0, []),  # Success
             ]
         )
 
@@ -311,7 +310,7 @@ class TestSyncCommand:
             side_effect=[
                 OpenSearchException("Error 1"),
                 OpenSearchException("Error 2"),
-                (100, 0),
+                (100, 0, []),
             ]
         )
 
@@ -329,11 +328,10 @@ class TestSyncCommand:
                 result = cli_runner.invoke(args=["search", "sync", "--per_page", "10"])
 
         # Should show attempt 1/4 and 2/4 (out of max 4 total attempts)
-        # *Note: attempts are the intial try to query the db followed by 3 retries
-        assert "attempt 1/4" in result.output
-        assert "attempt 2/4" in result.output
+        # *Note: attempts are the initial try to query the db followed by 3 retries
+        assert "(attempt 1/4)" in result.output
+        assert "(attempt 2/4)" in result.output
         assert result.exit_code == 0
-
 
     def test_recreate_index_deletes_and_creates(
         self, cli_runner, interface_with_dataset, mock_opensearch_client
@@ -354,8 +352,8 @@ class TestSyncCommand:
                     args=["search", "sync", "--recreate-index", "--per_page", "10"]
                 )
 
-        assert "Deleting entire index" in result.output
-        assert "Creating index with new schema" in result.output
+        assert "Deleting entire index to recreate with new schema..." in result.output
+        assert "Creating index with new schema..." in result.output
         assert "Verified: keyword.raw field exists" in result.output
         mock_opensearch_client.client.indices.delete.assert_called_once()
         mock_opensearch_client._ensure_index.assert_called_once()
@@ -378,12 +376,11 @@ class TestSyncCommand:
             ):
                 result = cli_runner.invoke(args=["search", "sync", "--per_page", "10"])
 
-        assert "Emptying dataset index (keeping existing schema)" in result.output
-        assert "Creating index" not in result.output
+        assert "Emptying dataset index (keeping existing schema)..." in result.output
+        assert "Creating index with new schema..." not in result.output
         mock_opensearch_client.delete_all_datasets.assert_called_once()
         mock_opensearch_client.client.indices.delete.assert_not_called()
         assert result.exit_code == 0
-
 
     def test_serialization_error_message_format(
         self, cli_runner, interface_with_dataset, mock_opensearch_client, monkeypatch
@@ -398,7 +395,7 @@ class TestSyncCommand:
         )
 
         mock_opensearch_client.index_datasets = Mock(
-            side_effect=[serialization_error, (100, 0)]
+            side_effect=[serialization_error, (100, 0, [])]
         )
 
         # Mock Dataset.query to return pages with data
@@ -426,7 +423,7 @@ class TestSyncCommand:
         monkeypatch.setattr("app.commands.time.sleep", lambda x: None)
 
         mock_opensearch_client.index_datasets = Mock(
-            side_effect=[OpenSearchException("Connection failed"), (100, 0)]
+            side_effect=[OpenSearchException("Connection failed"), (100, 0, [])]
         )
 
         # Mock Dataset.query to return pages with data
@@ -455,7 +452,7 @@ class TestSyncCommand:
         monkeypatch.setattr("app.commands.time.sleep", lambda x: sleep_calls.append(x))
 
         mock_opensearch_client.index_datasets = Mock(
-            side_effect=[OpenSearchException("Error"), (100, 0)]
+            side_effect=[OpenSearchException("Error"), (100, 0, [])]
         )
 
         # Mock Dataset.query to return pages with data
@@ -472,5 +469,5 @@ class TestSyncCommand:
                 result = cli_runner.invoke(args=["search", "sync", "--per_page", "10"])
 
         # Should show "Retrying in X.X seconds"
-        assert "Retrying in 2.0 seconds" in result.output
+        assert "Retrying in 2.0 seconds..." in result.output
         assert result.exit_code == 0
