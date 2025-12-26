@@ -128,6 +128,35 @@ def sync_opensearch(
         click.echo("Dataset indexed successfully.")
         return
 
+    if dataset_id_or_slug:
+        interface = CatalogDBInterface()
+        if recreate_index:
+            raise click.ClickException(
+                "Cannot use --recreate-index when syncing a single dataset."
+            )
+
+        dataset = interface.get_dataset_by_id(dataset_id_or_slug)
+        if dataset is None:
+            dataset = interface.get_dataset_by_slug(dataset_id_or_slug)
+
+        if dataset is None:
+            raise click.ClickException(
+                f"Dataset '{dataset_id_or_slug}' was not found by id or slug."
+            )
+
+        click.echo(
+            f"Indexing dataset {dataset.id} (slug: {dataset.slug}) into OpenSearch..."
+        )
+        succeeded, failed = client.index_datasets([dataset])
+
+        if failed:
+            raise click.ClickException(
+                f"Failed to index dataset {dataset.id}; see logs for details."
+            )
+
+        click.echo("Dataset indexed successfully.")
+        return
+
     # empty the index and then refill it
     # THIS WILL CAUSE INCONSISTENT SEARCH RESULTS DURING THE PROCESS
 
@@ -264,6 +293,134 @@ def sync_opensearch(
                 f"Error Reason: {opensearch_error.get("error_reason")}, "
                 f"Caused By: {opensearch_error.get("caused_by")}"
             )
+
+
+@search.cli.command("compare")
+@click.option(
+    "--sample-size",
+    default=10,
+    show_default=True,
+    help="How many example IDs to print for each discrepancy type.",
+)
+@click.option(
+    "--fix",
+    is_flag=True,
+    help="Automatically index missing datasets and delete extra docs from OpenSearch.",
+)
+def compare_opensearch(sample_size: int, fix: bool):
+    """Report (and optionally fix) dataset ID discrepancies between DB and OpenSearch."""
+
+    interface = CatalogDBInterface()
+    client = OpenSearchInterface.from_environment()
+
+    click.echo("Collecting dataset IDs from DB…")
+    db_ids = {row[0] for row in interface.db.query(Dataset.id).all()}
+    click.echo(f"Database datasets: {len(db_ids)}")
+
+    click.echo("Collecting document IDs from OpenSearch…")
+    os_ids = {
+        hit["_id"]
+        for hit in scan(client.client, index=client.INDEX_NAME, _source=False)
+    }
+    click.echo(f"OpenSearch documents: {len(os_ids)}")
+
+    missing = sorted(db_ids - os_ids)
+    extra = sorted(os_ids - db_ids)
+
+    click.echo(
+        f"Missing in OpenSearch (should be indexed): {len(missing)}"
+    )
+    if missing:
+        click.echo(
+            "Example missing IDs: " + ", ".join(missing[:sample_size])
+        )
+    else:
+        click.echo("Example missing IDs: none")
+
+    click.echo(
+        f"Extra in OpenSearch (should be deleted): {len(extra)}"
+    )
+    if extra:
+        click.echo("Example extra IDs: " + ", ".join(extra[:sample_size]))
+    else:
+        click.echo("Example extra IDs: none")
+
+    if not fix:
+        return
+
+    click.echo("\nFixing discrepancies…")
+
+    if missing:
+        click.echo(f"Indexing {len(missing)} missing datasets…")
+        batch_size = 1000
+        total_indexed = 0
+        total_skipped = 0
+
+        for batch_number, batch_ids in enumerate(
+            (missing[i : i + batch_size] for i in range(0, len(missing), batch_size)),
+            start=1,
+        ):
+            click.echo(
+                f"  Batch {batch_number}: indexing {len(batch_ids)} dataset(s)…"
+            )
+            datasets = (
+                interface.db.query(Dataset)
+                .filter(Dataset.id.in_(batch_ids))
+                .all()
+            )
+
+            found_ids = {dataset.id for dataset in datasets}
+            skipped = [dataset_id for dataset_id in batch_ids if dataset_id not in found_ids]
+            total_skipped += len(skipped)
+
+            if skipped:
+                click.echo(
+                    "    Warning: Skipping missing DB IDs: "
+                    + ", ".join(skipped[:sample_size])
+                )
+
+            if datasets:
+                succeeded, failed = client.index_datasets(
+                    datasets, refresh_after=False
+                )
+                total_indexed += succeeded
+                if failed:
+                    click.echo(
+                        f"    Warning: {failed} dataset(s) failed to index in this batch."
+                    )
+            else:
+                click.echo("    No datasets found for this batch; skipping.")
+
+        click.echo(
+            f"Indexed {total_indexed} datasets. Skipped {total_skipped} missing DB rows."
+        )
+
+    if extra:
+        click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
+        deleted = 0
+        batch_size = 1000
+        for batch_number, batch_ids in enumerate(
+            (extra[i : i + batch_size] for i in range(0, len(extra), batch_size)),
+            start=1,
+        ):
+            click.echo(
+                f"  Batch {batch_number}: deleting {len(batch_ids)} document(s)…"
+            )
+            for doc_id in batch_ids:
+                try:
+                    client.client.delete(index=client.INDEX_NAME, id=doc_id)
+                    deleted += 1
+                except Exception as exc:  # pragma: no cover - best-effort cleanup
+                    click.echo(f"    Failed to delete document {doc_id}: {exc}")
+
+        click.echo(f"Deleted {deleted} documents from OpenSearch.")
+
+    if missing or extra:
+        click.echo("Refreshing OpenSearch index…")
+        client._refresh()
+        click.echo("Done.")
+    else:
+        click.echo("Nothing to fix; datasets and index are already in sync.")
 
 
 @search.cli.command("compare")
