@@ -12,8 +12,10 @@ on:
         default: sync
         type: choice
         options:
-          - sync
-          - compare
+          - search sync
+          - search sync --recreate-index
+          - search compare
+          - search compare --fix
       environment:
         description: "cf environment"
         required: true
@@ -23,16 +25,6 @@ on:
           - development
           - staging
           - prod
-      compare_fix:
-        description: "When running compare, also pass --fix"
-        required: false
-        default: false
-        type: boolean
-      recreate_index:
-        description: "Recreate OpenSearch index. (For schema changes)"
-        required: false
-        default: false
-        type: boolean
   schedule:
     - cron: "0 12 * * *" # Every day around 7 a.m. eastern time
 
@@ -71,17 +63,24 @@ jobs:
       - name: Determine command for manual run
         if: github.event_name == 'workflow_dispatch'
         run: |
-          if [[ "${{ inputs.command }}" == "compare" ]]; then
-            cmd="flask search compare"
-            if [[ "${{ inputs.compare_fix }}" == 'true' ]]; then
-              cmd="$cmd --fix"
-            fi
-          else
-            cmd="flask search sync"
-            if [[ "${{ inputs.recreate_index }}" == 'true' ]]; then
-              cmd="$cmd --recreate-index"
-            fi
-          fi
+          case "${{ inputs.command }}" in
+            "search sync")
+              cmd="flask search sync"
+              ;;
+            "search sync --recreate-index")
+              cmd="flask search sync --recreate-index"
+              ;;
+            "search compare")
+              cmd="flask search compare"
+              ;;
+            "search compare --fix")
+              cmd="flask search compare --fix"
+              ;;
+            *)
+              echo "Unknown command: ${{ inputs.command }}" >&2
+              exit 1
+              ;;
+          esac
           echo "TASK_COMMAND=$cmd" >> $GITHUB_ENV
       - name: Determine command for scheduled run
         if: github.event_name == 'schedule'
