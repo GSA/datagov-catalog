@@ -1,5 +1,6 @@
 import json
 import logging
+from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
 from urllib.parse import unquote
@@ -60,6 +61,34 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 SITEMAP_PAGE_SIZE = 10000
 
 
+def _homepage_dataset_total(default_total: int) -> int:
+    """Return dataset total for the homepage, using the best available source."""
+
+    methods_to_try = [
+        getattr(interface, "count_all_datasets_in_search", None),
+        getattr(interface, "total_datasets", None),
+    ]
+
+    for method in methods_to_try:
+        if not callable(method):  # method may be stubbed or missing in tests
+            continue
+        try:
+            total = method()
+        except Exception:
+            logger.exception("Failed to fetch dataset count for homepage")
+            continue
+        try:
+            return int(total)
+        except (TypeError, ValueError):
+            logger.warning(
+                "Dataset count is not numeric; falling back to search result total",
+                extra={"count": total},
+            )
+            continue
+
+    return default_total
+
+
 def _get_sitemap_body_or_404(bucket: str, key: str) -> bytes:
     """Fetch an object body from S3 or abort with 404 on any error."""
     s3 = create_sitemap_s3_client()
@@ -109,7 +138,7 @@ def index():
     """
     query = request.args.get("q", "")
     num_results = request.args.get("results", DEFAULT_PER_PAGE, type=int)
-    org_id = request.args.get("org_id", None, type=str)
+    org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
@@ -140,33 +169,43 @@ def index():
     result = None
     total = 0
     suggested_keywords = []
+    suggested_organizations = []
+    selected_organization = None
+    org_filter_id = None
 
-    has_filters = query or org_types or keywords or org_id or spatial_filter
-    
+    if org_slug_param:
+        try:
+            selected_organization = interface.get_organization_by_slug(org_slug_param)
+        except Exception:
+            logger.exception("Failed to resolve organization", extra={"org": org_slug_param})
+        else:
+            if selected_organization:
+                org_filter_id = selected_organization.id
+            else:
+                org_filter_id = org_slug_param
+
+    has_filters = query or org_types or keywords or org_filter_id or spatial_filter
+
     try:
         result = interface.search_datasets(
             query,
             keywords=keywords,
             per_page=num_results,
-            org_id=org_id,
+            org_id=org_filter_id,
             org_types=org_types,
             sort_by=sort_by,
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
         )
-        
+
         # For homepage without filters, get accurate total count
+        result_total = result.total if result is not None else 0
         if not has_filters:
-            try:
-                total = interface.count_all_datasets_in_search()
-            except Exception:
-                logger.exception("Failed to get accurate dataset count")
-                # Fallback to search result total
-                total = result.total
+            total = _homepage_dataset_total(result_total)
         else:
             # For filtered searches, use the search result total (may be capped at 10k)
-            total = result.total
-            
+            total = result_total
+
     except Exception:
         logger.exception("Dataset search failed", extra={"query": query})
     else:
@@ -188,6 +227,22 @@ def index():
         except Exception:
             logger.exception("Failed to fetch suggested keywords")
 
+    if not org_slug_param:
+        try:
+            org_suggestions = interface.get_top_organizations(limit=10)
+        except Exception:
+            logger.exception("Failed to fetch suggested organizations")
+        else:
+            if isinstance(org_suggestions, Iterable) and not isinstance(
+                org_suggestions, (str, bytes)
+            ):
+                suggested_organizations = list(org_suggestions)
+            elif org_suggestions not in (None, []):
+                logger.warning(
+                    "Suggested organizations response is not iterable; ignoring",
+                    extra={"type": type(org_suggestions).__name__},
+                )
+
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
     return render_template(
@@ -198,13 +253,15 @@ def index():
         after=after,
         datasets=datasets,
         total=total,
-        org_id=org_id,
+        org_slug=selected_organization.slug if selected_organization else org_slug_param,
         org_types=org_types,
         keywords=keywords,
         sort_by=sort_by,
         suggested_keywords=suggested_keywords,
+        suggested_organizations=suggested_organizations,
         spatial_filter=spatial_filter,
         from_hint=from_hint,
+        selected_organization=selected_organization,
     )
 
 @main.route("/search", methods=["GET"])
@@ -218,7 +275,7 @@ def search():
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
     results_hint = request.args.get("results", 0, type=int)
     from_hint = request.args.get("from_hint")
-    org_id = request.args.get("org_id", None, type=str)
+    org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     after = request.args.get("after")
@@ -229,6 +286,19 @@ def search():
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
+
+    selected_organization = None
+    org_filter_id = None
+    if org_slug_param:
+        try:
+            selected_organization = interface.get_organization_by_slug(org_slug_param)
+        except Exception:
+            logger.exception("Failed to resolve organization", extra={"org": org_slug_param})
+        else:
+            if selected_organization:
+                org_filter_id = selected_organization.id
+            else:
+                org_filter_id = org_slug_param
 
     if spatial_geometry is not None:
         try:
@@ -250,7 +320,7 @@ def search():
         keywords=keywords,
         query=query,
         per_page=per_page,
-        org_id=org_id,
+        org_id=org_filter_id,
         org_types=org_types,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
@@ -261,9 +331,8 @@ def search():
 
     if htmx:
         results = [build_dataset_dict(each) for each in result.results]
-        if org_id:
+        if selected_organization:
             # specified organization so give org results
-            organization = interface.get_organization_by_id(org_id)
             return render_template(
                 "components/dataset_results_organization.html",
                 dataset_search_query=query,
@@ -272,8 +341,8 @@ def search():
                 results_hint=results_hint,
                 after=result.search_after_obscured(),
                 selected_sort=sort_by,
-                organization=organization,
-                organization_slug_or_id=organization.slug,
+                organization=selected_organization,
+                organization_slug_or_id=selected_organization.slug,
             )
         return render_template(
             "components/dataset_results.html",
@@ -286,7 +355,7 @@ def search():
             sort_by=sort_by,
             org_types=org_types,
             keywords=keywords,
-            org_id=org_id,
+            org_slug=selected_organization.slug if selected_organization else org_slug_param,
             spatial_filter=spatial_filter,
         )
 
@@ -521,6 +590,29 @@ def get_keywords_api():
         )
     except Exception as e:
         return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
+
+
+@main.route("/api/organizations", methods=["GET"])
+def get_organizations_api():
+    """API endpoint to fetch organizations for autocomplete suggestions."""
+
+    size = request.args.get("size", 100, type=int)
+    size = max(min(size, 1000), 1)
+
+    try:
+        organizations = interface.get_top_organizations(limit=size)
+        return jsonify(
+            {
+                "organizations": organizations,
+                "total": len(organizations),
+                "size": size,
+            }
+        )
+    except Exception as e:
+        return (
+            jsonify({"error": "Failed to fetch organizations", "message": str(e)}),
+            500,
+        )
 
 
 @main.route("/api/locations/search", methods=["GET"])
