@@ -657,9 +657,43 @@ class OpenSearchInterface:
             for bucket in buckets
         ]
 
+    def get_organization_counts(self, size=100, min_doc_count=1) -> list[dict]:
+        """Aggregate datasets by organization slug to get counts."""
+        agg_body = {
+            "size": 0,
+            "aggs": {
+                "organizations": {
+                    "nested": {"path": "organization"},
+                    "aggs": {
+                        "by_slug": {
+                            "terms": {
+                                "field": "organization.slug",
+                                "size": size,
+                                "min_doc_count": min_doc_count,
+                                "order": {"_count": "desc"},
+                            }
+                        }
+                    },
+                }
+            },
+        }
+
+        result = self.client.search(index=self.INDEX_NAME, body=agg_body)
+        buckets = (
+            result.get("aggregations", {})
+            .get("organizations", {})
+            .get("by_slug", {})
+            .get("buckets", [])
+        )
+
+        return [
+            {"slug": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in buckets
+        ]
+
     def count_all_datasets(self) -> int:
         """
-        Get the total count of all datasets in the index.        
+        Get the total count of all datasets in the index.
         """
         try:
             result = self.client.count(index=self.INDEX_NAME)
