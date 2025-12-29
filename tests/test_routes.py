@@ -99,17 +99,142 @@ def test_search_api_paginate_after(interface_with_dataset, db_client):
             after = response.json["after"]
 
 
-def test_search_api_by_org_id(interface_with_dataset, db_client):
+def test_search_api_by_org_slug(interface_with_dataset, db_client):
     with patch("app.routes.interface", interface_with_dataset):
-        # test org has id "1"
-        response = db_client.get("/search", query_string={"q": "test", "org_id": "1"})
+        response = db_client.get(
+            "/search", query_string={"q": "test", "org_slug": "test-org"}
+        )
         assert len(response.json["results"]) > 0
 
         # non-existent org
         response = db_client.get(
-            "/search", query_string={"q": "test", "org_id": "non-existent"}
+            "/search", query_string={"q": "test", "org_slug": "non-existent"}
         )
         assert len(response.json["results"]) == 0
+
+
+def test_index_page_filters_by_org_slug(db_client):
+    mock_interface = Mock()
+    mock_org = type("Org", (), {"id": "org-1", "slug": "test-org", "name": "Test Org"})()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+    mock_interface.get_organization_by_slug.return_value = mock_org
+    mock_interface.get_top_organizations.return_value = []
+    mock_interface.total_datasets.return_value = 0
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/?org_slug=test-org")
+
+    assert response.status_code == 200
+    mock_interface.get_organization_by_slug.assert_called_once_with("test-org")
+    _, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs["org_id"] == "org-1"
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    hidden = soup.find("input", {"name": "org_slug", "type": "hidden"})
+    assert hidden is not None
+    assert hidden.get("value") == "test-org"
+
+
+def test_index_page_shows_top_organizations(db_client):
+    mock_dataset = {
+        "id": "mock-id",
+        "slug": "mock-slug",
+        "dcat": {
+            "title": "Mock Dataset",
+            "description": "Mock description",
+            "distribution": [],
+        },
+        "organization": {
+            "id": "org-id",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+        },
+        "popularity": 42,
+    }
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1, results=[mock_dataset], search_after=None
+    )
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.total_datasets.return_value = 1
+    mock_interface.get_top_organizations.return_value = [
+        {
+            "id": "org-1",
+            "name": "Org One",
+            "dataset_count": 2345,
+            "slug": "org-one",
+            "organization_type": "Federal Government",
+            "aliases": [],
+        },
+        {
+            "id": "org-2",
+            "name": "Org Two",
+            "dataset_count": 100,
+            "slug": "org-two",
+            "organization_type": "City Government",
+            "aliases": [],
+        },
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    container = soup.find(id="suggested-organizations")
+    assert container is not None
+    assert "Popular organizations" in container.get_text(" ", strip=True)
+    buttons = container.select("button[data-org-id]")
+    assert len(buttons) == 2
+    assert "Org One" in buttons[0].get_text(" ", strip=True)
+
+
+def test_get_organizations_api_returns_data(db_client):
+    mock_interface = Mock()
+    mock_interface.get_top_organizations.return_value = [
+        {
+            "id": "org-1",
+            "name": "Org One",
+            "slug": "org-one",
+            "dataset_count": 5,
+            "organization_type": "Federal Government",
+            "aliases": ["Org 1"],
+        },
+        {
+            "id": "org-2",
+            "name": "Org Two",
+            "slug": "org-two",
+            "dataset_count": 0,
+            "organization_type": "City Government",
+            "aliases": [],
+        },
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/organizations?size=5")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data["organizations"]) == 2
+    assert data["organizations"][0]["id"] == "org-1"
+    assert data["organizations"][0]["aliases"] == ["Org 1"]
+    mock_interface.get_top_organizations.assert_called_once_with(limit=5)
+
+
+def test_get_organizations_api_handles_errors(db_client):
+    mock_interface = Mock()
+    mock_interface.get_top_organizations.side_effect = Exception("boom")
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/organizations")
+
+    assert response.status_code == 500
+    data = response.get_json()
+    assert data["error"] == "Failed to fetch organizations"
 
 
 def test_search_api_spatial_geometry(interface_with_dataset, db_client):
@@ -1125,7 +1250,7 @@ def test_index_search_message_with_query_only(interface_with_dataset, db_client)
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
-    
+
     # Should show query in quotes with period, no "and filters"
     assert 'matching "climate".' in text
     assert "and filters" not in text
@@ -1158,7 +1283,7 @@ def test_index_search_message_with_query_and_filters(interface_with_dataset, db_
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
-    
+
     # Should show query in quotes with "and filters"
     assert 'matching "test" and filters.' in text
 
@@ -1190,7 +1315,7 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
     results_text = soup.find("p", class_="text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
-    
+
     # Should show "filters" without quotes and without "and"
     assert "matching filters." in text
     # Should NOT contain quotes or "and"

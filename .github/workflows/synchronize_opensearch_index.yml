@@ -6,6 +6,16 @@ name: Sync OpenSearch
 on:
   workflow_dispatch:
     inputs:
+      command:
+        description: "Select which OpenSearch command to run"
+        required: true
+        default: sync
+        type: choice
+        options:
+          - search sync
+          - search sync --recreate-index
+          - search compare
+          - search compare --fix
       environment:
         description: "cf environment"
         required: true
@@ -15,11 +25,6 @@ on:
           - development
           - staging
           - prod
-      recreate_index:
-        description: "Recreate OpenSearch index. (For schema changes)"
-        required: false
-        default: false
-        type: boolean
   schedule:
     - cron: "0 12 * * *" # Every day around 7 a.m. eastern time
 
@@ -55,12 +60,38 @@ jobs:
       - name: Store task instance names
         run: |
           echo "OPENSEARCH_INSTANCE_NAME=search-sync-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_ENV
+      - name: Determine command for manual run
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          case "${{ inputs.command }}" in
+            "search sync")
+              cmd="flask search sync"
+              ;;
+            "search sync --recreate-index")
+              cmd="flask search sync --recreate-index"
+              ;;
+            "search compare")
+              cmd="flask search compare"
+              ;;
+            "search compare --fix")
+              cmd="flask search compare --fix"
+              ;;
+            *)
+              echo "Unknown command: ${{ inputs.command }}" >&2
+              exit 1
+              ;;
+          esac
+          echo "TASK_COMMAND=$cmd" >> $GITHUB_ENV
+      - name: Determine command for scheduled run
+        if: github.event_name == 'schedule'
+        run: |
+          echo 'TASK_COMMAND=flask search compare --fix' >> $GITHUB_ENV
       - name: run task
         uses: cloud-gov/cg-cli-tools@main
         with:
           command: >
             cf run-task datagov-catalog --name "$OPENSEARCH_INSTANCE_NAME"
-            --command "flask search sync ${{ inputs.recreate_index == true && '--recreate-index' || '' }}"
+            --command "$TASK_COMMAND"
           cf_org: gsa-datagov
           cf_space: ${{ env.CF_SPACE }}
           cf_username: ${{secrets.CF_SERVICE_USER}}
