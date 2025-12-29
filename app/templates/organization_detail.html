@@ -92,10 +92,12 @@
           </p>
           {% endif %}
         </div>
-
-        <ul class="usa-collection">
-          {% include 'components/dataset_results_organization.html' %}
-        </ul>
+        
+        <div class="margin-top-3">
+          <ul class="usa-collection organization-datasets__list">
+            {% include 'components/dataset_results_organization.html' %}
+          </ul>
+        </div>
         {% else %}
         <div class="usa-alert usa-alert--info margin-top-3">
           <div class="usa-alert__body">
