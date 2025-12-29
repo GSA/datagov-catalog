@@ -352,7 +352,7 @@ def compare_opensearch(sample_size: int, fix: bool):
                 )
 
             if datasets:
-                succeeded, failed = client.index_datasets(
+                succeeded, failed, errors = client.index_datasets(
                     datasets, refresh_after=False
                 )
                 total_indexed += succeeded
