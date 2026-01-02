@@ -60,7 +60,7 @@ jobs:
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
           command: >
-            cf run-task datagov-catalog --command "flask sitemap generate"
+            cf run-task datagov-catalog --command "flask sitemap generate --chunk-size 5000"
             --name "$GEN_INSTANCE_NAME" -k 2G -m 4G
       - name: Monitor generate task output
         uses: cloud-gov/cg-cli-tools@main
