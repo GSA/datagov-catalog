@@ -437,8 +437,8 @@ def _s3_client_and_config():
 @click.option(
     "--chunk-size",
     type=int,
-    default=lambda: int(os.getenv("SITEMAP_CHUNK_SIZE", "10000")),
-    help="URLs per sitemap file (default 10000)",
+    default=lambda: int(os.getenv("SITEMAP_CHUNK_SIZE", "5000")),
+    help="URLs per sitemap file (default 5000)",
 )
 def sitemap_generate(chunk_size: int):
     """Generate all dataset sitemaps and upload to S3.
