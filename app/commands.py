@@ -466,7 +466,7 @@ def sitemap_generate(chunk_size: int):
     # order by last_harvested_date asc, then slug
     def get_window(offset: int, limit: int):
         return (
-            dbi.db.query(Dataset)
+            dbi.db.query(Dataset.slug, Dataset.last_harvested_date)
             .order_by(
                 Dataset.last_harvested_date.asc().nullslast(),
                 Dataset.slug.asc(),
