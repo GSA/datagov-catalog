@@ -20,8 +20,8 @@
                     {% for keyword in keywords %}
                     <input type="hidden" name="keyword" value="{{ keyword }}">
                     {% endfor %}
-                    {% if org_id %}
-                    <input type="hidden" name="org_id" value="{{ org_id }}">
+                    {% if org_slug %}
+                    <input type="hidden" name="org_slug" value="{{ org_slug }}">
                     {% endif %}
                     {% if spatial_filter %}
                     <input type="hidden" name="spatial_filter" value="{{ spatial_filter }}">
@@ -41,7 +41,7 @@
         <div id="search-results" class="margin-top-3">
             {% if datasets %}
             <div class="usa-prose">
-              {% if query or org_types or keywords or org_id or spatial_filter %}
+              {% if query or org_types or keywords or org_slug or spatial_filter %}
                 <p class="text-base-dark">
                 {%- if total < 2 -%}
                     Found <strong>{{ total }}</strong> dataset matching
@@ -50,7 +50,7 @@
                 {%- else -%}
                     Found over <strong>{{ total }}</strong> datasets matching
                 {%- endif %}
-                {%- if query and (org_types or keywords or org_id or spatial_filter) %} "{{ query }}" and filters.
+                {%- if query and (org_types or keywords or org_slug or spatial_filter) %} "{{ query }}" and filters.
                 {%- elif query %} "{{ query }}".
                 {%- else %} filters.
                 {%- endif -%}
@@ -59,8 +59,8 @@
                 <div class="advanced-search-tip">
                     <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
                     <p class="advanced-search-tip__text">
-                        Use quotes for exact phrases: <code>"flood zones"</code> | 
-                        Use AND/OR for multiple terms: <code>crops AND agriculture</code> | 
+                        Use quotes for exact phrases: <code>"flood zones"</code> |
+                        Use AND/OR for multiple terms: <code>crops AND agriculture</code> |
                         Search by organization or tag to find related datasets
                     </p>
                 </div>
@@ -95,6 +95,9 @@
     <aside class="tablet:grid-col-12 desktop:grid-col-3">
         <form method="GET" action="{{ url_for('main.index') }}" id="filter-form">
             <input type="hidden" name="q" value="{{ query }}">
+            {% if org_slug %}
+            <input type="hidden" name="org_slug" value="{{ org_slug }}">
+            {% endif %}
             <!-- Sort Section -->
             <div class="margin-bottom-4">
                 <label class="usa-label" for="sort-select">Sort by</label>
@@ -117,9 +120,9 @@
                             Filter by keyword <br>
                             <span class="usa-hint">Start typing to see suggestions</span>
                         </label>
-                        <input 
-                            type="text" 
-                            id="keyword-input" 
+                        <input
+                            type="text"
+                            id="keyword-input"
                             class="keyword-autocomplete__input usa-input"
                             placeholder="Type a keyword..."
                             autocomplete="off"
@@ -128,10 +131,10 @@
                             aria-expanded="false"
                         >
                         <div id="keyword-suggestions" class="keyword-suggestions" role="listbox"></div>
-                        
+
                         <!-- Selected keywords chips -->
                         <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords"></div>
-                        
+
                         <!-- Suggested keywords (only shown when no keywords selected) -->
                         {% if suggested_keywords and not keywords %}
                         <div id="suggested-keywords" class="suggested-keywords margin-top-2">
@@ -140,6 +143,63 @@
                                 {% for keyword in suggested_keywords %}
                                 <button type="button" class="tag-link tag-link--suggested" data-keyword="{{ keyword }}">
                                     {{ keyword }}
+                                </button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organization Filter Section -->
+            <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
+                <h3 class="usa-accordion__heading">
+                    <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization-autocomplete">
+                        Organization
+                    </button>
+                </h3>
+                <div id="filter-organization-autocomplete" class="usa-accordion__content usa-prose">
+                    <div class="keyword-autocomplete">
+                        <label class="usa-label" for="organization-input">
+                            Filter by organization <br>
+                            <span class="usa-hint">Start typing to select an organization</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="organization-input"
+                            class="keyword-autocomplete__input usa-input"
+                            placeholder="Type an organization name..."
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            aria-controls="organization-suggestions"
+                            aria-expanded="false"
+                        >
+                        <div id="organization-suggestions" class="keyword-suggestions" role="listbox"></div>
+
+                        <div
+                            id="organization-chips"
+                            class="keyword-chips"
+                            role="list"
+                            aria-label="Selected organization"
+                            data-initial-org-id="{{ (selected_organization.id if selected_organization else '') | e }}"
+                            data-initial-org-name="{{ (selected_organization.name if selected_organization else '') | e }}"
+                            data-initial-org-slug="{{ (selected_organization.slug if selected_organization else '') | e }}"
+                        ></div>
+
+                        {% if suggested_organizations and not org_slug %}
+                        <div id="suggested-organizations" class="suggested-keywords margin-top-2">
+                            <p class="text-base-dark margin-bottom-1"><strong>Popular organizations:</strong></p>
+                            <div class="suggested-keywords__list">
+                                {% for organization in suggested_organizations %}
+                                <button
+                                    type="button"
+                                    class="tag-link tag-link--suggested tag-link--organization"
+                                    data-org-id="{{ organization.id | e }}"
+                                    data-org-name="{{ organization.name | e }}"
+                                    data-org-slug="{{ organization.slug | e }}"
+                                >
+                                    {{ organization.name }}
                                 </button>
                                 {% endfor %}
                             </div>
@@ -197,6 +257,37 @@
                 </div>
             </div>
 
+            <!-- Geographic Filter Section -->
+            <div class="usa-accordion usa-accordion--bordered">
+                <h3 class="usa-accordion__heading">
+                    <button type="button" class="usa-accordion__button"
+                      aria-expanded="true" aria-controls="filter-geography">
+                        Geographic Area
+                    </button>
+                </h3>
+                <div id="filter-geography" class="usa-accordion__content usa-prose">
+                    <div class="keyword-autocomplete">
+                        <label id="geography-input-label" class="usa-label" for="geography-input">
+                          Filter by Geography <br>
+                            <span class="usa-hint">Start typing to see suggestions</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="geography-input"
+                            class="keyword-autocomplete__input usa-input"
+                            placeholder="Type a place..."
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            aria-controls="geography-suggestions"
+                            aria-expanded="false"
+                        >
+                        <div id="geography-suggestions" class="keyword-suggestions" role="listbox"></div>
+
+                    </div>
+                    <div id="geography-map" style="height: 220px; border-radius: 4px; overflow: hidden;"></div>
+                </div>
+            </div>
+
             <!-- Spatial Data Filter Section -->
             <div class="usa-accordion usa-accordion--bordered">
                 <h3 class="usa-accordion__heading">
@@ -235,5 +326,8 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/keyword_autocomplete.js') }}"></script>
+<script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>
+<script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 {% endblock %}

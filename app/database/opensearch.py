@@ -198,6 +198,7 @@ class OpenSearchInterface:
                     "organization_type": {"type": "keyword"},
                 },
             },
+            "spatial_shape": {"type": "geo_shape"},
         }
     }
 
@@ -323,7 +324,9 @@ class OpenSearchInterface:
         """
         # Check if dataset has spatial data
         spatial_value = dataset.dcat.get("spatial")
-        has_spatial = bool(spatial_value and str(spatial_value).strip())
+        has_spatial = bool(spatial_value and str(spatial_value).strip()) or (
+            dataset.translated_spatial is not None
+        )
 
         # Normalize DCAT dates to ensure they're strings
         normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
@@ -345,6 +348,7 @@ class OpenSearchInterface:
             "popularity": (
                 dataset.popularity if dataset.popularity is not None else None
             ),
+            "spatial_shape": dataset.translated_spatial,
         }
 
     def _run_with_timeout_retry(
@@ -493,6 +497,8 @@ class OpenSearchInterface:
         search_after: list = None,
         org_types=None,
         spatial_filter=None,
+        spatial_geometry=None,
+        spatial_within=True,
         sort_by: str = "relevance",
         keywords: list[str] = None,
     ) -> SearchResult:
@@ -510,6 +516,15 @@ class OpenSearchInterface:
 
         spatial_filter can be "geospatial" or "non-geospatial" to filter
         datasets by presence of spatial data.
+
+        spatial_geometry is a GeoJSON object which will be used to search for
+        datasets
+
+        spatial_within is a flag for how to interpret spatial_geometry. If
+        spatial_within is True then matching datasets must be completely
+        WITHIN the specified spatial_geometry. If spatial_within is False then
+        matching datasets only need to INTERSECT the specified
+        spatial_geometry.
 
         We pass the `after` argument through to OpenSearch. It should be the
         value of the last `_sort` field from a previous search result with the
@@ -582,6 +597,19 @@ class OpenSearchInterface:
         elif spatial_filter == "non-geospatial":
             filters.append({"term": {"has_spatial": False}})
 
+        # Add spatial_geojson filter
+        if spatial_geometry is not None:
+            filters.append(
+                {
+                    "geo_shape": {
+                        "spatial_shape": {
+                            "shape": spatial_geometry,
+                            "relation": "WITHIN" if spatial_within else "INTERSECTS",
+                        }
+                    }
+                }
+            )
+
         # Apply filters if any exist
         if filters:
             search_body["query"] = {
@@ -596,9 +624,9 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
-        # print("QUERY:", search_body)
+        print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        # print("OPENSEARCH:", result_dict)
+        print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
@@ -629,9 +657,43 @@ class OpenSearchInterface:
             for bucket in buckets
         ]
 
+    def get_organization_counts(self, size=100, min_doc_count=1) -> list[dict]:
+        """Aggregate datasets by organization slug to get counts."""
+        agg_body = {
+            "size": 0,
+            "aggs": {
+                "organizations": {
+                    "nested": {"path": "organization"},
+                    "aggs": {
+                        "by_slug": {
+                            "terms": {
+                                "field": "organization.slug",
+                                "size": size,
+                                "min_doc_count": min_doc_count,
+                                "order": {"_count": "desc"},
+                            }
+                        }
+                    },
+                }
+            },
+        }
+
+        result = self.client.search(index=self.INDEX_NAME, body=agg_body)
+        buckets = (
+            result.get("aggregations", {})
+            .get("organizations", {})
+            .get("by_slug", {})
+            .get("buckets", [])
+        )
+
+        return [
+            {"slug": bucket["key"], "count": bucket["doc_count"]}
+            for bucket in buckets
+        ]
+
     def count_all_datasets(self) -> int:
         """
-        Get the total count of all datasets in the index.        
+        Get the total count of all datasets in the index.
         """
         try:
             result = self.client.count(index=self.INDEX_NAME)

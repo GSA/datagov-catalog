@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy import func, or_
 
-from app.models import Dataset, HarvestRecord, Organization, db
+from app.models import Dataset, HarvestRecord, Locations, Organization, db
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
 from .opensearch import OpenSearchInterface, SearchResult
@@ -60,6 +60,8 @@ class CatalogDBInterface:
         org_id=None,
         org_types=None,
         spatial_filter=None,
+        spatial_geometry=None,
+        spatial_within=True,
         after=None,
         sort_by="relevance",
         *args,
@@ -75,6 +77,8 @@ class CatalogDBInterface:
         an encoded string that will be passed through to Opensearch for
         accessing further pages. spatial_filter can be "geospatial" or
         "non-geospatial" to filter by presence of spatial data.
+        spatial_geometry and spatial_within allow searching geographically for
+        datasets. See OpenSearchInterface.search for details.
         """
         if after is not None:
             search_after = SearchResult.decode_search_after(after)
@@ -88,6 +92,8 @@ class CatalogDBInterface:
             org_types=org_types,
             search_after=search_after,
             spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
             sort_by=sort_by,
         )
 
@@ -100,6 +106,32 @@ class CatalogDBInterface:
         """
         return self.opensearch.get_unique_keywords(
             size=size, min_doc_count=min_doc_count
+        )
+
+    def search_locations(self, query, size=100):
+        """
+        Get locations from the database. These are in type_order with first
+        countries, then states, then counties, finally postal codes.
+
+        size: Maximum number of locations to return (default 100)
+        """
+        return (
+            self.db.query(Locations)
+            .filter(Locations.display_name.ilike(f"%{query}%"))
+            .order_by(Locations.type_order)
+            .limit(size)
+        )
+
+    def get_location(self, location_id):
+        """
+        Get information for a single location.
+
+        Returns a tuple of (id, GeoJSON), or None if the location id doesn't exist.
+        """
+        return (
+            self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
+            .filter(Locations.id == location_id)
+            .first()
         )
 
     def _success_harvest_record_ids_query(self):
@@ -225,6 +257,89 @@ class CatalogDBInterface:
             sort_by=sort_by,
             per_page=num_results,
         )
+
+    def get_top_organizations(self, limit: int = 10) -> list[dict]:
+        """Return organizations ordered by dataset count, using OpenSearch counts."""
+        limit = max(min(limit, 100), 1)
+
+        try:
+            org_counts = self.opensearch.get_organization_counts(size=limit)
+        except Exception:
+            logger.exception("Failed to fetch organization counts from OpenSearch")
+            return self._get_top_organizations_from_db(limit)
+
+        if not org_counts:
+            return self._get_top_organizations_from_db(limit)
+
+        slugs = [entry["slug"] for entry in org_counts if entry.get("slug")]
+        if not slugs:
+            return self._get_top_organizations_from_db(limit)
+
+        organizations = (
+            self.db.query(Organization)
+            .filter(Organization.slug.in_(slugs))
+            .all()
+        )
+        org_by_slug = {org.slug: org for org in organizations}
+
+        hydrated: list[dict] = []
+        for entry in org_counts:
+            slug = entry.get("slug")
+            if not slug:
+                continue
+            org = org_by_slug.get(slug)
+            if not org:
+                continue
+            hydrated.append(
+                {
+                    "id": org.id,
+                    "name": org.name,
+                    "slug": org.slug,
+                    "organization_type": org.organization_type,
+                    "dataset_count": entry.get("count", 0),
+                    "aliases": org.aliases or [],
+                }
+            )
+
+        if hydrated:
+            return hydrated
+
+        return self._get_top_organizations_from_db(limit)
+
+    def _get_top_organizations_from_db(self, limit: int) -> list[dict]:
+        rows = (
+            self.db.query(
+                Organization.id,
+                Organization.name,
+                Organization.slug,
+                Organization.organization_type,
+                Organization.aliases,
+                func.count(Dataset.id).label("dataset_count"),
+            )
+            .join(Dataset, Dataset.organization_id == Organization.id)
+            .group_by(
+                Organization.id,
+                Organization.name,
+                Organization.slug,
+                Organization.organization_type,
+                Organization.aliases,
+            )
+            .order_by(func.count(Dataset.id).desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            {
+                "id": row.id,
+                "name": row.name,
+                "slug": row.slug,
+                "organization_type": row.organization_type,
+                "dataset_count": row.dataset_count,
+                "aliases": row.aliases or [],
+            }
+            for row in rows
+        ]
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:
