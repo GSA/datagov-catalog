@@ -140,6 +140,7 @@ class OpenSearchInterface:
                 "search_analyzer": TEXT_ANALYZER,
             },
             "slug": {"type": "keyword"},
+            "last_harvested_date": {"type": "date"},
             "dcat": {
                 "type": "nested",
                 "properties": {
@@ -336,6 +337,7 @@ class OpenSearchInterface:
             "_id": dataset.id,
             "title": dataset.dcat.get("title", ""),
             "slug": dataset.slug,
+            "last_harvested_date": dataset.last_harvested_date.isoformat(),
             "description": dataset.dcat.get("description", ""),
             "publisher": dataset.dcat.get("publisher", {}).get("name", ""),
             "dcat": normalized_dcat,

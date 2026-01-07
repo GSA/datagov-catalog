@@ -284,52 +284,39 @@ def compare_opensearch(sample_size: int, fix: bool):
     interface = CatalogDBInterface()
     client = OpenSearchInterface.from_environment()
 
-    click.echo("Collecting dataset IDs from DB…")
-    db_ids = {row[0] for row in interface.db.query(Dataset.id).all()}
-    click.echo(f"Database datasets: {len(db_ids)}")
+    def normalize_last_harvested(value):
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            dt = value
+        elif isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return None
+            if cleaned.endswith("Z"):
+                cleaned = cleaned[:-1] + "+00:00"
+            try:
+                dt = datetime.fromisoformat(cleaned)
+            except ValueError:
+                return cleaned
+        else:
+            return str(value)
 
-    click.echo("Collecting document IDs from OpenSearch…")
-    os_ids = {
-        hit["_id"]
-        for hit in scan(client.client, index=client.INDEX_NAME, _source=False)
-    }
-    click.echo(f"OpenSearch documents: {len(os_ids)}")
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.isoformat()
 
-    missing = sorted(db_ids - os_ids)
-    extra = sorted(os_ids - db_ids)
-
-    click.echo(
-        f"Missing in OpenSearch (should be indexed): {len(missing)}"
-    )
-    if missing:
-        click.echo(
-            "Example missing IDs: " + ", ".join(missing[:sample_size])
-        )
-    else:
-        click.echo("Example missing IDs: none")
-
-    click.echo(
-        f"Extra in OpenSearch (should be deleted): {len(extra)}"
-    )
-    if extra:
-        click.echo("Example extra IDs: " + ", ".join(extra[:sample_size]))
-    else:
-        click.echo("Example extra IDs: none")
-
-    if not fix:
-        return
-
-    click.echo("\nFixing discrepancies…")
-
-    if missing:
-        click.echo(f"Indexing {len(missing)} missing datasets…")
+    def index_dataset_batches(dataset_ids: list[str], intro_message: str):
+        click.echo(intro_message)
         batch_size = 1000
-        total_batches = (len(missing) + batch_size - 1) // batch_size
+        total_batches = (len(dataset_ids) + batch_size - 1) // batch_size
         total_indexed = 0
         total_skipped = 0
 
         for batch_number, batch_ids in enumerate(
-            (missing[i : i + batch_size] for i in range(0, len(missing), batch_size)),
+            (dataset_ids[i : i + batch_size] for i in range(0, len(dataset_ids), batch_size)),
             start=1,
         ):
             click.echo(
@@ -367,6 +354,79 @@ def compare_opensearch(sample_size: int, fix: bool):
             f"Indexed {total_indexed} datasets. Skipped {total_skipped} missing DB rows."
         )
 
+    click.echo("Collecting dataset IDs from DB…")
+    db_rows = interface.db.query(Dataset.id, Dataset.last_harvested_date).all()
+    db_last_harvested = {
+        dataset_id: normalize_last_harvested(last_harvested)
+        for dataset_id, last_harvested in db_rows
+    }
+    db_ids = set(db_last_harvested)
+    click.echo(f"Database datasets: {len(db_ids)}")
+
+    click.echo("Collecting document IDs from OpenSearch…")
+    os_docs = {}
+    for hit in scan(client.client, index=client.INDEX_NAME):
+        os_docs[hit["_id"]] = normalize_last_harvested(
+            hit.get("_source", {}).get("last_harvested_date")
+        )
+
+    os_ids = set(os_docs)
+    click.echo(f"OpenSearch documents: {len(os_ids)}")
+
+    missing = sorted(db_ids - os_ids)
+    extra = sorted(os_ids - db_ids)
+    shared_ids = sorted(db_ids & os_ids)
+    updated_details = [
+        (dataset_id, db_last_harvested.get(dataset_id), os_docs.get(dataset_id))
+        for dataset_id in shared_ids
+        if db_last_harvested.get(dataset_id) != os_docs.get(dataset_id)
+    ]
+    updated_ids = [dataset_id for dataset_id, _, _ in updated_details]
+
+    click.echo(
+        f"Missing in OpenSearch (should be indexed): {len(missing)}"
+    )
+    if missing:
+        click.echo(
+            "Example missing IDs: " + ", ".join(missing[:sample_size])
+        )
+    else:
+        click.echo("Example missing IDs: none")
+
+    click.echo(
+        f"Extra in OpenSearch (should be deleted): {len(extra)}"
+    )
+    if extra:
+        click.echo("Example extra IDs: " + ", ".join(extra[:sample_size]))
+    else:
+        click.echo("Example extra IDs: none")
+
+    click.echo(
+        "Updated in OpenSearch (last_harvested_date differs): "
+        f"{len(updated_details)}"
+    )
+    if updated_details:
+        sample_entries = [
+            f"{dataset_id} (DB: {db_value or 'None'}, OS: {os_value or 'None'})"
+            for dataset_id, db_value, os_value in updated_details[:sample_size]
+        ]
+        click.echo("Example updated IDs: " + "; ".join(sample_entries))
+    else:
+        click.echo("Example updated IDs: none")
+
+    if not fix:
+        return
+
+    click.echo("\nFixing discrepancies…")
+
+    if missing:
+        index_dataset_batches(missing, f"Indexing {len(missing)} missing datasets…")
+
+    if updated_ids:
+        index_dataset_batches(
+            updated_ids, f"Re-indexing {len(updated_ids)} updated datasets…"
+        )
+
     if extra:
         click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
         deleted = 0
@@ -388,7 +448,7 @@ def compare_opensearch(sample_size: int, fix: bool):
 
         click.echo(f"Deleted {deleted} documents from OpenSearch.")
 
-    if missing or extra:
+    if missing or extra or updated_ids:
         click.echo("Refreshing OpenSearch index…")
         client._refresh()
         click.echo("Done.")
@@ -460,8 +520,8 @@ def _s3_client_and_config():
 @click.option(
     "--chunk-size",
     type=int,
-    default=lambda: int(os.getenv("SITEMAP_CHUNK_SIZE", "10000")),
-    help="URLs per sitemap file (default 10000)",
+    default=lambda: int(os.getenv("SITEMAP_CHUNK_SIZE", "5000")),
+    help="URLs per sitemap file (default 5000)",
 )
 def sitemap_generate(chunk_size: int):
     """Generate all dataset sitemaps and upload to S3.
@@ -489,7 +549,7 @@ def sitemap_generate(chunk_size: int):
     # order by last_harvested_date asc, then slug
     def get_window(offset: int, limit: int):
         return (
-            dbi.db.query(Dataset)
+            dbi.db.query(Dataset.slug, Dataset.last_harvested_date)
             .order_by(
                 Dataset.last_harvested_date.asc().nullslast(),
                 Dataset.slug.asc(),

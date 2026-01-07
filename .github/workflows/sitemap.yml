@@ -13,17 +13,38 @@ on:
         default: development
         options:
           - development
+          - staging
+          - prod
 
 permissions:
   contents: read
 
 jobs:
+  determine-environments:
+    runs-on: ubuntu-latest
+    outputs:
+      environments: ${{ steps.set-env.outputs.environments }}
+    steps:
+      - id: set-env
+        env:
+          WORKFLOW_INPUT_ENVIRON: ${{ github.event.inputs.environ }}
+        run: |
+          if [[ "${{ github.event_name }}" == 'workflow_dispatch' ]]; then
+            echo "environments=[\"$WORKFLOW_INPUT_ENVIRON\"]" >> "$GITHUB_OUTPUT"
+          else
+            echo 'environments=["staging","prod"]' >> "$GITHUB_OUTPUT"
+          fi
+
   sitemap-tasks:
     name: Generate and Verify Sitemap
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environ || 'development' }}
+    needs: determine-environments
+    strategy:
+      matrix:
+        environment: ${{ fromJson(needs.determine-environments.outputs.environments) }}
+    environment: ${{ matrix.environment }}
     env:
-      CF_SPACE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environ || 'development' }}
+      CF_SPACE: ${{ matrix.environment }}
     steps:
       - name: checkout
         uses: actions/checkout@v5
@@ -39,8 +60,8 @@ jobs:
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
           command: >
-            cf run-task datagov-catalog --command "flask sitemap generate"
-            --name "$GEN_INSTANCE_NAME" -k 2G -m 2G
+            cf run-task datagov-catalog --command "flask sitemap generate --chunk-size 5000"
+            --name "$GEN_INSTANCE_NAME" -k 2G -m 4G
       - name: Monitor generate task output
         uses: cloud-gov/cg-cli-tools@main
         with:
