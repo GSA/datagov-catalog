@@ -498,20 +498,20 @@ class OpenSearchInterface:
         """
         if not query or not isinstance(query, str):
             return None
-            
+
         # Check if query contains OR (case insensitive)
-        if not re.search(r'\s+OR\s+', query, re.IGNORECASE):
+        if not re.search(r"\s+OR\s+", query, re.IGNORECASE):
             return None
-        
+
         pattern = r'"[^"]*"|\bOR\b|[^\s"]+'
         tokens = re.findall(pattern, query, re.IGNORECASE)
-        
+
         # Filter out OR tokens and strip whitespace
         terms = []
         for token in tokens:
-            if token.upper() != 'OR':
+            if token.upper() != "OR":
                 terms.append(token.strip())
-        
+
         # Only return terms if we actually found OR operators
         return terms if len(terms) > 1 else None
 
@@ -579,15 +579,14 @@ class OpenSearchInterface:
         """
         # Check if query contains OR operators
         or_terms = self._parse_or_query(query) if query else None
-        
+
         if or_terms:
             # Build a bool query with should clauses (OR logic)
             # Each term gets its own multi_match query
             base_query: dict[str, Any] = {
                 "bool": {
                     "should": [
-                        self._build_multi_match_query(term) 
-                        for term in or_terms
+                        self._build_multi_match_query(term) for term in or_terms
                     ],
                     "minimum_should_match": 1,
                 }
@@ -736,8 +735,7 @@ class OpenSearchInterface:
         )
 
         return [
-            {"slug": bucket["key"], "count": bucket["doc_count"]}
-            for bucket in buckets
+            {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]
 
     def count_all_datasets(self) -> int:

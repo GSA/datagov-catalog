@@ -1,7 +1,7 @@
 import copy
 
-from app.models import Dataset
 from app.database.opensearch import OpenSearchInterface
+from app.models import Dataset
 
 
 def test_search(interface_with_dataset):
@@ -154,12 +154,16 @@ class TestOrQueryParsing:
 
     def test_parse_or_query_with_quoted_phrases(self):
         """Test parsing OR query with quoted phrases."""
-        result = OpenSearchInterface._parse_or_query('"climate change" OR "global warming"')
+        result = OpenSearchInterface._parse_or_query(
+            '"climate change" OR "global warming"'
+        )
         assert result == ['"climate change"', '"global warming"']
 
     def test_parse_or_query_mixed_quotes_and_terms(self):
         """Test parsing OR query with mix of quoted phrases and simple terms."""
-        result = OpenSearchInterface._parse_or_query('"climate change" OR warming OR environment')
+        result = OpenSearchInterface._parse_or_query(
+            '"climate change" OR warming OR environment'
+        )
         assert result == ['"climate change"', "warming", "environment"]
 
     def test_parse_no_or_operator_returns_none(self):
@@ -199,14 +203,14 @@ class TestOrQuerySearch:
         interface_with_dataset.opensearch.index_datasets(
             interface_with_dataset.db.query(Dataset)
         )
-        
+
         # Search for "health OR climate"
         result = interface_with_dataset.search_datasets("health OR climate")
-        
+
         # Should return datasets with either "health" or "climate"
         assert result.total > 0
         assert len(result.results) > 0
-        
+
         # Check that results contain either health or climate
         result_texts = []
         for dataset in result.results:
@@ -215,11 +219,10 @@ class TestOrQuerySearch:
             description = dcat.get("description", "").lower()
             keywords = [k.lower() for k in dcat.get("keyword", [])]
             result_texts.append(f"{title} {description} {' '.join(keywords)}")
-        
+
         # At least one result should contain "health" or "climate"
         has_health_or_climate = any(
-            "health" in text or "climate" in text 
-            for text in result_texts
+            "health" in text or "climate" in text for text in result_texts
         )
         assert has_health_or_climate
 
@@ -228,13 +231,13 @@ class TestOrQuerySearch:
         interface_with_dataset.opensearch.index_datasets(
             interface_with_dataset.db.query(Dataset)
         )
-        
+
         # Search with OR
         or_result = interface_with_dataset.search_datasets("health OR climate")
-        
+
         # Search with AND (implicit)
         and_result = interface_with_dataset.search_datasets("health climate")
-        
+
         # OR should return equal or more results than AND
         assert or_result.total >= and_result.total
 
@@ -247,10 +250,9 @@ class TestOrQuerySearch:
 
         # Search with OR and org filter
         result = interface_with_dataset.search_datasets(
-            "health OR climate",
-            org_id=org.id
+            "health OR climate", org_id=org.id
         )
-        
+
         # Should return results, all from the specified org
         if result.total > 0:
             for dataset in result.results:
@@ -261,13 +263,12 @@ class TestOrQuerySearch:
         interface_with_dataset.opensearch.index_datasets(
             interface_with_dataset.db.query(Dataset)
         )
-        
+
         # Search with OR and keyword filter
         result = interface_with_dataset.search_datasets(
-            "health OR climate",
-            keywords=["health"]
+            "health OR climate", keywords=["health"]
         )
-        
+
         # Should return results matching either search term AND having the keyword
         assert result.total >= 0
         if result.total > 0:
@@ -280,10 +281,10 @@ class TestOrQuerySearch:
         interface_with_dataset.opensearch.index_datasets(
             interface_with_dataset.db.query(Dataset)
         )
-        
+
         # This tests that quoted phrases are handled correctly
         result = interface_with_dataset.search_datasets('"health food" OR education')
-        
+
         # Should work without errors and return results
         assert result.total >= 0
 
@@ -292,12 +293,11 @@ class TestOrQuerySearch:
         interface_with_dataset.opensearch.index_datasets(
             interface_with_dataset.db.query(Dataset)
         )
-        
+
         result = interface_with_dataset.search_datasets(
-            "health OR climate",
-            sort_by="popularity"
+            "health OR climate", sort_by="popularity"
         )
-        
+
         # Should return results sorted by popularity
         assert result.total >= 0
         if len(result.results) > 1:
@@ -306,4 +306,3 @@ class TestOrQuerySearch:
                 pop1 = result.results[i].get("popularity") or 0
                 pop2 = result.results[i + 1].get("popularity") or 0
                 assert pop1 >= pop2
-
