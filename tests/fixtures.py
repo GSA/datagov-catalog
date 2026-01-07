@@ -1,5 +1,6 @@
 import csv
 import json
+from datetime import datetime
 from pathlib import Path
 
 HARVEST_RECORD_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
@@ -7,6 +8,7 @@ DATASET_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 STOPWORD_RECORD_ID = "health-food-record"
 STOPWORD_DATASET_ID = "health-food-dataset"
 TEST_DIR = Path(__file__).parent
+DEFAULT_LAST_HARVESTED_DATE = datetime(2023, 1, 1)
 
 
 # helpers functions
@@ -91,6 +93,7 @@ def fixture_data():
                 harvest_record_id=HARVEST_RECORD_ID,
                 harvest_source_id="1",
                 organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
                 translated_spatial={
                     "type": "Polygon",
                     "coordinates": [
@@ -122,6 +125,7 @@ def fixture_data():
                 harvest_record_id=HARVEST_RECORD_ID,
                 harvest_source_id="1",
                 organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
                 popularity=100,
             ),
             dict(
@@ -143,6 +147,7 @@ def fixture_data():
                 harvest_record_id=HARVEST_RECORD_ID,
                 harvest_source_id="1",
                 organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
                 popularity=250,
             ),
             dict(
@@ -163,6 +168,7 @@ def fixture_data():
                 harvest_record_id=HARVEST_RECORD_ID,
                 harvest_source_id="1",
                 organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
                 popularity=180,
             ),
             dict(
@@ -183,6 +189,7 @@ def fixture_data():
                 harvest_record_id=HARVEST_RECORD_ID,
                 harvest_source_id="1",
                 organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
                 popularity=150,
             ),
             dict(
@@ -203,6 +210,7 @@ def fixture_data():
                 harvest_record_id=STOPWORD_RECORD_ID,
                 harvest_source_id="1",
                 organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
                 popularity=125,
             ),
         ],
@@ -247,5 +255,14 @@ def fixture_data():
         row[2] = org_id
         row[3] = harvest_source_id
         row[5] = popularity
+        last_harvested_raw = row[6].strip() if len(row) > 6 and row[6] else ""
+        if last_harvested_raw:
+            try:
+                last_harvested_date = datetime.fromisoformat(last_harvested_raw)
+            except ValueError:
+                last_harvested_date = DEFAULT_LAST_HARVESTED_DATE
+        else:
+            last_harvested_date = DEFAULT_LAST_HARVESTED_DATE
+        row[6] = last_harvested_date
         fixture_dict["dataset"].append(dict(zip(fields, row)))
     return fixture_dict

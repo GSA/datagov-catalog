@@ -91,7 +91,7 @@ jobs:
         with:
           command: >
             cf run-task datagov-catalog --name "$OPENSEARCH_INSTANCE_NAME"
-            --command "$TASK_COMMAND"
+            --command "$TASK_COMMAND" -k 2G -m 2G
           cf_org: gsa-datagov
           cf_space: ${{ env.CF_SPACE }}
           cf_username: ${{secrets.CF_SERVICE_USER}}
