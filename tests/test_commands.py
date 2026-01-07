@@ -499,7 +499,7 @@ class TestCompareCommand:
         os_client.INDEX_NAME = "datasets"
         os_client.client = Mock()
         os_client.client.delete = Mock()
-        os_client.index_datasets = Mock(return_value=(1, 0))
+        os_client.index_datasets = Mock(return_value=(1, 0, 0))
         os_client._refresh = Mock()
 
         monkeypatch.setattr(
@@ -581,7 +581,6 @@ class TestCompareCommand:
         )
 
         result = cli_runner.invoke(args=["search", "compare", "--fix"])
-
         assert result.exit_code == 0
         assert "Fixing discrepancies" in result.output
         assert os_client.index_datasets.call_count == 2

@@ -118,7 +118,7 @@ def sync_opensearch(
         click.echo(
             f"Indexing dataset {dataset.id} (slug: {dataset.slug}) into OpenSearch..."
         )
-        succeeded, failed = client.index_datasets([dataset])
+        succeeded, failed, errors = client.index_datasets([dataset])
 
         if failed:
             raise click.ClickException(
