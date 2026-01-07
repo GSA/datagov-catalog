@@ -490,6 +490,59 @@ class TestSyncCommand:
         assert result.exit_code == 0
 
 
+    def test_sync_logs_indexing_errors_from_single_page(
+        self, cli_runner, interface_with_dataset, mock_opensearch_client
+    ):
+        """Test that errors from indexing are collected and displayed."""
+        # Mock indexing with some errors
+        test_errors = [
+            {
+                "dataset_id": "error-dataset-1",
+                "status_code": 400,
+                "error_type": "mapper_parsing_exception",
+                "error_reason": "failed to parse field [dcat.modified]",
+                "caused_by": {"type": "illegal_argument_exception"},
+            },
+            {
+                "dataset_id": "error-dataset-2",
+                "status_code": 429,
+                "error_type": "es_rejected_execution_exception",
+                "error_reason": "rejected execution of coordinating operation",
+                "caused_by": None,
+            },
+        ]
+
+        mock_opensearch_client.index_datasets = Mock(return_value=(98, 2, test_errors))
+
+        with patch.object(Dataset, "query") as mock_query:
+            mock_pagination = Mock()
+            mock_pagination.pages = 1
+            mock_pagination.items = [Mock()] * 100
+            mock_query.paginate = Mock(return_value=mock_pagination)
+
+            with patch(
+                "app.commands.OpenSearchInterface.from_environment",
+                return_value=mock_opensearch_client,
+            ):
+                result = cli_runner.invoke(args=["search", "sync", "--per_page", "100"])
+
+        assert result.exit_code == 0
+        assert "STATS" in result.output
+        assert "Total Errors: 2" in result.output
+        assert "=" * 20 + "ERRORS" in result.output
+
+        # Check that error details are displayed
+        assert "Dataset ID: error-dataset-1" in result.output
+        assert "Status Code: 400" in result.output
+        assert "Error Type: mapper_parsing_exception" in result.output
+        assert "Error Reason: failed to parse field [dcat.modified]" in result.output
+        assert "Caused By: {'type': 'illegal_argument_exception'}" in result.output
+
+        assert "Dataset ID: error-dataset-2" in result.output
+        assert "Status Code: 429" in result.output
+        assert "Error Type: es_rejected_execution_exception" in result.output
+
+
 class TestCompareCommand:
     @staticmethod
     def _prepare_environment(interface, hits, monkeypatch):
