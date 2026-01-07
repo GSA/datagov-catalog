@@ -257,5 +257,6 @@ def mock_opensearch_client():
     client.delete_all_datasets = Mock()
     client._ensure_index = Mock()
     client._refresh = Mock()
-    client.index_datasets = Mock(return_value=(100, 0))
+    client.index_datasets = Mock(return_value=(100, 0, []))
+    client.count_all_datasets = Mock(return_value=100)
     return client
