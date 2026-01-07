@@ -489,7 +489,6 @@ class TestSyncCommand:
         assert "Retrying in 2.0 seconds..." in result.output
         assert result.exit_code == 0
 
-
     def test_sync_logs_indexing_errors_from_single_page(
         self, cli_runner, interface_with_dataset, mock_opensearch_client
     ):
@@ -591,9 +590,7 @@ class TestCompareCommand:
             interface_with_harvest_record, hits, monkeypatch
         )
 
-        result = cli_runner.invoke(
-            args=["search", "compare", "--sample-size", "5"]
-        )
+        result = cli_runner.invoke(args=["search", "compare", "--sample-size", "5"])
 
         assert result.exit_code == 0
         assert "Missing in OpenSearch (should be indexed): 1" in result.output
