@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -489,6 +490,52 @@ class OpenSearchInterface:
             {"_id": {"order": "desc"}},
         ]
 
+    @staticmethod
+    def _parse_or_query(query: str) -> list[str]:
+        """
+        Parse a query string containing OR operators into separate terms.
+        Handles both quoted phrases and simple terms.
+        """
+        if not query or not isinstance(query, str):
+            return None
+            
+        # Check if query contains OR (case insensitive)
+        if not re.search(r'\s+OR\s+', query, re.IGNORECASE):
+            return None
+        
+        pattern = r'"[^"]*"|\bOR\b|[^\s"]+'
+        tokens = re.findall(pattern, query, re.IGNORECASE)
+        
+        # Filter out OR tokens and strip whitespace
+        terms = []
+        for token in tokens:
+            if token.upper() != 'OR':
+                terms.append(token.strip())
+        
+        # Only return terms if we actually found OR operators
+        return terms if len(terms) > 1 else None
+
+    def _build_multi_match_query(self, query_text: str) -> dict:
+        """
+        Build a multi_match query for a single term or phrase.
+        """
+        return {
+            "multi_match": {
+                "query": query_text,
+                "type": "most_fields",
+                "fields": [
+                    "title^5",
+                    "description^3",
+                    "publisher^3",
+                    "keyword^2",
+                    "theme",
+                    "identifier",
+                ],
+                "operator": "AND",
+                "zero_terms_query": "all",
+            }
+        }
+
     def search(
         self,
         query,
@@ -530,24 +577,26 @@ class OpenSearchInterface:
         value of the last `_sort` field from a previous search result with the
         same query.
         """
-        if query and query.strip():
+        # Check if query contains OR operators
+        or_terms = self._parse_or_query(query) if query else None
+        
+        if or_terms:
+            # Build a bool query with should clauses (OR logic)
+            # Each term gets its own multi_match query
             base_query: dict[str, Any] = {
-                "multi_match": {
-                    "query": query,
-                    "type": "most_fields",
-                    "fields": [
-                        "title^5",
-                        "description^3",
-                        "publisher^3",
-                        "keyword^2",
-                        "theme",
-                        "identifier",
+                "bool": {
+                    "should": [
+                        self._build_multi_match_query(term) 
+                        for term in or_terms
                     ],
-                    "operator": "AND",
-                    "zero_terms_query": "all",
+                    "minimum_should_match": 1,
                 }
             }
+        elif query and query.strip():
+            # Standard AND query
+            base_query: dict[str, Any] = self._build_multi_match_query(query)
         else:
+            # No query, match all
             base_query = {"match_all": {}}
 
         search_body = {
@@ -624,9 +673,9 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
-        print("QUERY:", search_body)
+        # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        print("OPENSEARCH:", result_dict)
+        # print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
