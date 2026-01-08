@@ -521,13 +521,13 @@ class OpenSearchInterface:
     def _parse_search_query(query: str) -> dict | None:
         """
         Parse a query string to identify phrases (quoted text) and OR operators.
-        
+
         Returns:
             Dict with:
             - 'has_or': bool indicating if OR operators are present
             - 'terms': list of dicts with 'text' and 'type' ('phrase' or 'term')
             Returns None if query is a simple term search (no quotes, no OR)
-            
+
         Examples:
             '"poor food"' -> {'has_or': False, 'terms': [{'text': 'poor food', 'type': 'phrase'}]}
             'food OR health' -> {'has_or': True, 'terms': [{'text': 'food', 'type': 'term'}, {'text': 'health', 'type': 'term'}]}
@@ -537,42 +537,42 @@ class OpenSearchInterface:
         """
         if not query or not isinstance(query, str):
             return None
-        
+
         query = query.strip()
         if not query:
             return None
-        
+
         # Check if query contains OR (case insensitive)
-        has_or = bool(re.search(r'\s+OR\s+', query, re.IGNORECASE))
-        
+        has_or = bool(re.search(r"\s+OR\s+", query, re.IGNORECASE))
+
         # Check if query has any quoted phrases
         has_quotes = '"' in query
-        
+
         # If no OR and no quotes, return None for regular search
         if not has_or and not has_quotes:
             return None
-        
+
         # Pattern to match: quoted strings, OR keyword, or non-whitespace/non-quote sequences
         pattern = r'"([^"]+)"|(\bOR\b)|(\S+)'
         matches = re.finditer(pattern, query, re.IGNORECASE)
-        
+
         terms = []
         for match in matches:
             if match.group(1):  # Quoted phrase
                 phrase_text = match.group(1).strip()
                 if phrase_text:
-                    terms.append({'text': phrase_text, 'type': 'phrase'})
+                    terms.append({"text": phrase_text, "type": "phrase"})
             elif match.group(2):  # OR keyword - skip
                 continue
             elif match.group(3):  # Regular term
                 term = match.group(3).strip()
-                if term.upper() != 'OR':
-                    terms.append({'text': term, 'type': 'term'})
-        
+                if term.upper() != "OR":
+                    terms.append({"text": term, "type": "term"})
+
         if not terms:
             return None
-        
-        return {'has_or': has_or, 'terms': terms}
+
+        return {"has_or": has_or, "terms": terms}
 
     def _build_multi_match_query(self, query_text: str) -> dict:
         """
@@ -598,10 +598,10 @@ class OpenSearchInterface:
     def _build_phrase_query(self, phrase_text: str) -> dict:
         """
         Build a bool query with match_phrase across multiple fields for exact phrase matching.
-        
+
         Args:
             phrase_text: The phrase to search for (without quotes)
-            
+
         Returns:
             OpenSearch bool query with match_phrase for each field
         """
@@ -609,30 +609,34 @@ class OpenSearchInterface:
             "bool": {
                 "should": [
                     {"match_phrase": {"title": {"query": phrase_text, "boost": 5}}},
-                    {"match_phrase": {"description": {"query": phrase_text, "boost": 3}}},
+                    {
+                        "match_phrase": {
+                            "description": {"query": phrase_text, "boost": 3}
+                        }
+                    },
                     {"match_phrase": {"publisher": {"query": phrase_text, "boost": 3}}},
                     {"match_phrase": {"keyword": {"query": phrase_text, "boost": 2}}},
                     {"match_phrase": {"theme": {"query": phrase_text}}},
                     {"match_phrase": {"identifier": {"query": phrase_text}}},
                 ],
-                "minimum_should_match": 1
+                "minimum_should_match": 1,
             }
         }
 
     def _build_query_for_parsed_term(self, term_dict: dict) -> dict:
         """
         Build an appropriate OpenSearch query for a parsed term or phrase.
-        
+
         Args:
             term_dict: Dictionary with 'text' and 'type' keys
-            
+
         Returns:
             OpenSearch query dict
         """
-        text = term_dict['text']
-        term_type = term_dict['type']
-        
-        if term_type == 'phrase':
+        text = term_dict["text"]
+        term_type = term_dict["type"]
+
+        if term_type == "phrase":
             return self._build_phrase_query(text)
         else:
             return self._build_multi_match_query(text)
@@ -688,13 +692,13 @@ class OpenSearchInterface:
 
         if parsed_query:
             # Build query based on parsed terms
-            if parsed_query['has_or']:
+            if parsed_query["has_or"]:
                 # Build a bool query with should clauses (OR logic)
                 base_query: dict[str, Any] = {
                     "bool": {
                         "should": [
                             self._build_query_for_parsed_term(term)
-                            for term in parsed_query['terms']
+                            for term in parsed_query["terms"]
                         ],
                         "minimum_should_match": 1,
                     }
@@ -702,8 +706,10 @@ class OpenSearchInterface:
             else:
                 # Single phrase query without OR
                 # Should only have one term since has_or is False
-                if len(parsed_query['terms']) == 1:
-                    base_query = self._build_query_for_parsed_term(parsed_query['terms'][0])
+                if len(parsed_query["terms"]) == 1:
+                    base_query = self._build_query_for_parsed_term(
+                        parsed_query["terms"][0]
+                    )
                 else:
                     # Shouldn't happen, but fall back to match_all
                     base_query = {"match_all": {}}
