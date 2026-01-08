@@ -1,3 +1,21 @@
+function requestFilterFormSubmit(form, options = {}) {
+    const controller = window.dataGovFilterFormAutoSubmit;
+    if (controller && typeof controller.request === 'function' && controller.form) {
+        controller.request(options);
+        return;
+    }
+
+    if (!form) {
+        return;
+    }
+
+    if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+    } else {
+        form.submit();
+    }
+}
+
 class KeywordAutocomplete {
     constructor(options) {
         this.inputId = options.inputId;
@@ -78,7 +96,7 @@ class KeywordAutocomplete {
         const keywords = urlParams.getAll('keyword');
         keywords.forEach(keyword => {
             if (keyword && keyword.trim()) {
-                this.addKeyword(keyword.trim());
+                this.addKeyword(keyword.trim(), { silent: true });
             }
         });
     }
@@ -223,20 +241,28 @@ class KeywordAutocomplete {
         this.currentFocusIndex = -1;
     }
     
-    addKeyword(keyword) {
+    addKeyword(keyword, options = {}) {
+        const silent = Boolean(options.silent);
         if (this.selectedKeywords.has(keyword)) {
             return; // Already added
         }
-        
+
         this.selectedKeywords.add(keyword);
         this.renderChip(keyword);
-        
+
         // Hide suggested keywords container
         this.hideSuggestedKeywords();
+
+        if (!silent) {
+            requestFilterFormSubmit(this.form);
+        }
     }
-    
+
     removeKeyword(keyword) {
-        this.selectedKeywords.delete(keyword);
+        const removed = this.selectedKeywords.delete(keyword);
+        if (!removed) {
+            return;
+        }
         const chip = this.chipsContainer.querySelector(`[data-keyword="${this.escapeHtml(keyword)}"]`);
         if (chip) {
             chip.remove();
@@ -246,6 +272,8 @@ class KeywordAutocomplete {
         if (this.selectedKeywords.size === 0) {
             this.showSuggestedKeywords();
         }
+
+        requestFilterFormSubmit(this.form);
     }
     
     renderChip(keyword) {
@@ -346,7 +374,7 @@ class OrganizationAutocomplete {
         this.initSuggestedOrganizations();
 
         if (this.initialSelection) {
-            this.setOrganization(this.initialSelection);
+            this.setOrganization(this.initialSelection, { silent: true });
             this.hideSuggestedOrganizations();
         }
 
@@ -556,7 +584,8 @@ class OrganizationAutocomplete {
         });
     }
 
-    setOrganization(organization) {
+    setOrganization(organization, options = {}) {
+        const silent = Boolean(options.silent);
         if (!organization) {
             return;
         }
@@ -571,6 +600,10 @@ class OrganizationAutocomplete {
         this.renderChip(this.selectedOrganization);
         this.syncHiddenInputs();
         this.hideSuggestedOrganizations();
+
+        if (!silent) {
+            requestFilterFormSubmit(this.form);
+        }
     }
 
     renderChip(organization) {
@@ -604,6 +637,7 @@ class OrganizationAutocomplete {
         this.chipsContainer.innerHTML = '';
         this.syncHiddenInputs();
         this.showSuggestedOrganizations();
+        requestFilterFormSubmit(this.form);
     }
 
     syncHiddenInputs() {
