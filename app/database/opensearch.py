@@ -449,6 +449,7 @@ class OpenSearchInterface:
         def _stream_bulk():
             succeeded_local = 0
             failed_local = 0
+            errors = []
             for success, item in helpers.streaming_bulk(
                 self.client,
                 documents,
@@ -456,13 +457,36 @@ class OpenSearchInterface:
                 # retry when we are making too many requests
                 max_retries=8,
             ):
+                index_info = item.get("index")
+                index_error = index_info.get("error")
                 if success:
                     succeeded_local += 1
+                    if item["index"]["result"].lower() not in ["created", "updated"]:
+                        if index_info:
+                            errors.append(
+                                {
+                                    "dataset_id": index_info.get("_id"),
+                                    "status_code": index_info["_shards"].get("status"),
+                                    "error_type": "Silent Error",
+                                    "error_reason": "Unknown",
+                                    "caused_by": index_info,
+                                }
+                            )
                 else:
                     failed_local += 1
-            return succeeded_local, failed_local
+                    if index_info and index_error:
+                        errors.append(
+                            {
+                                "dataset_id": index_info.get("_id"),
+                                "status_code": index_info.get("status"),
+                                "error_type": index_error.get("type"),
+                                "error_reason": index_error.get("reason"),
+                                "caused_by": index_error.get("caused_by"),
+                            }
+                        )
+            return succeeded_local, failed_local, errors
 
-        succeeded, failed = self._run_with_timeout_retry(
+        succeeded, failed, errors = self._run_with_timeout_retry(
             _stream_bulk,
             action_name="OpenSearch bulk index",
             timeout_retries=timeout_retries,
@@ -472,7 +496,7 @@ class OpenSearchInterface:
         if refresh_after:
             self._refresh()
 
-        return (succeeded, failed)
+        return (succeeded, failed, errors)
 
     def _build_sort_clause(self, sort_by: str) -> list[dict]:
         """Return the OpenSearch sort clause for the requested key."""
