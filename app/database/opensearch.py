@@ -449,7 +449,7 @@ class OpenSearchInterface:
         def _stream_bulk():
             succeeded_local = 0
             failed_local = 0
-            errors_list = []
+            errors = []
             for success, item in helpers.streaming_bulk(
                 self.client,
                 documents,
@@ -463,7 +463,7 @@ class OpenSearchInterface:
                     succeeded_local += 1
                     if item["index"]["result"].lower() not in ["created", "updated"]:
                         if index_info:
-                            errors_list.append(
+                            errors.append(
                                 {
                                     "dataset_id": index_info.get("_id"),
                                     "status_code": index_info["_shards"].get("status"),
@@ -475,7 +475,7 @@ class OpenSearchInterface:
                 else:
                     failed_local += 1
                     if index_info and index_error:
-                        errors_list.append(
+                        errors.append(
                             {
                                 "dataset_id": index_info.get("_id"),
                                 "status_code": index_info.get("status"),
@@ -484,8 +484,8 @@ class OpenSearchInterface:
                                 "caused_by": index_error.get("caused_by"),
                             }
                         )
-                    errors_list.append(item)
-            return succeeded_local, failed_local, errors_list
+                    errors.append(item)
+            return succeeded_local, failed_local, errors
 
         succeeded, failed, errors = self._run_with_timeout_retry(
             _stream_bulk,
