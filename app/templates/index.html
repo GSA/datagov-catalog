@@ -10,7 +10,7 @@
         <form method="GET" action="{{ url_for('main.index') }}" class="usa-form" id="main-search-form">
 
             <label class="usa-label" for="search-query"><b>Search datasets</b></label>
-            <div class="grid-row grid-gap-1 flex-align-end">
+            <div class="grid-row grid-gap-1 flex-align-end margin-top-neg-1px">
                 <div class="grid-col-fill">
                     <input class="usa-input margin-0" id="search-query" name="q" type="text"
                         placeholder="Search Data.gov..." autofocus value="{{ query }}">
@@ -92,7 +92,7 @@
     </div>
 
     <!-- Sidebar for filters and sort -->
-    <aside class="tablet:grid-col-12 desktop:grid-col-3">
+    <aside class="tablet:grid-col-12 desktop:grid-col-3 margin-top-3">
         <form method="GET" action="{{ url_for('main.index') }}" id="filter-form">
             <input type="hidden" name="q" value="{{ query }}">
             {% if org_slug %}
