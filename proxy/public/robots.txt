@@ -1,0 +1,6 @@
+User-agent: *
+# TODO: add disallow routes
+Crawl-Delay: 10
+
+# sitemap url should get replaced by proxy .profile
+Sitemap: https://catalog-beta.data.gov/sitemap.xml
