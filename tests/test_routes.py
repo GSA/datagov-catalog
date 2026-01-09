@@ -859,8 +859,8 @@ def test_index_filter_checkboxes_checked_when_selected(db_client):
     assert "checked" not in city_checkbox.attrs
 
 
-def test_index_apply_filters_button_exists(db_client):
-    """Test that the Apply Filters button exists in the sidebar."""
+def test_index_apply_filters_button_absent(db_client):
+    """The Apply Filters button should not render on the homepage sidebar."""
     response = db_client.get("/")
     assert response.status_code == 200
 
@@ -869,8 +869,7 @@ def test_index_apply_filters_button_exists(db_client):
     apply_button = soup.find(
         "button", {"type": "submit"}, string=lambda s: s and "Apply Filters" in s
     )
-    assert apply_button is not None
-    assert "usa-button" in apply_button.get("class", [])
+    assert apply_button is None
 
 
 def test_index_from_hint_roundtrip(db_client, interface_with_dataset):
