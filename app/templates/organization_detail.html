@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/filter_sidebar.html" import render_filter_sidebar %}
 
 {% block title %}{{ organization.name }} - Organization - Data.gov{% endblock %}
 
@@ -61,13 +62,20 @@
 
   <section class="organization-datasets">
     <div class="grid-row grid-gap-lg margin-top-2">
-      <div class="desktop:grid-col-9">
-        <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form">
+      <div class="desktop:grid-col-9 tablet:grid-col">
+        <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form" id="main-search-form">
             <div class="grid-row grid-gap-1 flex-align-end">
                 <div class="grid-col-fill">
                     <label class="usa-sr-only" for="search-query">Search within organization</label>
                     <input class="usa-input margin-0" id="search-query" name="q" type="text" value="{{ dataset_search_query }}"
                         placeholder="Search datasets..." autofocus>
+                    {% for keyword in keywords %}
+                    <input type="hidden" name="keyword" value="{{ keyword }}">
+                    {% endfor %}
+                    {% if spatial_filter %}
+                    <input type="hidden" name="spatial_filter" value="{{ spatial_filter }}">
+                    {% endif %}
+                    <input type="hidden" name="sort" value="{{ selected_sort }}">
                 </div>
                 <div class="grid-col-auto">
                     <button type="submit" class="usa-button margin-0">
@@ -102,7 +110,7 @@
         <div class="usa-alert usa-alert--info margin-top-3">
           <div class="usa-alert__body">
             <p class="usa-alert__text">
-              No datasets found{% if query %} matching "{{ query }}"{% endif %}. Try adjusting your search terms or filters.
+              No datasets found{% if dataset_search_query %} matching "{{ dataset_search_query }}"{% endif %}. Try adjusting your search terms or filters.
             </p>
           </div>
         </div>
@@ -110,30 +118,26 @@
 
       </div>
 
-      <aside class="desktop:grid-col-3">
-              <form class="usa-form" method="get"
-                action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}">
-
-                <label class="usa-label" for="sort-by">Sort by</label>
-                <select class="usa-select" id="sort-by" name="sort">
-                  {% set sort_options = { "popularity": "Popularity", "relevance": "Relevance"} %}
-                  {% for value, label in sort_options.items() %}
-                  <option value="{{ value }}" {% if value == selected_sort %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-                {% if dataset_search_query %}
-                <input type="hidden" name="q" value="{{ dataset_search_query }}">
-                {% endif %}
-
-                <button type="submit" class="usa-button usa-button--outline margin-top-2">
-                  Apply
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
+      <aside class="desktop:grid-col-3 tablet:grid-col margin-top-3">
+        {{ render_filter_sidebar(
+            form_action=url_for('main.organization_detail', slug=organization_slug_or_id),
+            query_value=dataset_search_query,
+            sort_value=selected_sort,
+            keywords=keywords,
+            suggested_keywords=suggested_keywords,
+            spatial_filter=spatial_filter
+        ) }}
       </aside>
     </div>
   </section>
 </section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
+<script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>
+<script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 {% endblock %}
