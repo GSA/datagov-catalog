@@ -1,4 +1,22 @@
 /* global L */
+function requestFilterFormSubmit(form, options = {}) {
+    const controller = window.dataGovFilterFormAutoSubmit;
+    if (controller && typeof controller.request === 'function' && controller.form) {
+        controller.request(options);
+        return;
+    }
+
+    if (!form) {
+        return;
+    }
+
+    if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+    } else {
+        form.submit();
+    }
+}
+
 class GeographyAutocomplete {
     constructor(options) {
         this.inputId = options.inputId;
@@ -103,6 +121,8 @@ class GeographyAutocomplete {
       const clearButton = labelDiv.querySelector('#geography-clear-button');
       if (!clearButton) return;
       labelDiv.removeChild(clearButton);
+
+      requestFilterFormSubmit(this.form);
     }
 
     _createMap() {
@@ -286,6 +306,7 @@ class GeographyAutocomplete {
         this.selectedGeometry = JSON.parse(data.geometry);
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
+        requestFilterFormSubmit(this.form);
       } catch (error) {
         console.error('Error loading location data:', error);
       }
