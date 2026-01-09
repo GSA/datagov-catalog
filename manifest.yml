@@ -1,5 +1,22 @@
 ---
 applications:
+  - name: ((app_name))-proxy
+    buildpacks:
+      - https://github.com/cloudfoundry/nginx-buildpack
+    services:
+      - ((app_name))-s3
+      - ((app_name))-secrets
+    path: ./proxy
+    # TODO: tweak with load testing
+    memory: 100M
+    instances: ((proxy_instances))
+    routes:
+      - route: ((route_external))
+    env:
+      PUBLIC_ROUTE: ((route_public))
+      EXTERNAL_ROUTE: ((route_external))
+      INTERNAL_ROUTE: ((route_internal))
+      BASIC_AUTH_ENABLED: ((basic_auth_enabled))
   - name: ((app_name))
     buildpacks:
       - python_buildpack
@@ -21,21 +38,3 @@ applications:
       NEW_RELIC_CONFIG_FILE: /home/vcap/app/config/newrelic.ini
       SITE_URL: ((site_url))
     command: ./app-start.sh
-
-  - name: ((app_name))-proxy
-    buildpacks:
-      - https://github.com/cloudfoundry/nginx-buildpack
-    services:
-      - ((app_name))-s3
-      - ((app_name))-secrets
-    path: ./proxy
-    # TODO: tweak with load testing
-    memory: 100M
-    instances: ((proxy_instances))
-    routes:
-      - route: ((route_external))
-    env:
-      PUBLIC_ROUTE: ((route_public))
-      EXTERNAL_ROUTE: ((route_external))
-      INTERNAL_ROUTE: ((route_internal))
-      BASIC_AUTH_ENABLED: ((basic_auth_enabled))

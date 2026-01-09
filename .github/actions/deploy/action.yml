@@ -51,6 +51,12 @@ inputs:
     description: "Single request timeout (seconds)"
     required: false
     default: "10"
+  basic_auth_user:
+    description: "basic auth username"
+    required: true
+  basic_auth_password:
+    description: "basic auth password"
+    required: true
 
 runs:
   using: "composite"
@@ -115,7 +121,7 @@ runs:
         url="${base%/}${path}"
         echo "Starting smoke test: $url"
         for i in $(seq 1 "$retries"); do
-          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$timeout" "$url" || echo "000")
+          status=$(curl -u ${{ inputs.basic_auth_user }}:${{ inputs.basic_auth_password }} -s -o /dev/null -w "%{http_code}" --max-time "$timeout" "$url" || echo "000")
           echo "Attempt $i/$retries -> HTTP $status"
           if [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
             echo "Smoke test passed."
