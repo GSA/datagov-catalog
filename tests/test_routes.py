@@ -365,6 +365,34 @@ def test_organization_detail_displays_dataset_list(db_client, interface_with_dat
     assert description_text.startswith("Summary dataset of detailed payments")
 
 
+def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    filter_form = soup.find("form", {"id": "filter-form"})
+    assert filter_form is not None
+
+    sort_select = filter_form.find("select", {"id": "sort-select"})
+    assert sort_select is not None
+
+    keyword_section = soup.find("div", {"id": "filter-keywords"})
+    assert keyword_section is not None
+
+    geography_section = soup.find("div", {"id": "filter-geography"})
+    assert geography_section is not None
+
+    spatial_section = soup.find("div", {"id": "filter-spatial"})
+    assert spatial_section is not None
+
+    # Organization filters and type filters should not render on this page
+    assert soup.find("div", {"id": "filter-organization"}) is None
+    assert soup.find("div", {"id": "filter-organization-autocomplete"}) is None
+
+
 def test_index_page_renders(db_client):
     """
     Test that the index page loads correctly and contains the search form.
