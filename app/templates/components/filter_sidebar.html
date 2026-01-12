@@ -1,0 +1,43 @@
+{% from "components/filters/sort_filter.html" import render_sort_filter %}
+{% from "components/filters/keyword_filter.html" import render_keyword_filter %}
+{% from "components/filters/organization_autocomplete_filter.html" import render_organization_autocomplete_filter %}
+{% from "components/filters/organization_type_filter.html" import render_organization_type_filter %}
+{% from "components/filters/geography_filter.html" import render_geography_filter %}
+{% from "components/filters/spatial_filter.html" import render_spatial_filter %}
+
+{% macro render_filter_sidebar(
+    form_action,
+    query_value,
+    sort_value,
+    keywords,
+    suggested_keywords,
+    spatial_filter,
+    form_id='filter-form',
+    org_slug=None,
+    show_org_autocomplete=False,
+    show_org_type_filters=False,
+    org_types=None,
+    selected_organization=None,
+    suggested_organizations=None
+) %}
+<form class="usa-form" method="get" action="{{ form_action }}" id="{{ form_id }}">
+    <input type="hidden" name="q" value="{{ query_value }}">
+    {% if org_slug %}
+    <input type="hidden" name="org_slug" value="{{ org_slug }}">
+    {% endif %}
+
+    {{ render_sort_filter(sort_value) }}
+    {{ render_keyword_filter(keywords, suggested_keywords) }}
+
+    {% if show_org_autocomplete %}
+        {{ render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations) }}
+    {% endif %}
+
+    {% if show_org_type_filters %}
+        {{ render_organization_type_filter(org_types) }}
+    {% endif %}
+
+    {{ render_geography_filter() }}
+    {{ render_spatial_filter(spatial_filter) }}
+</form>
+{% endmacro %}
