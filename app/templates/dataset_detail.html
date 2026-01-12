@@ -31,7 +31,7 @@ dataLayer.push({
 {% set cleaned_description = description_value | remove_html_tags | striptags | replace('\n', ' ') | trim %}
 {% set meta_description = cleaned_description | truncate(200, True, '...') %}
 {% set canonical_url = url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier, _external=True) %}
-{% set social_image = "https://s3-us-gov-west-1.amazonaws.com/cg-0817d6e3-93c4-4de8-8b32-da6919464e61/hero-image-bg.png" %}
+{% set social_image = config.get('SOCIAL_IMAGE_URL') %}
 <link rel="canonical" href="{{ canonical_url }}">
 <meta name="description" content="{{ meta_description }}">
 <meta name="robots" content="index,follow">
