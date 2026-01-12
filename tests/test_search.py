@@ -253,10 +253,13 @@ class TestPhraseSearch:
         # Search with phrase and org filter
         result = interface_with_dataset.search_datasets('"test"', org_id=org.id)
 
-        # Should work and respect org filter
-        if result.total > 0:
-            for dataset in result.results:
-                assert dataset["organization"]["id"] == org.id
+        # Should find at least the fixture dataset with "test" in title
+        assert result.total > 0
+        assert len(result.results) > 0
+        
+        # Verify all results belong to the specified organization
+        for dataset in result.results:
+            assert dataset["organization"]["id"] == org.id
 
 
 class TestOrQuerySearch:
@@ -323,14 +326,16 @@ class TestOrQuerySearch:
         )
 
         result = interface_with_dataset.search_datasets(
-            "health OR climate", sort_by="popularity"
+            "health OR education", sort_by="popularity"
         )
 
         # Should return results sorted by popularity
-        assert result.total >= 0
-        if len(result.results) > 1:
-            # Check that results are sorted by popularity (descending)
-            for i in range(len(result.results) - 1):
-                pop1 = result.results[i].get("popularity") or 0
-                pop2 = result.results[i + 1].get("popularity") or 0
-                assert pop1 >= pop2
+        assert result.total > 0
+        assert len(result.results) > 0
+        
+        # Verify results are sorted by popularity
+        popularities = [
+            dataset.get("popularity") or 0 for dataset in result.results
+        ]
+        # Should be in descending order
+        assert popularities == sorted(popularities, reverse=True)
