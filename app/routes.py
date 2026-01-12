@@ -550,6 +550,12 @@ def organization_detail(slug: str):
 
     slug_or_id = organization.slug or slug
 
+    # reassign organization dataset count from opensearch
+    open_search_org_dataset_counts = interface.get_opensearch_org_dataset_counts(
+        as_dict=True
+    )
+    organization.total_datasets = open_search_org_dataset_counts.get(slug_or_id, 0)
+
     return render_template(
         "organization_detail.html",
         organization=organization,
