@@ -1,0 +1,9 @@
+{% macro render_sort_filter(sort_value) %}
+<div class="margin-bottom-4">
+    <label class="usa-label" for="sort-select">Sort by</label>
+    <select class="usa-select" name="sort" id="sort-select" onchange="this.form.submit()">
+        <option value="relevance" {% if sort_value == 'relevance' %}selected{% endif %}>Relevance</option>
+        <option value="popularity" {% if sort_value == 'popularity' %}selected{% endif %}>Popularity</option>
+    </select>
+</div>
+{% endmacro %}
