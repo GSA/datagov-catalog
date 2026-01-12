@@ -56,14 +56,14 @@
                 {%- endif -%}
                 </p>
                 {% if total >= 10000 %}
-                <div class="advanced-search-tip">
-                    <div class="advanced-search-tip__title">💡 Advanced Search Tip</div>
-                    <p class="advanced-search-tip__text">
-                        Use quotes for exact phrases: <code>"flood zones"</code> |
-                        Use AND/OR for multiple terms: <code>crops AND agriculture</code> |
-                        Search by organization or tag to find related datasets
-                    </p>
-                </div>
+                    <div class="advanced-search-tip">
+                        <div class="advanced-search-tip__title">💡 Search Tips</div>
+                        <p class="advanced-search-tip__text">
+                            <strong>Quotes</strong> find exact phrases: <code>"flood zones"</code> |
+                            <strong>OR</strong> finds either term: <code>crops OR agriculture</code> |
+                            Searches dataset titles, descriptions, tags, and publishers
+                        </p>
+                    </div>
                 {% endif %}
               {% else %}
                 <p class="text-base-dark">
