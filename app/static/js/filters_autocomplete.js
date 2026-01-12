@@ -718,25 +718,35 @@ class OrganizationAutocomplete {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    const keywordAutocomplete = new KeywordAutocomplete({
-        inputId: 'keyword-input',
-        chipsContainerId: 'keyword-chips',
-        suggestionsId: 'keyword-suggestions',
-        formId: 'filter-form',
-        mainSearchFormId: 'main-search-form', // NEW: main search form ID
-        apiEndpoint: '/api/keywords',
-        debounceDelay: 300
-    });
+    const keywordInput = document.getElementById('keyword-input');
+    const keywordChips = document.getElementById('keyword-chips');
+    const keywordSuggestions = document.getElementById('keyword-suggestions');
+    if (keywordInput && keywordChips && keywordSuggestions) {
+        new KeywordAutocomplete({
+            inputId: 'keyword-input',
+            chipsContainerId: 'keyword-chips',
+            suggestionsId: 'keyword-suggestions',
+            formId: 'filter-form',
+            mainSearchFormId: 'main-search-form', // NEW: main search form ID
+            apiEndpoint: '/api/keywords',
+            debounceDelay: 300
+        });
+    }
 
-    const organizationAutocomplete = new OrganizationAutocomplete({
-        inputId: 'organization-input',
-        chipsContainerId: 'organization-chips',
-        suggestionsId: 'organization-suggestions',
-        formId: 'filter-form',
-        mainSearchFormId: 'main-search-form',
-        apiEndpoint: '/api/organizations',
-        debounceDelay: 300,
-        requestSize: 500,
-        suggestedContainerId: 'suggested-organizations'
-    });
+    const organizationInput = document.getElementById('organization-input');
+    const organizationChips = document.getElementById('organization-chips');
+    const organizationSuggestions = document.getElementById('organization-suggestions');
+    if (organizationInput && organizationChips && organizationSuggestions) {
+        new OrganizationAutocomplete({
+            inputId: 'organization-input',
+            chipsContainerId: 'organization-chips',
+            suggestionsId: 'organization-suggestions',
+            formId: 'filter-form',
+            mainSearchFormId: 'main-search-form',
+            apiEndpoint: '/api/organizations',
+            debounceDelay: 300,
+            requestSize: 500,
+            suggestedContainerId: 'suggested-organizations'
+        });
+    }
 });

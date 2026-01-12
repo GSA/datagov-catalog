@@ -246,6 +246,10 @@ class CatalogDBInterface:
         sort_by: str | None = "relevance",
         dataset_search_query: str = "",
         num_results=DEFAULT_PER_PAGE,
+        keywords: list[str] | None = None,
+        spatial_filter: str | None = None,
+        spatial_geometry: dict | None = None,
+        spatial_within: bool = True,
     ) -> SearchResult:
 
         if not organization_id:
@@ -253,9 +257,13 @@ class CatalogDBInterface:
 
         return self.search_datasets(
             dataset_search_query,
+            keywords=keywords or [],
             org_id=organization_id,
             sort_by=sort_by,
             per_page=num_results,
+            spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
         )
 
     def get_top_organizations(self, limit: int = 10) -> list[dict]:

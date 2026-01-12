@@ -1,0 +1,49 @@
+{% macro render_organization_type_filter(org_types) %}
+<div class="usa-accordion usa-accordion--bordered margin-bottom-2">
+    <h3 class="usa-accordion__heading">
+        <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization">
+            Organization Type
+        </button>
+    </h3>
+    <div id="filter-organization" class="usa-accordion__content usa-prose">
+        <fieldset class="usa-fieldset">
+            {% set current_org_types = org_types or [] %}
+            <div class="usa-checkbox">
+                <input class="usa-checkbox__input" id="filter-federal" type="checkbox" name="org_type" value="Federal Government"
+                    {% if 'Federal Government' in current_org_types %}checked{% endif %}>
+                <label class="usa-checkbox__label" for="filter-federal">Federal Government</label>
+            </div>
+            <div class="usa-checkbox">
+                <input class="usa-checkbox__input" id="filter-city" type="checkbox" name="org_type" value="City Government"
+                    {% if 'City Government' in current_org_types %}checked{% endif %}>
+                <label class="usa-checkbox__label" for="filter-city">City Government</label>
+            </div>
+            <div class="usa-checkbox">
+                <input class="usa-checkbox__input" id="filter-state" type="checkbox" name="org_type" value="State Government"
+                    {% if 'State Government' in current_org_types %}checked{% endif %}>
+                <label class="usa-checkbox__label" for="filter-state">State Government</label>
+            </div>
+            <div class="usa-checkbox">
+                <input class="usa-checkbox__input" id="filter-county" type="checkbox" name="org_type" value="County Government"
+                    {% if 'County Government' in current_org_types %}checked{% endif %}>
+                <label class="usa-checkbox__label" for="filter-county">County Government</label>
+            </div>
+            <div class="usa-checkbox">
+                <input class="usa-checkbox__input" id="filter-university" type="checkbox" name="org_type" value="University"
+                    {% if 'University' in current_org_types %}checked{% endif %}>
+                <label class="usa-checkbox__label" for="filter-university">University</label>
+            </div>
+            <div class="usa-checkbox">
+                <input class="usa-checkbox__input" id="filter-tribal" type="checkbox" name="org_type" value="Tribal"
+                    {% if 'Tribal' in current_org_types %}checked{% endif %}>
+                <label class="usa-checkbox__label" for="filter-tribal">Tribal</label>
+            </div>
+            <div class="usa-checkbox">
+                <input class="usa-checkbox__input" id="filter-nonprofit" type="checkbox" name="org_type" value="Non-Profit"
+                    {% if 'Non-Profit' in current_org_types %}checked{% endif %}>
+                <label class="usa-checkbox__label" for="filter-nonprofit">Non-Profit</label>
+            </div>
+        </fieldset>
+    </div>
+</div>
+{% endmacro %}
