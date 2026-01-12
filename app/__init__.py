@@ -37,6 +37,10 @@ def create_app(config_name: str = "local") -> Flask:
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SOCIAL_IMAGE_URL"] = os.getenv(
+        "SOCIAL_IMAGE_URL",
+        "https://s3-us-gov-west-1.amazonaws.com/cg-0817d6e3-93c4-4de8-8b32-da6919464e61/hero-image-bg.png",
+    )
 
     global htmx
     htmx = HTMX(app)
