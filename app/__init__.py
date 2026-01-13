@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask
 from flask_htmx import HTMX
+from flask_talisman import Talisman
 
 from .filters import (
     fa_icon_from_extension,
@@ -64,6 +65,13 @@ def create_app(config_name: str = "local") -> Flask:
     app.add_template_filter(is_geometry_mapping)
     app.add_template_filter(geometry_to_mapping)
     app.add_template_filter(remove_html_tags)
+
+    # Content-Security-Policy headers
+    # single quotes need to appear in some of the strings
+    csp = {
+        "default-src": "'self'"
+    }
+    Talisman(app, content_security_policy=csp)
 
     return app
 
