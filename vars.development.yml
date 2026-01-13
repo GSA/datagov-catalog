@@ -1,7 +1,12 @@
 ---
-routes:
-  - route: datagov-catalog-dev.app.cloud.gov
+app_name: datagov-catalog
 site_url: https://datagov-catalog-dev.app.cloud.gov
 new_relic_app_name: datagov-catalog-dev
 new_relic_monitor_mode: false
 instances: 1
+
+proxy_instances: 1
+basic_auth_enabled: on # nginx terminology 'on' 'off'. cf will interpret these as 'true' 'false'
+route_public: datagov-catalog-dev.app.cloud.gov
+route_external: datagov-catalog-dev.app.cloud.gov
+route_internal: datagov-catalog-dev.apps.internal
