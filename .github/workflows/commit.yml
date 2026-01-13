@@ -82,3 +82,5 @@ jobs:
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
           smoke-url: https://datagov-catalog-dev.app.cloud.gov/
           smoke-path: /
+          basic_auth_user: ${{ secrets.BASIC_AUTH_USER }}
+          basic_auth_password: ${{ secrets.BASIC_AUTH_PASSWORD }}

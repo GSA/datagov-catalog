@@ -5,7 +5,7 @@ on:
       - main
 
 permissions:
-    contents: read
+  contents: read
 
 env:
   PY_VERSION: "3.12"
@@ -36,6 +36,8 @@ jobs:
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
           smoke-url: https://datagov-catalog-staging.app.cloud.gov/
           smoke-path: /
+          basic_auth_user: ${{ secrets.BASIC_AUTH_USER }}
+          basic_auth_password: ${{ secrets.BASIC_AUTH_PASSWORD }}
 
   deploy-prod:
     name: deploy to prod space
@@ -55,3 +57,4 @@ jobs:
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
           smoke-url: https://catalog-beta.data.gov/
           smoke-path: /
+          # basic auth on prod is turned off
