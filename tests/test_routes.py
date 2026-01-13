@@ -299,7 +299,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text.startswith("Datasets:")
+    assert datasets_text == "Datasets: 54"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -323,6 +323,20 @@ def test_organization_list_search_by_alias(db_client, interface_with_dataset):
 
     # one org still appears
     assert len(cards) == 1
+
+
+def test_organization_detail_displays_dataset_count(db_client, interface_with_dataset):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    overview_elem = soup.find("ul", class_="usa-summary-box__list")
+    overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
+
+    assert overview_items[1].text.strip() == "Total datasets: 54"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):

@@ -827,7 +827,7 @@ class OpenSearchInterface:
             for bucket in buckets
         ]
 
-    def get_organization_counts(self, size=100, min_doc_count=1) -> list[dict]:
+    def get_organization_counts(self, size=100, min_doc_count=1, as_dict=False) -> list[dict]:
         """Aggregate datasets by organization slug to get counts."""
         agg_body = {
             "size": 0,
@@ -856,6 +856,12 @@ class OpenSearchInterface:
             .get("buckets", [])
         )
 
+        if as_dict:
+            output = {}
+            for bucket in buckets:
+                output[bucket["key"]] = bucket["doc_count"]
+            return output
+        
         return [
             {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]

@@ -200,16 +200,12 @@ class CatalogDBInterface:
         )
         total_pages = max(((total + per_page - 1) // per_page), 1)
 
-        dataset_counts: dict[str, int] = {}
-        organization_ids = [item.id for item in items]
-        if organization_ids:
-            counts = (
-                self.db.query(Dataset.organization_id, func.count(Dataset.id))
-                .filter(Dataset.organization_id.in_(organization_ids))
-                .group_by(Dataset.organization_id)
-                .all()
-            )
-            dataset_counts = {org_id: count for org_id, count in counts}
+        open_search_dataset_counts = self.get_opensearch_org_dataset_counts(
+            as_dict=True
+        )
+
+        for item in items:
+            item.dataset_count = open_search_dataset_counts.get(item.slug, 0)
 
         return {
             "page": page,
@@ -219,7 +215,6 @@ class CatalogDBInterface:
             "organizations": [
                 {
                     **self.to_dict(item),
-                    "dataset_count": dataset_counts.get(item.id, 0),
                 }
                 for item in items
             ],
@@ -251,7 +246,6 @@ class CatalogDBInterface:
         spatial_geometry: dict | None = None,
         spatial_within: bool = True,
     ) -> SearchResult:
-
         if not organization_id:
             return SearchResult.empty()
 
@@ -265,6 +259,17 @@ class CatalogDBInterface:
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
         )
+
+    def get_opensearch_org_dataset_counts(self, as_dict=False):
+        """
+        get all organization dataset counts. used in /organization
+        """
+        # we already ignore empty orgs
+        base_query = self._organization_query(ignore_empty_orgs=True)
+        total = base_query.count()
+
+        # ensure the requested size is always slightly bigger than what we have
+        return self.opensearch.get_organization_counts(size=total + 1, as_dict=as_dict)
 
     def get_top_organizations(self, limit: int = 10) -> list[dict]:
         """Return organizations ordered by dataset count, using OpenSearch counts."""
@@ -284,9 +289,7 @@ class CatalogDBInterface:
             return self._get_top_organizations_from_db(limit)
 
         organizations = (
-            self.db.query(Organization)
-            .filter(Organization.slug.in_(slugs))
-            .all()
+            self.db.query(Organization).filter(Organization.slug.in_(slugs)).all()
         )
         org_by_slug = {org.slug: org for org in organizations}
 
@@ -354,7 +357,13 @@ class CatalogDBInterface:
         if obj is None:
             return None
 
-        return obj.to_dict()
+        data_dict = obj.to_dict()
+
+        # check for any additional temporary attributes
+        if getattr(obj, "dataset_count"):
+            data_dict["dataset_count"] = obj.dataset_count
+
+        return data_dict
 
     def search_harvest_records(
         self,
@@ -418,7 +427,6 @@ class CatalogDBInterface:
         Get dataset by its guid. If the ID is not found, return None.
         """
         return self.db.query(Dataset).filter_by(id=dataset_id).first()
-
 
     def count_all_datasets_in_search(self) -> int:
         """
