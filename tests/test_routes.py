@@ -115,7 +115,9 @@ def test_search_api_by_org_slug(interface_with_dataset, db_client):
 
 def test_index_page_filters_by_org_slug(db_client):
     mock_interface = Mock()
-    mock_org = type("Org", (), {"id": "org-1", "slug": "test-org", "name": "Test Org"})()
+    mock_org = type(
+        "Org", (), {"id": "org-1", "slug": "test-org", "name": "Test Org"}
+    )()
     mock_interface.search_datasets.return_value = SearchResult(
         total=0, results=[], search_after=None
     )
@@ -403,7 +405,7 @@ def test_index_page_renders(db_client):
     # Check page title
     assert "Catalog - Data.gov" in soup.title.string
 
-    assert soup.find(text="Search Data.gov") is None
+    assert "Search Data.gov" in soup.find(id="search-query").attrs.get("placeholder")
 
     # Check search form exists with expected attributes
     main_search_input = soup.find("input", {"id": "search-query", "name": "q"})
@@ -1266,6 +1268,7 @@ def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_clien
     # Verify both org types are present
     assert set(params.get("org_type", [])) == {"Federal Government", "State Government"}
 
+
 def test_index_search_message_with_query_only(interface_with_dataset, db_client):
     """Test that search message displays query only when no filters are applied."""
     with patch("app.routes.interface", interface_with_dataset):
@@ -1287,6 +1290,7 @@ def test_index_search_message_with_query_and_filters(interface_with_dataset, db_
     """Test that search message displays both query and filters when both are present."""
     # Add dataset with keywords for filtering
     from app.models import Dataset
+
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
     dataset_dict["id"] = "keyword-test"
     dataset_dict["slug"] = "keyword-test"
@@ -1319,6 +1323,7 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
     """Test that search message displays filters only when no query is present."""
     # Add dataset with keywords for filtering
     from app.models import Dataset
+
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
     dataset_dict["id"] = "filter-only-test"
     dataset_dict["slug"] = "filter-only-test"
