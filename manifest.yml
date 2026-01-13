@@ -13,7 +13,6 @@ applications:
     routes:
       - route: ((route_external))
     env:
-      PUBLIC_ROUTE: ((route_public))
       EXTERNAL_ROUTE: ((route_external))
       INTERNAL_ROUTE: ((route_internal))
       BASIC_AUTH_ENABLED: ((basic_auth_enabled))
