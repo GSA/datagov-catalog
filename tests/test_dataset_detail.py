@@ -33,8 +33,8 @@ class TestDatasetDetail:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.text, "html.parser")
-        # curently the title of the dataset is in the <title> tag
-        assert soup.title.string == "test - Data.gov"
+        # the title includes the publishing organization
+        assert soup.title.string == "test org - test"
         # assert the title in the h1 section is the same as the title
         h1 = soup.select_one("main#content h1.dataset-title").text
         assert h1 == "test"
@@ -69,6 +69,59 @@ class TestDatasetDetail:
         search_input = search_form.find("input", {"name": "q"})
         assert search_input is not None
 
+    def test_dataset_detail_includes_meta_tags(self, interface_with_dataset, db_client):
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        canonical_link = soup.select_one('link[rel="canonical"]')
+        assert canonical_link is not None
+        assert canonical_link.get("href").endswith("/dataset/test")
+
+        description_meta = soup.select_one('meta[name="description"]')
+        assert description_meta is not None
+        assert description_meta.get("content") == "this is the test description"
+
+        robots_meta = soup.select_one('meta[name="robots"]')
+        assert robots_meta is not None
+        assert robots_meta.get("content") == "index,follow"
+
+        og_title = soup.select_one('meta[property="og:title"]')
+        assert og_title is not None
+        assert og_title.get("content") == "test org - test"
+
+        og_description = soup.select_one('meta[property="og:description"]')
+        assert og_description is not None
+        assert og_description.get("content") == "this is the test description"
+
+        og_url = soup.select_one('meta[property="og:url"]')
+        assert og_url is not None
+        assert og_url.get("content").endswith("/dataset/test")
+
+        social_image_url = db_client.application.config["SOCIAL_IMAGE_URL"]
+
+        og_image = soup.select_one('meta[property="og:image"]')
+        assert og_image is not None
+        assert og_image.get("content") == social_image_url
+
+        twitter_card = soup.select_one('meta[name="twitter:card"]')
+        assert twitter_card is not None
+        assert twitter_card.get("content") == "summary_large_image"
+
+        twitter_title = soup.select_one('meta[name="twitter:title"]')
+        assert twitter_title is not None
+        assert twitter_title.get("content") == "test org - test"
+
+        twitter_description = soup.select_one('meta[name="twitter:description"]')
+        assert twitter_description is not None
+        assert twitter_description.get("content") == "this is the test description"
+
+        twitter_image = soup.select_one('meta[name="twitter:image"]')
+        assert twitter_image is not None
+        assert twitter_image.get("content") == social_image_url
+
     def test_dataset_detail_by_id(self, interface_with_dataset, db_client):
         """
         Similar to test_dataset_detail_by_slug, but uses the dataset ID. This helps
@@ -82,8 +135,8 @@ class TestDatasetDetail:
         assert response.status_code == 200
 
         soup = BeautifulSoup(response.text, "html.parser")
-        # curently the title of the dataset is in the <title> tag
-        assert soup.title.string == "test - Data.gov"
+        # the title includes the publishing organization
+        assert soup.title.string == "test org - test"
         # assert the title in the h1 section is the same as the title
         h1 = soup.select_one("main#content h1.dataset-title").text
         assert h1 == "test"

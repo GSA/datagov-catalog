@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}{{ dataset.dcat.get('title') or dataset.slug or dataset.id }} - Data.gov{% endblock %}
+{% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
+{% set dataset_identifier = dataset.slug or dataset.id %}
+{% set organization_title = organization.name %}
+{% set page_title = organization_title ~ ' - ' ~ dataset_title %}
+
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block container_class %}grid-container-widescreen{% endblock %}
 
@@ -30,12 +35,29 @@ dataLayer.push({
 </script>
 {% endblock %}
 
-{% block script_head %}
+{% block head_extra %}
+{% set description_value = dataset.dcat.get('description') %}
+{% set cleaned_description = description_value | remove_html_tags | striptags | replace('\n', ' ') | trim %}
+{% set meta_description = cleaned_description | truncate(200, True, '...') %}
+{% set canonical_url = url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier, _external=True) %}
+{% set social_image = config.get('SOCIAL_IMAGE_URL') %}
+<link rel="canonical" href="{{ canonical_url }}">
+<meta name="description" content="{{ meta_description }}">
+<meta name="robots" content="index,follow">
+<meta property="og:site_name" content="Data.gov">
+<meta property="og:type" content="article">
+<meta property="og:url" content="{{ canonical_url }}">
+<meta property="og:title" content="{{ page_title }}">
+<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:image" content="{{ social_image }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="{{ canonical_url }}">
+<meta name="twitter:title" content="{{ page_title }}">
+<meta name="twitter:description" content="{{ meta_description }}">
+<meta name="twitter:image" content="{{ social_image }}">
 {% endblock %}
 
 {% block main_content %}
-{% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
-{% set dataset_identifier = dataset.slug or dataset.id %}
 {% set distributions = dataset.dcat.get('distribution') %}
 {% set description_value = dataset.dcat.get('description') %}
 
@@ -100,7 +122,7 @@ dataLayer.push({
                 <!-- Complete Metadata -->
                 <section class="margin-top-4">
                     <h2 class="text-primary-darker margin-bottom-2">Complete Metadata</h2>
-                    
+
                     <table class="metadata-table">
                         <tbody>
                             {% set excluded_keys = ['title', 'description', 'distribution', 'keyword', '@type', 'publisher', 'modified', 'contactPoint', 'license', 'accessLevel', 'accrualPeriodicity'] %}
@@ -129,18 +151,18 @@ dataLayer.push({
                 {% if distributions %}
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Resources</h3>
-                    
+
                     {% set resource_items = distributions %}
                     {% if resource_items is mapping or resource_items is string %}
                         {% set resource_items = [resource_items] %}
                     {% elif resource_items is not sequence %}
                         {% set resource_items = [resource_items] %}
                     {% endif %}
-                    
+
                     <p style="font-size: 0.9375rem; margin-bottom: 0.5rem; color: #71767a;">
                         {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
                     </p>
-                    
+
                     <details class="resources-dropdown" open>
                         <summary>View all resources</summary>
                         <ul class="resources-list">
@@ -148,7 +170,7 @@ dataLayer.push({
                             {% set resource_url = None %}
                             {% set resource_title = resource|format_dcat_value %}
                             {% set resource_format = None %}
-                            
+
                             {% if resource is mapping %}
                                 {% set download_url = resource.get('downloadURL') %}
                                 {% set access_url = resource.get('accessURL') %}
@@ -156,7 +178,7 @@ dataLayer.push({
                                 {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~ loop.index %}
                                 {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper %}
                             {% endif %}
-                            
+
                             <li class="resources-list__item">
                                 {% if resource_url %}
                                 <a href="{{ resource_url }}" target="_blank" rel="noopener" class="resources-list__link">
@@ -191,34 +213,34 @@ dataLayer.push({
                 <!-- Access and Use Information -->
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Access & Use</h3>
-                    
+
                     {% if dataset.dcat.get('license') %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">License</div>
                         <div class="sidebar-section__value">{{ dataset.dcat.license }}</div>
                     </div>
                     {% endif %}
-                    
+
                     {% if dataset.dcat.get('accessLevel') %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Access Level</div>
                         <div class="sidebar-section__value">{{ dataset.dcat.accessLevel }}</div>
                     </div>
-                    {% endif %}                    
+                    {% endif %}
                 </div>
 
                 <!-- Contact Information -->
                 {% if dataset.dcat.get('contactPoint') %}
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Contact</h3>
-                    
+
                     {% if dataset.dcat.contactPoint.get('fn') %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Name</div>
                         <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
                     </div>
                     {% endif %}
-                    
+
                     {% if dataset.dcat.contactPoint.get('hasEmail') %}
                     {% set email = dataset.dcat.contactPoint.get('hasEmail') | format_contact_point_email%}
                     <div class="sidebar-section__item">
@@ -236,7 +258,7 @@ dataLayer.push({
                 <!-- Dataset Information -->
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Dataset Information</h3>
-                    
+
                     {% if dataset.last_harvested_date %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Metadata Last Checked</div>
@@ -245,7 +267,7 @@ dataLayer.push({
                         </div>
                     </div>
                     {% endif %}
-                    
+
                     {% if dataset.harvest_record_id %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Harvest Record</div>
