@@ -419,7 +419,7 @@ def test_index_page_renders(db_client):
     # Check page title
     assert "Catalog - Data.gov" in soup.title.string
 
-    assert soup.find(text="Search Data.gov") is None
+    assert "Search Data.gov" in soup.find(id="search-query").attrs.get("placeholder")
 
     # Check search form exists with expected attributes
     main_search_input = soup.find("input", {"id": "search-query", "name": "q"})

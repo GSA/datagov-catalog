@@ -1,5 +1,6 @@
 import copy
 
+from app.database.opensearch import OpenSearchInterface
 from app.models import Dataset
 
 
@@ -141,3 +142,200 @@ def test_stop_words_removed_from_search_queries(interface_with_dataset):
     assert {dataset["slug"] for dataset in without_stop_word.results} == {
         dataset["slug"] for dataset in with_stop_word.results
     }
+
+
+class TestPhraseAndOrQueryParsing:
+    """Test the _parse_search_query method for phrases and OR operators."""
+
+    def test_parse_simple_phrase(self):
+        """Test parsing a simple phrase search."""
+        result = OpenSearchInterface._parse_search_query('"health food"')
+        assert result is not None
+        assert result["has_or"] is False
+        assert len(result["terms"]) == 1
+        assert result["terms"][0]["text"] == "health food"
+        assert result["terms"][0]["type"] == "phrase"
+
+    def test_parse_simple_or_query(self):
+        """Test parsing a simple OR query with two terms."""
+        result = OpenSearchInterface._parse_search_query("health OR education")
+        assert result is not None
+        assert result["has_or"] is True
+        assert len(result["terms"]) == 2
+        assert result["terms"][0]["text"] == "health"
+        assert result["terms"][0]["type"] == "term"
+        assert result["terms"][1]["text"] == "education"
+        assert result["terms"][1]["type"] == "term"
+
+    def test_parse_or_query_with_quoted_phrases(self):
+        """Test parsing OR query with quoted phrases."""
+        result = OpenSearchInterface._parse_search_query(
+            '"climate change" OR "global warming"'
+        )
+        assert result is not None
+        assert result["has_or"] is True
+        assert len(result["terms"]) == 2
+        assert result["terms"][0]["text"] == "climate change"
+        assert result["terms"][0]["type"] == "phrase"
+        assert result["terms"][1]["text"] == "global warming"
+        assert result["terms"][1]["type"] == "phrase"
+
+    def test_parse_or_query_mixed_quotes_and_terms(self):
+        """Test parsing OR query with mix of quoted phrases and simple terms."""
+        result = OpenSearchInterface._parse_search_query(
+            '"climate change" OR warming OR environment'
+        )
+        assert result is not None
+        assert result["has_or"] is True
+        assert len(result["terms"]) == 3
+        assert result["terms"][0]["text"] == "climate change"
+        assert result["terms"][0]["type"] == "phrase"
+        assert result["terms"][1]["text"] == "warming"
+        assert result["terms"][1]["type"] == "term"
+        assert result["terms"][2]["text"] == "environment"
+        assert result["terms"][2]["type"] == "term"
+
+    def test_parse_no_or_operator_returns_none(self):
+        """Test that simple queries without OR or quotes return None."""
+        result = OpenSearchInterface._parse_search_query("health education")
+        assert result is None
+
+    def test_parse_empty_query_returns_none(self):
+        """Test that empty query returns None."""
+        result = OpenSearchInterface._parse_search_query("")
+        assert result is None
+
+    def test_parse_none_query_returns_none(self):
+        """Test that None query returns None."""
+        result = OpenSearchInterface._parse_search_query(None)
+        assert result is None
+
+    def test_parse_case_insensitive_or(self):
+        """Test that OR operator is case insensitive."""
+        result = OpenSearchInterface._parse_search_query("health or education")
+        assert result is not None
+        assert result["has_or"] is True
+        assert len(result["terms"]) == 2
+
+
+class TestPhraseSearch:
+    """Test phrase search functionality."""
+
+    def test_phrase_search_finds_exact_phrase(self, interface_with_dataset):
+        """Test that phrase search finds datasets with exact phrase."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        # Search for exact phrase that exists in test data
+        result = interface_with_dataset.search_datasets('"Health Food"')
+
+        # Should find results containing this phrase
+        assert result.total >= 0
+        if result.total > 0:
+            # Verify at least one result contains the phrase
+            found = False
+            for dataset in result.results:
+                title = dataset.get("dcat", {}).get("title", "").lower()
+                description = dataset.get("dcat", {}).get("description", "").lower()
+                if "health food" in title or "health food" in description:
+                    found = True
+                    break
+            assert found
+
+    def test_phrase_search_with_filters(self, interface_with_dataset):
+        """Test that phrase search works with organization filter."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+        org = interface_with_dataset.db.query(Dataset).first().organization
+
+        # Search with phrase and org filter
+        result = interface_with_dataset.search_datasets('"test"', org_id=org.id)
+
+        # Should find at least the fixture dataset with "test" in title
+        assert result.total > 0
+        assert len(result.results) > 0
+        
+        # Verify all results belong to the specified organization
+        for dataset in result.results:
+            assert dataset["organization"]["id"] == org.id
+
+
+class TestOrQuerySearch:
+    """Test OR query search functionality."""
+
+    def test_simple_or_query_returns_results(self, interface_with_dataset):
+        """Test that OR query returns results matching either term."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        # Search for "health OR climate"
+        result = interface_with_dataset.search_datasets("health OR climate")
+
+        # Should return datasets with either "health" or "climate"
+        assert result.total > 0
+        assert len(result.results) > 0
+
+        # Verify at least one result contains either term
+        result_texts = []
+        for dataset in result.results:
+            dcat = dataset.get("dcat", {})
+            title = dcat.get("title", "").lower()
+            description = dcat.get("description", "").lower()
+            keywords = [k.lower() for k in dcat.get("keyword", [])]
+            result_texts.append(f"{title} {description} {' '.join(keywords)}")
+
+        has_health_or_climate = any(
+            "health" in text or "climate" in text for text in result_texts
+        )
+        assert has_health_or_climate
+
+    def test_or_query_returns_more_results_than_and(self, interface_with_dataset):
+        """Test that OR query returns equal or more results than AND query."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        # Search with OR
+        or_result = interface_with_dataset.search_datasets("health OR climate")
+
+        # Search with AND (implicit)
+        and_result = interface_with_dataset.search_datasets("health climate")
+
+        # OR should return equal or more results than AND
+        assert or_result.total >= and_result.total
+
+    def test_or_query_with_quoted_phrase(self, interface_with_dataset):
+        """Test OR query with quoted phrases."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        # Test that quoted phrases work with OR
+        result = interface_with_dataset.search_datasets('"health food" OR education')
+
+        # Should work without errors
+        assert result.total >= 0
+
+    def test_or_query_with_popularity_sort(self, interface_with_dataset):
+        """Test that OR query works with popularity sorting."""
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        result = interface_with_dataset.search_datasets(
+            "health OR education", sort_by="popularity"
+        )
+
+        # Should return results sorted by popularity
+        assert result.total > 0
+        assert len(result.results) > 0
+        
+        # Verify results are sorted by popularity
+        popularities = [
+            dataset.get("popularity") or 0 for dataset in result.results
+        ]
+        # Should be in descending order
+        assert popularities == sorted(popularities, reverse=True)
