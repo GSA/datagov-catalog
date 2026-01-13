@@ -1367,3 +1367,52 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
     # Should NOT contain quotes or "and"
     assert '"' not in text
     assert " and " not in text
+
+def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client):
+    """Test that the advanced search tip appears when total results >= 10000."""
+    mock_dataset = {
+        "id": "mock-id",
+        "slug": "mock-slug",
+        "dcat": {
+            "title": "Mock Dataset",
+            "description": "Mock description",
+            "distribution": [],
+        },
+        "organization": {
+            "id": "org-id",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+        },
+        "popularity": 42,
+    }
+
+    # Mock interface to return 10000+ results
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=10000,  # Exactly at threshold
+        results=[mock_dataset] * 20,  # Return some sample results
+        search_after=None,
+    )
+    mock_interface.get_top_organizations.return_value = []
+    mock_interface.total_datasets.return_value = 10000
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/?q=climate")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Check that the advanced search tip div exists
+    tip_div = soup.find("div", class_="advanced-search-tip")
+    assert tip_div is not None
+
+    # Check for the tip title
+    tip_title = tip_div.find("div", class_="advanced-search-tip__title")
+    assert tip_title is not None
+    assert "Search Tips" in tip_title.get_text()
+
+    # Check for the tip text content
+    tip_text = tip_div.find("p", class_="advanced-search-tip__text")
+    assert tip_text is not None
