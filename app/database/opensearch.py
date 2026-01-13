@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -483,6 +484,7 @@ class OpenSearchInterface:
                                 "caused_by": index_error.get("caused_by"),
                             }
                         )
+                    errors.append(item)
             return succeeded_local, failed_local, errors
 
         succeeded, failed, errors = self._run_with_timeout_retry(
@@ -515,6 +517,130 @@ class OpenSearchInterface:
             {"_id": {"order": "desc"}},
         ]
 
+    @staticmethod
+    def _parse_search_query(query: str) -> dict | None:
+        """
+        Parse a query string to identify phrases (quoted text) and OR operators.
+
+        Returns:
+            Dict with:
+            - 'has_or': bool indicating if OR operators are present
+            - 'terms': list of dicts with 'text' and 'type' ('phrase' or 'term')
+            Returns None if query is a simple term search (no quotes, no OR)
+
+        Examples:
+            '"poor food"' -> {'has_or': False, 'terms': [{'text': 'poor food', 'type': 'phrase'}]}
+            'food OR health' -> {'has_or': True, 'terms': [{'text': 'food', 'type': 'term'}, {'text': 'health', 'type': 'term'}]}
+            '"poor food" OR health' -> {'has_or': True, 'terms': [{'text': 'poor food', 'type': 'phrase'}, {'text': 'health', 'type': 'term'}]}
+            '"poor food" OR "electric vehicle"' -> {'has_or': True, 'terms': [{'text': 'poor food', 'type': 'phrase'}, {'text': 'electric vehicle', 'type': 'phrase'}]}
+            'simple search' -> None (regular multi_match query)
+        """
+        if not query or not isinstance(query, str):
+            return None
+
+        query = query.strip()
+        if not query:
+            return None
+
+        # Check if query contains OR (case insensitive)
+        has_or = bool(re.search(r"\s+OR\s+", query, re.IGNORECASE))
+
+        # Check if query has any quoted phrases
+        has_quotes = '"' in query
+
+        # If no OR and no quotes, return None for regular search
+        if not has_or and not has_quotes:
+            return None
+
+        # Pattern to match: quoted strings, OR keyword, or non-whitespace/non-quote sequences
+        pattern = r'"([^"]+)"|(\bOR\b)|(\S+)'
+        matches = re.finditer(pattern, query, re.IGNORECASE)
+
+        terms = []
+        for match in matches:
+            if match.group(1):  # Quoted phrase
+                phrase_text = match.group(1).strip()
+                if phrase_text:
+                    terms.append({"text": phrase_text, "type": "phrase"})
+            elif match.group(2):  # OR keyword - skip
+                continue
+            elif match.group(3):  # Regular term
+                term = match.group(3).strip()
+                if term.upper() != "OR":
+                    terms.append({"text": term, "type": "term"})
+
+        if not terms:
+            return None
+
+        return {"has_or": has_or, "terms": terms}
+
+    def _build_multi_match_query(self, query_text: str) -> dict:
+        """
+        Build a multi_match query for a single term or phrase (no quotes).
+        """
+        return {
+            "multi_match": {
+                "query": query_text,
+                "type": "most_fields",
+                "fields": [
+                    "title^5",
+                    "description^3",
+                    "publisher^3",
+                    "keyword^2",
+                    "theme",
+                    "identifier",
+                ],
+                "operator": "AND",
+                "zero_terms_query": "all",
+            }
+        }
+
+    def _build_phrase_query(self, phrase_text: str) -> dict:
+        """
+        Build a bool query with match_phrase across multiple fields for exact phrase matching.
+
+        Args:
+            phrase_text: The phrase to search for (without quotes)
+
+        Returns:
+            OpenSearch bool query with match_phrase for each field
+        """
+        return {
+            "bool": {
+                "should": [
+                    {"match_phrase": {"title": {"query": phrase_text, "boost": 5}}},
+                    {
+                        "match_phrase": {
+                            "description": {"query": phrase_text, "boost": 3}
+                        }
+                    },
+                    {"match_phrase": {"publisher": {"query": phrase_text, "boost": 3}}},
+                    {"match_phrase": {"keyword": {"query": phrase_text, "boost": 2}}},
+                    {"match_phrase": {"theme": {"query": phrase_text}}},
+                    {"match_phrase": {"identifier": {"query": phrase_text}}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+
+    def _build_query_for_parsed_term(self, term_dict: dict) -> dict:
+        """
+        Build an appropriate OpenSearch query for a parsed term or phrase.
+
+        Args:
+            term_dict: Dictionary with 'text' and 'type' keys
+
+        Returns:
+            OpenSearch query dict
+        """
+        text = term_dict["text"]
+        term_type = term_dict["type"]
+
+        if term_type == "phrase":
+            return self._build_phrase_query(text)
+        else:
+            return self._build_multi_match_query(text)
+
     def search(
         self,
         query,
@@ -533,6 +659,11 @@ class OpenSearchInterface:
         We use OpenSearch's multi-match to match our single query string
         against many fields. We use the "boost" numbers to score some fields
         higher than others.
+
+        Supports:
+        - Phrase search with quotes: "poor food" matches exact phrase
+        - OR operator: food OR health
+        - Combined: "poor food" OR health or "poor food" OR "electric vehicle"
 
         If the org_id argument is given then we only return search results
         that are in that organization.
@@ -556,24 +687,37 @@ class OpenSearchInterface:
         value of the last `_sort` field from a previous search result with the
         same query.
         """
-        if query and query.strip():
-            base_query: dict[str, Any] = {
-                "multi_match": {
-                    "query": query,
-                    "type": "most_fields",
-                    "fields": [
-                        "title^5",
-                        "description^3",
-                        "publisher^3",
-                        "keyword^2",
-                        "theme",
-                        "identifier",
-                    ],
-                    "operator": "AND",
-                    "zero_terms_query": "all",
+        # Parse query for phrases and OR operators
+        parsed_query = self._parse_search_query(query) if query else None
+
+        if parsed_query:
+            # Build query based on parsed terms
+            if parsed_query["has_or"]:
+                # Build a bool query with should clauses (OR logic)
+                base_query: dict[str, Any] = {
+                    "bool": {
+                        "should": [
+                            self._build_query_for_parsed_term(term)
+                            for term in parsed_query["terms"]
+                        ],
+                        "minimum_should_match": 1,
+                    }
                 }
-            }
+            else:
+                # Single phrase query without OR
+                # Should only have one term since has_or is False
+                if len(parsed_query["terms"]) == 1:
+                    base_query = self._build_query_for_parsed_term(
+                        parsed_query["terms"][0]
+                    )
+                else:
+                    # Shouldn't happen, but fall back to match_all
+                    base_query = {"match_all": {}}
+        elif query and query.strip():
+            # Standard AND query (no phrases, no OR)
+            base_query: dict[str, Any] = self._build_multi_match_query(query)
         else:
+            # No query, match all
             base_query = {"match_all": {}}
 
         search_body = {
@@ -650,9 +794,9 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
-        print("QUERY:", search_body)
+        # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        print("OPENSEARCH:", result_dict)
+        # print("OPENSEARCH:", result_dict)
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
@@ -683,7 +827,7 @@ class OpenSearchInterface:
             for bucket in buckets
         ]
 
-    def get_organization_counts(self, size=100, min_doc_count=1) -> list[dict]:
+    def get_organization_counts(self, size=100, min_doc_count=1, as_dict=False) -> list[dict]:
         """Aggregate datasets by organization slug to get counts."""
         agg_body = {
             "size": 0,
@@ -712,9 +856,14 @@ class OpenSearchInterface:
             .get("buckets", [])
         )
 
+        if as_dict:
+            output = {}
+            for bucket in buckets:
+                output[bucket["key"]] = bucket["doc_count"]
+            return output
+        
         return [
-            {"slug": bucket["key"], "count": bucket["doc_count"]}
-            for bucket in buckets
+            {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]
 
     def count_all_datasets(self) -> int:

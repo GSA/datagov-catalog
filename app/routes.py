@@ -503,19 +503,58 @@ def organization_detail(slug: str):
 
     dataset_search_query = request.args.get("q", default="", type=str).strip()
     num_results = request.args.get("results", default=DEFAULT_PER_PAGE, type=int)
+    keywords = request.args.getlist("keyword")
+    spatial_filter = request.args.get("spatial_filter", None, type=str)
+    spatial_geometry = request.args.get("spatial_geometry", type=str)
+    spatial_within = request.args.get("spatial_within", True, type=bool)
     sort_by = request.args.get("sort", default="relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
+
+    if spatial_geometry is not None:
+        try:
+            spatial_geometry = json.loads(unquote(spatial_geometry))
+        except json.JSONDecodeError:
+            return (
+                jsonify(
+                    {
+                        "error": "Search failed",
+                        "message": "spatial_geometry parameter is malformed",
+                    }
+                ),
+                400,
+            )
+
+    suggested_keywords: list[str] = []
+    if not keywords:
+        try:
+            suggested_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
+            if suggested_keywords:
+                suggested_keywords = [
+                    keyword["keyword"] for keyword in suggested_keywords
+                ]
+        except Exception:
+            logger.exception("Failed to fetch suggested keywords")
 
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
         dataset_search_query=dataset_search_query,
         sort_by=sort_by,
         num_results=num_results,
+        keywords=keywords,
+        spatial_filter=spatial_filter,
+        spatial_geometry=spatial_geometry,
+        spatial_within=spatial_within,
     )
     after = dataset_result.search_after_obscured()
 
     slug_or_id = organization.slug or slug
+
+    # reassign organization dataset count from opensearch
+    open_search_org_dataset_counts = interface.get_opensearch_org_dataset_counts(
+        as_dict=True
+    )
+    organization.total_datasets = open_search_org_dataset_counts.get(slug_or_id, 0)
 
     return render_template(
         "organization_detail.html",
@@ -528,6 +567,9 @@ def organization_detail(slug: str):
         organization_slug_or_id=slug_or_id,
         selected_sort=sort_by,
         dataset_search_query=dataset_search_query,
+        keywords=keywords,
+        spatial_filter=spatial_filter,
+        suggested_keywords=suggested_keywords,
     )
 
 
