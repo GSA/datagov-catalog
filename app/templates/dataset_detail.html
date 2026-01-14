@@ -10,7 +10,7 @@
 {% block container_class %}grid-container-widescreen{% endblock %}
 
 {% block datalayer %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 window.dataLayer = window.dataLayer || [];
 
 // determine whether the user-agent is a bot
@@ -159,7 +159,7 @@ dataLayer.push({
                         {% set resource_items = [resource_items] %}
                     {% endif %}
 
-                    <p style="font-size: 0.9375rem; margin-bottom: 0.5rem; color: #71767a;">
+                    <p class="resources-label">
                         {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
                     </p>
 
@@ -295,7 +295,7 @@ dataLayer.push({
                 <!-- Feedback -->
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Provide Feedback</h3>
-                    <p style="font-size: 0.9375rem; margin-bottom: 1rem;">
+                    <p class="dataset-feedback">
                         Have questions or suggestions about this dataset?
                     </p>
                     <button
