@@ -1036,7 +1036,7 @@ class TestKeywordSearch:
         soup = BeautifulSoup(response.text, "html.parser")
 
         # Check for no results message
-        no_results_alert = soup.find("p", class_="usa-alert__text")
+        no_results_alert = soup.find(id="no-datasets-alert")
         assert no_results_alert is not None
         assert "No datasets found" in no_results_alert.text
 
