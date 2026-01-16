@@ -31,7 +31,6 @@ def app():
 
     Used by default and one for the whole test session"""
     app = create_app()
-    app.debug = True
     yield app
 
 

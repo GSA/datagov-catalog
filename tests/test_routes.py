@@ -281,6 +281,13 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert response.status_code == 200
 
     soup = BeautifulSoup(response.text, "html.parser")
+
+    # check metadata description
+    meta_desc = soup.find("meta", attrs={"name": "description"})
+    assert (
+        meta_desc.attrs.get("content") == "The Home of the U.S. Government's Open Data"
+    )
+
     cards = soup.select(".organization-list .usa-card")
 
     # "test org filtered" is removed because it has no datasets
@@ -323,6 +330,18 @@ def test_organization_list_search_by_alias(db_client, interface_with_dataset):
 
     # one org still appears
     assert len(cards) == 1
+
+
+def test_organization_detail_meta(db_client, interface_with_dataset):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    meta_desc = soup.find("meta", attrs={"name": "description"})
+    assert meta_desc.attrs.get("content") == "test org"
 
 
 def test_organization_detail_displays_dataset_count(db_client, interface_with_dataset):
@@ -420,6 +439,11 @@ def test_index_page_renders(db_client):
     assert "Catalog - Data.gov" in soup.title.string
 
     assert "Search Data.gov" in soup.find(id="search-query").attrs.get("placeholder")
+
+    meta_desc = soup.find("meta", attrs={"name": "description"})
+    assert (
+        meta_desc.attrs.get("content") == "The Home of the U.S. Government's Open Data"
+    )
 
     # Check search form exists with expected attributes
     main_search_input = soup.find("input", {"id": "search-query", "name": "q"})
@@ -1367,6 +1391,7 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
     # Should NOT contain quotes or "and"
     assert '"' not in text
     assert " and " not in text
+
 
 def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client):
     """Test that the advanced search tip appears when total results >= 10000."""

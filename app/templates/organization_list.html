@@ -51,8 +51,8 @@
             {% endif %}
           </header>
           <div class="usa-card__media">
-            <div class="usa-card__img display-flex flex-align-center flex-justify-center bg-base-lightest height-15"
-              >
+            <div class="usa-card__img display-flex flex-align-center flex-justify-center bg-base-lightest"
+              style="height: 100px;">
               {% if logo_url %}
               <img src="{{ logo_url }}" alt="{{ organization.name }} logo"
                 style="max-height: 90px; max-width: 100%; object-fit: contain;">
@@ -132,4 +132,8 @@
   </nav>
   {% endif %}
 </section>
+{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="The Home of the U.S. Government's Open Data">
 {% endblock %}
