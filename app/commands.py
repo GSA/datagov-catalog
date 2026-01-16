@@ -308,7 +308,7 @@ def compare_opensearch(sample_size: int, fix: bool):
             dt = dt.astimezone(timezone.utc)
         return dt.isoformat()
 
-    def index_dataset_batches(dataset_ids: list[str], intro_message: str):
+    def index_dataset_batches(dataset_ids: list[str], intro_message: str, log_all_errors=False):
         click.echo(intro_message)
         batch_size = 1000
         total_batches = (len(dataset_ids) + batch_size - 1) // batch_size
@@ -347,6 +347,10 @@ def compare_opensearch(sample_size: int, fix: bool):
                     click.echo(
                         f"    Warning: {failed} dataset(s) failed to index in this batch."
                     )
+                    if log_all_errors:
+                        for error in errors:
+                            click.echo(error)
+
             else:
                 click.echo("    No datasets found for this batch; skipping.")
 
@@ -420,12 +424,11 @@ def compare_opensearch(sample_size: int, fix: bool):
     click.echo("\nFixing discrepancies…")
 
     if missing:
-        index_dataset_batches(missing, f"Indexing {len(missing)} missing datasets…")
+        index_dataset_batches(missing, f"Indexing {len(missing)} missing datasets…", log_all_errors=True)
 
     if updated_ids:
         index_dataset_batches(
-            updated_ids, f"Re-indexing {len(updated_ids)} updated datasets…"
-        )
+            updated_ids, f"Re-indexing {len(updated_ids)} updated datasets…", log_all_errors=True)
 
     if extra:
         click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
