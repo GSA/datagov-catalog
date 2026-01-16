@@ -1,7 +1,11 @@
 ---
-routes:
-  - route: catalog-beta.data.gov
+app_name: datagov-catalog
 site_url: https://catalog-beta.data.gov
 new_relic_app_name: datagov-catalog-prod
 new_relic_monitor_mode: true
 instances: 2
+
+proxy_instances: 2
+basic_auth_enabled: off # nginx terminology 'on' 'off'. cf will interpret these as 'true' 'false'
+route_external: catalog-beta.data.gov
+route_internal: datagov-catalog-prod.apps.internal
