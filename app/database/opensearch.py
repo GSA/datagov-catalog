@@ -21,6 +21,7 @@ DEFAULT_TIMEOUT_RETRIES = 3
 DEFAULT_TIMEOUT_BACKOFF_BASE = 2.0
 DEFAULT_DELETE_REQUEST_TIMEOUT_SECONDS = 120
 DEFAULT_REFRESH_REQUEST_TIMEOUT_SECONDS = 120
+DEFAULT_CLIENT_MAX_RETRIES = 3
 
 
 @dataclass
@@ -216,6 +217,8 @@ class OpenSearchInterface:
             ssl_assert_hostname=False,
             ssl_show_warn=False,
             timeout=10,
+            max_retries=DEFAULT_CLIENT_MAX_RETRIES,
+            retry_on_timeout=True,
         )
 
     @staticmethod
@@ -240,6 +243,8 @@ class OpenSearchInterface:
             connection_class=RequestsHttpConnection,
             pool_maxsize=20,
             timeout=60,
+            max_retries=DEFAULT_CLIENT_MAX_RETRIES,
+            retry_on_timeout=True,
         )
 
     def _ensure_index(self):
