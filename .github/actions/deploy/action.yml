@@ -24,7 +24,7 @@ inputs:
   poetry-version:
     description: "Poetry version to use"
     required: false
-    default: "2.0.0"
+    default: "latest"
   cf_username:
     description: "Cloud Foundry service user"
     required: true
