@@ -7,6 +7,12 @@ New Data.gov catalog UI
 - Copy the sample environment file before starting the app: `cp .env.sample .env`.
 - Update values in `.env` as needed for your local services; the file is ignored by Git.
 
+### Poetry version used in CI
+
+- CI uses the latest Poetry release.
+  - Update your local Poetry to the latest to match CI:
+    - `make poetry-update`
+
 ## Harvest Database Configuration
 
 - This application reuses the harvest database defined in the
