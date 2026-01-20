@@ -64,6 +64,55 @@ jobs:
       - name: Run Pytest
         run: make test-ci
 
+  accessibility:
+    runs-on: ubuntu-latest
+    name: Accessibility Tests
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python ${{ env.PY_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+          poetry-plugins: "poetry-plugin-export"
+
+      - name: Install Python Dependencies
+        run: |
+          poetry env use ${{ env.PY_VERSION }}
+          poetry install
+
+      - name: Install Node Dependencies
+        run: npm install
+
+      - name: Start Docker Services
+        run: make up
+
+      - name: Wait for services to be ready
+        run: sleep 10
+
+      - name: Load test data
+        run: make load-test-data
+
+      - name: Run accessibility tests
+        run: make test-a11y
+
+      - name: Tear down services
+        if: always()
+        run: make down
+
   deploy-development:
     name: deploy to development space
     if: github.ref == 'refs/heads/develop'

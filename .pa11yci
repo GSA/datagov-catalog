@@ -1,0 +1,25 @@
+{
+  "defaults": {
+    "timeout": 10000,
+    "chromeLaunchConfig": {
+      "args": ["--no-sandbox", "--disable-setuid-sandbox"]
+    },
+    "reporters": ["cli"],
+    "ignore": [],
+    "hideElements": "iframe"
+  },
+  "urls": [
+    {
+      "url": "http://localhost:8080/"
+    },
+    {
+      "url": "http://localhost:8080/organization"
+    },
+    {
+      "url": "http://localhost:8080/organization/test-org"
+    },
+    {
+      "url": "http://localhost:8080/dataset/test"
+    }
+  ]
+}
