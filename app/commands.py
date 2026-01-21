@@ -308,6 +308,7 @@ def compare_opensearch(sample_size: int, fix: bool):
 
     interface = CatalogDBInterface()
     client = OpenSearchInterface.from_environment()
+    reharvest = {}
 
     def normalize_last_harvested(value):
         if value is None:
@@ -356,7 +357,10 @@ def compare_opensearch(sample_size: int, fix: bool):
                 interface.db.query(Dataset).filter(Dataset.id.in_(batch_ids)).all()
             )
 
-            found_ids = {dataset.id for dataset in datasets}
+            found_ids = {
+                dataset.id: [dataset.harvest_source.id, dataset.harvest_source.name]
+                for dataset in datasets
+            }
             skipped = [
                 dataset_id for dataset_id in batch_ids if dataset_id not in found_ids
             ]
@@ -379,6 +383,11 @@ def compare_opensearch(sample_size: int, fix: bool):
                     )
                     if log_all_errors:
                         for error in errors:
+                            dataset_id = error.get("dataset_id")
+                            if dataset_id is not None:
+                                harvest_source = found_ids[dataset_id]
+                                # doesn't matter if we reassign. it's the same key: value pair
+                                reharvest[harvest_source[0]] = harvest_source[1]
                             click.echo(error)
 
             else:
@@ -458,6 +467,11 @@ def compare_opensearch(sample_size: int, fix: bool):
             f"Re-indexing {len(updated_ids)} updated datasets…",
             log_all_errors=True,
         )
+
+    # print the harvest sources with datasets that couldn't sync with opensearch
+    click.echo("Harvest sources not synced with opensearch...")
+    for harvest_source_id, harvest_source_name in reharvest.items():
+        click.echo(f"{harvest_source_id} {harvest_source_name}")
 
     if extra:
         click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
