@@ -8,7 +8,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test:a11y": "pa11y-ci"
+    "test:pa11y": "pa11y-ci"
   },
   "repository": {
     "type": "git",
