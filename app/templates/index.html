@@ -83,7 +83,7 @@
             {% else %}
             <div class="usa-alert usa-alert--info margin-top-3">
                 <div class="usa-alert__body">
-                    <p class="usa-alert__text">
+                    <p class="usa-alert__text" id="no-datasets-alert">
                         No datasets found. Try adjusting your search terms or filters.
                     </p>
                 </div>
@@ -93,7 +93,7 @@
     </div>
 
     <!-- Sidebar for filters and sort -->
-    <aside class="tablet:grid-col-12 desktop:grid-col-3 margin-top-3">
+    <aside class="tablet:grid-col-12 desktop:grid-col-3 margin-top-2">
         {{ render_filter_sidebar(
             form_action=url_for('main.index'),
             query_value=query,
@@ -119,4 +119,8 @@
 <script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+{% endblock %}
+
+{% block head_extra %}
+<meta name="description" content="The Home of the U.S. Government's Open Data">
 {% endblock %}

@@ -13,6 +13,9 @@ install-static: ## Installs static assets
 	npm install; \
 	npm run build
 
+poetry-update: ## Updates local Poetry to latest
+	poetry self update
+
 
 update-dependencies: ## Updates requirements.txt and requirements_dev.txt from pyproject.toml
 	poetry export --without-hashes --without=dev --format=requirements.txt > requirements.txt
@@ -22,6 +25,15 @@ test-ci: up test
 
 test:
 	poetry run pytest
+
+test-pa11y: ## Runs accessibility tests with pa11y-ci (requires running app)
+	npm run test:pa11y
+
+load-test-data: ## Loads test fixture data into the database
+	docker compose exec app flask testdata load_test_data --clear
+	docker compose exec app flask search sync
+
+test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests with test data loaded
 
 up: ## Sets up local flask  docker environment.
 	docker compose up -d --wait

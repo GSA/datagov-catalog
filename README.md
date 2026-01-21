@@ -7,6 +7,19 @@ New Data.gov catalog UI
 - Copy the sample environment file before starting the app: `cp .env.sample .env`.
 - Update values in `.env` as needed for your local services; the file is ignored by Git.
 
+### Local Accessibility Testing
+We use pa11y-ci for accessibility testing, which uses node to run the tests. In order to properly run the tests the container must be running and have the test data loaded in.
+
+1. Install the dependencies: `npm install`
+2. Load the test data if it hasn't been loaded yet: `make load-test-data`
+3. Run pa11y tests: `make test-pa11y`
+
+### Poetry version used in CI
+
+- CI uses the latest Poetry release.
+  - Update your local Poetry to the latest to match CI:
+    - `make poetry-update`
+
 ## Harvest Database Configuration
 
 - This application reuses the harvest database defined in the
