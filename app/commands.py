@@ -13,15 +13,7 @@ from opensearchpy.helpers import scan
 from sqlalchemy.exc import OperationalError
 
 from .database import CatalogDBInterface, OpenSearchInterface
-from .models import (
-    Dataset,
-    HarvestJob,
-    HarvestRecord,
-    HarvestSource,
-    Locations,
-    Organization,
-    db
-)
+from .models import Dataset, HarvestJob, HarvestRecord, HarvestSource, Organization, db
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -341,7 +333,9 @@ def compare_opensearch(sample_size: int, fix: bool):
             dt = dt.astimezone(timezone.utc)
         return dt.isoformat()
 
-    def index_dataset_batches(dataset_ids: list[str], intro_message: str, log_all_errors=False):
+    def index_dataset_batches(
+        dataset_ids: list[str], intro_message: str, log_all_errors=False
+    ):
         click.echo(intro_message)
         batch_size = 1000
         total_batches = (len(dataset_ids) + batch_size - 1) // batch_size
@@ -349,20 +343,23 @@ def compare_opensearch(sample_size: int, fix: bool):
         total_skipped = 0
 
         for batch_number, batch_ids in enumerate(
-            (dataset_ids[i : i + batch_size] for i in range(0, len(dataset_ids), batch_size)),
+            (
+                dataset_ids[i : i + batch_size]
+                for i in range(0, len(dataset_ids), batch_size)
+            ),
             start=1,
         ):
             click.echo(
                 f"  Batch {batch_number}/{total_batches}: indexing {len(batch_ids)} dataset(s)…"
             )
             datasets = (
-                interface.db.query(Dataset)
-                .filter(Dataset.id.in_(batch_ids))
-                .all()
+                interface.db.query(Dataset).filter(Dataset.id.in_(batch_ids)).all()
             )
 
             found_ids = {dataset.id for dataset in datasets}
-            skipped = [dataset_id for dataset_id in batch_ids if dataset_id not in found_ids]
+            skipped = [
+                dataset_id for dataset_id in batch_ids if dataset_id not in found_ids
+            ]
             total_skipped += len(skipped)
 
             if skipped:
@@ -420,19 +417,13 @@ def compare_opensearch(sample_size: int, fix: bool):
     ]
     updated_ids = [dataset_id for dataset_id, _, _ in updated_details]
 
-    click.echo(
-        f"Missing in OpenSearch (should be indexed): {len(missing)}"
-    )
+    click.echo(f"Missing in OpenSearch (should be indexed): {len(missing)}")
     if missing:
-        click.echo(
-            "Example missing IDs: " + ", ".join(missing[:sample_size])
-        )
+        click.echo("Example missing IDs: " + ", ".join(missing[:sample_size]))
     else:
         click.echo("Example missing IDs: none")
 
-    click.echo(
-        f"Extra in OpenSearch (should be deleted): {len(extra)}"
-    )
+    click.echo(f"Extra in OpenSearch (should be deleted): {len(extra)}")
     if extra:
         click.echo("Example extra IDs: " + ", ".join(extra[:sample_size]))
     else:
@@ -457,11 +448,16 @@ def compare_opensearch(sample_size: int, fix: bool):
     click.echo("\nFixing discrepancies…")
 
     if missing:
-        index_dataset_batches(missing, f"Indexing {len(missing)} missing datasets…", log_all_errors=True)
+        index_dataset_batches(
+            missing, f"Indexing {len(missing)} missing datasets…", log_all_errors=True
+        )
 
     if updated_ids:
         index_dataset_batches(
-            updated_ids, f"Re-indexing {len(updated_ids)} updated datasets…", log_all_errors=True)
+            updated_ids,
+            f"Re-indexing {len(updated_ids)} updated datasets…",
+            log_all_errors=True,
+        )
 
     if extra:
         click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
