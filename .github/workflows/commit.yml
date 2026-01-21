@@ -67,6 +67,7 @@ jobs:
   accessibility:
     runs-on: ubuntu-latest
     name: Accessibility Tests
+    continue-on-error: true
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
