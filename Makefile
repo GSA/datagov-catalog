@@ -13,6 +13,9 @@ install-static: ## Installs static assets
 	npm install; \
 	npm run build
 
+poetry-update: ## Updates local Poetry to latest
+	poetry self update
+
 
 update-dependencies: ## Updates requirements.txt and requirements_dev.txt from pyproject.toml
 	poetry export --without-hashes --without=dev --format=requirements.txt > requirements.txt
