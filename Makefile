@@ -26,6 +26,15 @@ test-ci: up test
 test:
 	poetry run pytest
 
+test-pa11y: ## Runs accessibility tests with pa11y-ci (requires running app)
+	npm run test:pa11y
+
+load-test-data: ## Loads test fixture data into the database
+	docker compose exec app flask testdata load_test_data --clear
+	docker compose exec app flask search sync
+
+test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests with test data loaded
+
 up: ## Sets up local flask  docker environment.
 	docker compose up -d --wait
 
