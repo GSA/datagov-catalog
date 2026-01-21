@@ -108,7 +108,7 @@ jobs:
         run: make load-test-data
 
       - name: Run accessibility tests
-        run: make test-a11y
+        run: make test-pa11y
 
       - name: Tear down services
         if: always()
