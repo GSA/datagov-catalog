@@ -20,6 +20,7 @@ from .models import (
     HarvestSource,
     Locations,
     Organization,
+    db
 )
 from .sitemap_s3 import (
     SitemapS3ConfigError,
@@ -41,23 +42,55 @@ def register_commands(app):
 
 
 @testdata.cli.command("load_test_data")
-def load_test_data():
+@click.option(
+    "--clear",
+    is_flag=True,
+    help="Drop and recreate all database tables before loading",
+    default=False,
+)
+def load_test_data(clear):
+    """
+    Load test fixture data into the database.
+
+    Use --clear flag to drop all tables and recreate them before loading data.
+    """
     from tests.fixtures import fixture_data
 
     fixture = fixture_data()
     interface = CatalogDBInterface()
 
-    for organization_data in fixture["organization"]:
-        interface.db.add(Organization(**organization_data))
-    interface.db.add(HarvestSource(**fixture["harvest_source"]))
-    interface.db.add(HarvestJob(**fixture["harvest_job"]))
-    for record in fixture["harvest_record"]:
-        interface.db.add(HarvestRecord(**record))
-    for data in fixture["dataset"]:
-        interface.db.add(Dataset(**data))
-    for data in fixture["locations"]:
-        interface.db.add(Locations(**data))
-    interface.db.commit()
+    if clear:
+        click.echo("Dropping all database tables...")
+        try:
+            db.drop_all()
+            click.echo("All tables dropped.")
+        except Exception as e:
+            click.echo(f"Warning: Could not drop tables: {e}")
+
+        click.echo("Creating all database tables...")
+        try:
+            db.create_all()
+            click.echo("All tables created.")
+        except Exception as e:
+            click.echo(f"Error creating tables: {e}")
+            raise
+
+    click.echo("Loading test data...")
+    try:
+        for organization_data in fixture["organization"]:
+            interface.db.add(Organization(**organization_data))
+        interface.db.add(HarvestSource(**fixture["harvest_source"]))
+        interface.db.add(HarvestJob(**fixture["harvest_job"]))
+        for record in fixture["harvest_record"]:
+            interface.db.add(HarvestRecord(**record))
+        for data in fixture["dataset"]:
+            interface.db.add(Dataset(**data))
+        interface.db.commit()
+        click.echo("Test data loaded successfully.")
+    except Exception as e:
+        interface.db.rollback()
+        click.echo(f"Error loading test data: {e}")
+        raise
 
 
 @search.cli.command("sync")
