@@ -13,14 +13,7 @@ from opensearchpy.helpers import scan
 from sqlalchemy.exc import OperationalError
 
 from .database import CatalogDBInterface, OpenSearchInterface
-from .models import (
-    Dataset,
-    HarvestJob,
-    HarvestRecord,
-    HarvestSource,
-    Locations,
-    Organization,
-)
+from .models import Dataset, HarvestJob, HarvestRecord, HarvestSource, Organization, db
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -41,23 +34,55 @@ def register_commands(app):
 
 
 @testdata.cli.command("load_test_data")
-def load_test_data():
+@click.option(
+    "--clear",
+    is_flag=True,
+    help="Drop and recreate all database tables before loading",
+    default=False,
+)
+def load_test_data(clear):
+    """
+    Load test fixture data into the database.
+
+    Use --clear flag to drop all tables and recreate them before loading data.
+    """
     from tests.fixtures import fixture_data
 
     fixture = fixture_data()
     interface = CatalogDBInterface()
 
-    for organization_data in fixture["organization"]:
-        interface.db.add(Organization(**organization_data))
-    interface.db.add(HarvestSource(**fixture["harvest_source"]))
-    interface.db.add(HarvestJob(**fixture["harvest_job"]))
-    for record in fixture["harvest_record"]:
-        interface.db.add(HarvestRecord(**record))
-    for data in fixture["dataset"]:
-        interface.db.add(Dataset(**data))
-    for data in fixture["locations"]:
-        interface.db.add(Locations(**data))
-    interface.db.commit()
+    if clear:
+        click.echo("Dropping all database tables...")
+        try:
+            db.drop_all()
+            click.echo("All tables dropped.")
+        except Exception as e:
+            click.echo(f"Warning: Could not drop tables: {e}")
+
+        click.echo("Creating all database tables...")
+        try:
+            db.create_all()
+            click.echo("All tables created.")
+        except Exception as e:
+            click.echo(f"Error creating tables: {e}")
+            raise
+
+    click.echo("Loading test data...")
+    try:
+        for organization_data in fixture["organization"]:
+            interface.db.add(Organization(**organization_data))
+        interface.db.add(HarvestSource(**fixture["harvest_source"]))
+        interface.db.add(HarvestJob(**fixture["harvest_job"]))
+        for record in fixture["harvest_record"]:
+            interface.db.add(HarvestRecord(**record))
+        for data in fixture["dataset"]:
+            interface.db.add(Dataset(**data))
+        interface.db.commit()
+        click.echo("Test data loaded successfully.")
+    except Exception as e:
+        interface.db.rollback()
+        click.echo(f"Error loading test data: {e}")
+        raise
 
 
 @search.cli.command("sync")
@@ -308,7 +333,9 @@ def compare_opensearch(sample_size: int, fix: bool):
             dt = dt.astimezone(timezone.utc)
         return dt.isoformat()
 
-    def index_dataset_batches(dataset_ids: list[str], intro_message: str, log_all_errors=False):
+    def index_dataset_batches(
+        dataset_ids: list[str], intro_message: str, log_all_errors=False
+    ):
         click.echo(intro_message)
         batch_size = 1000
         total_batches = (len(dataset_ids) + batch_size - 1) // batch_size
@@ -316,20 +343,23 @@ def compare_opensearch(sample_size: int, fix: bool):
         total_skipped = 0
 
         for batch_number, batch_ids in enumerate(
-            (dataset_ids[i : i + batch_size] for i in range(0, len(dataset_ids), batch_size)),
+            (
+                dataset_ids[i : i + batch_size]
+                for i in range(0, len(dataset_ids), batch_size)
+            ),
             start=1,
         ):
             click.echo(
                 f"  Batch {batch_number}/{total_batches}: indexing {len(batch_ids)} dataset(s)…"
             )
             datasets = (
-                interface.db.query(Dataset)
-                .filter(Dataset.id.in_(batch_ids))
-                .all()
+                interface.db.query(Dataset).filter(Dataset.id.in_(batch_ids)).all()
             )
 
             found_ids = {dataset.id for dataset in datasets}
-            skipped = [dataset_id for dataset_id in batch_ids if dataset_id not in found_ids]
+            skipped = [
+                dataset_id for dataset_id in batch_ids if dataset_id not in found_ids
+            ]
             total_skipped += len(skipped)
 
             if skipped:
@@ -387,19 +417,13 @@ def compare_opensearch(sample_size: int, fix: bool):
     ]
     updated_ids = [dataset_id for dataset_id, _, _ in updated_details]
 
-    click.echo(
-        f"Missing in OpenSearch (should be indexed): {len(missing)}"
-    )
+    click.echo(f"Missing in OpenSearch (should be indexed): {len(missing)}")
     if missing:
-        click.echo(
-            "Example missing IDs: " + ", ".join(missing[:sample_size])
-        )
+        click.echo("Example missing IDs: " + ", ".join(missing[:sample_size]))
     else:
         click.echo("Example missing IDs: none")
 
-    click.echo(
-        f"Extra in OpenSearch (should be deleted): {len(extra)}"
-    )
+    click.echo(f"Extra in OpenSearch (should be deleted): {len(extra)}")
     if extra:
         click.echo("Example extra IDs: " + ", ".join(extra[:sample_size]))
     else:
@@ -424,11 +448,16 @@ def compare_opensearch(sample_size: int, fix: bool):
     click.echo("\nFixing discrepancies…")
 
     if missing:
-        index_dataset_batches(missing, f"Indexing {len(missing)} missing datasets…", log_all_errors=True)
+        index_dataset_batches(
+            missing, f"Indexing {len(missing)} missing datasets…", log_all_errors=True
+        )
 
     if updated_ids:
         index_dataset_batches(
-            updated_ids, f"Re-indexing {len(updated_ids)} updated datasets…", log_all_errors=True)
+            updated_ids,
+            f"Re-indexing {len(updated_ids)} updated datasets…",
+            log_all_errors=True,
+        )
 
     if extra:
         click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")

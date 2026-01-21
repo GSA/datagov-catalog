@@ -1,0 +1,27 @@
+{
+  "name": "datagov-catalog-accessibility",
+  "version": "1.0.0",
+  "description": "Accessibility testing for Data.gov catalog",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test:pa11y": "pa11y-ci"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GSA/datagov-catalog.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/GSA/datagov-catalog/issues"
+  },
+  "homepage": "https://github.com/GSA/datagov-catalog#readme",
+  "devDependencies": {
+    "pa11y-ci": "^4.0.1"
+  }
+}
