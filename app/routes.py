@@ -25,13 +25,7 @@ from .sitemap_s3 import (
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
-from .utils import (
-    build_dataset_dict,
-    dict_from_hint,
-    hint_from_dict,
-    json_not_found,
-    valid_id_required,
-)
+from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +171,9 @@ def index():
         try:
             selected_organization = interface.get_organization_by_slug(org_slug_param)
         except Exception:
-            logger.exception("Failed to resolve organization", extra={"org": org_slug_param})
+            logger.exception(
+                "Failed to resolve organization", extra={"org": org_slug_param}
+            )
         else:
             if selected_organization:
                 org_filter_id = selected_organization.id
@@ -210,7 +206,7 @@ def index():
         logger.exception("Dataset search failed", extra={"query": query})
     else:
         # Build dataset dictionaries with organization data
-        datasets = [build_dataset_dict(each) for each in result.results]
+        datasets = [each for each in result.results]
 
     if result is not None:
         after = result.search_after_obscured()
@@ -253,7 +249,9 @@ def index():
         after=after,
         datasets=datasets,
         total=total,
-        org_slug=selected_organization.slug if selected_organization else org_slug_param,
+        org_slug=(
+            selected_organization.slug if selected_organization else org_slug_param
+        ),
         org_types=org_types,
         keywords=keywords,
         sort_by=sort_by,
@@ -263,6 +261,7 @@ def index():
         from_hint=from_hint,
         selected_organization=selected_organization,
     )
+
 
 @main.route("/search", methods=["GET"])
 def search():
@@ -293,7 +292,9 @@ def search():
         try:
             selected_organization = interface.get_organization_by_slug(org_slug_param)
         except Exception:
-            logger.exception("Failed to resolve organization", extra={"org": org_slug_param})
+            logger.exception(
+                "Failed to resolve organization", extra={"org": org_slug_param}
+            )
         else:
             if selected_organization:
                 org_filter_id = selected_organization.id
@@ -330,7 +331,7 @@ def search():
     )
 
     if htmx:
-        results = [build_dataset_dict(each) for each in result.results]
+        results = [each for each in result.results]
         if selected_organization:
             # specified organization so give org results
             return render_template(
@@ -355,12 +356,14 @@ def search():
             sort_by=sort_by,
             org_types=org_types,
             keywords=keywords,
-            org_slug=selected_organization.slug if selected_organization else org_slug_param,
+            org_slug=(
+                selected_organization.slug if selected_organization else org_slug_param
+            ),
             spatial_filter=spatial_filter,
         )
 
     response_dict = {
-        "results": [build_dataset_dict(result) for result in result.results],
+        "results": [result for result in result.results],
         "sort": sort_by,
     }
     if result.search_after is not None:
