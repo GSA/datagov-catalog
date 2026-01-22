@@ -956,6 +956,18 @@ ul.dataset-resources {
         max-height: 200px;
     }
 }
+// beta banner left aligned
+.beta-banner .usa-alert .usa-alert__body {
+  max-width: var(--site-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--site-padding);
+  padding-right: var(--site-padding);
+}
+
+.beta-banner .usa-alert .usa-alert__body::before {
+  left: calc(var(--site-padding) - 0.1667rem);
+}
 // navigation
 :root {
   --site-max-width: 1400px;
