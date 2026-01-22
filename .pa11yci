@@ -19,7 +19,9 @@
       "url": "http://localhost:8080/organization/test-org"
     },
     {
-      "url": "http://localhost:8080/dataset/test"
+      "url": "http://localhost:8080/dataset/test",
+      "hideElements": ".touchpoints-form-body"
+
     }
   ]
 }
