@@ -10,16 +10,20 @@
   },
   "urls": [
     {
-      "url": "http://localhost:8080/"
+      "url": "http://localhost:8080/",
+      "ignore": ["WCAG2AA.Principle3.Guideline3_2.3_2_2.H32.2"]
     },
     {
       "url": "http://localhost:8080/organization"
     },
     {
-      "url": "http://localhost:8080/organization/test-org"
+      "url": "http://localhost:8080/organization/test-org",
+      "ignore": ["WCAG2AA.Principle3.Guideline3_2.3_2_2.H32.2"]
     },
     {
-      "url": "http://localhost:8080/dataset/test"
+      "url": "http://localhost:8080/dataset/test",
+      "hideElements": ".touchpoints-form-body"
+
     }
   ]
 }

@@ -1,12 +1,13 @@
 {% macro render_spatial_filter(spatial_filter) %}
 <div class="usa-accordion usa-accordion--bordered">
     <h3 class="usa-accordion__heading">
-        <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-spatial">
+        <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-spatial" id="spatial-data-label">
             Spatial Data
         </button>
     </h3>
     <div id="filter-spatial" class="usa-accordion__content usa-prose">
-        <fieldset class="usa-fieldset">
+        <fieldset class="usa-fieldset" aria-labelledby="spatial-data-label">
+            <legend class="usa-sr-only">Spatial data options</legend>
             <div class="usa-radio">
                 <input class="usa-radio__input" id="filter-spatial-all" type="radio" name="spatial_filter" value=""
                     {% if not spatial_filter %}checked{% endif %}>
