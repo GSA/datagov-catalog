@@ -358,13 +358,13 @@ class OpenSearchInterface:
                 dataset.popularity if dataset.popularity is not None else None
             ),
             "spatial_shape": dataset.translated_spatial,
-            "harvest_record": self._create_harvest_record_raw_url(dataset),
+            "harvest_record": self._create_harvest_record_url(dataset),
         }
 
-    def _create_harvest_record_raw_url(self, dataset) -> str:
-        """Generates a url to the harvest record raw."""
+    def _create_harvest_record_url(self, dataset) -> str:
+        """Generates a url to the harvest record."""
         return url_for(
-            "main.get_harvest_record_raw", record_id=dataset.harvest_record_id
+            "main.get_harvest_record", record_id=dataset.harvest_record_id
         )
 
     def _run_with_timeout_retry(
