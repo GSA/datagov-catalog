@@ -6,6 +6,7 @@ from opensearchpy.exceptions import ConnectionTimeout
 import app.database.opensearch as opensearch_module
 from app.database import OpenSearchInterface
 from app.models import Dataset
+from app import create_app
 
 
 class TestOpenSearch:
@@ -388,3 +389,54 @@ def test_run_with_timeout_retry_exhausted(monkeypatch):
             timeout_retries=2,
             timeout_backoff_base=2.0,
         )
+
+
+class TestCreateHarvestRecordUrl:
+    """Test for _create_harvest_record_url method."""
+
+    def test_create_harvest_record_url_with_local_server(
+        self, dbapp, mock_dataset_with_datetime, opensearch_client
+    ):
+        """Test that _create_harvest_record_url generates correct URL for local server."""
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+
+            # Set a specific harvest_record_id
+            mock_dataset_with_datetime.harvest_record_id = (
+                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+            url = opensearch_client._create_harvest_record_url(
+                mock_dataset_with_datetime
+            )
+
+            assert (
+                url
+                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+    def test_create_harvest_record_url_with_production_server(
+        self, mock_dataset_with_datetime, opensearch_client, monkeypatch
+    ):
+        """Test that _create_harvest_record_url generates correct URL for production server."""
+        # Set production environment variables
+        monkeypatch.setenv("SITE_URL", "example.gov")
+
+        # Create app with production configuration
+        app = create_app(config_name="production")
+
+        with app.app_context():
+            # Set a specific harvest_record_id
+            mock_dataset_with_datetime.harvest_record_id = (
+                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+            url = opensearch_client._create_harvest_record_url(
+                mock_dataset_with_datetime
+            )
+
+            assert (
+                url
+                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )

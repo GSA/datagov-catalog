@@ -546,6 +546,20 @@ def test_htmx_search_uses_from_hint(interface_with_dataset, db_client):
     )
 
 
+def test_harvest_record_returns_json(interface_with_harvest_record, db_client):
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}")
+    harvest_record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    # response doesn't work with response.json
+    response_dict = json.loads(response.get_data())
+    # action shows up as a part of a harvest record obj and isn't part of the
+    #  "raw" endpoint
+    assert response_dict["action"] == harvest_record.action
+
+
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
     with patch("app.routes.interface", interface_with_harvest_record):
         response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")

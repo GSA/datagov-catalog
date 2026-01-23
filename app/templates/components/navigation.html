@@ -41,10 +41,10 @@
       {% if request.path != '/' %}
       <section aria-label="Search component">
         <form form method="GET" action="{{ url_for('main.index') }}" class="usa-search usa-search--small" role="search">
-          <label class="usa-sr-only" for="search-field">Search</label>
+          <label class="usa-sr-only" for="search-field" id="search-label">Search</label>
           <input class="usa-input" id="search-field" name="q" type="search" 
                         placeholder="Search Data.gov..." autofocus value="{{ query }}">
-          <button class="usa-button" type="submit">
+          <button class="usa-button" type="submit" aria-labelledby="search-label">
             <i class="fa fa-search" aria-hidden="true"></i>
           </button>
         </form>

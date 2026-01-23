@@ -1,13 +1,14 @@
 {% macro render_organization_type_filter(org_types) %}
 <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
     <h3 class="usa-accordion__heading">
-        <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization">
+        <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization" id="organization-type-label">
             Organization Type
         </button>
     </h3>
     <div id="filter-organization" class="usa-accordion__content usa-prose">
-        <fieldset class="usa-fieldset">
+        <fieldset class="usa-fieldset" aria-labelledby="organization-type-label">
             {% set current_org_types = org_types or [] %}
+            <legend class="usa-sr-only">Organization types</legend>
             <div class="usa-checkbox">
                 <input class="usa-checkbox__input" id="filter-federal" type="checkbox" name="org_type" value="Federal Government"
                     {% if 'Federal Government' in current_org_types %}checked{% endif %}>

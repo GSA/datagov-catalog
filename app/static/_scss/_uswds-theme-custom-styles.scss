@@ -371,7 +371,7 @@ ul.dataset-resources {
 
 .dataset-meta {
     font-size: 1rem;
-    color: #71767a;
+    color: #62676A;
     margin-bottom: 1.5rem;
 }
 
@@ -460,7 +460,7 @@ ul.dataset-resources {
 
 .tags-section__subtitle {
     font-size: 0.875rem;
-    color: #71767a;
+    color: #62676A;
     margin-bottom: 1rem;
 }
 
@@ -512,7 +512,7 @@ ul.dataset-resources {
 .sidebar-section__label {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #71767a;
+    color: #62676A;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 0.25rem;
@@ -593,6 +593,11 @@ ul.dataset-resources {
 }
 
 /* Resources dropdown in sidebar */
+.resources-label {
+  font-size: 0.9375rem;
+  margin-bottom: 0.5rem;
+  color: #62676A;
+}
 .resources-dropdown {
     border: 1px solid #dfe1e2;
     border-radius: 0.25rem;
@@ -682,7 +687,7 @@ ul.dataset-resources {
 
 .resources-list__format {
     font-size: 0.75rem;
-    color: #71767a;
+    color: #62676A;
     text-transform: uppercase;
     margin-top: 0.125rem;
 }
@@ -780,7 +785,7 @@ ul.dataset-resources {
 
 .keyword-suggestion__count {
     font-size: 0.8125rem;
-    color: #71767a;
+    color: #62676A;
     margin-left: 0.5rem;
     font-weight: 600;
 }
@@ -861,7 +866,7 @@ ul.dataset-resources {
 /* Helper text */
 .keyword-facet__help {
     font-size: 0.8125rem;
-    color: #71767a;
+    color: #62676A;
     margin-top: 0.25rem;
     font-style: italic;
 }
@@ -872,7 +877,7 @@ ul.dataset-resources {
     display: block;
     padding: 0.5rem 0.75rem;
     text-align: center;
-    color: #71767a;
+    color: #62676A;
     font-size: 0.875rem;
 }
 
@@ -882,7 +887,7 @@ ul.dataset-resources {
     display: block;
     padding: 0.5rem 0.75rem;
     text-align: center;
-    color: #71767a;
+    color: #62676A;
     font-size: 0.875rem;
 }
 
