@@ -17,6 +17,7 @@ from .filters import (
     usa_icon,
 )
 from .models import db
+from .utils import normalize_site_url
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,9 @@ def create_app(config_name: str = "local") -> Flask:
         "SOCIAL_IMAGE_URL",
         "https://s3-us-gov-west-1.amazonaws.com/cg-0817d6e3-93c4-4de8-8b32-da6919464e61/hero-image-bg.png",
     )
-    app.config["SERVER_NAME"] = os.getenv("SITE_URL", "0.0.0.0:8080")
+    app.config["SERVER_NAME"] = normalize_site_url(
+        os.getenv("SITE_URL", "0.0.0.0:8080")
+    )
 
     global htmx
     htmx = HTMX(app)
