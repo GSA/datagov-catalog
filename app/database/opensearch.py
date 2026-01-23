@@ -9,6 +9,7 @@ from datetime import date, datetime
 from typing import Any, Callable, TypeVar
 
 from botocore.credentials import Credentials
+from flask import url_for
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
 from opensearchpy.exceptions import ConnectionTimeout
 
@@ -357,7 +358,14 @@ class OpenSearchInterface:
                 dataset.popularity if dataset.popularity is not None else None
             ),
             "spatial_shape": dataset.translated_spatial,
+            "harvest_record": self._create_harvest_record_url(dataset),
         }
+
+    def _create_harvest_record_raw_url(self, dataset) -> str:
+        """Generates a url to the harvest record raw."""
+        return url_for(
+            "main.get_harvest_record_raw", record_id=dataset.harvest_record_id
+        )
 
     def _run_with_timeout_retry(
         self,
@@ -832,7 +840,9 @@ class OpenSearchInterface:
             for bucket in buckets
         ]
 
-    def get_organization_counts(self, size=100, min_doc_count=1, as_dict=False) -> list[dict]:
+    def get_organization_counts(
+        self, size=100, min_doc_count=1, as_dict=False
+    ) -> list[dict]:
         """Aggregate datasets by organization slug to get counts."""
         agg_body = {
             "size": 0,
@@ -866,7 +876,7 @@ class OpenSearchInterface:
             for bucket in buckets:
                 output[bucket["key"]] = bucket["doc_count"]
             return output
-        
+
         return [
             {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]
