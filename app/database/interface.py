@@ -360,7 +360,7 @@ class CatalogDBInterface:
         data_dict = obj.to_dict()
 
         # check for any additional temporary attributes
-        if getattr(obj, "dataset_count"):
+        if hasattr(obj, "dataset_count"):
             data_dict["dataset_count"] = obj.dataset_count
 
         return data_dict

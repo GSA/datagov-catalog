@@ -18,6 +18,7 @@ from .filters import (
     usa_icon,
 )
 from .models import db
+from .utils import normalize_site_url
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,14 @@ htmx = None
 
 def create_app(config_name: str = "local") -> Flask:
     app = Flask(__name__, static_url_path="", static_folder="static")
+
+    app.config["PREFERRED_URL_SCHEME"] = "https"
     # enable template hot template reloading in local
     if config_name == "local" or app.config.get("FLASK_ENV") == "local":
         # Enable template auto-reload
         app.config["TEMPLATES_AUTO_RELOAD"] = True
         app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+        app.config["PREFERRED_URL_SCHEME"] = "http"
 
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
@@ -41,6 +45,9 @@ def create_app(config_name: str = "local") -> Flask:
     app.config["SOCIAL_IMAGE_URL"] = os.getenv(
         "SOCIAL_IMAGE_URL",
         "https://s3-us-gov-west-1.amazonaws.com/cg-0817d6e3-93c4-4de8-8b32-da6919464e61/hero-image-bg.png",
+    )
+    app.config["SERVER_NAME"] = normalize_site_url(
+        os.getenv("SITE_URL", "0.0.0.0:8080")
     )
 
     global htmx
