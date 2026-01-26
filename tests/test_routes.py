@@ -44,6 +44,14 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
     assert len(response.json) > 0
     assert "results" in response.json
 
+def test_search_api_response_containes_harvest_record_url(interface_with_dataset, db_client):
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/search", query_string={"q": "test"})
+    assert response.status_code == 200
+    assert response.json["results"][0]["harvest_record"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 
 def test_search_api_pagination(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
