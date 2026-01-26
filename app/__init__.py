@@ -94,6 +94,7 @@ def create_app(config_name: str = "local") -> Flask:
         "connect-src": " ".join([
             "'self'",
             "https://api.github.com",
+            "https://touchpoints.app.cloud.gov",
         ]),
         "frame-src": "https://www.googletagmanager.com",
         "style-src-attr": " ".join([
