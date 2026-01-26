@@ -161,7 +161,16 @@ ul.menu {
 .organization-list button.usa-button {
   padding: 0.5rem 0.75rem !important;
 }
+.organization-list-logo {
+  max-height: 90px;
+  max-width: 100%;
+  object-fit: contain;
+}
 
+.dataset-feedback {
+  font-size: 0.9375rem;
+  margin-bottom: 1rem;
+}
 .dataset-tags .usa-tag {
   display: inline-flex;
 }
@@ -262,6 +271,12 @@ ul.menu {
   border: none;
   padding-top: 0;
   margin-top: 0;
+}
+
+#geography-map {
+  height: 220px;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 #menu-footer a {
@@ -591,7 +606,6 @@ ul.dataset-resources {
     color: #454545;
     margin: 0;
 }
-
 /* Resources dropdown in sidebar */
 .resources-label {
   font-size: 0.9375rem;
