@@ -657,6 +657,28 @@ def get_organizations_api():
         )
 
 
+@main.route("/api/opensearch/health", methods=["GET"])
+def get_opensearch_health_api():
+    """API endpoint to fetch OpenSearch cluster health."""
+
+    try:
+        health = interface.opensearch.client.cluster.health()
+        status = health.get("status") if isinstance(health, dict) else None
+        return jsonify({"status": status})
+    except Exception as e:
+        logger.exception("Failed to fetch OpenSearch cluster health")
+        return (
+            jsonify(
+                {
+                    "status": "unknown",
+                    "error": "Failed to fetch OpenSearch cluster health",
+                    "message": str(e),
+                }
+            ),
+            500,
+        )
+
+
 @main.route("/api/locations/search", methods=["GET"])
 def get_locations_api():
     """API endpoint to search location display names and ids.
