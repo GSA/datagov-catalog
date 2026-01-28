@@ -247,6 +247,37 @@ def test_get_organizations_api_handles_errors(db_client):
     assert data["error"] == "Failed to fetch organizations"
 
 
+def test_get_opensearch_health_api_returns_data(db_client):
+    mock_interface = Mock()
+    mock_interface.opensearch = Mock()
+    mock_interface.opensearch.client = Mock()
+    mock_interface.opensearch.client.cluster = Mock()
+    mock_interface.opensearch.client.cluster.health.return_value = {"status": "green"}
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/opensearch/health")
+
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "green"
+    mock_interface.opensearch.client.cluster.health.assert_called_once_with()
+
+
+def test_get_opensearch_health_api_handles_errors(db_client):
+    mock_interface = Mock()
+    mock_interface.opensearch = Mock()
+    mock_interface.opensearch.client = Mock()
+    mock_interface.opensearch.client.cluster = Mock()
+    mock_interface.opensearch.client.cluster.health.side_effect = Exception("boom")
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/opensearch/health")
+
+    assert response.status_code == 500
+    data = response.get_json()
+    assert data["status"] == "unknown"
+    assert data["error"] == "Failed to fetch OpenSearch cluster health"
+
+
 def test_search_api_spatial_geometry(interface_with_dataset, db_client):
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
