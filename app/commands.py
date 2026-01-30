@@ -408,10 +408,21 @@ def compare_opensearch(sample_size: int, fix: bool):
 
     click.echo("Collecting document IDs from OpenSearch…")
     os_docs = {}
-    for hit in scan(client.client, index=client.INDEX_NAME):
-        os_docs[hit["_id"]] = normalize_last_harvested(
-            hit.get("_source", {}).get("last_harvested_date")
-        )
+    for hit in scan(
+        client.client,
+        index=client.INDEX_NAME,
+        size=200,
+        _source=False,
+        stored_fields=[],
+        docvalue_fields=["last_harvested_date"],
+    ):
+        fields = hit.get("fields", {})
+        last_harvested = None
+        if fields.get("last_harvested_date"):
+            last_harvested = fields["last_harvested_date"][0]
+        elif hit.get("_source"):
+            last_harvested = hit["_source"].get("last_harvested_date")
+        os_docs[hit["_id"]] = normalize_last_harvested(last_harvested)
 
     os_ids = set(os_docs)
     click.echo(f"OpenSearch documents: {len(os_ids)}")
