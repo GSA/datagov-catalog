@@ -420,6 +420,8 @@ def compare_opensearch(sample_size: int, fix: bool):
         last_harvested = None
         if fields.get("last_harvested_date"):
             last_harvested = fields["last_harvested_date"][0]
+        elif hit.get("_source"):
+            last_harvested = hit["_source"].get("last_harvested_date")
         os_docs[hit["_id"]] = normalize_last_harvested(last_harvested)
 
     os_ids = set(os_docs)
