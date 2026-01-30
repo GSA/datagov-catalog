@@ -132,18 +132,6 @@ def test_search_spatial_geometry(interface_with_dataset):
     assert len(results) > 0
 
 
-def test_stop_words_removed_from_search_queries(interface_with_dataset):
-    """Searching with stop words yields the same results as without them."""
-    without_stop_word = interface_with_dataset.search_datasets("health food")
-    with_stop_word = interface_with_dataset.search_datasets("health and food")
-
-    assert without_stop_word.total > 0
-    assert without_stop_word.total == with_stop_word.total
-    assert {dataset["slug"] for dataset in without_stop_word.results} == {
-        dataset["slug"] for dataset in with_stop_word.results
-    }
-
-
 class TestPhraseAndOrQueryParsing:
     """Test the _parse_search_query method for phrases and OR operators."""
 

@@ -73,3 +73,7 @@ def hint_from_dict(args_dict):
     return base64.urlsafe_b64encode(
         json.dumps(args_dict, separators=(",", ":")).encode("utf-8")
     ).decode("utf-8")
+
+
+def normalize_site_url(site_url: str) -> str:
+    return site_url.strip("https://")
