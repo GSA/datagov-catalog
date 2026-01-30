@@ -44,11 +44,6 @@ def valid_id_required(func: F) -> F:
     return wrapper  # type: ignore[return-value]
 
 
-def build_dataset_dict(dataset_dict: dict) -> dict:
-    """Convert an OpenSearch result dict into a dictionary."""
-    return dataset_dict
-
-
 def dict_from_hint(hint_string):
     """Compute a dict of args from our hint string.
 
