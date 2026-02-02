@@ -598,8 +598,8 @@ class TestCompareCommand:
         assert "Extra in OpenSearch (should be deleted): 1" in result.output
         assert "Example extra IDs: extra-only" in result.output
         assert "Updated in OpenSearch (last_harvested_date differs): 1" in result.output
-        assert "stale (DB: 2024-01-02T00:00:00+00:00" in result.output
-        assert "OS: 2024-01-05T00:00:00+00:00" in result.output
+        assert "stale (DB: 2024-01-02T00:00:00.000+00:00" in result.output
+        assert "OS: 2024-01-05T00:00:00.000+00:00" in result.output
         os_client.index_datasets.assert_not_called()
         os_client.client.delete.assert_not_called()
         os_client._refresh.assert_not_called()
