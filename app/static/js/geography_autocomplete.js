@@ -37,6 +37,7 @@ class GeographyAutocomplete {
         this.debounceTimer = null;
         this.currentFocusIndex = -1;
         this.map = null;
+        this.mapHandlersInitialized = false;
 
         if (!this.input || !this.suggestionsContainer) {
             console.error('GeographyAutocomplete: Required elements not found');
@@ -136,6 +137,39 @@ class GeographyAutocomplete {
         maxZoom: 19
       }).addTo(map);
       this.map = map;
+      this._initMapHandlers();
+    }
+
+    _initMapHandlers() {
+      if (!this.map || this.mapHandlersInitialized) return;
+      this.mapHandlersInitialized = true;
+
+      // Allow shift+drag box zoom to set a spatial filter box
+      this.map.on('boxzoomend', (e) => {
+        const bounds = e && e.boxZoomBounds ? e.boxZoomBounds : null;
+        if (!bounds || !bounds.isValid()) return;
+        this.applyBoundsSelection(bounds);
+      });
+    }
+
+    applyBoundsSelection(bounds) {
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      const geometry = {
+        type: 'Polygon',
+        coordinates: [[
+          [sw.lng, sw.lat],
+          [ne.lng, sw.lat],
+          [ne.lng, ne.lat],
+          [sw.lng, ne.lat],
+          [sw.lng, sw.lat]
+        ]]
+      };
+
+      this.selectedGeometry = geometry;
+      this.showClearButton();
+      this.displayGeometry(this.selectedGeometry);
+      requestFilterFormSubmit(this.form);
     }
 
     displayGeometry(geometry) {
@@ -144,6 +178,10 @@ class GeographyAutocomplete {
       if (!this.map) {
         console.error('Could not construct map');
         return;
+      }
+      if (this.geoLayer) {
+        this.map.removeLayer(this.geoLayer);
+        this.geoLayer = null;
       }
       this.geoLayer = L.geoJSON(geometry, {
         style: function () {
@@ -169,6 +207,10 @@ class GeographyAutocomplete {
       if (!this.map) {
         console.error('Could not construct map');
         return;
+      }
+      if (this.geoLayer) {
+        this.map.removeLayer(this.geoLayer);
+        this.geoLayer = null;
       }
       this.map.setView([44.967243, -103.77155], 2);
     }
