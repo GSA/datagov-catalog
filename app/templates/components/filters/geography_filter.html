@@ -10,7 +10,7 @@
         <div class="keyword-autocomplete">
             <label id="geography-input-label" class="usa-label" for="geography-input">
               Filter by Geography <br>
-                <span class="usa-hint">Start typing to see suggestions or use the pencil button on the map</span>
+                <span class="usa-hint">Start typing to see suggestions or use the pencil button to open a larger map</span>
             </label>
             <input
                 type="text"
@@ -26,6 +26,47 @@
 
         </div>
         <div id="geography-map"></div>
+        <button
+            type="button"
+            id="geography-map-modal-trigger"
+            class="usa-sr-only"
+            data-open-modal
+            aria-controls="geography-map-modal"
+        >
+          Open geography map
+        </button>
+        <div
+            class="usa-modal"
+            id="geography-map-modal"
+            aria-labelledby="geography-map-modal-heading"
+            aria-describedby="geography-map-modal-description"
+        >
+            <div class="usa-modal__content">
+                <div class="usa-modal__main">
+                    <h2 class="usa-modal__heading" id="geography-map-modal-heading">
+                        Draw a geographic box
+                    </h2>
+                    <p class="usa-prose" id="geography-map-modal-description">
+                        Pan and zoom, then click "Draw box" and drag to set the area. Click Apply to use it.
+                    </p>
+                    <div class="usa-button-group">
+                        <button
+                            type="button"
+                            class="usa-button usa-button--outline"
+                            id="geography-modal-draw-toggle"
+                        >
+                            <i class="fa-solid fa-pencil" aria-hidden="true"></i>
+                            <span class="margin-left-05">Draw box</span>
+                        </button>
+                    </div>
+                    <div id="geography-map-modal-map"></div>
+                </div>
+                <div class="usa-modal__footer">
+                    <button type="button" class="usa-button" id="geography-modal-apply" data-close-modal>Apply</button>
+                    <button type="button" class="usa-button usa-button--unstyled" data-close-modal>Cancel</button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endmacro %}

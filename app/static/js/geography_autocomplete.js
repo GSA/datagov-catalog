@@ -39,10 +39,17 @@ class GeographyAutocomplete {
         this.map = null;
         this.mapHandlersInitialized = false;
         this.drawControl = null;
+        this.modalTrigger = null;
+        this.modalElement = null;
+        this.modalMapContainer = null;
+        this.modalMap = null;
+        this.modalGeoLayer = null;
+        this.modalApplyButton = null;
         this.drawButton = null;
         this.isDrawing = false;
         this.drawStartLatLng = null;
         this.drawRect = null;
+        this.pendingGeometry = null;
         this.boundDrawStart = this.onDrawStart.bind(this);
         this.boundDrawMove = this.onDrawMove.bind(this);
         this.boundDrawEnd = this.onDrawEnd.bind(this);
@@ -84,6 +91,43 @@ class GeographyAutocomplete {
                 this.syncHiddenInputsToMainSearch();
             });
         }
+
+        this.initModal();
+    }
+
+    initModal() {
+      this.modalTrigger = document.getElementById('geography-map-modal-trigger');
+      this.modalElement = document.getElementById('geography-map-modal');
+      this.modalMapContainer = document.getElementById('geography-map-modal-map');
+      this.drawButton = document.getElementById('geography-modal-draw-toggle');
+      this.modalApplyButton = document.getElementById('geography-modal-apply');
+
+      if (this.drawButton) {
+        this.drawButton.setAttribute('aria-pressed', 'false');
+        this.drawButton.addEventListener('click', () => {
+          this.toggleDrawMode();
+        });
+      }
+
+      if (this.modalApplyButton) {
+        this.modalApplyButton.addEventListener('click', () => {
+          this.applyPendingGeometry();
+        });
+        this.updateApplyButtonState();
+      }
+
+      if (this.modalElement) {
+        this.modalElement.addEventListener('click', (e) => {
+          if (e.target && e.target.closest('[data-close-modal]')) {
+            this.disableDrawMode();
+            if (!e.target.closest('#geography-modal-apply')) {
+              this.pendingGeometry = null;
+              this.updateApplyButtonState();
+              this._syncModalMap();
+            }
+          }
+        });
+      }
     }
 
     loadExistingGeography() {
@@ -121,6 +165,7 @@ class GeographyAutocomplete {
     // handle the click of the clear button
     clearClicked() {
       this.selectedGeometry = null;
+      this.disableDrawMode();
       this.displayNoGeometry();
       if (this.map) this.map.removeLayer(this.geoLayer);
 
@@ -170,18 +215,17 @@ class GeographyAutocomplete {
           const container = L.DomUtil.create('div', 'leaflet-bar geography-draw-control');
           const button = L.DomUtil.create('a', 'geography-draw-button', container);
           button.href = '#';
-          button.title = 'Draw a box to filter results';
+          button.title = 'Open a larger map to draw a box';
           button.setAttribute('role', 'button');
-          button.setAttribute('aria-label', 'Draw a box to filter results');
-          button.setAttribute('aria-pressed', 'false');
+          button.setAttribute('aria-label', 'Open a larger map to draw a box');
+          button.setAttribute('aria-controls', 'geography-map-modal');
           button.innerHTML = '<i class="fa-solid fa-pencil" aria-hidden="true"></i>';
           L.DomEvent.on(button, 'click', function (e) {
             L.DomEvent.stop(e);
-            self.toggleDrawMode();
+            self.openModal();
           });
           L.DomEvent.disableClickPropagation(container);
           L.DomEvent.disableScrollPropagation(container);
-          self.drawButton = button;
           return container;
         }
       });
@@ -190,8 +234,62 @@ class GeographyAutocomplete {
       this.drawControl.addTo(this.map);
     }
 
+    openModal() {
+      if (this.modalTrigger) {
+        this.modalTrigger.click();
+      }
+      window.setTimeout(() => {
+        this._ensureModalMap();
+        this.disableDrawMode();
+      }, 50);
+    }
+
+    _ensureModalMap() {
+      if (!this.modalMapContainer || typeof L === 'undefined') return;
+      if (!this.modalMapContainer.style.height) {
+        this.modalMapContainer.style.height = '60vh';
+        this.modalMapContainer.style.minHeight = '420px';
+      }
+      if (!this.modalMap) {
+        this.modalMap = L.map(this.modalMapContainer, {
+          zoomControl: true,
+          attributionControl: false
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19
+        }).addTo(this.modalMap);
+      }
+
+      this._syncModalMap();
+      this.modalMap.invalidateSize();
+    }
+
+    _syncModalMap() {
+      if (!this.modalMap) return;
+      if (this.pendingGeometry) {
+        this.modalGeoLayer = this._renderGeometryOnMap(
+          this.modalMap,
+          this.modalGeoLayer,
+          this.pendingGeometry
+        );
+      } else if (this.selectedGeometry) {
+        this.modalGeoLayer = this._renderGeometryOnMap(
+          this.modalMap,
+          this.modalGeoLayer,
+          this.selectedGeometry
+        );
+      } else {
+        if (this.modalGeoLayer) {
+          this.modalMap.removeLayer(this.modalGeoLayer);
+          this.modalGeoLayer = null;
+        }
+        this._setDefaultView(this.modalMap);
+      }
+    }
+
     toggleDrawMode() {
-      if (!this.map) return;
+      this._ensureModalMap();
+      if (!this.modalMap) return;
       if (this.isDrawing) {
         this.disableDrawMode();
       } else {
@@ -200,24 +298,24 @@ class GeographyAutocomplete {
     }
 
     enableDrawMode() {
-      if (!this.map) return;
+      if (!this.modalMap) return;
       this.isDrawing = true;
       this.drawStartLatLng = null;
       if (this.drawButton) {
         this.drawButton.classList.add('geography-draw-button--active');
         this.drawButton.setAttribute('aria-pressed', 'true');
       }
-      if (this.map.dragging) this.map.dragging.disable();
-      if (this.map.doubleClickZoom) this.map.doubleClickZoom.disable();
-      if (this.map.scrollWheelZoom) this.map.scrollWheelZoom.disable();
-      this.map.getContainer().style.cursor = 'crosshair';
-      this.map.on('mousedown', this.boundDrawStart);
-      this.map.on('mousemove', this.boundDrawMove);
-      this.map.on('mouseup', this.boundDrawEnd);
+      if (this.modalMap.dragging) this.modalMap.dragging.disable();
+      if (this.modalMap.doubleClickZoom) this.modalMap.doubleClickZoom.disable();
+      if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.disable();
+      this.modalMap.getContainer().style.cursor = 'crosshair';
+      this.modalMap.on('mousedown', this.boundDrawStart);
+      this.modalMap.on('mousemove', this.boundDrawMove);
+      this.modalMap.on('mouseup', this.boundDrawEnd);
     }
 
     disableDrawMode() {
-      if (!this.map || !this.isDrawing) return;
+      if (!this.modalMap || !this.isDrawing) return;
       this.isDrawing = false;
       this.drawStartLatLng = null;
       this._clearDrawRect();
@@ -225,17 +323,17 @@ class GeographyAutocomplete {
         this.drawButton.classList.remove('geography-draw-button--active');
         this.drawButton.setAttribute('aria-pressed', 'false');
       }
-      if (this.map.dragging) this.map.dragging.enable();
-      if (this.map.doubleClickZoom) this.map.doubleClickZoom.enable();
-      if (this.map.scrollWheelZoom) this.map.scrollWheelZoom.enable();
-      this.map.getContainer().style.cursor = '';
-      this.map.off('mousedown', this.boundDrawStart);
-      this.map.off('mousemove', this.boundDrawMove);
-      this.map.off('mouseup', this.boundDrawEnd);
+      if (this.modalMap.dragging) this.modalMap.dragging.enable();
+      if (this.modalMap.doubleClickZoom) this.modalMap.doubleClickZoom.enable();
+      if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.enable();
+      this.modalMap.getContainer().style.cursor = '';
+      this.modalMap.off('mousedown', this.boundDrawStart);
+      this.modalMap.off('mousemove', this.boundDrawMove);
+      this.modalMap.off('mouseup', this.boundDrawEnd);
     }
 
     onDrawStart(e) {
-      if (!this.isDrawing || !this.map) return;
+      if (!this.isDrawing || !this.modalMap) return;
       this.drawStartLatLng = e.latlng;
       this._clearDrawRect();
       this.drawRect = L.rectangle(L.latLngBounds(e.latlng, e.latlng), {
@@ -243,37 +341,61 @@ class GeographyAutocomplete {
         weight: 2,
         fillOpacity: 0.05,
         interactive: false
-      }).addTo(this.map);
+      }).addTo(this.modalMap);
     }
 
     onDrawMove(e) {
-      if (!this.isDrawing || !this.map || !this.drawStartLatLng || !this.drawRect) return;
+      if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng || !this.drawRect) return;
       const bounds = L.latLngBounds(this.drawStartLatLng, e.latlng);
       this.drawRect.setBounds(bounds);
     }
 
     onDrawEnd(e) {
-      if (!this.isDrawing || !this.map || !this.drawStartLatLng) return;
+      if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng) return;
       const bounds = L.latLngBounds(this.drawStartLatLng, e.latlng);
       this.drawStartLatLng = null;
       if (!bounds.isValid() || bounds.getSouthWest().equals(bounds.getNorthEast())) {
         this._clearDrawRect();
         return;
       }
-      this.applyBoundsSelection(bounds);
+      this.setPendingBounds(bounds);
       this.disableDrawMode();
     }
 
     _clearDrawRect() {
-      if (!this.map || !this.drawRect) return;
-      this.map.removeLayer(this.drawRect);
+      if (!this.modalMap || !this.drawRect) return;
+      this.modalMap.removeLayer(this.drawRect);
       this.drawRect = null;
     }
 
     applyBoundsSelection(bounds) {
+      const geometry = this.geometryFromBounds(bounds);
+      this.selectedGeometry = geometry;
+      this.pendingGeometry = null;
+      this.updateApplyButtonState();
+      this.showClearButton();
+      this.displayGeometry(this.selectedGeometry);
+      requestFilterFormSubmit(this.form);
+    }
+
+    setPendingBounds(bounds) {
+      const geometry = this.geometryFromBounds(bounds);
+      this.pendingGeometry = geometry;
+      this.updateApplyButtonState();
+      this._ensureModalMap();
+      if (this.modalMap) {
+        this.modalGeoLayer = this._renderGeometryOnMap(
+          this.modalMap,
+          this.modalGeoLayer,
+          geometry
+        );
+      }
+    }
+
+    geometryFromBounds(bounds) {
       const sw = bounds.getSouthWest();
       const ne = bounds.getNorthEast();
-      const geometry = {
+      return {
         type: 'Polygon',
         coordinates: [[
           [sw.lng, sw.lat],
@@ -283,11 +405,6 @@ class GeographyAutocomplete {
           [sw.lng, sw.lat]
         ]]
       };
-
-      this.selectedGeometry = geometry;
-      this.showClearButton();
-      this.displayGeometry(this.selectedGeometry);
-      requestFilterFormSubmit(this.form);
     }
 
     displayGeometry(geometry) {
@@ -297,28 +414,9 @@ class GeographyAutocomplete {
         console.error('Could not construct map');
         return;
       }
-      this._clearDrawRect();
-      this.disableDrawMode();
-      if (this.geoLayer) {
-        this.map.removeLayer(this.geoLayer);
-        this.geoLayer = null;
-      }
-      this.geoLayer = L.geoJSON(geometry, {
-        style: function () {
-          return { color: '#005ea2', weight: 2, fillOpacity: 0.05 };
-        },
-        pointToLayer: function (_feature, latlng) {
-          return L.marker(latlng);
-        }
-      }).addTo(this.map);
-
-      var geoBounds = this.geoLayer.getBounds();
-      if (geoBounds.isValid()) {
-        if (geoBounds.getSouthWest().equals(geoBounds.getNorthEast())) {
-          this.map.setView(geoBounds.getSouthWest(), 8);
-        } else {
-          this.map.fitBounds(geoBounds.pad(0.1));
-        }
+      this.geoLayer = this._renderGeometryOnMap(this.map, this.geoLayer, geometry);
+      if (this.modalMap) {
+        this._syncModalMap();
       }
     }
 
@@ -328,13 +426,66 @@ class GeographyAutocomplete {
         console.error('Could not construct map');
         return;
       }
-      this._clearDrawRect();
-      this.disableDrawMode();
+      this.pendingGeometry = null;
+      this.updateApplyButtonState();
       if (this.geoLayer) {
         this.map.removeLayer(this.geoLayer);
         this.geoLayer = null;
       }
-      this.map.setView([44.967243, -103.77155], 2);
+      this._setDefaultView(this.map);
+      if (this.modalMap) {
+        if (this.modalGeoLayer) {
+          this.modalMap.removeLayer(this.modalGeoLayer);
+          this.modalGeoLayer = null;
+        }
+        this._setDefaultView(this.modalMap);
+      }
+    }
+
+    _renderGeometryOnMap(map, existingLayer, geometry) {
+      if (!map) return existingLayer;
+      if (existingLayer) {
+        map.removeLayer(existingLayer);
+      }
+      const layer = L.geoJSON(geometry, {
+        style: function () {
+          return { color: '#005ea2', weight: 2, fillOpacity: 0.05 };
+        },
+        pointToLayer: function (_feature, latlng) {
+          return L.marker(latlng);
+        }
+      }).addTo(map);
+
+      const geoBounds = layer.getBounds();
+      if (geoBounds.isValid()) {
+        if (geoBounds.getSouthWest().equals(geoBounds.getNorthEast())) {
+          map.setView(geoBounds.getSouthWest(), 8);
+        } else {
+          map.fitBounds(geoBounds.pad(0.1));
+        }
+      }
+      return layer;
+    }
+
+    _setDefaultView(map) {
+      if (!map) return;
+      map.setView([44.967243, -103.77155], 2);
+    }
+
+    updateApplyButtonState() {
+      if (!this.modalApplyButton) return;
+      const hasPending = !!this.pendingGeometry;
+      this.modalApplyButton.disabled = !hasPending;
+    }
+
+    applyPendingGeometry() {
+      if (!this.pendingGeometry) return;
+      this.selectedGeometry = this.pendingGeometry;
+      this.pendingGeometry = null;
+      this.updateApplyButtonState();
+      this.showClearButton();
+      this.displayGeometry(this.selectedGeometry);
+      requestFilterFormSubmit(this.form);
     }
 
     initSuggestedGeography() {
