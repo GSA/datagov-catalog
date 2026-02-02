@@ -332,7 +332,9 @@ def compare_opensearch(sample_size: int, fix: bool):
             dt = dt.replace(tzinfo=timezone.utc)
         else:
             dt = dt.astimezone(timezone.utc)
-        return dt.isoformat()
+        # Normalize to milliseconds to match OpenSearch docvalue precision.
+        dt = dt.replace(microsecond=(dt.microsecond // 1000) * 1000)
+        return dt.isoformat(timespec="milliseconds")
 
     def index_dataset_batches(
         dataset_ids: list[str], intro_message: str, log_all_errors=False
