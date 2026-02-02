@@ -42,7 +42,7 @@
         <div id="search-results" class="margin-top-3">
             {% if datasets %}
             <div class="usa-prose">
-              {% if query or org_types or keywords or org_slug or spatial_filter %}
+              {% if query or org_types or keywords or org_slug or spatial_filter or spatial_geometry %}
                 <p class="text-base-dark">
                 {%- if total < 2 -%}
                     Found <strong>{{ total }}</strong> dataset matching
@@ -51,7 +51,7 @@
                 {%- else -%}
                     Found over <strong>{{ total }}</strong> datasets matching
                 {%- endif %}
-                {%- if query and (org_types or keywords or org_slug or spatial_filter) %} "{{ query }}" and filters.
+                {%- if query and (org_types or keywords or org_slug or spatial_filter or spatial_geometry) %} "{{ query }}" and filters.
                 {%- elif query %} "{{ query }}".
                 {%- else %} filters.
                 {%- endif -%}

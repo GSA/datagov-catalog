@@ -184,7 +184,9 @@ def index():
             else:
                 org_filter_id = org_slug_param
 
-    has_filters = query or org_types or keywords or org_filter_id or spatial_filter
+    has_filters = (
+        query or org_types or keywords or org_filter_id or spatial_filter or spatial_geometry
+    )
 
     try:
         result = interface.search_datasets(
@@ -260,6 +262,7 @@ def index():
         suggested_keywords=suggested_keywords,
         suggested_organizations=suggested_organizations,
         spatial_filter=spatial_filter,
+        spatial_geometry=spatial_geometry,
         from_hint=from_hint,
         selected_organization=selected_organization,
     )
@@ -653,6 +656,28 @@ def get_organizations_api():
     except Exception as e:
         return (
             jsonify({"error": "Failed to fetch organizations", "message": str(e)}),
+            500,
+        )
+
+
+@main.route("/api/opensearch/health", methods=["GET"])
+def get_opensearch_health_api():
+    """API endpoint to fetch OpenSearch cluster health."""
+
+    try:
+        health = interface.opensearch.client.cluster.health()
+        status = health.get("status") if isinstance(health, dict) else None
+        return jsonify({"status": status})
+    except Exception as e:
+        logger.exception("Failed to fetch OpenSearch cluster health")
+        return (
+            jsonify(
+                {
+                    "status": "unknown",
+                    "error": "Failed to fetch OpenSearch cluster health",
+                    "message": str(e),
+                }
+            ),
             500,
         )
 
