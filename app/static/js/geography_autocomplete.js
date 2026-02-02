@@ -38,6 +38,14 @@ class GeographyAutocomplete {
         this.currentFocusIndex = -1;
         this.map = null;
         this.mapHandlersInitialized = false;
+        this.drawControl = null;
+        this.drawButton = null;
+        this.isDrawing = false;
+        this.drawStartLatLng = null;
+        this.drawRect = null;
+        this.boundDrawStart = this.onDrawStart.bind(this);
+        this.boundDrawMove = this.onDrawMove.bind(this);
+        this.boundDrawEnd = this.onDrawEnd.bind(this);
 
         if (!this.input || !this.suggestionsContainer) {
             console.error('GeographyAutocomplete: Required elements not found');
@@ -150,6 +158,116 @@ class GeographyAutocomplete {
         if (!bounds || !bounds.isValid()) return;
         this.applyBoundsSelection(bounds);
       });
+
+      this._addDrawControl();
+    }
+
+    _addDrawControl() {
+      if (!this.map || this.drawControl) return;
+      const self = this;
+      const DrawControl = L.Control.extend({
+        onAdd: function () {
+          const container = L.DomUtil.create('div', 'leaflet-bar geography-draw-control');
+          const button = L.DomUtil.create('a', 'geography-draw-button', container);
+          button.href = '#';
+          button.title = 'Draw a box to filter results';
+          button.setAttribute('role', 'button');
+          button.setAttribute('aria-label', 'Draw a box to filter results');
+          button.setAttribute('aria-pressed', 'false');
+          button.textContent = 'Box';
+          L.DomEvent.on(button, 'click', function (e) {
+            L.DomEvent.stop(e);
+            self.toggleDrawMode();
+          });
+          L.DomEvent.disableClickPropagation(container);
+          L.DomEvent.disableScrollPropagation(container);
+          self.drawButton = button;
+          return container;
+        }
+      });
+
+      this.drawControl = new DrawControl({ position: 'topleft' });
+      this.drawControl.addTo(this.map);
+    }
+
+    toggleDrawMode() {
+      if (!this.map) return;
+      if (this.isDrawing) {
+        this.disableDrawMode();
+      } else {
+        this.enableDrawMode();
+      }
+    }
+
+    enableDrawMode() {
+      if (!this.map) return;
+      this.isDrawing = true;
+      this.drawStartLatLng = null;
+      if (this.drawButton) {
+        this.drawButton.classList.add('geography-draw-button--active');
+        this.drawButton.setAttribute('aria-pressed', 'true');
+      }
+      if (this.map.dragging) this.map.dragging.disable();
+      if (this.map.doubleClickZoom) this.map.doubleClickZoom.disable();
+      if (this.map.scrollWheelZoom) this.map.scrollWheelZoom.disable();
+      this.map.getContainer().style.cursor = 'crosshair';
+      this.map.on('mousedown', this.boundDrawStart);
+      this.map.on('mousemove', this.boundDrawMove);
+      this.map.on('mouseup', this.boundDrawEnd);
+    }
+
+    disableDrawMode() {
+      if (!this.map || !this.isDrawing) return;
+      this.isDrawing = false;
+      this.drawStartLatLng = null;
+      this._clearDrawRect();
+      if (this.drawButton) {
+        this.drawButton.classList.remove('geography-draw-button--active');
+        this.drawButton.setAttribute('aria-pressed', 'false');
+      }
+      if (this.map.dragging) this.map.dragging.enable();
+      if (this.map.doubleClickZoom) this.map.doubleClickZoom.enable();
+      if (this.map.scrollWheelZoom) this.map.scrollWheelZoom.enable();
+      this.map.getContainer().style.cursor = '';
+      this.map.off('mousedown', this.boundDrawStart);
+      this.map.off('mousemove', this.boundDrawMove);
+      this.map.off('mouseup', this.boundDrawEnd);
+    }
+
+    onDrawStart(e) {
+      if (!this.isDrawing || !this.map) return;
+      this.drawStartLatLng = e.latlng;
+      this._clearDrawRect();
+      this.drawRect = L.rectangle(L.latLngBounds(e.latlng, e.latlng), {
+        color: '#005ea2',
+        weight: 2,
+        fillOpacity: 0.05,
+        interactive: false
+      }).addTo(this.map);
+    }
+
+    onDrawMove(e) {
+      if (!this.isDrawing || !this.map || !this.drawStartLatLng || !this.drawRect) return;
+      const bounds = L.latLngBounds(this.drawStartLatLng, e.latlng);
+      this.drawRect.setBounds(bounds);
+    }
+
+    onDrawEnd(e) {
+      if (!this.isDrawing || !this.map || !this.drawStartLatLng) return;
+      const bounds = L.latLngBounds(this.drawStartLatLng, e.latlng);
+      this.drawStartLatLng = null;
+      if (!bounds.isValid() || bounds.getSouthWest().equals(bounds.getNorthEast())) {
+        this._clearDrawRect();
+        return;
+      }
+      this.applyBoundsSelection(bounds);
+      this.disableDrawMode();
+    }
+
+    _clearDrawRect() {
+      if (!this.map || !this.drawRect) return;
+      this.map.removeLayer(this.drawRect);
+      this.drawRect = null;
     }
 
     applyBoundsSelection(bounds) {
@@ -179,6 +297,8 @@ class GeographyAutocomplete {
         console.error('Could not construct map');
         return;
       }
+      this._clearDrawRect();
+      this.disableDrawMode();
       if (this.geoLayer) {
         this.map.removeLayer(this.geoLayer);
         this.geoLayer = null;
@@ -208,6 +328,8 @@ class GeographyAutocomplete {
         console.error('Could not construct map');
         return;
       }
+      this._clearDrawRect();
+      this.disableDrawMode();
       if (this.geoLayer) {
         this.map.removeLayer(this.geoLayer);
         this.geoLayer = null;
