@@ -174,7 +174,7 @@ class GeographyAutocomplete {
           button.setAttribute('role', 'button');
           button.setAttribute('aria-label', 'Draw a box to filter results');
           button.setAttribute('aria-pressed', 'false');
-          button.textContent = 'Box';
+          button.innerHTML = '<i class="fa-solid fa-pencil" aria-hidden="true"></i>';
           L.DomEvent.on(button, 'click', function (e) {
             L.DomEvent.stop(e);
             self.toggleDrawMode();
