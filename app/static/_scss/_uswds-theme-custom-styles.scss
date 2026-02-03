@@ -1076,6 +1076,9 @@ div.grid-row.grid-gap#menu-footer {
     flex-direction: column;
     padding: 0;
     gap: 0.5rem;
+    width: 100%;
+    max-width: none;
+    margin: 0;
   }
 
   .usa-modal__heading {
@@ -1119,12 +1122,12 @@ div.grid-row.grid-gap#menu-footer {
 
   .usa-modal__close {
     position: absolute;
-    top: 1.5em;
-    right: 0.5rem;
+    top: 1em;
+    right: 0.25rem;
     z-index: 10;
     background: transparent;
     border: 0;
-    font-size: 1.5rem;
+    font-size: 2rem;
     line-height: 1;
     color: color('gray-50');
     padding: 0.25rem 0.5rem;
