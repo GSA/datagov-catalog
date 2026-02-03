@@ -244,11 +244,31 @@ class GeographyAutocomplete {
       }, 50);
     }
 
-    _ensureModalMap() {
+    _ensureModalMap(options = {}) {
       if (!this.modalMapContainer || typeof L === 'undefined') return;
-      if (!this.modalMapContainer.style.height) {
-        this.modalMapContainer.style.height = '60vh';
-        this.modalMapContainer.style.minHeight = '420px';
+      const { syncView = true } = options;
+      const isGeographyModal = this.modalMapContainer.closest('.usa-modal--geography');
+      if (isGeographyModal) {
+        this.modalMapContainer.style.removeProperty('height');
+        this.modalMapContainer.style.removeProperty('min-height');
+      } else {
+        const computedStyles = window.getComputedStyle(this.modalMapContainer);
+        const computedHeight = computedStyles.height;
+        const computedMinHeight = computedStyles.minHeight;
+        const hasHeight =
+          computedHeight &&
+          computedHeight !== 'auto' &&
+          computedHeight !== '0px';
+        const hasMinHeight =
+          computedMinHeight &&
+          computedMinHeight !== 'auto' &&
+          computedMinHeight !== '0px';
+        if (!hasHeight) {
+          this.modalMapContainer.style.height = '60vh';
+        }
+        if (!hasMinHeight) {
+          this.modalMapContainer.style.minHeight = '26.25rem';
+        }
       }
       if (!this.modalMap) {
         this.modalMap = L.map(this.modalMapContainer, {
@@ -260,7 +280,9 @@ class GeographyAutocomplete {
         }).addTo(this.modalMap);
       }
 
-      this._syncModalMap();
+      if (syncView) {
+        this._syncModalMap();
+      }
       this.modalMap.invalidateSize();
     }
 
@@ -288,7 +310,7 @@ class GeographyAutocomplete {
     }
 
     toggleDrawMode() {
-      this._ensureModalMap();
+      this._ensureModalMap({ syncView: false });
       if (!this.modalMap) return;
       if (this.isDrawing) {
         this.disableDrawMode();
