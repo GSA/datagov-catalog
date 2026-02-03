@@ -355,7 +355,7 @@ class GeographyAutocomplete {
           this.modalMap.removeLayer(this.modalGeoLayer);
           this.modalGeoLayer = null;
         }
-        this._setDefaultView(this.modalMap);
+        this._setDefaultView(this.modalMap, { usa: true });
       }
     }
 
@@ -510,7 +510,7 @@ class GeographyAutocomplete {
           this.modalMap.removeLayer(this.modalGeoLayer);
           this.modalGeoLayer = null;
         }
-        this._setDefaultView(this.modalMap);
+        this._setDefaultView(this.modalMap, { usa: true });
       }
     }
 
@@ -539,8 +539,13 @@ class GeographyAutocomplete {
       return layer;
     }
 
-    _setDefaultView(map) {
+    _setDefaultView(map, options = {}) {
       if (!map) return;
+      const { usa = false } = options;
+      if (usa) {
+        map.setView([39.8283, -98.5795], 4);
+        return;
+      }
       map.setView([44.967243, -103.77155], 2);
     }
 
