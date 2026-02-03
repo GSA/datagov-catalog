@@ -180,7 +180,7 @@ ul.menu {
     border-radius: 1rem;
     box-shadow: 0 14px 32px rgba(15,23,42,.1);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     width: 100%;
 }
 .organization-datasets__list {
@@ -413,7 +413,7 @@ ul.dataset-resources {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
     color: white;
     margin-bottom: 0.75rem;
@@ -1100,6 +1100,70 @@ div.grid-row.grid-gap#menu-footer {
     font-size: 0.95rem;
   }
 
+  .geography-map-modal__relation {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0;
+    font-size: 0.75rem;
+    color: #1b1b1b;
+    position: absolute;
+    right: 0.5rem;
+    top: 4.4rem;
+    z-index: 500;
+    padding: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(15, 23, 42, 0.18);
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
+  }
+
+  .geography-map-modal__relation .usa-radio {
+    margin: 0;
+    position: relative;
+    background: transparent;
+  }
+
+  .geography-map-modal__relation .usa-radio__label {
+    margin-top: 0;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    font-weight: 600;
+    color: #1b1b1b;
+    cursor: pointer;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    background: transparent;
+    outline-offset: 0;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.12);
+  }
+
+  .geography-map-modal__relation .usa-radio__label::before,
+  .geography-map-modal__relation .usa-radio__label::after {
+    display: none;
+  }
+
+  .geography-map-modal__relation .usa-radio__input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .geography-map-modal__relation .usa-radio__input:checked + .usa-radio__label {
+    background: #005ea2;
+    color: #fff;
+  }
+
+  .geography-map-modal__relation .usa-radio__input:focus + .usa-radio__label {
+    outline: 2px solid #1a4480;
+    outline-offset: -2px;
+  }
+
+  .geography-map-modal__relation .usa-radio__label:hover {
+    color: #1a4480;
+  }
+
   .geography-map-modal__map {
     flex: 1 1 auto;
     min-height: 15rem;
@@ -1120,17 +1184,24 @@ div.grid-row.grid-gap#menu-footer {
     right: 0.5rem;
     z-index: 500;
     display: flex;
-    flex-direction: row;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-end;
     gap: 0.5rem;
     margin: 0;
-    padding: 0.25rem;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 999px;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 0.75rem;
     border: 1px solid rgba(15, 23, 42, 0.12);
     box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
+  }
+
+  .geography-map-modal__controls-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .geography-map-modal__control-button {

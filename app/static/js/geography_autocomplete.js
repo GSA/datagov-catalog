@@ -50,6 +50,9 @@ class GeographyAutocomplete {
         this.drawStartLatLng = null;
         this.drawRect = null;
         this.pendingGeometry = null;
+        this.spatialWithin = true;
+        this.pendingSpatialWithin = null;
+        this.spatialWithinRadios = null;
         this.boundDrawStart = this.onDrawStart.bind(this);
         this.boundDrawMove = this.onDrawMove.bind(this);
         this.boundDrawEnd = this.onDrawEnd.bind(this);
@@ -102,6 +105,9 @@ class GeographyAutocomplete {
       this.modalMapContainer = document.getElementById('geography-map-modal-map');
       this.drawButton = document.getElementById('geography-modal-draw-toggle');
       this.modalApplyButton = document.getElementById('geography-modal-apply');
+      this.spatialWithinRadios = this.modalElement
+        ? this.modalElement.querySelectorAll('input[name="spatial_within"]')
+        : null;
 
       if (this.drawButton) {
         this.drawButton.setAttribute('aria-pressed', 'false');
@@ -117,12 +123,23 @@ class GeographyAutocomplete {
         this.updateApplyButtonState();
       }
 
+      if (this.spatialWithinRadios && this.spatialWithinRadios.length) {
+        this.spatialWithinRadios.forEach((radio) => {
+          radio.addEventListener('change', (e) => {
+            this.onSpatialWithinChange(e);
+          });
+        });
+        this.syncSpatialWithinRadios();
+      }
+
       if (this.modalElement) {
         this.modalElement.addEventListener('click', (e) => {
           if (e.target && e.target.closest('[data-close-modal]')) {
             this.disableDrawMode();
             if (!e.target.closest('#geography-modal-apply')) {
               this.pendingGeometry = null;
+              this.pendingSpatialWithin = null;
+              this.syncSpatialWithinRadios();
               this.updateApplyButtonState();
               this._syncModalMap();
             }
@@ -131,10 +148,22 @@ class GeographyAutocomplete {
       }
     }
 
+    parseSpatialWithinParam(value) {
+      if (typeof value !== 'string') return true;
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
+      if (['false', '0', 'no', 'n', 'off'].includes(normalized)) return false;
+      return true;
+    }
+
     loadExistingGeography() {
         // Load geography from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const existingGeometry = urlParams.get('spatial_geometry');
+        this.spatialWithin = this.parseSpatialWithinParam(
+          urlParams.get('spatial_within')
+        );
+        this.pendingSpatialWithin = null;
         if (existingGeometry) {
             // URL-encoded parameter is a string of a GeoJSON object
             this.selectedGeometry = JSON.parse(decodeURI(existingGeometry))
@@ -143,6 +172,26 @@ class GeographyAutocomplete {
         } else {
           this.displayNoGeometry();
         }
+    }
+
+    syncSpatialWithinRadios() {
+      if (!this.spatialWithinRadios || !this.spatialWithinRadios.length) return;
+      const value =
+        this.pendingSpatialWithin !== null
+          ? this.pendingSpatialWithin
+          : this.spatialWithin;
+      const targetValue = value ? 'true' : 'false';
+      this.spatialWithinRadios.forEach((radio) => {
+        radio.checked = radio.value === targetValue;
+      });
+    }
+
+    onSpatialWithinChange(event) {
+      if (!event || !event.target) return;
+      const nextWithin = event.target.value === 'true';
+      this.pendingSpatialWithin =
+        nextWithin === this.spatialWithin ? null : nextWithin;
+      this.updateApplyButtonState();
     }
 
     showClearButton() {
@@ -497,17 +546,37 @@ class GeographyAutocomplete {
 
     updateApplyButtonState() {
       if (!this.modalApplyButton) return;
-      const hasPending = !!this.pendingGeometry;
+      const hasGeometry = !!(this.pendingGeometry || this.selectedGeometry);
+      const hasPendingRelation = this.pendingSpatialWithin !== null;
+      const hasPending =
+        !!this.pendingGeometry || (hasPendingRelation && hasGeometry);
       this.modalApplyButton.disabled = !hasPending;
     }
 
     applyPendingGeometry() {
-      if (!this.pendingGeometry) return;
-      this.selectedGeometry = this.pendingGeometry;
+      const hasPendingGeometry = !!this.pendingGeometry;
+      const hasPendingRelation = this.pendingSpatialWithin !== null;
+      const hasGeometry = !!(this.pendingGeometry || this.selectedGeometry);
+      if (!hasPendingGeometry && !hasPendingRelation) return;
+      if (!hasGeometry) {
+        this.pendingSpatialWithin = null;
+        this.updateApplyButtonState();
+        this.syncSpatialWithinRadios();
+        return;
+      }
+      if (hasPendingGeometry) {
+        this.selectedGeometry = this.pendingGeometry;
+      }
+      if (hasPendingRelation) {
+        this.spatialWithin = this.pendingSpatialWithin;
+      }
       this.pendingGeometry = null;
+      this.pendingSpatialWithin = null;
       this.updateApplyButtonState();
       this.showClearButton();
-      this.displayGeometry(this.selectedGeometry);
+      if (hasPendingGeometry) {
+        this.displayGeometry(this.selectedGeometry);
+      }
       this.markPostApplyScroll();
       requestFilterFormSubmit(this.form);
     }
@@ -683,40 +752,43 @@ class GeographyAutocomplete {
       }
     }
 
+    _syncSpatialHiddenInputs(form) {
+        if (!form) return;
+
+        const existingGeometryInputs = form.querySelectorAll(
+          'input[name="spatial_geometry"][type="hidden"]'
+        );
+        existingGeometryInputs.forEach(input => input.remove());
+
+        const existingWithinInputs = form.querySelectorAll(
+          'input[name="spatial_within"][type="hidden"]'
+        );
+        existingWithinInputs.forEach(input => input.remove());
+
+        if (this.selectedGeometry) {
+          const geometryInput = document.createElement('input');
+          geometryInput.type = 'hidden';
+          geometryInput.name = 'spatial_geometry';
+          // URI-encoding should be handled by form submission
+          geometryInput.value = JSON.stringify(this.selectedGeometry);
+          form.appendChild(geometryInput);
+
+          const withinInput = document.createElement('input');
+          withinInput.type = 'hidden';
+          withinInput.name = 'spatial_within';
+          withinInput.value = this.spatialWithin ? 'true' : 'false';
+          form.appendChild(withinInput);
+        }
+    }
+
     // Sync geometry to hidden inputs in the filter form
     syncHiddenInputs() {
-        // Remove existing geometry hidden input from filter form
-        const existingInputs = this.form.querySelectorAll('input[name="spatial_geometry"]');
-        existingInputs.forEach(input => input.remove());
-
-        // add hidden input for spatial_geometry
-        if (this.selectedGeometry) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'spatial_geometry';
-          // URI-encoding should be handled by form submission
-          input.value = JSON.stringify(this.selectedGeometry);
-          this.form.appendChild(input);
-        }
+        this._syncSpatialHiddenInputs(this.form);
     }
 
     // Sync geometry to hidden inputs in the main search form
     syncHiddenInputsToMainSearch() {
-        if (!this.mainSearchForm) return;
-
-        // Remove existing keyword hidden inputs from main search form
-        const existingInputs = this.mainSearchForm.querySelectorAll('input[name="spatial_geometry"][type="hidden"]');
-        existingInputs.forEach(input => input.remove());
-
-        // Add hidden input for spatial geometry
-        if (this.selectedGeometry) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'spatial_geometry';
-          // URI-encoding should be handled by form submission
-          input.value = JSON.stringify(this.selectedGeometry);
-          this.mainSearchForm.appendChild(input);
-        }
+        this._syncSpatialHiddenInputs(this.mainSearchForm);
     }
 
     escapeHtml(text) {

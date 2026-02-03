@@ -62,29 +62,64 @@
                         <i class="fa-solid fa-check" aria-hidden="true"></i>
                         <span class="usa-sr-only">Apply</span>
                         to use it.
+                        <br>
+                        Use the Within/Intersect toggle to choose how the box matches datasets.
                     </p>
                     <div class="geography-map-modal__map">
                         <div id="geography-map-modal-map"></div>
-                        <div class="usa-button-group geography-map-modal__controls">
-                            <button
-                                type="button"
-                                class="usa-button usa-button--outline geography-map-modal__control-button"
-                                id="geography-modal-draw-toggle"
-                                aria-label="Draw box"
-                                title="Draw box"
-                            >
-                                <i class="fa-solid fa-draw-polygon" aria-hidden="true"></i>
-                            </button>
-                            <button
-                                type="button"
-                                class="usa-button geography-map-modal__control-button geography-map-modal__control-button--apply"
-                                id="geography-modal-apply"
-                                data-close-modal
-                                aria-label="Apply"
-                                title="Apply"
-                            >
-                                <i class="fa-solid fa-check" aria-hidden="true"></i>
-                            </button>
+                        <div class="geography-map-modal__controls">
+                            <div class="geography-map-modal__controls-row">
+                                <button
+                                    type="button"
+                                    class="usa-button usa-button--outline geography-map-modal__control-button"
+                                    id="geography-modal-draw-toggle"
+                                    aria-label="Draw box"
+                                    title="Draw box"
+                                >
+                                    <i class="fa-solid fa-draw-polygon" aria-hidden="true"></i>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="usa-button geography-map-modal__control-button geography-map-modal__control-button--apply"
+                                    id="geography-modal-apply"
+                                    data-close-modal
+                                    aria-label="Apply"
+                                    title="Apply"
+                                >
+                                    <i class="fa-solid fa-check" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div
+                            class="geography-map-modal__relation"
+                            role="group"
+                            aria-label="Match datasets"
+                        >
+                            <div class="usa-radio">
+                                <input
+                                    class="usa-radio__input"
+                                    id="geography-relation-within"
+                                    type="radio"
+                                    name="spatial_within"
+                                    value="true"
+                                    checked
+                                >
+                                <label class="usa-radio__label" for="geography-relation-within">
+                                    Within
+                                </label>
+                            </div>
+                            <div class="usa-radio">
+                                <input
+                                    class="usa-radio__input"
+                                    id="geography-relation-intersects"
+                                    type="radio"
+                                    name="spatial_within"
+                                    value="false"
+                                >
+                                <label class="usa-radio__label" for="geography-relation-intersects">
+                                    Intersect
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
