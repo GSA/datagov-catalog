@@ -1052,3 +1052,27 @@ div.grid-row.grid-gap#menu-footer {
     }
   }
 }
+
+// Geography modal: position close button at top-right
+#geography-map-modal {
+  .usa-modal__content {
+    position: relative;
+  }
+  .usa-modal__close {
+    position: absolute;
+    top: 1.5em;
+    right: 0.5rem;
+    z-index: 10;
+    background: transparent;
+    border: 0;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: color('gray-50');
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+  }
+  .usa-modal__close:hover,
+  .usa-modal__close:focus {
+    color: color('gray-70');
+  }
+}
