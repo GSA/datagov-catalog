@@ -1059,6 +1059,10 @@ div.grid-row.grid-gap#menu-footer {
   max-width: 96vw;
   height: 34.375rem;
   max-height: 90vh;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
 
   .usa-modal__content {
     position: relative;
@@ -1066,7 +1070,9 @@ div.grid-row.grid-gap#menu-footer {
     height: 100%;
     display: flex;
     flex-direction: column;
-    padding: 0.5rem;
+    padding: 0.75rem;
+    background: #fff;
+    border-radius: inherit;
   }
 
   .usa-modal__main {
@@ -1083,10 +1089,15 @@ div.grid-row.grid-gap#menu-footer {
 
   .usa-modal__heading {
     margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1b1b1b;
   }
 
   .usa-prose {
     margin: 0 0 0.25rem;
+    color: #565c65;
+    font-size: 0.95rem;
   }
 
   .geography-map-modal__map {
@@ -1096,6 +1107,11 @@ div.grid-row.grid-gap#menu-footer {
     width: 100%;
     height: 100%;
     margin: 0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #f8fafc;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   }
 
   .geography-map-modal__controls {
@@ -1108,6 +1124,55 @@ div.grid-row.grid-gap#menu-footer {
     align-items: center;
     gap: 0.5rem;
     margin: 0;
+    padding: 0.25rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .geography-map-modal__control-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    padding: 0;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .geography-map-modal__control-button.usa-button--outline {
+    background: #fff;
+    border-color: rgba(15, 23, 42, 0.18);
+    color: #1b1b1b;
+  }
+
+  .geography-map-modal__control-button.usa-button--outline:hover,
+  .geography-map-modal__control-button.usa-button--outline:focus {
+    border-color: #005ea2;
+    color: #1a4480;
+  }
+
+  .geography-map-modal__control-button--apply {
+    background: #00a91c;
+    border-color: #00a91c;
+    color: #fff;
+  }
+
+  .geography-map-modal__control-button--apply:hover,
+  .geography-map-modal__control-button--apply:focus {
+    background: #008817;
+    border-color: #008817;
+    color: #fff;
+  }
+
+  .geography-map-modal__control-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   #geography-map-modal-map {
