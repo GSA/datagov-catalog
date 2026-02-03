@@ -93,6 +93,7 @@ class GeographyAutocomplete {
         }
 
         this.initModal();
+        this.handlePostApplyScroll();
     }
 
     initModal() {
@@ -507,7 +508,39 @@ class GeographyAutocomplete {
       this.updateApplyButtonState();
       this.showClearButton();
       this.displayGeometry(this.selectedGeometry);
+      this.markPostApplyScroll();
       requestFilterFormSubmit(this.form);
+    }
+
+    markPostApplyScroll() {
+      try {
+        sessionStorage.setItem('geography-apply-scroll', String(Date.now()));
+      } catch (e) {
+        // Ignore storage failures (private mode, disabled storage, etc.).
+      }
+    }
+
+    handlePostApplyScroll() {
+      let flag = null;
+      try {
+        flag = sessionStorage.getItem('geography-apply-scroll');
+        sessionStorage.removeItem('geography-apply-scroll');
+      } catch (e) {
+        flag = null;
+      }
+      if (!flag) return;
+
+      const target =
+        document.getElementById('geography-input-label') ||
+        document.getElementById('filter-geography');
+      if (!target) return;
+
+      window.requestAnimationFrame(() => {
+        target.scrollIntoView({ block: 'start' });
+        window.setTimeout(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 800);
+      });
     }
 
     initSuggestedGeography() {
