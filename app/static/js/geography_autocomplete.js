@@ -750,7 +750,6 @@ class GeographyAutocomplete {
         this.selectedGeometry = JSON.parse(data.geometry);
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
-        this.markPostApplyScroll();
         requestFilterFormSubmit(this.form);
       } catch (error) {
         console.error('Error loading location data:', error);
