@@ -96,7 +96,6 @@ class GeographyAutocomplete {
         }
 
         this.initModal();
-        this.handlePostApplyScroll();
     }
 
     initModal() {
@@ -582,39 +581,7 @@ class GeographyAutocomplete {
       if (hasPendingGeometry) {
         this.displayGeometry(this.selectedGeometry);
       }
-      this.markPostApplyScroll();
       requestFilterFormSubmit(this.form);
-    }
-
-    markPostApplyScroll() {
-      try {
-        sessionStorage.setItem('geography-apply-scroll', String(Date.now()));
-      } catch (e) {
-        // Ignore storage failures (private mode, disabled storage, etc.).
-      }
-    }
-
-    handlePostApplyScroll() {
-      let flag = null;
-      try {
-        flag = sessionStorage.getItem('geography-apply-scroll');
-        sessionStorage.removeItem('geography-apply-scroll');
-      } catch (e) {
-        flag = null;
-      }
-      if (!flag) return;
-
-      const target =
-        document.getElementById('geography-input-label') ||
-        document.getElementById('filter-geography');
-      if (!target) return;
-
-      window.requestAnimationFrame(() => {
-        target.scrollIntoView({ block: 'start' });
-        window.setTimeout(() => {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 800);
-      });
     }
 
     initSuggestedGeography() {
@@ -694,7 +661,7 @@ class GeographyAutocomplete {
     async filterAndShowSuggestions(query) {
         // Filter keywords that match the query
         // TODO: this calls the location search API every time, we could
-        // try some caching to save on calls 
+        // try some caching to save on calls
         query = query.toLowerCase();
         const response = await fetch(`${this.apiEndpoint}s/search?q=${query}&size=10`);
         const filtered = await response.json();
