@@ -1,8 +1,9 @@
 {% import 'components/dataset_card.j2' as dataset_card -%}
 
 {% if datasets %}
+  {% set allow_distance = spatial_geometry is not none %}
   {% for dataset in datasets %}
-    {{ dataset_card.dataset_card(dataset, sort_value=selected_sort) }}
+    {{ dataset_card.dataset_card(dataset, sort_value=selected_sort, allow_distance=allow_distance) }}
   {% endfor %}
     {% if after %}
     <div id="replaceMe">

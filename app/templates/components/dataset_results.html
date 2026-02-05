@@ -2,10 +2,11 @@
 {% import 'components/dataset_card.j2' as dataset_card -%}
 {% if datasets %}
   {% for dataset in datasets %}
+    {% set allow_distance = spatial_geometry is not none %}
     {% if from_hint %}
-      {{ dataset_card.dataset_card(dataset, from_hint, sort_value=sort_by) }}
+      {{ dataset_card.dataset_card(dataset, from_hint, sort_value=sort_by, allow_distance=allow_distance) }}
     {% else %}
-      {{ dataset_card.dataset_card(dataset, sort_value=sort_by) }}
+      {{ dataset_card.dataset_card(dataset, sort_value=sort_by, allow_distance=allow_distance) }}
     {% endif %}
 
   {% endfor %}
