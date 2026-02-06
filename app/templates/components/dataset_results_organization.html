@@ -2,7 +2,7 @@
 
 {% if datasets %}
   {% for dataset in datasets %}
-    {{ dataset_card.dataset_card(dataset) }}
+    {{ dataset_card.dataset_card(dataset, sort_value=selected_sort) }}
   {% endfor %}
     {% if after %}
     <div id="replaceMe">

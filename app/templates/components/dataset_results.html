@@ -3,9 +3,9 @@
 {% if datasets %}
   {% for dataset in datasets %}
     {% if from_hint %}
-      {{ dataset_card.dataset_card(dataset, from_hint) }}
+      {{ dataset_card.dataset_card(dataset, from_hint, sort_value=sort_by) }}
     {% else %}
-      {{ dataset_card.dataset_card(dataset) }}
+      {{ dataset_card.dataset_card(dataset, sort_value=sort_by) }}
     {% endif %}
 
   {% endfor %}
