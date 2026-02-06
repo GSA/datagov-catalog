@@ -314,6 +314,108 @@ def test_index_spatial_geometry(interface_with_dataset, db_client):
     assert len(dataset_items) >= 1
 
 
+def test_index_page_parses_spatial_within_param(db_client):
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/",
+            query_string={
+                "spatial_geometry": polygon_escaped,
+                "spatial_within": "intersect",
+            },
+        )
+
+    assert response.status_code == 200
+    _, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs["spatial_within"] is False
+    assert kwargs["spatial_geometry"] == polygon
+
+
+def test_search_api_parses_spatial_within_param(db_client):
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/search",
+            query_string={
+                "spatial_geometry": polygon_escaped,
+                "spatial_within": "within",
+            },
+        )
+
+    assert response.status_code == 200
+    _, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs["spatial_within"] is True
+    assert kwargs["spatial_geometry"] == polygon
+
+
+def test_organization_detail_parses_spatial_within_param(db_client):
+    mock_org = type(
+        "Org",
+        (),
+        {
+            "id": "org-1",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+            "total_datasets": 0,
+            "logo": None,
+            "description": "",
+        },
+    )()
+    mock_interface = Mock()
+    mock_interface.get_organization_by_slug.return_value = mock_org
+    mock_interface.list_datasets_for_organization.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_opensearch_org_dataset_counts.return_value = {}
+
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/organization/test-org",
+            query_string={
+                "spatial_geometry": polygon_escaped,
+                "spatial_within": "0",
+            },
+        )
+
+    assert response.status_code == 200
+    _, kwargs = mock_interface.list_datasets_for_organization.call_args
+    assert kwargs["spatial_within"] is False
+    assert kwargs["spatial_geometry"] == polygon
+
+
 def test_organization_list_shows_type_and_count(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization")
@@ -456,6 +558,24 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
 
     geography_section = soup.find("div", {"id": "filter-geography"})
     assert geography_section is not None
+    assert soup.find("button", {"id": "geography-map-modal-trigger"}) is not None
+    assert soup.find("div", {"id": "geography-map-modal"}) is not None
+    assert soup.find("button", {"id": "geography-modal-draw-toggle"}) is not None
+    assert soup.find("button", {"id": "geography-modal-apply"}) is not None
+    assert (
+        soup.find(
+            "input",
+            {"name": "spatial_within", "value": "true", "type": "radio"},
+        )
+        is not None
+    )
+    assert (
+        soup.find(
+            "input",
+            {"name": "spatial_within", "value": "false", "type": "radio"},
+        )
+        is not None
+    )
 
     spatial_section = soup.find("div", {"id": "filter-spatial"})
     assert spatial_section is not None

@@ -46,6 +46,17 @@ STATUS_STRINGS_ENUM = {404: "Not Found"}
 interface = CatalogDBInterface()
 
 
+def _parse_bool_param(value: str | None, default: bool) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on", "within"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off", "intersect", "intersects"}:
+        return False
+    return default
+
+
 def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
     pages = []
     last = 0
@@ -143,6 +154,7 @@ def index():
     keywords = request.args.getlist("keyword")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
+    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
@@ -198,6 +210,7 @@ def index():
             sort_by=sort_by,
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
         )
 
         # For homepage without filters, get accurate total count
@@ -284,7 +297,7 @@ def search():
     after = request.args.get("after")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
-    spatial_within = request.args.get("spatial_within", True, type=bool)
+    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
 
     sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
@@ -509,7 +522,7 @@ def organization_detail(slug: str):
     keywords = request.args.getlist("keyword")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
-    spatial_within = request.args.get("spatial_within", True, type=bool)
+    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = request.args.get("sort", default="relevance").lower()
     if sort_by not in {"relevance", "popularity"}:
         sort_by = "relevance"
