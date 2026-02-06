@@ -307,6 +307,17 @@ class TestDatasetToDocument:
         assert isinstance(document["dcat"]["modified"], str)
 
 
+def test_geometry_centroid_from_polygon():
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]],
+    }
+    centroid = OpenSearchInterface._geometry_centroid(geometry)
+    assert centroid is not None
+    assert centroid["lon"] == pytest.approx(0.8)
+    assert centroid["lat"] == pytest.approx(0.8)
+
+
 class TestOpenSearchMappings:
     """Test suite for OpenSearch mappings."""
 
@@ -340,6 +351,11 @@ class TestOpenSearchMappings:
         assert mappings["properties"]["keyword"]["type"] == "text"
         assert mappings["properties"]["keyword"]["fields"]["raw"]["type"] == "keyword"
         assert mappings["properties"]["organization"]["type"] == "nested"
+
+    def test_spatial_centroid_mapping(self):
+        """Test that spatial centroid field is mapped as geo_point."""
+        mappings = OpenSearchInterface.MAPPINGS
+        assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
 
 
 def test_relevance_sort_uses_popularity_tie_breaker():
