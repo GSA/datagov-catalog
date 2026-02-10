@@ -1,4 +1,5 @@
-{% macro render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations) %}
+{% macro render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations,
+contextual_org_counts=None) %}
 <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
     <h3 class="usa-accordion__heading">
         <button 
@@ -24,8 +25,7 @@
                 autocomplete="off"
                 aria-autocomplete="list"
                 aria-controls="organization-suggestions"
-                aria-expanded="false"
-            >
+                aria-expanded="false">
             <div id="organization-suggestions" class="keyword-suggestions" role="listbox"></div>
 
             <div
@@ -35,8 +35,9 @@
                 aria-label="Selected organization"
                 data-initial-org-id="{{ (selected_organization.id if selected_organization else '') | e }}"
                 data-initial-org-name="{{ (selected_organization.name if selected_organization else '') | e }}"
-                data-initial-org-slug="{{ (selected_organization.slug if selected_organization else '') | e }}"
-            ></div>
+                data-initial-org-slug="{{ (selected_organization.slug if selected_organization else '') | e }}" {% if
+                contextual_org_counts %} data-contextual-counts='{{ contextual_org_counts | tojson }}' {% endif %}>
+            </div>
 
             {% if suggested_organizations and not org_slug %}
             <div id="suggested-organizations" class="suggested-keywords margin-top-2">

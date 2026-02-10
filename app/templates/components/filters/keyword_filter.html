@@ -23,7 +23,9 @@
             >
             <div id="keyword-suggestions" class="keyword-suggestions" role="listbox"></div>
 
-            <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords"></div>
+            <div id="keyword-chips" class="keyword-chips" role="list" aria-label="Selected keywords" {% if
+                contextual_keyword_counts %} data-contextual-counts='{{ contextual_keyword_counts | tojson }}' {% endif
+                %}></div>
 
             {% if suggested_keywords and not keywords %}
             <div id="suggested-keywords" class="suggested-keywords margin-top-2">

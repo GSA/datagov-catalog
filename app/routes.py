@@ -171,8 +171,6 @@ def index():
     suggested_organizations = []
     selected_organization = None
     org_filter_id = None
-    contextual_keyword_counts = {}
-    contextual_org_counts = {}
 
     if org_slug_param:
         try:
@@ -226,6 +224,11 @@ def index():
         after = result.search_after_obscured()
     else:
         after = None
+
+    # Initialize contextual counts
+    contextual_keyword_counts = {}
+    contextual_org_counts = {}
+    contextual_aggs = {"keywords": [], "organizations": []}
 
     # Get contextual aggregations based on current search parameters
     try:

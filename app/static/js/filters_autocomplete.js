@@ -25,60 +25,71 @@ class KeywordAutocomplete {
         this.formId = options.formId;
         this.mainSearchFormId = options.mainSearchFormId;
         this.debounceDelay = options.debounceDelay || 300;
-        
         this.input = document.getElementById(this.inputId);
         this.chipsContainer = document.getElementById(this.chipsContainerId);
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
         this.form = document.getElementById(this.formId);
         this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
-        
         this.selectedKeywords = new Set();
         this.allKeywords = [];
         this.debounceTimer = null;
         this.currentFocusIndex = -1;
-        
+        this.contextualCounts = {};
         if (!this.input || !this.chipsContainer || !this.suggestionsContainer) {
             console.error('KeywordAutocomplete: Required elements not found');
             return;
         }
-        
+        // Load contextual counts from data attribute
+        const countsData = this.chipsContainer.dataset.contextualCounts;
+        console.log('Raw contextual counts data:', countsData ? countsData.substring(0, 200) + '...' : 'NONE');
+        if (countsData) {
+            try {
+                this.contextualCounts = JSON.parse(countsData);
+                console.log('Loaded contextual keyword counts:', Object.keys(this.contextualCounts).length, 'keywords');
+                // Log specific keywords we care about
+                if (this.contextualCounts['payments']) {
+                    console.log('payments count:', this.contextualCounts['payments']);
+                }
+                if (this.contextualCounts['americorps']) {
+                    console.log('americorps count:', this.contextualCounts['americorps']);
+                }
+            } catch (e) {
+                console.error('Failed to parse contextual counts:', e);
+            }
+        } else {
+            console.warn('No contextual counts data found in HTML');
+        }
+
         this.init();
     }
-    
+
     init() {
-        // Load all keywords from API
+        // Load all keywords from API, then apply contextual counts
         this.loadKeywords();
-        
         // Load any existing keywords from URL parameters
         this.loadExistingKeywords();
-        
         // Initialize suggested keywords click handlers
         this.initSuggestedKeywords();
-        
         // Event listeners
         this.input.addEventListener('input', (e) => this.handleInput(e));
         this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
         this.input.addEventListener('focus', () => this.showSuggestions());
-        
         // Close suggestions when clicking outside
         document.addEventListener('click', (e) => {
             if (!this.input.contains(e.target) && !this.suggestionsContainer.contains(e.target)) {
                 this.hideSuggestions();
             }
         });
-        
         // Sync chips to hidden inputs on form submit
         if (this.form) {
             this.form.addEventListener('submit', () => this.syncHiddenInputs());
         }
-        
         if (this.mainSearchForm) {
             this.mainSearchForm.addEventListener('submit', (e) => {
                 this.syncHiddenInputsToMainSearch();
             });
         }
     }
-    
     async loadKeywords() {
         try {
             const response = await fetch(`${this.apiEndpoint}?size=500`);
@@ -89,7 +100,6 @@ class KeywordAutocomplete {
             this.allKeywords = [];
         }
     }
-    
     loadExistingKeywords() {
         // Load keywords from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -100,12 +110,10 @@ class KeywordAutocomplete {
             }
         });
     }
-    
     initSuggestedKeywords() {
         // Add click handlers to suggested keyword buttons
         const suggestedContainer = document.getElementById('suggested-keywords');
         if (!suggestedContainer) return;
-        
         const suggestedButtons = suggestedContainer.querySelectorAll('.tag-link--suggested');
         suggestedButtons.forEach(button => {
             button.addEventListener('click', () => {
@@ -118,21 +126,18 @@ class KeywordAutocomplete {
             });
         });
     }
-    
     hideSuggestedKeywords() {
         const suggestedContainer = document.getElementById('suggested-keywords');
         if (suggestedContainer) {
             suggestedContainer.style.display = 'none';
         }
     }
-    
     showSuggestedKeywords() {
         const suggestedContainer = document.getElementById('suggested-keywords');
         if (suggestedContainer && this.selectedKeywords.size === 0) {
             suggestedContainer.style.display = 'block';
         }
     }
-    
     handleInput(e) {
         clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(() => {
@@ -144,10 +149,8 @@ class KeywordAutocomplete {
             }
         }, this.debounceDelay);
     }
-    
     handleKeyDown(e) {
         const suggestions = this.suggestionsContainer.querySelectorAll('.keyword-suggestion');
-        
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             this.currentFocusIndex = Math.min(this.currentFocusIndex + 1, suggestions.length - 1);
@@ -168,7 +171,6 @@ class KeywordAutocomplete {
             this.hideSuggestions();
         }
     }
-    
     updateSuggestionFocus(suggestions) {
         suggestions.forEach((item, index) => {
             if (index === this.currentFocusIndex) {
@@ -179,17 +181,23 @@ class KeywordAutocomplete {
             }
         });
     }
-    
     filterAndShowSuggestions(query) {
         // Filter keywords that match the query and aren't already selected
         const filtered = this.allKeywords.filter(item => {
             const keyword = item.keyword.toLowerCase();
-            return keyword.includes(query) && !this.selectedKeywords.has(item.keyword);
+            const matchesQuery = keyword.includes(query);
+            const notSelected = !this.selectedKeywords.has(item.keyword);
+
+            // If we have contextual counts, only show keywords with count > 0
+            const hasContextualCount = Object.keys(this.contextualCounts).length > 0;
+            const hasCount = !hasContextualCount || (this.contextualCounts[item.keyword] > 0);
+
+            return matchesQuery && notSelected && hasCount;
         });
-        
+
         // Limit to top 10 results
         const topResults = filtered.slice(0, 10);
-        
+
         if (topResults.length > 0) {
             this.renderSuggestions(topResults);
             this.showSuggestions();
@@ -197,50 +205,54 @@ class KeywordAutocomplete {
             this.hideSuggestions();
         }
     }
-    
+
     renderSuggestions(keywords) {
         this.suggestionsContainer.innerHTML = '';
         this.currentFocusIndex = -1;
-        
+
+        console.log('Rendering suggestions with contextual counts:', Object.keys(this.contextualCounts).length > 0);
+
         keywords.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'keyword-suggestion';
             div.dataset.keyword = item.keyword;
+
+            // Use contextual count if available, otherwise use the item's count
+            const displayCount = this.contextualCounts[item.keyword] !== undefined
+                ? this.contextualCounts[item.keyword]
+                : item.count;
+
+            if (index === 0) {
+                console.log(`First suggestion "${item.keyword}": API count=${item.count}, contextual count=${this.contextualCounts[item.keyword]}, displaying=${displayCount}`);
+            }
+
             div.innerHTML = `
                 <span class="keyword-suggestion__text">${this.highlightMatch(item.keyword, this.input.value)}</span>
-                <span class="keyword-suggestion__count">${item.count}</span>
+                <span class="keyword-suggestion__count">${displayCount}</span>
             `;
-            
             div.addEventListener('click', () => {
                 this.addKeyword(item.keyword);
                 this.input.value = '';
                 this.hideSuggestions();
             });
-            
             this.suggestionsContainer.appendChild(div);
         });
     }
-    
     highlightMatch(text, query) {
         const index = text.toLowerCase().indexOf(query.toLowerCase());
         if (index === -1) return text;
-        
         const before = text.substring(0, index);
         const match = text.substring(index, index + query.length);
         const after = text.substring(index + query.length);
-        
         return `${before}<strong>${match}</strong>${after}`;
     }
-    
     showSuggestions() {
         this.suggestionsContainer.classList.add('keyword-suggestions--visible');
     }
-    
     hideSuggestions() {
         this.suggestionsContainer.classList.remove('keyword-suggestions--visible');
         this.currentFocusIndex = -1;
     }
-    
     addKeyword(keyword, options = {}) {
         const silent = Boolean(options.silent);
         if (this.selectedKeywords.has(keyword)) {
@@ -267,7 +279,6 @@ class KeywordAutocomplete {
         if (chip) {
             chip.remove();
         }
-        
         // Show suggested keywords again if no keywords are selected
         if (this.selectedKeywords.size === 0) {
             this.showSuggestedKeywords();
@@ -275,31 +286,28 @@ class KeywordAutocomplete {
 
         requestFilterFormSubmit(this.form);
     }
-    
     renderChip(keyword) {
         const chip = document.createElement('div');
         chip.className = 'tag-link';
         chip.dataset.keyword = keyword;
+        const count = this.contextualCounts[keyword];
+        const countHtml = count ? `<span class="tag-link__count">(${count})</span>` : '';
         chip.innerHTML = `
-            <span class="keyword-chip__text">${this.escapeHtml(keyword)}</span>
+            <span class="keyword-chip__text">${this.escapeHtml(keyword)}${countHtml}</span>
             <button type="button" class="keyword-chip__remove" aria-label="Remove ${this.escapeHtml(keyword)}">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         `;
-        
         const removeBtn = chip.querySelector('.keyword-chip__remove');
         removeBtn.addEventListener('click', () => {
             this.removeKeyword(keyword);
         });
-        
         this.chipsContainer.appendChild(chip);
     }
-    
     syncHiddenInputs() {
         // Remove existing keyword hidden inputs from filter form
         const existingInputs = this.form.querySelectorAll('input[name="keyword"]');
         existingInputs.forEach(input => input.remove());
-        
         // Add hidden input for each selected keyword
         this.selectedKeywords.forEach(keyword => {
             const input = document.createElement('input');
@@ -313,11 +321,9 @@ class KeywordAutocomplete {
     // Sync various args to hidden inputs in the main search form
     syncHiddenInputsToMainSearch() {
         if (!this.mainSearchForm) return;
-        
         // Remove existing keyword hidden inputs from main search form
         const existingInputs = this.mainSearchForm.querySelectorAll('input[name="keyword"][type="hidden"]');
         existingInputs.forEach(input => input.remove());
-        
         // Add hidden input for each selected keyword
         this.selectedKeywords.forEach(keyword => {
             const input = document.createElement('input');
@@ -327,7 +333,6 @@ class KeywordAutocomplete {
             this.mainSearchForm.appendChild(input);
         });
     }
-    
     escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -360,10 +365,21 @@ class OrganizationAutocomplete {
         this.currentFocusIndex = -1;
         this.numberFormatter = new Intl.NumberFormat();
         this.initialSelection = options.initialSelection || this.getInitialSelection();
+        this.contextualCounts = {};
 
         if (!this.input || !this.chipsContainer || !this.suggestionsContainer) {
             console.error('OrganizationAutocomplete: Required elements not found');
             return;
+        }
+
+        // Load contextual counts from data attribute
+        const countsData = this.chipsContainer.dataset.contextualCounts;
+        if (countsData) {
+            try {
+                this.contextualCounts = JSON.parse(countsData);
+            } catch (e) {
+                console.error('Failed to parse contextual counts:', e);
+            }
         }
 
         this.init();
@@ -526,8 +542,8 @@ class OrganizationAutocomplete {
 
             const currentKey = this.selectedOrganization
                 ? (this.selectedOrganization.slug || this.selectedOrganization.id || '')
-                      .toString()
-                      .toLowerCase()
+                    .toString()
+                    .toLowerCase()
                 : null;
             const itemKey = (item.slug || item.id || '').toString().toLowerCase();
             const alreadySelected = currentKey && currentKey === itemKey;
@@ -617,8 +633,12 @@ class OrganizationAutocomplete {
         if (organization.slug) {
             chip.dataset.orgSlug = organization.slug;
         }
+
+        const count = organization.slug ? this.contextualCounts[organization.slug] : null;
+        const countHtml = count ? ` <span class="tag-link__count">(${this.formatCount(count)})</span>` : '';
+
         chip.innerHTML = `
-            <span class="keyword-chip__text">${this.escapeHtml(organization.name)}</span>
+            <span class="keyword-chip__text">${this.escapeHtml(organization.name)}${countHtml}</span>
             <button type="button" class="keyword-chip__remove" aria-label="Remove ${this.escapeHtml(organization.name)}">
                 <i class="fa-solid fa-xmark"></i>
             </button>

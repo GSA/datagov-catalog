@@ -908,7 +908,6 @@ class OpenSearchInterface:
         This method returns counts for keywords and organizations that reflect
         the current search query and filters, allowing for contextual filter counts.
         This helps provide a more dynamic count of the keyword and orgs tags.
-
         """
         # Build the base query
         parsed_query = self._parse_search_query(query) if query else None
@@ -939,8 +938,8 @@ class OpenSearchInterface:
         # Build filters list (same as in search method)
         filters = []
 
-        # Add keyword filter (but only if we're getting org aggregations)
-        # For keyword aggregations, we skip the keyword filter to show all available keywords
+        # Add keyword filter - INCLUDE selected keywords in aggregations
+        # This ensures counts reflect the current search context including selected keywords
         if keywords:
             for keyword in keywords:
                 filters.append({"term": {"keyword.raw": keyword}})
@@ -986,12 +985,12 @@ class OpenSearchInterface:
                 }
             )
 
-        # Build query with filters for keyword aggregations (excludes keyword filter)
-        keyword_filters = [f for f in filters if "keyword.raw" not in str(f)]
-        if keyword_filters:
+        # Build query with filters for keyword aggregations (includes ALL filters)
+        # We want keyword counts in the context of all current filters, including selected keywords
+        if filters:
             keyword_query = {
                 "bool": {
-                    "filter": keyword_filters,
+                    "filter": filters,
                     "must": [base_query],
                 }
             }
