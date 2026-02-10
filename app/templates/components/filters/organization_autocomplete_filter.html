@@ -1,7 +1,12 @@
 {% macro render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations) %}
 <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
     <h3 class="usa-accordion__heading">
-        <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-organization-autocomplete">
+        <button 
+            type="button"
+            class="usa-accordion__button"
+            aria-expanded="true"
+            aria-controls="filter-organization-autocomplete"
+        >
             Organization
         </button>
     </h3>
@@ -46,6 +51,9 @@
                         data-org-slug="{{ organization.slug | e }}"
                     >
                         {{ organization.name }}
+                        {% if organization.dataset_count %}
+                        <span class="tag-link__count">({{ organization.dataset_count }})</span>
+                        {% endif %}
                     </button>
                     {% endfor %}
                 </div>

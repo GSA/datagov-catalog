@@ -95,18 +95,19 @@
     <!-- Sidebar for filters and sort -->
     <aside class="tablet:grid-col-12 desktop:grid-col-3 margin-top-0">
         {{ render_filter_sidebar(
-            form_action=url_for('main.index'),
-            query_value=query,
-            sort_value=sort_by,
-            keywords=keywords,
-            suggested_keywords=suggested_keywords,
-            spatial_filter=spatial_filter,
-            org_slug=org_slug,
-            show_org_autocomplete=True,
-            show_org_type_filters=True,
-            org_types=org_types,
-            selected_organization=selected_organization,
-            suggested_organizations=suggested_organizations
+        form_action=url_for('main.index'),
+        query_value=query,
+        sort_value=sort_by,
+        keywords=keywords,
+        suggested_keywords=suggested_keywords,
+        spatial_filter=spatial_filter,
+        org_slug=org_slug,
+        show_org_autocomplete=True,
+        show_org_type_filters=True,
+        org_types=org_types,
+        selected_organization=selected_organization,
+        suggested_organizations=suggested_organizations,
+        contextual_keyword_counts=contextual_keyword_counts
         ) }}
     </aside>
 </div>

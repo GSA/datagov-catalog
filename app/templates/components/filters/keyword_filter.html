@@ -1,4 +1,4 @@
-{% macro render_keyword_filter(keywords, suggested_keywords) %}
+{% macro render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts=None) %}
 <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
     <h3 class="usa-accordion__heading">
         <button type="button" class="usa-accordion__button" aria-expanded="true" aria-controls="filter-keywords">
@@ -32,6 +32,9 @@
                     {% for keyword in suggested_keywords %}
                     <button type="button" class="tag-link tag-link--suggested" data-keyword="{{ keyword }}">
                         {{ keyword }}
+                        {% if contextual_keyword_counts and contextual_keyword_counts.get(keyword) %}
+                        <span class="tag-link__count">({{ contextual_keyword_counts[keyword] }})</span>
+                        {% endif %}
                     </button>
                     {% endfor %}
                 </div>
