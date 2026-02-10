@@ -93,7 +93,6 @@ def create_app(config_name: str = "local") -> Flask:
                 "https://www.googletagmanager.com",
                 "https://buttons.github.io",  # github button
                 "https://touchpoints.app.cloud.gov",
-                "https://unpkg.com",  # leaflet
                 "'unsafe-hashes'",
                 "'sha256-osjxnKEPL/pQJbFk1dKsF7PYFmTyMWGmVSiL9inhxJY='",  # form autosubmit
                 "'sha256-A1KDZ6CTgI16YJ4cUNyyCFExM5+Sv4ApvahuZIQRXPA='",  # return to top
@@ -109,7 +108,8 @@ def create_app(config_name: str = "local") -> Flask:
             [
                 "'self'",
                 "https://s3-us-gov-west-1.amazonaws.com",  # logos
-                "https://*.tile.openstreetmap.org",  # map tiles
+                "https://tile.openstreetmap.org",  # map tiles
+                "data:",  # leaflet
                 "https://cg-1b082c1b-3db7-477f-9ca5-bd51a786b41e.s3-us-gov-west-1.amazonaws.com",  # touchpoints
                 "https://touchpoints.app.cloud.gov",  # touchpoints
             ]
@@ -133,7 +133,6 @@ def create_app(config_name: str = "local") -> Flask:
             [
                 "'self'",  # local styles.css
                 "https://cdnjs.cloudflare.com",  # font-awesome
-                "https://unpkg.com",  # leaflet
                 "'sha256-faU7yAF8NxuMTNEwVmBz+VcYeIoBQ2EMHW3WaVxCvnk='",  # htms.min.js
                 "'sha256-qo7STIM1L/OgU9y0De47mqod1UZFLJfTn36bRC42rfA='",  # buttons.js
                 "'sha256-d0LwTCBHt5DXTdSVbRSm0wQ/W4m5yoyMcrge+KrScUc='",  # touchpoints
