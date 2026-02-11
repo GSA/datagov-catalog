@@ -10,7 +10,7 @@
 {% block container_class %}grid-container-widescreen{% endblock %}
 
 {% block datalayer %}
-<script>
+<script nonce="{{ csp_nonce() }}">
 window.dataLayer = window.dataLayer || [];
 
 // determine whether the user-agent is a bot
@@ -159,7 +159,7 @@ dataLayer.push({
                         {% set resource_items = [resource_items] %}
                     {% endif %}
 
-                    <p style="font-size: 0.9375rem; margin-bottom: 0.5rem; color: #71767a;">
+                    <p class="resources-label">
                         {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
                     </p>
 
@@ -285,8 +285,8 @@ dataLayer.push({
                       <p class="margin-0"><strong>Location</strong></p>
                       <div
                         id="dataset-map"
+                        class="map-container"
                         data-geometry='{{ spatial_shape | tojson | forceescape }}'
-                        style="height: 220px; border-radius: 4px; overflow: hidden;"
                       ></div>
                     </div>
                     {% endif %}
@@ -295,7 +295,7 @@ dataLayer.push({
                 <!-- Feedback -->
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Provide Feedback</h3>
-                    <p style="font-size: 0.9375rem; margin-bottom: 1rem;">
+                    <p class="dataset-feedback">
                         Have questions or suggestions about this dataset?
                     </p>
                     <button
@@ -321,8 +321,8 @@ dataLayer.push({
 {{ super() }}
 <script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
 {% if dataset.translated_spatial %}
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}"/>
+  <script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
   <script src="{{ url_for('static', filename='js/view_bbox_map.js') }}"></script>
   </script>
 {% endif %}

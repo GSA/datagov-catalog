@@ -20,6 +20,8 @@ dependencies = [
     "opensearch-py (>=3.0.0,<4.0.0)",
     "botocore (>=1.40.55,<2.0.0)",
     "beautifulsoup4 (>=4.14.2,<5.0.0)",
+    "flask-talisman (>=1.1.0,<2.0.0)",
+    "newrelic (>=11.4.0,<12.0.0)",
     
 ]
 
@@ -29,12 +31,12 @@ packages = [
 ]
 
 [tool.poetry.group.dev.dependencies]
-black = "^25.9.0"
-ruff = "^0.13.2"
-isort = "^6.0.1"
+black = "^26.1.0"
+ruff = "^0.15.0"
+isort = "^7.0.0"
 beautifulsoup4 = "^4.14.2"
 moto = {version = ">=5.0.0,<6.0.0", extras = ["s3"]}
-pytest = ">=8.4.2,<9.0.0"
+pytest = ">=8.4.2,<10.0.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

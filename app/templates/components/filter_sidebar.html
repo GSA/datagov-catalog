@@ -20,7 +20,8 @@
     selected_organization=None,
     suggested_organizations=None
 ) %}
-<form class="usa-form" method="get" action="{{ form_action }}" id="{{ form_id }}">
+<p class="font-body-2xs text-light">Filter selections are applied on each click</p>
+<form class="usa-form margin-top-neg-2" method="get" action="{{ form_action }}" id="{{ form_id }}">
     <input type="hidden" name="q" value="{{ query_value }}">
     {% if org_slug %}
     <input type="hidden" name="org_slug" value="{{ org_slug }}">

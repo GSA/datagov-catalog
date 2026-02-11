@@ -44,6 +44,14 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
     assert len(response.json) > 0
     assert "results" in response.json
 
+def test_search_api_response_containes_harvest_record_url(interface_with_dataset, db_client):
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/search", query_string={"q": "test"})
+    assert response.status_code == 200
+    assert response.json["results"][0]["harvest_record"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 
 def test_search_api_pagination(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -237,6 +245,37 @@ def test_get_organizations_api_handles_errors(db_client):
     assert response.status_code == 500
     data = response.get_json()
     assert data["error"] == "Failed to fetch organizations"
+
+
+def test_get_opensearch_health_api_returns_data(db_client):
+    mock_interface = Mock()
+    mock_interface.opensearch = Mock()
+    mock_interface.opensearch.client = Mock()
+    mock_interface.opensearch.client.cluster = Mock()
+    mock_interface.opensearch.client.cluster.health.return_value = {"status": "green"}
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/opensearch/health")
+
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "green"
+    mock_interface.opensearch.client.cluster.health.assert_called_once_with()
+
+
+def test_get_opensearch_health_api_handles_errors(db_client):
+    mock_interface = Mock()
+    mock_interface.opensearch = Mock()
+    mock_interface.opensearch.client = Mock()
+    mock_interface.opensearch.client.cluster = Mock()
+    mock_interface.opensearch.client.cluster.health.side_effect = Exception("boom")
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/opensearch/health")
+
+    assert response.status_code == 500
+    data = response.get_json()
+    assert data["status"] == "unknown"
+    assert data["error"] == "Failed to fetch OpenSearch cluster health"
 
 
 def test_search_api_spatial_geometry(interface_with_dataset, db_client):
@@ -478,6 +517,23 @@ def test_index_page_renders(db_client):
     assert line_arrow is not None
 
 
+def test_index_page_meta_tags(db_client):
+    # meta tags are there
+    response = db_client.get("/")
+    soup = BeautifulSoup(response.text, "html.parser")
+    assert all(soup.select_one(selector) is not None for selector in [
+        'meta[property="og:title"]',
+        'meta[property="og:description"]',
+        'meta[property="og:url"]',
+        'meta[property="og:image"]',
+        'meta[name="twitter:title"]',
+        'meta[name="twitter:description"]',
+        'meta[name="twitter:url"]',
+        'meta[name="twitter:image"]',
+    ])
+
+
+
 def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
     """
     Test that the index page loads correctly and contains the search form.
@@ -544,6 +600,20 @@ def test_htmx_search_uses_from_hint(interface_with_dataset, db_client):
         in item.find("a", href=lambda href: href and "/dataset/" in href).get("href")
         for item in dataset_items
     )
+
+
+def test_harvest_record_returns_json(interface_with_harvest_record, db_client):
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}")
+    harvest_record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    # response doesn't work with response.json
+    response_dict = json.loads(response.get_data())
+    # action shows up as a part of a harvest record obj and isn't part of the
+    #  "raw" endpoint
+    assert response_dict["action"] == harvest_record.action
 
 
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):

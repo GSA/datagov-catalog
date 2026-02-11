@@ -598,8 +598,8 @@ class TestCompareCommand:
         assert "Extra in OpenSearch (should be deleted): 1" in result.output
         assert "Example extra IDs: extra-only" in result.output
         assert "Updated in OpenSearch (last_harvested_date differs): 1" in result.output
-        assert "stale (DB: 2024-01-02T00:00:00+00:00" in result.output
-        assert "OS: 2024-01-05T00:00:00+00:00" in result.output
+        assert "stale (DB: 2024-01-02T00:00:00.000+00:00" in result.output
+        assert "OS: 2024-01-05T00:00:00.000+00:00" in result.output
         os_client.index_datasets.assert_not_called()
         os_client.client.delete.assert_not_called()
         os_client._refresh.assert_not_called()
@@ -644,3 +644,36 @@ class TestCompareCommand:
         delete_call = os_client.client.delete.call_args
         assert delete_call.kwargs["id"] == "extra-only"
         os_client._refresh.assert_called_once()
+
+    def test_compare_harvest_sources_known_on_dataset_error(
+        self, cli_runner, interface_with_harvest_record, monkeypatch
+    ):
+        _insert_dataset(
+            interface_with_harvest_record,
+            "db-only",
+            datetime(2024, 1, 1, 0, 0, 0),
+        )
+        hits = []
+
+        os_client = self._prepare_environment(
+            interface_with_harvest_record, hits, monkeypatch
+        )
+
+        test_errors = [
+            {
+                "dataset_id": "db-only",
+                "status_code": 400,
+                "error_type": "mapper_parsing_exception",
+                "error_reason": "failed to parse field [dcat.modified]",
+                "caused_by": {"type": "illegal_argument_exception"},
+            }
+        ]
+
+        os_client.index_datasets = Mock(return_value=(98, 2, test_errors))
+
+        result = cli_runner.invoke(args=["search", "compare", "--fix"])
+
+        assert (
+            "Harvest sources not synced with opensearch...\n1 test-source"
+            in result.output
+        )
