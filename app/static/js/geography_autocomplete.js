@@ -56,6 +56,10 @@ class GeographyAutocomplete {
         this.boundDrawStart = this.onDrawStart.bind(this);
         this.boundDrawMove = this.onDrawMove.bind(this);
         this.boundDrawEnd = this.onDrawEnd.bind(this);
+        this.usePointerEvents =
+          typeof window !== 'undefined' &&
+          (window.PointerEvent || window.MSPointerEvent);
+        this.activePointerId = null;
 
         if (!this.input || !this.suggestionsContainer) {
             console.error('GeographyAutocomplete: Required elements not found');
@@ -379,16 +383,17 @@ class GeographyAutocomplete {
       if (this.modalMap.dragging) this.modalMap.dragging.disable();
       if (this.modalMap.doubleClickZoom) this.modalMap.doubleClickZoom.disable();
       if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.disable();
+      if (this.modalMap.touchZoom) this.modalMap.touchZoom.disable();
+      if (this.modalMap.tap) this.modalMap.tap.disable();
       this.modalMap.getContainer().style.cursor = 'crosshair';
-      this.modalMap.on('mousedown', this.boundDrawStart);
-      this.modalMap.on('mousemove', this.boundDrawMove);
-      this.modalMap.on('mouseup', this.boundDrawEnd);
+      this._bindDrawEvents();
     }
 
     disableDrawMode() {
       if (!this.modalMap || !this.isDrawing) return;
       this.isDrawing = false;
       this.drawStartLatLng = null;
+      this.activePointerId = null;
       this._clearDrawRect();
       if (this.drawButton) {
         this.drawButton.classList.remove('geography-draw-button--active');
@@ -397,17 +402,94 @@ class GeographyAutocomplete {
       if (this.modalMap.dragging) this.modalMap.dragging.enable();
       if (this.modalMap.doubleClickZoom) this.modalMap.doubleClickZoom.enable();
       if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.enable();
+      if (this.modalMap.touchZoom) this.modalMap.touchZoom.enable();
+      if (this.modalMap.tap) this.modalMap.tap.enable();
       this.modalMap.getContainer().style.cursor = '';
+      this._unbindDrawEvents();
+    }
+
+    _bindDrawEvents() {
+      if (!this.modalMap) return;
+      if (this.usePointerEvents) {
+        const container = this.modalMap.getContainer();
+        if (!container) return;
+        L.DomEvent.on(container, 'pointerdown', this.boundDrawStart, this);
+        L.DomEvent.on(container, 'pointermove', this.boundDrawMove, this);
+        L.DomEvent.on(container, 'pointerup', this.boundDrawEnd, this);
+        L.DomEvent.on(container, 'pointercancel', this.boundDrawEnd, this);
+        return;
+      }
+
+      this.modalMap.on('mousedown', this.boundDrawStart);
+      this.modalMap.on('mousemove', this.boundDrawMove);
+      this.modalMap.on('mouseup', this.boundDrawEnd);
+      this.modalMap.on('touchstart', this.boundDrawStart);
+      this.modalMap.on('touchmove', this.boundDrawMove);
+      this.modalMap.on('touchend', this.boundDrawEnd);
+      this.modalMap.on('touchcancel', this.boundDrawEnd);
+    }
+
+    _unbindDrawEvents() {
+      if (!this.modalMap) return;
+      if (this.usePointerEvents) {
+        const container = this.modalMap.getContainer();
+        if (!container) return;
+        L.DomEvent.off(container, 'pointerdown', this.boundDrawStart, this);
+        L.DomEvent.off(container, 'pointermove', this.boundDrawMove, this);
+        L.DomEvent.off(container, 'pointerup', this.boundDrawEnd, this);
+        L.DomEvent.off(container, 'pointercancel', this.boundDrawEnd, this);
+        return;
+      }
+
       this.modalMap.off('mousedown', this.boundDrawStart);
       this.modalMap.off('mousemove', this.boundDrawMove);
       this.modalMap.off('mouseup', this.boundDrawEnd);
+      this.modalMap.off('touchstart', this.boundDrawStart);
+      this.modalMap.off('touchmove', this.boundDrawMove);
+      this.modalMap.off('touchend', this.boundDrawEnd);
+      this.modalMap.off('touchcancel', this.boundDrawEnd);
+    }
+
+    _getEventLatLng(e) {
+      if (e && e.latlng) return e.latlng;
+      if (!this.modalMap || !e) return null;
+      const originalEvent = e.originalEvent || e;
+      let sourceEvent = originalEvent;
+      if (originalEvent.touches && originalEvent.touches.length) {
+        sourceEvent = originalEvent.touches[0];
+      } else if (originalEvent.changedTouches && originalEvent.changedTouches.length) {
+        sourceEvent = originalEvent.changedTouches[0];
+      }
+      if (!sourceEvent || typeof sourceEvent.clientX !== 'number') return null;
+      const point = this.modalMap.mouseEventToContainerPoint(sourceEvent);
+      return this.modalMap.containerPointToLatLng(point);
+    }
+
+    _getPointerId(e) {
+      const originalEvent = e && (e.originalEvent || e);
+      if (originalEvent && typeof originalEvent.pointerId === 'number') {
+        return originalEvent.pointerId;
+      }
+      return null;
+    }
+
+    _isMultiTouch(e) {
+      const originalEvent = e && (e.originalEvent || e);
+      return !!(originalEvent && originalEvent.touches && originalEvent.touches.length > 1);
     }
 
     onDrawStart(e) {
       if (!this.isDrawing || !this.modalMap) return;
-      this.drawStartLatLng = e.latlng;
+      if (this._isMultiTouch(e)) return;
+      const pointerId = this._getPointerId(e);
+      if (pointerId !== null) {
+        this.activePointerId = pointerId;
+      }
+      const latlng = this._getEventLatLng(e);
+      if (!latlng) return;
+      this.drawStartLatLng = latlng;
       this._clearDrawRect();
-      this.drawRect = L.rectangle(L.latLngBounds(e.latlng, e.latlng), {
+      this.drawRect = L.rectangle(L.latLngBounds(latlng, latlng), {
         color: '#005ea2',
         weight: 2,
         fillOpacity: 0.05,
@@ -417,14 +499,28 @@ class GeographyAutocomplete {
 
     onDrawMove(e) {
       if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng || !this.drawRect) return;
-      const bounds = L.latLngBounds(this.drawStartLatLng, e.latlng);
+      if (this._isMultiTouch(e)) return;
+      const pointerId = this._getPointerId(e);
+      if (this.activePointerId !== null) {
+        if (pointerId === null || pointerId !== this.activePointerId) return;
+      }
+      const latlng = this._getEventLatLng(e);
+      if (!latlng) return;
+      const bounds = L.latLngBounds(this.drawStartLatLng, latlng);
       this.drawRect.setBounds(bounds);
     }
 
     onDrawEnd(e) {
       if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng) return;
-      const bounds = L.latLngBounds(this.drawStartLatLng, e.latlng);
+      const pointerId = this._getPointerId(e);
+      if (this.activePointerId !== null) {
+        if (pointerId === null || pointerId !== this.activePointerId) return;
+      }
+      const latlng = this._getEventLatLng(e);
+      if (!latlng) return;
+      const bounds = L.latLngBounds(this.drawStartLatLng, latlng);
       this.drawStartLatLng = null;
+      this.activePointerId = null;
       if (!bounds.isValid() || bounds.getSouthWest().equals(bounds.getNorthEast())) {
         this._clearDrawRect();
         return;
