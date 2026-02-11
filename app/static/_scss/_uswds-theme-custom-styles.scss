@@ -769,6 +769,12 @@ ul.dataset-resources {
   z-index: 400;
 }
 
+.map-container {
+  height: 220px; 
+  border-radius: 4px; 
+  overflow: hidden;
+}
+
 .keyword-suggestions--visible {
     display: block;
 }

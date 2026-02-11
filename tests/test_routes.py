@@ -637,6 +637,23 @@ def test_index_page_renders(db_client):
     assert line_arrow is not None
 
 
+def test_index_page_meta_tags(db_client):
+    # meta tags are there
+    response = db_client.get("/")
+    soup = BeautifulSoup(response.text, "html.parser")
+    assert all(soup.select_one(selector) is not None for selector in [
+        'meta[property="og:title"]',
+        'meta[property="og:description"]',
+        'meta[property="og:url"]',
+        'meta[property="og:image"]',
+        'meta[name="twitter:title"]',
+        'meta[name="twitter:description"]',
+        'meta[name="twitter:url"]',
+        'meta[name="twitter:image"]',
+    ])
+
+
+
 def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
     """
     Test that the index page loads correctly and contains the search form.

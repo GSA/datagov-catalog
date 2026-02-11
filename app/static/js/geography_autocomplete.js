@@ -242,7 +242,7 @@ class GeographyAutocomplete {
       if (!el) return;
       if (typeof L === 'undefined') return;
       var map = L.map(el, { zoomControl: true, attributionControl: false });
-      var tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      var tiles = L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(map);
       this.map = map;
