@@ -60,6 +60,9 @@ class GeographyAutocomplete {
           typeof window !== 'undefined' &&
           (window.PointerEvent || window.MSPointerEvent);
         this.activePointerId = null;
+        this.drawContainer = null;
+        this.prevTouchAction = null;
+        this.prevMsTouchAction = null;
 
         if (!this.input || !this.suggestionsContainer) {
             console.error('GeographyAutocomplete: Required elements not found');
@@ -376,6 +379,7 @@ class GeographyAutocomplete {
       if (!this.modalMap) return;
       this.isDrawing = true;
       this.drawStartLatLng = null;
+      this._setDrawContainerDefaults();
       if (this.drawButton) {
         this.drawButton.classList.add('geography-draw-button--active');
         this.drawButton.setAttribute('aria-pressed', 'true');
@@ -385,7 +389,9 @@ class GeographyAutocomplete {
       if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.disable();
       if (this.modalMap.touchZoom) this.modalMap.touchZoom.disable();
       if (this.modalMap.tap) this.modalMap.tap.disable();
-      this.modalMap.getContainer().style.cursor = 'crosshair';
+      if (this.drawContainer) {
+        this.drawContainer.style.cursor = 'crosshair';
+      }
       this._bindDrawEvents();
     }
 
@@ -404,19 +410,46 @@ class GeographyAutocomplete {
       if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.enable();
       if (this.modalMap.touchZoom) this.modalMap.touchZoom.enable();
       if (this.modalMap.tap) this.modalMap.tap.enable();
-      this.modalMap.getContainer().style.cursor = '';
+      if (this.drawContainer) {
+        this.drawContainer.style.cursor = '';
+        this._restoreDrawContainerDefaults();
+      }
       this._unbindDrawEvents();
+    }
+
+    _setDrawContainerDefaults() {
+      this.drawContainer = this.modalMap ? this.modalMap.getContainer() : null;
+      if (!this.drawContainer) return;
+      this.prevTouchAction = this.drawContainer.style.touchAction;
+      this.prevMsTouchAction = this.drawContainer.style.msTouchAction;
+      this.drawContainer.style.touchAction = 'none';
+      this.drawContainer.style.msTouchAction = 'none';
+    }
+
+    _restoreDrawContainerDefaults() {
+      if (!this.drawContainer) return;
+      if (this.prevTouchAction !== null) {
+        this.drawContainer.style.touchAction = this.prevTouchAction;
+      } else {
+        this.drawContainer.style.removeProperty('touch-action');
+      }
+      if (this.prevMsTouchAction !== null) {
+        this.drawContainer.style.msTouchAction = this.prevMsTouchAction;
+      } else {
+        this.drawContainer.style.removeProperty('ms-touch-action');
+      }
+      this.prevTouchAction = null;
+      this.prevMsTouchAction = null;
     }
 
     _bindDrawEvents() {
       if (!this.modalMap) return;
       if (this.usePointerEvents) {
-        const container = this.modalMap.getContainer();
-        if (!container) return;
-        L.DomEvent.on(container, 'pointerdown', this.boundDrawStart, this);
-        L.DomEvent.on(container, 'pointermove', this.boundDrawMove, this);
-        L.DomEvent.on(container, 'pointerup', this.boundDrawEnd, this);
-        L.DomEvent.on(container, 'pointercancel', this.boundDrawEnd, this);
+        if (!this.drawContainer) return;
+        L.DomEvent.on(this.drawContainer, 'pointerdown', this.boundDrawStart, this);
+        L.DomEvent.on(this.drawContainer, 'pointermove', this.boundDrawMove, this);
+        L.DomEvent.on(this.drawContainer, 'pointerup', this.boundDrawEnd, this);
+        L.DomEvent.on(this.drawContainer, 'pointercancel', this.boundDrawEnd, this);
         return;
       }
 
@@ -432,12 +465,11 @@ class GeographyAutocomplete {
     _unbindDrawEvents() {
       if (!this.modalMap) return;
       if (this.usePointerEvents) {
-        const container = this.modalMap.getContainer();
-        if (!container) return;
-        L.DomEvent.off(container, 'pointerdown', this.boundDrawStart, this);
-        L.DomEvent.off(container, 'pointermove', this.boundDrawMove, this);
-        L.DomEvent.off(container, 'pointerup', this.boundDrawEnd, this);
-        L.DomEvent.off(container, 'pointercancel', this.boundDrawEnd, this);
+        if (!this.drawContainer) return;
+        L.DomEvent.off(this.drawContainer, 'pointerdown', this.boundDrawStart, this);
+        L.DomEvent.off(this.drawContainer, 'pointermove', this.boundDrawMove, this);
+        L.DomEvent.off(this.drawContainer, 'pointerup', this.boundDrawEnd, this);
+        L.DomEvent.off(this.drawContainer, 'pointercancel', this.boundDrawEnd, this);
         return;
       }
 
@@ -465,6 +497,14 @@ class GeographyAutocomplete {
       return this.modalMap.containerPointToLatLng(point);
     }
 
+    _preventDefaultEvent(e) {
+      const originalEvent = e && (e.originalEvent || e);
+      if (!originalEvent) return;
+      if (typeof originalEvent.preventDefault === 'function' && originalEvent.cancelable !== false) {
+        originalEvent.preventDefault();
+      }
+    }
+
     _getPointerId(e) {
       const originalEvent = e && (e.originalEvent || e);
       if (originalEvent && typeof originalEvent.pointerId === 'number') {
@@ -481,9 +521,15 @@ class GeographyAutocomplete {
     onDrawStart(e) {
       if (!this.isDrawing || !this.modalMap) return;
       if (this._isMultiTouch(e)) return;
+      this._preventDefaultEvent(e);
       const pointerId = this._getPointerId(e);
       if (pointerId !== null) {
         this.activePointerId = pointerId;
+        const originalEvent = e && (e.originalEvent || e);
+        const target = originalEvent && originalEvent.target;
+        if (target && typeof target.setPointerCapture === 'function') {
+          target.setPointerCapture(pointerId);
+        }
       }
       const latlng = this._getEventLatLng(e);
       if (!latlng) return;
@@ -500,6 +546,7 @@ class GeographyAutocomplete {
     onDrawMove(e) {
       if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng || !this.drawRect) return;
       if (this._isMultiTouch(e)) return;
+      this._preventDefaultEvent(e);
       const pointerId = this._getPointerId(e);
       if (this.activePointerId !== null) {
         if (pointerId === null || pointerId !== this.activePointerId) return;
@@ -512,9 +559,21 @@ class GeographyAutocomplete {
 
     onDrawEnd(e) {
       if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng) return;
+      this._preventDefaultEvent(e);
       const pointerId = this._getPointerId(e);
       if (this.activePointerId !== null) {
         if (pointerId === null || pointerId !== this.activePointerId) return;
+      }
+      if (pointerId !== null) {
+        const originalEvent = e && (e.originalEvent || e);
+        const target = originalEvent && originalEvent.target;
+        if (target && typeof target.releasePointerCapture === 'function') {
+          try {
+            target.releasePointerCapture(pointerId);
+          } catch (err) {
+            // Ignore capture release failures (e.g., if not captured).
+          }
+        }
       }
       const latlng = this._getEventLatLng(e);
       if (!latlng) return;
