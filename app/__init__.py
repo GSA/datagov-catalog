@@ -129,6 +129,12 @@ def create_app(config_name: str = "local") -> Flask:
                 "'sha256-kELgoK46JmGjLd8UHfzN0qJToDgIB+yMtRHG8PtGL7s='",  # Google tag manager inline
             ]
         ),
+        "style-src": " ".join(
+            [
+                "'self'",  # local styles.css
+                "https://cdnjs.cloudflare.com",  # font-awesome
+            ]
+        ),
         "style-src-elem": " ".join(
             [
                 "'self'",  # local styles.css
