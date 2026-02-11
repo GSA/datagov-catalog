@@ -324,7 +324,7 @@ class GeographyAutocomplete {
           zoomControl: true,
           attributionControl: false
         });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
           maxZoom: 19
         }).addTo(this.modalMap);
       }

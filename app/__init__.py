@@ -109,7 +109,7 @@ def create_app(config_name: str = "local") -> Flask:
             [
                 "'self'",
                 "https://s3-us-gov-west-1.amazonaws.com",  # logos
-                "https://*.tile.openstreetmap.org",  # map tiles
+                "data:",  # leaflet
                 "https://cg-1b082c1b-3db7-477f-9ca5-bd51a786b41e.s3-us-gov-west-1.amazonaws.com",  # touchpoints
                 "https://touchpoints.app.cloud.gov",  # touchpoints
             ]
