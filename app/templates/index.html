@@ -1,7 +1,27 @@
 {% extends "base.html" %}
 {% from "components/filter_sidebar.html" import render_filter_sidebar %}
 
-{% block title %}Catalog - Data.gov{% endblock %}
+{% set page_title = "Catalog - Data.gov" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block head_extra %}
+{% set meta_description = "The Home of the U.S. Government's Open Data" %}
+{% set social_image = config.get('SOCIAL_IMAGE_URL') %}
+{% set canonical_url = "https://catalog-beta.data.gov/" %}
+<meta name="description" content="{{ meta_description }}">
+<meta name="robots" content="index,follow">
+<meta property="og:site_name" content="Data.gov">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ canonical_url  }}">
+<meta property="og:title" content="{{ page_title }}">
+<meta property="og:description" content="{{ meta_description }}">
+<meta property="og:image" content="{{ social_image }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="{{ canonical_url  }}">
+<meta name="twitter:title" content="{{ page_title }}">
+<meta name="twitter:description" content="{{ meta_description }}">
+<meta name="twitter:image" content="{{ social_image }}">
+{% endblock %}
 
 {% block content %}
 
@@ -121,8 +141,4 @@
 <script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}"/>
 <script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
-{% endblock %}
-
-{% block head_extra %}
-<meta name="description" content="The Home of the U.S. Government's Open Data">
 {% endblock %}
