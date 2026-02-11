@@ -1056,13 +1056,16 @@ div.grid-row.grid-gap#menu-footer {
 // Geography modal: position close button at top-right
 .usa-modal--geography {
   width: 56.25rem;
-  max-width: 96vw;
+  max-width: calc(100vw - 3rem);
   height: 34.375rem;
   max-height: 90vh;
   border-radius: 0.75rem;
   border: 1px solid rgba(15, 23, 42, 0.12);
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
   overflow: hidden;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 
   .usa-modal__content {
     position: relative;
