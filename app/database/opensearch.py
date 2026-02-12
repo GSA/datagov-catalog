@@ -202,7 +202,7 @@ class OpenSearchInterface:
                     "organization_type": {"type": "keyword"},
                 },
             },
-            "spatial_shape": {"type": "geo_shape"},
+            "spatial_shape": {"type": "geo_shape", "ignore_malformed": True },
         }
     }
 
