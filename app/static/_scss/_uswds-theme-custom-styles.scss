@@ -180,7 +180,7 @@ ul.menu {
     border-radius: 1rem;
     box-shadow: 0 14px 32px rgba(15,23,42,.1);
     position: relative;
-    overflow: visible;
+    overflow: hidden;
     width: 100%;
 }
 .organization-datasets__list {
@@ -413,7 +413,7 @@ ul.dataset-resources {
     align-items: center;
     justify-content: center;
     font-weight: 700;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     color: white;
     margin-bottom: 0.75rem;
@@ -770,8 +770,8 @@ ul.dataset-resources {
 }
 
 .map-container {
-  height: 220px; 
-  border-radius: 4px; 
+  height: 220px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
