@@ -1059,54 +1059,39 @@ div.grid-row.grid-gap#menu-footer {
   }
 }
 
-// Geography modal: position close button at top-right
-.usa-modal--geography {
-  width: 56.25rem;
-  max-width: calc(100vw - 3rem);
-  height: 34.375rem;
-  max-height: 90vh;
-  border-radius: 0.75rem;
+// Expanded geography map panel under the main search box
+.geography-map-expanded-panel {
+  margin-top: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.875rem;
+  border-radius: 0.5rem;
   border: 1px solid rgba(15, 23, 42, 0.12);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
-  overflow: hidden;
-  display: inline-block;
-  margin-left: auto;
-  margin-right: auto;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 
-  .usa-modal__content {
-    position: relative;
-    width: 100%;
-    height: 100%;
+  .geography-map-expanded-panel__header {
     display: flex;
-    flex-direction: column;
-    padding: 0.75rem;
-    background: #fff;
-    border-radius: inherit;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.375rem;
   }
 
-  .usa-modal__main {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    gap: 0.5rem;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-  }
-
-  .usa-modal__heading {
+  .geography-map-expanded-panel__heading {
     margin: 0;
     font-size: 1.25rem;
-    font-weight: 700;
-    color: #1b1b1b;
   }
 
-  .usa-prose {
-    margin: 0 0 0.25rem;
+  .geography-map-expanded-panel__close {
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .geography-map-expanded-panel__description {
+    margin: 0 0 0.5rem;
     color: #565c65;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
 
   .geography-map-modal__relation {
@@ -1117,8 +1102,8 @@ div.grid-row.grid-gap#menu-footer {
     font-size: 0.75rem;
     color: #1b1b1b;
     position: absolute;
-    right: 0.5rem;
-    top: 4.4rem;
+    left: 0.5rem;
+    top: 0.5rem;
     z-index: 500;
     padding: 0;
     border-radius: 999px;
@@ -1174,11 +1159,9 @@ div.grid-row.grid-gap#menu-footer {
   }
 
   .geography-map-modal__map {
-    flex: 1 1 auto;
-    min-height: 15rem;
     position: relative;
     width: 100%;
-    height: 100%;
+    height: 30rem;
     margin: 0;
     border-radius: 0.5rem;
     overflow: hidden;
@@ -1189,8 +1172,8 @@ div.grid-row.grid-gap#menu-footer {
 
   .geography-map-modal__controls {
     position: absolute;
-    top: 0.5rem;
     right: 0.5rem;
+    bottom: 0.5rem;
     z-index: 500;
     display: flex;
     flex-direction: column;
@@ -1255,31 +1238,13 @@ div.grid-row.grid-gap#menu-footer {
     cursor: not-allowed;
   }
 
-  #geography-map-modal-map {
+  #geography-map-expanded-map {
     width: 100%;
     height: 100%;
   }
 
-  #geography-map-modal-map .leaflet-container {
+  #geography-map-expanded-map .leaflet-container {
     width: 100%;
     height: 100%;
-  }
-
-  .usa-modal__close {
-    position: absolute;
-    top: 1em;
-    right: 0.25rem;
-    z-index: 10;
-    background: transparent;
-    border: 0;
-    font-size: 2rem;
-    line-height: 1;
-    color: color('gray-50');
-    padding: 0.25rem 0.5rem;
-    cursor: pointer;
-  }
-  .usa-modal__close:hover,
-  .usa-modal__close:focus {
-    color: color('gray-70');
   }
 }

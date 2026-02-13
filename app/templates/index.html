@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
 
 {% set page_title = "Catalog - Data.gov" %}
 {% block title %}{{ page_title }}{% endblock %}
@@ -57,6 +58,7 @@
                 </div>
             </div>
         </form>
+        {{ render_geography_expanded_panel() }}
 
         <!-- Results Section -->
         <div id="search-results" class="margin-top-3">

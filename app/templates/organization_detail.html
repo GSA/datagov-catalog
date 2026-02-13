@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
 
 {% block title %}{{ organization.name }} - Organization - Data.gov{% endblock %}
 
@@ -85,6 +86,7 @@
                 </div>
             </div>
         </form>
+        {{ render_geography_expanded_panel() }}
 
         {% if datasets %}
         <div class="usa-prose">

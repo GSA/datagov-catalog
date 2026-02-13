@@ -39,12 +39,12 @@ class GeographyAutocomplete {
         this.map = null;
         this.mapHandlersInitialized = false;
         this.drawControl = null;
-        this.modalTrigger = null;
-        this.modalElement = null;
-        this.modalMapContainer = null;
-        this.modalMap = null;
-        this.modalGeoLayer = null;
-        this.modalApplyButton = null;
+        this.mapPanelCloseButton = null;
+        this.mapPanelElement = null;
+        this.mapPanelMapContainer = null;
+        this.mapPanelMap = null;
+        this.mapPanelGeoLayer = null;
+        this.mapPanelApplyButton = null;
         this.drawButton = null;
         this.isDrawing = false;
         this.drawStartLatLng = null;
@@ -102,17 +102,17 @@ class GeographyAutocomplete {
             });
         }
 
-        this.initModal();
+        this.initMapPanel();
     }
 
-    initModal() {
-      this.modalTrigger = document.getElementById('geography-map-modal-trigger');
-      this.modalElement = document.getElementById('geography-map-modal');
-      this.modalMapContainer = document.getElementById('geography-map-modal-map');
+    initMapPanel() {
+      this.mapPanelElement = document.getElementById('geography-map-expanded-panel');
+      this.mapPanelCloseButton = document.getElementById('geography-map-expanded-close');
+      this.mapPanelMapContainer = document.getElementById('geography-map-expanded-map');
       this.drawButton = document.getElementById('geography-modal-draw-toggle');
-      this.modalApplyButton = document.getElementById('geography-modal-apply');
-      this.spatialWithinRadios = this.modalElement
-        ? this.modalElement.querySelectorAll('input[name="spatial_within"]')
+      this.mapPanelApplyButton = document.getElementById('geography-modal-apply');
+      this.spatialWithinRadios = this.mapPanelElement
+        ? this.mapPanelElement.querySelectorAll('input[name="spatial_within"]')
         : null;
 
       if (this.drawButton) {
@@ -122,8 +122,8 @@ class GeographyAutocomplete {
         });
       }
 
-      if (this.modalApplyButton) {
-        this.modalApplyButton.addEventListener('click', () => {
+      if (this.mapPanelApplyButton) {
+        this.mapPanelApplyButton.addEventListener('click', () => {
           this.applyPendingGeometry();
         });
         this.updateApplyButtonState();
@@ -138,19 +138,41 @@ class GeographyAutocomplete {
         this.syncSpatialWithinRadios();
       }
 
-      if (this.modalElement) {
-        this.modalElement.addEventListener('click', (e) => {
-          if (e.target && e.target.closest('[data-close-modal]')) {
-            this.disableDrawMode();
-            if (!e.target.closest('#geography-modal-apply')) {
-              this.pendingGeometry = null;
-              this.pendingSpatialWithin = null;
-              this.syncSpatialWithinRadios();
-              this.updateApplyButtonState();
-              this._syncModalMap();
-            }
-          }
+      if (this.mapPanelCloseButton) {
+        this.mapPanelCloseButton.addEventListener('click', () => {
+          this.setMapPanelOpen(false);
         });
+      }
+    }
+
+    isMapPanelOpen() {
+      return !!(this.mapPanelElement && !this.mapPanelElement.hidden);
+    }
+
+    setMapPanelOpen(isOpen, options = {}) {
+      const { discardPending = true } = options;
+      if (!this.mapPanelElement) return;
+
+      if (isOpen) {
+        this.mapPanelElement.hidden = false;
+        this._ensureMapPanelMap();
+        window.setTimeout(() => {
+          if (this.mapPanelMap) {
+            this.mapPanelMap.invalidateSize();
+          }
+        }, 0);
+        return;
+      }
+
+      this.disableDrawMode();
+      this.mapPanelElement.hidden = true;
+
+      if (discardPending) {
+        this.pendingGeometry = null;
+        this.pendingSpatialWithin = null;
+        this.syncSpatialWithinRadios();
+        this.updateApplyButtonState();
+        this._syncMapPanelMap();
       }
     }
 
@@ -271,14 +293,14 @@ class GeographyAutocomplete {
           const container = L.DomUtil.create('div', 'leaflet-bar geography-draw-control');
           const button = L.DomUtil.create('a', 'geography-draw-button', container);
           button.href = '#';
-          button.title = 'Open a larger map to draw a box';
+          button.title = 'Open map tools to draw a box';
           button.setAttribute('role', 'button');
-          button.setAttribute('aria-label', 'Open a larger map to draw a box');
-          button.setAttribute('aria-controls', 'geography-map-modal');
+          button.setAttribute('aria-label', 'Open map tools to draw a box');
+          button.setAttribute('aria-controls', 'geography-map-expanded-panel');
           button.innerHTML = '<i class="fa-solid fa-pencil" aria-hidden="true"></i>';
           L.DomEvent.on(button, 'click', function (e) {
             L.DomEvent.stop(e);
-            self.openModal();
+            self.openMapPanel();
           });
           L.DomEvent.disableClickPropagation(container);
           L.DomEvent.disableScrollPropagation(container);
@@ -290,84 +312,76 @@ class GeographyAutocomplete {
       this.drawControl.addTo(this.map);
     }
 
-    openModal() {
-      if (this.modalTrigger) {
-        this.modalTrigger.click();
-      }
-      window.setTimeout(() => {
-        this._ensureModalMap();
-        this.disableDrawMode();
-      }, 50);
+    openMapPanel() {
+      this.setMapPanelOpen(true, { discardPending: false });
+      this.disableDrawMode();
     }
 
-    _ensureModalMap(options = {}) {
-      if (!this.modalMapContainer || typeof L === 'undefined') return;
+    _ensureMapPanelMap(options = {}) {
+      if (!this.mapPanelMapContainer || typeof L === 'undefined') return;
       const { syncView = true } = options;
-      const isGeographyModal = this.modalMapContainer.closest('.usa-modal--geography');
-      if (isGeographyModal) {
-        this.modalMapContainer.style.removeProperty('height');
-        this.modalMapContainer.style.removeProperty('min-height');
-      } else {
-        const computedStyles = window.getComputedStyle(this.modalMapContainer);
-        const computedHeight = computedStyles.height;
-        const computedMinHeight = computedStyles.minHeight;
-        const hasHeight =
-          computedHeight &&
-          computedHeight !== 'auto' &&
-          computedHeight !== '0px';
-        const hasMinHeight =
-          computedMinHeight &&
-          computedMinHeight !== 'auto' &&
-          computedMinHeight !== '0px';
-        if (!hasHeight) {
-          this.modalMapContainer.style.height = '60vh';
-        }
-        if (!hasMinHeight) {
-          this.modalMapContainer.style.minHeight = '26.25rem';
-        }
+      const computedStyles = window.getComputedStyle(this.mapPanelMapContainer);
+      const computedHeight = computedStyles.height;
+      const computedMinHeight = computedStyles.minHeight;
+      const hasHeight =
+        computedHeight &&
+        computedHeight !== 'auto' &&
+        computedHeight !== '0px';
+      const hasMinHeight =
+        computedMinHeight &&
+        computedMinHeight !== 'auto' &&
+        computedMinHeight !== '0px';
+      if (!hasHeight) {
+        this.mapPanelMapContainer.style.height = '24rem';
       }
-      if (!this.modalMap) {
-        this.modalMap = L.map(this.modalMapContainer, {
+      if (!hasMinHeight) {
+        this.mapPanelMapContainer.style.minHeight = '18rem';
+      }
+      if (!this.mapPanelMap) {
+        this.mapPanelMap = L.map(this.mapPanelMapContainer, {
           zoomControl: true,
           attributionControl: false
         });
         L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
           maxZoom: 19
-        }).addTo(this.modalMap);
+        }).addTo(this.mapPanelMap);
       }
 
       if (syncView) {
-        this._syncModalMap();
+        this._syncMapPanelMap();
       }
-      this.modalMap.invalidateSize();
+      this.mapPanelMap.invalidateSize();
     }
 
-    _syncModalMap() {
-      if (!this.modalMap) return;
+    _syncMapPanelMap() {
+      if (!this.mapPanelMap) return;
       if (this.pendingGeometry) {
-        this.modalGeoLayer = this._renderGeometryOnMap(
-          this.modalMap,
-          this.modalGeoLayer,
+        this.mapPanelGeoLayer = this._renderGeometryOnMap(
+          this.mapPanelMap,
+          this.mapPanelGeoLayer,
           this.pendingGeometry
         );
       } else if (this.selectedGeometry) {
-        this.modalGeoLayer = this._renderGeometryOnMap(
-          this.modalMap,
-          this.modalGeoLayer,
+        this.mapPanelGeoLayer = this._renderGeometryOnMap(
+          this.mapPanelMap,
+          this.mapPanelGeoLayer,
           this.selectedGeometry
         );
       } else {
-        if (this.modalGeoLayer) {
-          this.modalMap.removeLayer(this.modalGeoLayer);
-          this.modalGeoLayer = null;
+        if (this.mapPanelGeoLayer) {
+          this.mapPanelMap.removeLayer(this.mapPanelGeoLayer);
+          this.mapPanelGeoLayer = null;
         }
-        this._setDefaultView(this.modalMap, { usa: true });
+        this._setDefaultView(this.mapPanelMap, { usa: true });
       }
     }
 
     toggleDrawMode() {
-      this._ensureModalMap({ syncView: false });
-      if (!this.modalMap) return;
+      if (!this.isMapPanelOpen()) {
+        this.setMapPanelOpen(true, { discardPending: false });
+      }
+      this._ensureMapPanelMap({ syncView: false });
+      if (!this.mapPanelMap) return;
       if (this.isDrawing) {
         this.disableDrawMode();
       } else {
@@ -376,7 +390,7 @@ class GeographyAutocomplete {
     }
 
     enableDrawMode() {
-      if (!this.modalMap) return;
+      if (!this.mapPanelMap) return;
       this.isDrawing = true;
       this.drawStartLatLng = null;
       this._setDrawContainerDefaults();
@@ -384,11 +398,11 @@ class GeographyAutocomplete {
         this.drawButton.classList.add('geography-draw-button--active');
         this.drawButton.setAttribute('aria-pressed', 'true');
       }
-      if (this.modalMap.dragging) this.modalMap.dragging.disable();
-      if (this.modalMap.doubleClickZoom) this.modalMap.doubleClickZoom.disable();
-      if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.disable();
-      if (this.modalMap.touchZoom) this.modalMap.touchZoom.disable();
-      if (this.modalMap.tap) this.modalMap.tap.disable();
+      if (this.mapPanelMap.dragging) this.mapPanelMap.dragging.disable();
+      if (this.mapPanelMap.doubleClickZoom) this.mapPanelMap.doubleClickZoom.disable();
+      if (this.mapPanelMap.scrollWheelZoom) this.mapPanelMap.scrollWheelZoom.disable();
+      if (this.mapPanelMap.touchZoom) this.mapPanelMap.touchZoom.disable();
+      if (this.mapPanelMap.tap) this.mapPanelMap.tap.disable();
       if (this.drawContainer) {
         this.drawContainer.style.cursor = 'crosshair';
       }
@@ -396,7 +410,7 @@ class GeographyAutocomplete {
     }
 
     disableDrawMode() {
-      if (!this.modalMap || !this.isDrawing) return;
+      if (!this.mapPanelMap || !this.isDrawing) return;
       this.isDrawing = false;
       this.drawStartLatLng = null;
       this.activePointerId = null;
@@ -405,11 +419,11 @@ class GeographyAutocomplete {
         this.drawButton.classList.remove('geography-draw-button--active');
         this.drawButton.setAttribute('aria-pressed', 'false');
       }
-      if (this.modalMap.dragging) this.modalMap.dragging.enable();
-      if (this.modalMap.doubleClickZoom) this.modalMap.doubleClickZoom.enable();
-      if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.enable();
-      if (this.modalMap.touchZoom) this.modalMap.touchZoom.enable();
-      if (this.modalMap.tap) this.modalMap.tap.enable();
+      if (this.mapPanelMap.dragging) this.mapPanelMap.dragging.enable();
+      if (this.mapPanelMap.doubleClickZoom) this.mapPanelMap.doubleClickZoom.enable();
+      if (this.mapPanelMap.scrollWheelZoom) this.mapPanelMap.scrollWheelZoom.enable();
+      if (this.mapPanelMap.touchZoom) this.mapPanelMap.touchZoom.enable();
+      if (this.mapPanelMap.tap) this.mapPanelMap.tap.enable();
       if (this.drawContainer) {
         this.drawContainer.style.cursor = '';
         this._restoreDrawContainerDefaults();
@@ -418,7 +432,7 @@ class GeographyAutocomplete {
     }
 
     _setDrawContainerDefaults() {
-      this.drawContainer = this.modalMap ? this.modalMap.getContainer() : null;
+      this.drawContainer = this.mapPanelMap ? this.mapPanelMap.getContainer() : null;
       if (!this.drawContainer) return;
       this.prevTouchAction = this.drawContainer.style.touchAction;
       this.prevMsTouchAction = this.drawContainer.style.msTouchAction;
@@ -443,7 +457,7 @@ class GeographyAutocomplete {
     }
 
     _bindDrawEvents() {
-      if (!this.modalMap) return;
+      if (!this.mapPanelMap) return;
       if (this.usePointerEvents) {
         if (!this.drawContainer) return;
         L.DomEvent.on(this.drawContainer, 'pointerdown', this.boundDrawStart, this);
@@ -453,17 +467,17 @@ class GeographyAutocomplete {
         return;
       }
 
-      this.modalMap.on('mousedown', this.boundDrawStart);
-      this.modalMap.on('mousemove', this.boundDrawMove);
-      this.modalMap.on('mouseup', this.boundDrawEnd);
-      this.modalMap.on('touchstart', this.boundDrawStart);
-      this.modalMap.on('touchmove', this.boundDrawMove);
-      this.modalMap.on('touchend', this.boundDrawEnd);
-      this.modalMap.on('touchcancel', this.boundDrawEnd);
+      this.mapPanelMap.on('mousedown', this.boundDrawStart);
+      this.mapPanelMap.on('mousemove', this.boundDrawMove);
+      this.mapPanelMap.on('mouseup', this.boundDrawEnd);
+      this.mapPanelMap.on('touchstart', this.boundDrawStart);
+      this.mapPanelMap.on('touchmove', this.boundDrawMove);
+      this.mapPanelMap.on('touchend', this.boundDrawEnd);
+      this.mapPanelMap.on('touchcancel', this.boundDrawEnd);
     }
 
     _unbindDrawEvents() {
-      if (!this.modalMap) return;
+      if (!this.mapPanelMap) return;
       if (this.usePointerEvents) {
         if (!this.drawContainer) return;
         L.DomEvent.off(this.drawContainer, 'pointerdown', this.boundDrawStart, this);
@@ -473,18 +487,18 @@ class GeographyAutocomplete {
         return;
       }
 
-      this.modalMap.off('mousedown', this.boundDrawStart);
-      this.modalMap.off('mousemove', this.boundDrawMove);
-      this.modalMap.off('mouseup', this.boundDrawEnd);
-      this.modalMap.off('touchstart', this.boundDrawStart);
-      this.modalMap.off('touchmove', this.boundDrawMove);
-      this.modalMap.off('touchend', this.boundDrawEnd);
-      this.modalMap.off('touchcancel', this.boundDrawEnd);
+      this.mapPanelMap.off('mousedown', this.boundDrawStart);
+      this.mapPanelMap.off('mousemove', this.boundDrawMove);
+      this.mapPanelMap.off('mouseup', this.boundDrawEnd);
+      this.mapPanelMap.off('touchstart', this.boundDrawStart);
+      this.mapPanelMap.off('touchmove', this.boundDrawMove);
+      this.mapPanelMap.off('touchend', this.boundDrawEnd);
+      this.mapPanelMap.off('touchcancel', this.boundDrawEnd);
     }
 
     _getEventLatLng(e) {
       if (e && e.latlng) return e.latlng;
-      if (!this.modalMap || !e) return null;
+      if (!this.mapPanelMap || !e) return null;
       const originalEvent = e.originalEvent || e;
       let sourceEvent = originalEvent;
       if (originalEvent.touches && originalEvent.touches.length) {
@@ -493,8 +507,8 @@ class GeographyAutocomplete {
         sourceEvent = originalEvent.changedTouches[0];
       }
       if (!sourceEvent || typeof sourceEvent.clientX !== 'number') return null;
-      const point = this.modalMap.mouseEventToContainerPoint(sourceEvent);
-      return this.modalMap.containerPointToLatLng(point);
+      const point = this.mapPanelMap.mouseEventToContainerPoint(sourceEvent);
+      return this.mapPanelMap.containerPointToLatLng(point);
     }
 
     _preventDefaultEvent(e) {
@@ -519,7 +533,7 @@ class GeographyAutocomplete {
     }
 
     onDrawStart(e) {
-      if (!this.isDrawing || !this.modalMap) return;
+      if (!this.isDrawing || !this.mapPanelMap) return;
       if (this._isMultiTouch(e)) return;
       this._preventDefaultEvent(e);
       const pointerId = this._getPointerId(e);
@@ -540,11 +554,11 @@ class GeographyAutocomplete {
         weight: 2,
         fillOpacity: 0.05,
         interactive: false
-      }).addTo(this.modalMap);
+      }).addTo(this.mapPanelMap);
     }
 
     onDrawMove(e) {
-      if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng || !this.drawRect) return;
+      if (!this.isDrawing || !this.mapPanelMap || !this.drawStartLatLng || !this.drawRect) return;
       if (this._isMultiTouch(e)) return;
       this._preventDefaultEvent(e);
       const pointerId = this._getPointerId(e);
@@ -558,7 +572,7 @@ class GeographyAutocomplete {
     }
 
     onDrawEnd(e) {
-      if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng) return;
+      if (!this.isDrawing || !this.mapPanelMap || !this.drawStartLatLng) return;
       this._preventDefaultEvent(e);
       const pointerId = this._getPointerId(e);
       if (this.activePointerId !== null) {
@@ -589,8 +603,8 @@ class GeographyAutocomplete {
     }
 
     _clearDrawRect() {
-      if (!this.modalMap || !this.drawRect) return;
-      this.modalMap.removeLayer(this.drawRect);
+      if (!this.mapPanelMap || !this.drawRect) return;
+      this.mapPanelMap.removeLayer(this.drawRect);
       this.drawRect = null;
     }
 
@@ -608,11 +622,11 @@ class GeographyAutocomplete {
       const geometry = this.geometryFromBounds(bounds);
       this.pendingGeometry = geometry;
       this.updateApplyButtonState();
-      this._ensureModalMap();
-      if (this.modalMap) {
-        this.modalGeoLayer = this._renderGeometryOnMap(
-          this.modalMap,
-          this.modalGeoLayer,
+      this._ensureMapPanelMap();
+      if (this.mapPanelMap) {
+        this.mapPanelGeoLayer = this._renderGeometryOnMap(
+          this.mapPanelMap,
+          this.mapPanelGeoLayer,
           geometry
         );
       }
@@ -641,8 +655,8 @@ class GeographyAutocomplete {
         return;
       }
       this.geoLayer = this._renderGeometryOnMap(this.map, this.geoLayer, geometry);
-      if (this.modalMap) {
-        this._syncModalMap();
+      if (this.mapPanelMap) {
+        this._syncMapPanelMap();
       }
     }
 
@@ -659,12 +673,12 @@ class GeographyAutocomplete {
         this.geoLayer = null;
       }
       this._setDefaultView(this.map);
-      if (this.modalMap) {
-        if (this.modalGeoLayer) {
-          this.modalMap.removeLayer(this.modalGeoLayer);
-          this.modalGeoLayer = null;
+      if (this.mapPanelMap) {
+        if (this.mapPanelGeoLayer) {
+          this.mapPanelMap.removeLayer(this.mapPanelGeoLayer);
+          this.mapPanelGeoLayer = null;
         }
-        this._setDefaultView(this.modalMap, { usa: true });
+        this._setDefaultView(this.mapPanelMap, { usa: true });
       }
     }
 
@@ -704,12 +718,12 @@ class GeographyAutocomplete {
     }
 
     updateApplyButtonState() {
-      if (!this.modalApplyButton) return;
+      if (!this.mapPanelApplyButton) return;
       const hasGeometry = !!(this.pendingGeometry || this.selectedGeometry);
       const hasPendingRelation = this.pendingSpatialWithin !== null;
       const hasPending =
         !!this.pendingGeometry || (hasPendingRelation && hasGeometry);
-      this.modalApplyButton.disabled = !hasPending;
+      this.mapPanelApplyButton.disabled = !hasPending;
     }
 
     applyPendingGeometry() {
@@ -737,6 +751,7 @@ class GeographyAutocomplete {
         this.displayGeometry(this.selectedGeometry);
       }
       requestFilterFormSubmit(this.form);
+      this.setMapPanelOpen(false, { discardPending: false });
     }
 
     initSuggestedGeography() {
