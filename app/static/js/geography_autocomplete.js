@@ -54,6 +54,7 @@ class GeographyAutocomplete {
         this.drawStartLatLng = null;
         this.drawRect = null;
         this.pendingGeometry = null;
+        this.suppressResultLayerUntilReload = false;
         this.spatialWithin = true;
         this.pendingSpatialWithin = null;
         this.spatialWithinRadios = null;
@@ -721,6 +722,7 @@ class GeographyAutocomplete {
     setPendingBounds(bounds) {
       const geometry = this.geometryFromBounds(bounds);
       this.pendingGeometry = geometry;
+      this.suppressResultLayerUntilReload = false;
       this.updateApplyButtonState();
       this._ensureMapPanelMap();
       if (this.mapPanelMap) {
@@ -799,6 +801,9 @@ class GeographyAutocomplete {
         map.removeLayer(existingLayer);
       }
       if (this.pendingGeometry) {
+        return null;
+      }
+      if (this.suppressResultLayerUntilReload) {
         return null;
       }
       if (!this._isWithinRelationActive()) {
@@ -907,6 +912,7 @@ class GeographyAutocomplete {
       }
       if (hasPendingGeometry) {
         this.selectedGeometry = this.pendingGeometry;
+        this.suppressResultLayerUntilReload = true;
       }
       if (hasPendingRelation) {
         this.spatialWithin = this.pendingSpatialWithin;
