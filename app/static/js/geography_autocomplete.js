@@ -798,6 +798,9 @@ class GeographyAutocomplete {
       if (existingLayer) {
         map.removeLayer(existingLayer);
       }
+      if (this.pendingGeometry) {
+        return null;
+      }
       if (!this._isWithinRelationActive()) {
         return null;
       }
