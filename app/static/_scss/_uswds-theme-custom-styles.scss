@@ -1104,6 +1104,19 @@ div.grid-row.grid-gap#menu-footer {
     margin: 0 0 0.5rem;
     color: #565c65;
     font-size: 0.9rem;
+    line-height: 1.35;
+  }
+
+  .geography-map-expanded-panel__term {
+    font-weight: 700;
+    color: #1a4480;
+  }
+
+  .geography-map-expanded-panel__inline-icon {
+    margin: 0 0.1rem;
+    color: #1a4480;
+    font-size: 0.9em;
+    vertical-align: -0.05em;
   }
 
   .geography-map-modal__relation {

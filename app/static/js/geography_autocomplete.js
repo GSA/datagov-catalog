@@ -879,8 +879,7 @@ class GeographyAutocomplete {
           });
         }
       });
-      const rankLayer = L.layerGroup(rankMarkers);
-      const layer = L.featureGroup([geometryLayer, rankLayer]).addTo(map);
+      const layer = L.featureGroup([geometryLayer, ...rankMarkers]).addTo(map);
       if (typeof geometryLayer.bringToBack === 'function') {
         geometryLayer.bringToBack();
       }
@@ -889,9 +888,6 @@ class GeographyAutocomplete {
           marker.bringToFront();
         }
       });
-      if (typeof rankLayer.bringToFront === 'function') {
-        rankLayer.bringToFront();
-      }
       return layer;
     }
 
