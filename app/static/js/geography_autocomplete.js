@@ -812,6 +812,32 @@ class GeographyAutocomplete {
       if (!this.searchResultGeometries || !this.searchResultGeometries.length) {
         return null;
       }
+      const rankMarkers = [];
+      const rankLabelForFeature = function (feature) {
+        const rank = feature && feature.properties ? feature.properties.rank : null;
+        if (typeof rank !== 'number') return null;
+        return `#${rank}`;
+      };
+      const rankAnchorForLayer = function (featureLayer) {
+        if (featureLayer && typeof featureLayer.getBounds === 'function') {
+          const bounds = featureLayer.getBounds();
+          if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
+            return bounds.getNorthWest();
+          }
+        }
+        if (featureLayer && typeof featureLayer.getLatLng === 'function') {
+          return featureLayer.getLatLng();
+        }
+        return null;
+      };
+      const rankIconForLabel = function (rankLabel) {
+        return L.divIcon({
+          className: 'geography-map-result-rank-marker',
+          html: `<span class="geography-map-result-rank-label">${rankLabel}</span>`,
+          iconSize: [1, 1],
+          iconAnchor: [0, 0]
+        });
+      };
       const featureCollection = {
         type: 'FeatureCollection',
         features: this.searchResultGeometries.map((geometry, index) => ({
@@ -820,10 +846,27 @@ class GeographyAutocomplete {
           geometry: geometry
         }))
       };
-      const layer = L.geoJSON(featureCollection, {
+      const geometryLayer = L.geoJSON(featureCollection, {
         interactive: false,
         style: function () {
           return { color: '#eb5f07', weight: 1.5, fillColor: '#f2938c', fillOpacity: 0.08 };
+        },
+        onEachFeature: function (feature, featureLayer) {
+          const rankLabel = rankLabelForFeature(feature);
+          if (!rankLabel || !featureLayer) {
+            return;
+          }
+          const anchorLatLng = rankAnchorForLayer(featureLayer);
+          if (!anchorLatLng) return;
+          rankMarkers.push(
+            L.marker(anchorLatLng, {
+              icon: rankIconForLabel(rankLabel),
+              interactive: false,
+              keyboard: false,
+              bubblingMouseEvents: false,
+              zIndexOffset: 1000
+            })
+          );
         },
         pointToLayer: function (_feature, latlng) {
           return L.circleMarker(latlng, {
@@ -835,9 +878,19 @@ class GeographyAutocomplete {
             interactive: false
           });
         }
-      }).addTo(map);
-      if (typeof layer.bringToBack === 'function') {
-        layer.bringToBack();
+      });
+      const rankLayer = L.layerGroup(rankMarkers);
+      const layer = L.featureGroup([geometryLayer, rankLayer]).addTo(map);
+      if (typeof geometryLayer.bringToBack === 'function') {
+        geometryLayer.bringToBack();
+      }
+      rankMarkers.forEach((marker) => {
+        if (marker && typeof marker.bringToFront === 'function') {
+          marker.bringToFront();
+        }
+      });
+      if (typeof rankLayer.bringToFront === 'function') {
+        rankLayer.bringToFront();
       }
       return layer;
     }
