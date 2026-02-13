@@ -724,7 +724,12 @@ def test_index_page_renders(db_client):
     # misc dataset checks
     org_banner = soup.find("div", class_="dataset-org-banner")
     assert org_banner is not None
-    assert org_banner.text == "Federal"
+    org_banner_type = org_banner.find("span", class_="dataset-org-banner__type")
+    assert org_banner_type is not None
+    assert org_banner_type.text == "Federal"
+    org_banner_rank = org_banner.find("span", class_="dataset-org-banner__rank")
+    assert org_banner_rank is not None
+    assert org_banner_rank.text == "#1"
 
     # default href is the dataset page if accessURL is null
     html_resource = soup.find("a", {"data-format": "html"})

@@ -278,6 +278,7 @@ def index():
         "index.html",
         query=query,
         results_hint=num_results,
+        result_start_index=1,
         per_page=DEFAULT_PER_PAGE,
         after=after,
         datasets=datasets,
@@ -367,6 +368,9 @@ def search():
 
     if htmx:
         results = [each for each in result.results]
+        result_start_index = 1
+        if results_hint and per_page:
+            result_start_index = max(results_hint - per_page + 1, 1)
         if selected_organization:
             # specified organization so give org results
             return render_template(
@@ -375,6 +379,7 @@ def search():
                 datasets=results,
                 per_page=per_page,
                 results_hint=results_hint,
+                result_start_index=result_start_index,
                 after=result.search_after_obscured(),
                 selected_sort=sort_by,
                 organization=selected_organization,
@@ -386,6 +391,7 @@ def search():
             datasets=results,
             per_page=per_page,
             results_hint=results_hint,
+            result_start_index=result_start_index,
             from_hint=from_hint,
             after=result.search_after_obscured(),
             sort_by=sort_by,
@@ -603,6 +609,7 @@ def organization_detail(slug: str):
         after=after,
         per_page=DEFAULT_PER_PAGE,
         results_hint=num_results,
+        result_start_index=1,
         organization_slug_or_id=slug_or_id,
         selected_sort=sort_by,
         dataset_search_query=dataset_search_query,

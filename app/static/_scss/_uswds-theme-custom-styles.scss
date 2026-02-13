@@ -197,9 +197,21 @@ ul.menu {
 }
 
 .dataset-org-banner {
-  text-align: right;
-  padding-right: 1.0rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 1rem;
   color: white;
+}
+
+.dataset-org-banner__rank {
+  font-weight: 400;
+}
+
+.dataset-org-banner__type {
+  margin-left: auto;
+  text-align: right;
 }
 .dataset-content {
   padding: 1.0rem;
