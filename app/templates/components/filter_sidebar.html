@@ -27,8 +27,8 @@
     <input type="hidden" name="org_slug" value="{{ org_slug }}">
     {% endif %}
 
-    {{ render_geography_filter() }}
     {{ render_sort_filter(sort_value) }}
+    {{ render_geography_filter() }}
     {{ render_keyword_filter(keywords, suggested_keywords) }}
 
     {% if show_org_autocomplete %}

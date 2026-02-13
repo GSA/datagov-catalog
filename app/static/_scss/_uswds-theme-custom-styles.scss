@@ -1102,8 +1102,8 @@ div.grid-row.grid-gap#menu-footer {
     font-size: 0.75rem;
     color: #1b1b1b;
     position: absolute;
-    left: 0.5rem;
-    top: 0.5rem;
+    right: 0.5rem;
+    top: 4.4rem;
     z-index: 500;
     padding: 0;
     border-radius: 999px;
@@ -1172,8 +1172,8 @@ div.grid-row.grid-gap#menu-footer {
 
   .geography-map-modal__controls {
     position: absolute;
+    top: 0.5rem;
     right: 0.5rem;
-    bottom: 0.5rem;
     z-index: 500;
     display: flex;
     flex-direction: column;
