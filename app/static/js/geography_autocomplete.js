@@ -304,6 +304,10 @@ class GeographyAutocomplete {
       this.updateApplyButtonState();
     }
 
+    _isWithinRelationActive() {
+      return this.spatialWithin;
+    }
+
     showClearButton() {
       // show a clear button to stop filtering
       const clearButton = document.getElementById('geography-clear-button');
@@ -793,6 +797,9 @@ class GeographyAutocomplete {
       if (!map || typeof L === 'undefined') return existingLayer;
       if (existingLayer) {
         map.removeLayer(existingLayer);
+      }
+      if (!this._isWithinRelationActive()) {
+        return null;
       }
       if (!this.searchResultGeometries || !this.searchResultGeometries.length) {
         return null;
