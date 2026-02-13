@@ -344,9 +344,15 @@ def test_index_includes_top_20_result_geometries_for_map(db_client):
     mock_interface.search_datasets.return_value = SearchResult(
         total=25, results=datasets, search_after=None
     )
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get("/")
+        response = db_client.get("/", query_string={"spatial_geometry": polygon_escaped})
 
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
@@ -356,6 +362,43 @@ def test_index_includes_top_20_result_geometries_for_map(db_client):
     assert len(payload) == 20
     assert payload[0]["type"] == "Point"
     assert payload[19]["coordinates"] == [-101.0, 35.0]
+
+
+def test_index_omits_result_geometries_for_map_without_geography_filter(db_client):
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1,
+        results=[
+            {
+                "id": "dataset-1",
+                "slug": "dataset-1",
+                "dcat": {
+                    "title": "Dataset 1",
+                    "description": "test",
+                    "distribution": [],
+                },
+                "organization": {
+                    "name": "Test Org",
+                    "slug": "test-org",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": {"type": "Point", "coordinates": [-120.0, 35.0]},
+            }
+        ],
+        search_after=None,
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    data_script = soup.find("script", {"id": "geography-search-result-geometries"})
+    assert data_script is not None
+    payload = json.loads(data_script.text)
+    assert payload == []
 
 
 def test_index_page_parses_spatial_within_param(db_client):
@@ -504,9 +547,18 @@ def test_organization_detail_includes_top_20_result_geometries_for_map(db_client
     mock_interface.list_datasets_for_organization.return_value = SearchResult(
         total=25, results=datasets, search_after=None
     )
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get("/organization/test-org")
+        response = db_client.get(
+            "/organization/test-org",
+            query_string={"spatial_geometry": polygon_escaped},
+        )
 
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
@@ -516,6 +568,57 @@ def test_organization_detail_includes_top_20_result_geometries_for_map(db_client
     assert len(payload) == 20
     assert payload[0]["coordinates"] == [-95.0, 39.0]
     assert payload[19]["coordinates"] == [-76.0, 39.0]
+
+
+def test_organization_detail_omits_result_geometries_without_geography_filter(db_client):
+    mock_org = type(
+        "Org",
+        (),
+        {
+            "id": "org-1",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+            "total_datasets": 0,
+            "logo": None,
+            "description": "",
+        },
+    )()
+    mock_interface = Mock()
+    mock_interface.get_organization_by_slug.return_value = mock_org
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_opensearch_org_dataset_counts.return_value = {"test-org": 1}
+    mock_interface.list_datasets_for_organization.return_value = SearchResult(
+        total=1,
+        results=[
+            {
+                "id": "dataset-1",
+                "slug": "dataset-1",
+                "dcat": {
+                    "title": "Dataset 1",
+                    "description": "test",
+                    "distribution": [],
+                },
+                "organization": {
+                    "name": "Test Org",
+                    "slug": "test-org",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": {"type": "Point", "coordinates": [-95.0, 39.0]},
+            }
+        ],
+        search_after=None,
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    data_script = soup.find("script", {"id": "geography-search-result-geometries"})
+    assert data_script is not None
+    payload = json.loads(data_script.text)
+    assert payload == []
 
 
 def test_organization_list_shows_type_and_count(db_client, interface_with_dataset):

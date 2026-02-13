@@ -273,7 +273,9 @@ def index():
 
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
-    search_result_geometries = _collect_spatial_shapes(datasets)
+    search_result_geometries = (
+        _collect_spatial_shapes(datasets) if spatial_geometry is not None else []
+    )
     return render_template(
         "index.html",
         query=query,
@@ -591,7 +593,11 @@ def organization_detail(slug: str):
         spatial_within=spatial_within,
     )
     after = dataset_result.search_after_obscured()
-    search_result_geometries = _collect_spatial_shapes(dataset_result.results)
+    search_result_geometries = (
+        _collect_spatial_shapes(dataset_result.results)
+        if spatial_geometry is not None
+        else []
+    )
 
     slug_or_id = organization.slug or slug
 

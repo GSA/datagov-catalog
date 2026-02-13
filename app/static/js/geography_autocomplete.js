@@ -806,6 +806,9 @@ class GeographyAutocomplete {
       if (this.suppressResultLayerUntilReload) {
         return null;
       }
+      if (!this.selectedGeometry) {
+        return null;
+      }
       if (!this._isWithinRelationActive()) {
         return null;
       }
