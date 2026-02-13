@@ -233,7 +233,7 @@ class GeographyAutocomplete {
     }
 
     setMapPanelOpen(isOpen, options = {}) {
-      const { discardPending = true } = options;
+      const { discardPending = true, scrollIntoView = false } = options;
       if (!this.mapPanelElement) return;
 
       if (isOpen) {
@@ -242,6 +242,9 @@ class GeographyAutocomplete {
         window.setTimeout(() => {
           if (this.mapPanelMap) {
             this.mapPanelMap.invalidateSize();
+          }
+          if (scrollIntoView) {
+            this._scrollMapPanelIntoView();
           }
         }, 0);
         return;
@@ -257,6 +260,15 @@ class GeographyAutocomplete {
         this.updateApplyButtonState();
         this._syncMapPanelMap();
       }
+    }
+
+    _scrollMapPanelIntoView() {
+      if (!this.mapPanelElement || typeof window === 'undefined') return;
+      const rect = this.mapPanelElement.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+      const isOutsideViewport = rect.top < 0 || rect.bottom > viewportHeight;
+      if (!isOutsideViewport) return;
+      this.mapPanelElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     parseSpatialWithinParam(value) {
@@ -400,7 +412,7 @@ class GeographyAutocomplete {
     }
 
     openMapPanel() {
-      this.setMapPanelOpen(true, { discardPending: false });
+      this.setMapPanelOpen(true, { discardPending: false, scrollIntoView: true });
       this.disableDrawMode();
     }
 
@@ -433,9 +445,9 @@ class GeographyAutocomplete {
           maxZoom: 19
         }).addTo(this.mapPanelMap);
       }
-      this.modalResultsLayer = this._renderSearchResultsLayer(
-        this.modalMap,
-        this.modalResultsLayer
+      this.mapPanelResultsLayer = this._renderSearchResultsLayer(
+        this.mapPanelMap,
+        this.mapPanelResultsLayer
       );
 
       if (syncView) {
@@ -479,7 +491,7 @@ class GeographyAutocomplete {
 
     toggleDrawMode() {
       if (!this.isMapPanelOpen()) {
-        this.setMapPanelOpen(true, { discardPending: false });
+        this.setMapPanelOpen(true, { discardPending: false, scrollIntoView: true });
       }
       this._ensureMapPanelMap({ syncView: false });
       if (!this.mapPanelMap) return;
