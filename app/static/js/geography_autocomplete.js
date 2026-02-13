@@ -165,6 +165,15 @@ class GeographyAutocomplete {
       }
     }
 
+    clearMapPanelReopenState() {
+      if (typeof window === 'undefined' || !window.sessionStorage) return;
+      try {
+        window.sessionStorage.removeItem(this.mapPanelReopenStorageKey);
+      } catch (_err) {
+        // Ignore storage errors (privacy mode, quota, disabled storage).
+      }
+    }
+
     consumeMapPanelReopenState() {
       if (typeof window === 'undefined' || !window.sessionStorage) return false;
       try {
@@ -787,7 +796,11 @@ class GeographyAutocomplete {
       if (hasPendingGeometry) {
         this.displayGeometry(this.selectedGeometry);
       }
-      this.setMapPanelReopenOnNextLoad();
+      if (this.spatialWithin) {
+        this.setMapPanelReopenOnNextLoad();
+      } else {
+        this.clearMapPanelReopenState();
+      }
       requestFilterFormSubmit(this.form);
     }
 
