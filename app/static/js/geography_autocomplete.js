@@ -19,7 +19,8 @@ function requestFilterFormSubmit(form, options = {}) {
 
 class GeographyAutocomplete {
     constructor(options) {
-        this.mapPanelStateStorageKey = 'datagov.geographyMapExpanded.open';
+        this.mapPanelReopenStorageKey = 'datagov.geographyMapExpanded.reopenOnce';
+        this.mapPanelLegacyStateStorageKey = 'datagov.geographyMapExpanded.open';
         this.inputId = options.inputId;
         this.suggestionsId = options.suggestionsId;
         this.apiEndpoint = options.apiEndpoint || '/api/location';
@@ -145,7 +146,8 @@ class GeographyAutocomplete {
         });
       }
 
-      if (this.getStoredMapPanelOpenState()) {
+      this.clearLegacyMapPanelState();
+      if (this.consumeMapPanelReopenState()) {
         this.setMapPanelOpen(true, { discardPending: false });
       }
     }
@@ -154,25 +156,33 @@ class GeographyAutocomplete {
       return !!(this.mapPanelElement && !this.mapPanelElement.hidden);
     }
 
-    setStoredMapPanelOpenState(isOpen) {
+    setMapPanelReopenOnNextLoad() {
       if (typeof window === 'undefined' || !window.sessionStorage) return;
       try {
-        if (isOpen) {
-          window.sessionStorage.setItem(this.mapPanelStateStorageKey, '1');
-        } else {
-          window.sessionStorage.removeItem(this.mapPanelStateStorageKey);
-        }
+        window.sessionStorage.setItem(this.mapPanelReopenStorageKey, '1');
       } catch (_err) {
         // Ignore storage errors (privacy mode, quota, disabled storage).
       }
     }
 
-    getStoredMapPanelOpenState() {
+    consumeMapPanelReopenState() {
       if (typeof window === 'undefined' || !window.sessionStorage) return false;
       try {
-        return window.sessionStorage.getItem(this.mapPanelStateStorageKey) === '1';
+        const shouldReopen =
+          window.sessionStorage.getItem(this.mapPanelReopenStorageKey) === '1';
+        window.sessionStorage.removeItem(this.mapPanelReopenStorageKey);
+        return shouldReopen;
       } catch (_err) {
         return false;
+      }
+    }
+
+    clearLegacyMapPanelState() {
+      if (typeof window === 'undefined' || !window.sessionStorage) return;
+      try {
+        window.sessionStorage.removeItem(this.mapPanelLegacyStateStorageKey);
+      } catch (_err) {
+        // Ignore storage errors (privacy mode, quota, disabled storage).
       }
     }
 
@@ -182,7 +192,6 @@ class GeographyAutocomplete {
 
       if (isOpen) {
         this.mapPanelElement.hidden = false;
-        this.setStoredMapPanelOpenState(true);
         this._ensureMapPanelMap();
         window.setTimeout(() => {
           if (this.mapPanelMap) {
@@ -194,7 +203,6 @@ class GeographyAutocomplete {
 
       this.disableDrawMode();
       this.mapPanelElement.hidden = true;
-      this.setStoredMapPanelOpenState(false);
 
       if (discardPending) {
         this.pendingGeometry = null;
@@ -779,6 +787,7 @@ class GeographyAutocomplete {
       if (hasPendingGeometry) {
         this.displayGeometry(this.selectedGeometry);
       }
+      this.setMapPanelReopenOnNextLoad();
       requestFilterFormSubmit(this.form);
     }
 
