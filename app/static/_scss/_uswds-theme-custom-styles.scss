@@ -540,6 +540,8 @@ ul.dataset-resources {
 
 .metadata-table {
     width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
 
     th {
@@ -1057,4 +1059,40 @@ div.grid-row.grid-gap#menu-footer {
       border-right-width: 1px;
     }
   }
+}
+
+.complete-metadata-heading {
+  display: inline;
+}
+
+.json {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  background: #f7f7f7;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.key {
+  color: #1f5fbf; 
+  font-weight: 500;
+}
+
+.string,
+.number,
+.boolean,
+.null {
+  color: #2f7d32;
+}
+
+.punctuation {
+  color: #666;
+}
+
+.punctuation:first-child {
+  color: #666;
+  display: block;
+  margin-bottom: -4%;
 }
