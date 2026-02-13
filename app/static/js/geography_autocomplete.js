@@ -46,6 +46,8 @@ class GeographyAutocomplete {
         this.mapPanelMapContainer = null;
         this.mapPanelMap = null;
         this.mapPanelGeoLayer = null;
+        this.searchResultGeometries = this.loadSearchResultGeometries();
+        this.mapPanelResultsLayer = null;
         this.mapPanelApplyButton = null;
         this.drawButton = null;
         this.isDrawing = false;
@@ -105,6 +107,40 @@ class GeographyAutocomplete {
         }
 
         this.initMapPanel();
+    }
+
+    loadSearchResultGeometries() {
+      const dataEl = document.getElementById('geography-search-result-geometries');
+      if (!dataEl) return [];
+      try {
+        const parsed = JSON.parse(dataEl.textContent || '[]');
+        if (!Array.isArray(parsed)) return [];
+        const geometries = [];
+        parsed.forEach((entry) => {
+          const geometry = this.normalizeGeometry(entry);
+          if (geometry) {
+            geometries.push(geometry);
+          }
+        });
+        return geometries.slice(0, 20);
+      } catch (_err) {
+        return [];
+      }
+    }
+
+    normalizeGeometry(value) {
+      if (!value) return null;
+      let geometry = value;
+      if (typeof geometry === 'string') {
+        try {
+          geometry = JSON.parse(geometry);
+        } catch (_err) {
+          return null;
+        }
+      }
+      if (!geometry || typeof geometry !== 'object') return null;
+      if (typeof geometry.type !== 'string') return null;
+      return geometry;
     }
 
     initMapPanel() {
@@ -392,6 +428,10 @@ class GeographyAutocomplete {
           maxZoom: 19
         }).addTo(this.mapPanelMap);
       }
+      this.modalResultsLayer = this._renderSearchResultsLayer(
+        this.modalMap,
+        this.modalResultsLayer
+      );
 
       if (syncView) {
         this._syncMapPanelMap();
@@ -401,6 +441,10 @@ class GeographyAutocomplete {
 
     _syncMapPanelMap() {
       if (!this.mapPanelMap) return;
+      this.mapPanelResultsLayer = this._renderSearchResultsLayer(
+        this.mapPanelMap,
+        this.mapPanelResultsLayer
+      );
       if (this.pendingGeometry) {
         this.mapPanelGeoLayer = this._renderGeometryOnMap(
           this.mapPanelMap,
@@ -418,7 +462,13 @@ class GeographyAutocomplete {
           this.mapPanelMap.removeLayer(this.mapPanelGeoLayer);
           this.mapPanelGeoLayer = null;
         }
-        this._setDefaultView(this.mapPanelMap, { usa: true });
+        const fittedToResults = this._fitMapToLayerBounds(this.mapPanelMap, this.mapPanelResultsLayer, {
+          pad: 0.08,
+          pointZoom: 6
+        });
+        if (!fittedToResults) {
+          this._setDefaultView(this.mapPanelMap, { usa: true });
+        }
       }
     }
 
@@ -724,8 +774,70 @@ class GeographyAutocomplete {
           this.mapPanelMap.removeLayer(this.mapPanelGeoLayer);
           this.mapPanelGeoLayer = null;
         }
-        this._setDefaultView(this.mapPanelMap, { usa: true });
+        this.mapPanelResultsLayer = this._renderSearchResultsLayer(
+          this.mapPanelMap,
+          this.mapPanelResultsLayer
+        );
+        const mapPanelFittedToResults = this._fitMapToLayerBounds(
+          this.mapPanelMap,
+          this.mapPanelResultsLayer,
+          { pad: 0.08, pointZoom: 6 }
+        );
+        if (!mapPanelFittedToResults) {
+          this._setDefaultView(this.mapPanelMap, { usa: true });
+        }
       }
+    }
+
+    _renderSearchResultsLayer(map, existingLayer) {
+      if (!map || typeof L === 'undefined') return existingLayer;
+      if (existingLayer) {
+        map.removeLayer(existingLayer);
+      }
+      if (!this.searchResultGeometries || !this.searchResultGeometries.length) {
+        return null;
+      }
+      const featureCollection = {
+        type: 'FeatureCollection',
+        features: this.searchResultGeometries.map((geometry, index) => ({
+          type: 'Feature',
+          properties: { rank: index + 1 },
+          geometry: geometry
+        }))
+      };
+      const layer = L.geoJSON(featureCollection, {
+        interactive: false,
+        style: function () {
+          return { color: '#eb5f07', weight: 1.5, fillColor: '#f2938c', fillOpacity: 0.08 };
+        },
+        pointToLayer: function (_feature, latlng) {
+          return L.circleMarker(latlng, {
+            radius: 4,
+            color: '#eb5f07',
+            weight: 1,
+            fillColor: '#ffbe2e',
+            fillOpacity: 0.85,
+            interactive: false
+          });
+        }
+      }).addTo(map);
+      if (typeof layer.bringToBack === 'function') {
+        layer.bringToBack();
+      }
+      return layer;
+    }
+
+    _fitMapToLayerBounds(map, layer, options = {}) {
+      if (!map || !layer || typeof layer.getBounds !== 'function') return false;
+      const bounds = layer.getBounds();
+      if (!bounds || !bounds.isValid()) return false;
+      const { pad = 0.1, pointZoom = 6 } = options;
+      if (bounds.getSouthWest().equals(bounds.getNorthEast())) {
+        map.setView(bounds.getSouthWest(), pointZoom);
+      } else {
+        map.fitBounds(bounds.pad(pad));
+      }
+      return true;
     }
 
     _renderGeometryOnMap(map, existingLayer, geometry) {

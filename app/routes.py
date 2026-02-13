@@ -94,6 +94,23 @@ def _homepage_dataset_total(default_total: int) -> int:
     return default_total
 
 
+def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
+    """Return up to `limit` GeoJSON geometries from search results."""
+    shapes: list[dict] = []
+    for dataset in datasets:
+        if not isinstance(dataset, dict):
+            continue
+        geometry = dataset.get("spatial_shape")
+        if not isinstance(geometry, dict):
+            continue
+        if not geometry.get("type"):
+            continue
+        shapes.append(geometry)
+        if len(shapes) >= limit:
+            break
+    return shapes
+
+
 def _get_sitemap_body_or_404(bucket: str, key: str) -> bytes:
     """Fetch an object body from S3 or abort with 404 on any error."""
     s3 = create_sitemap_s3_client()
@@ -256,6 +273,7 @@ def index():
 
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
+    search_result_geometries = _collect_spatial_shapes(datasets)
     return render_template(
         "index.html",
         query=query,
@@ -274,6 +292,7 @@ def index():
         suggested_organizations=suggested_organizations,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
+        search_result_geometries=search_result_geometries,
         from_hint=from_hint,
         selected_organization=selected_organization,
     )
@@ -566,6 +585,7 @@ def organization_detail(slug: str):
         spatial_within=spatial_within,
     )
     after = dataset_result.search_after_obscured()
+    search_result_geometries = _collect_spatial_shapes(dataset_result.results)
 
     slug_or_id = organization.slug or slug
 
@@ -588,6 +608,7 @@ def organization_detail(slug: str):
         dataset_search_query=dataset_search_query,
         keywords=keywords,
         spatial_filter=spatial_filter,
+        search_result_geometries=search_result_geometries,
         suggested_keywords=suggested_keywords,
     )
 
