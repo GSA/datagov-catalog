@@ -12,6 +12,7 @@
     keywords,
     suggested_keywords,
     spatial_filter,
+    search_result_geometries=None,
     form_id='filter-form',
     org_slug=None,
     show_org_autocomplete=False,
@@ -28,6 +29,7 @@
     {% endif %}
 
     {{ render_sort_filter(sort_value) }}
+    {{ render_geography_filter(search_result_geometries) }}
     {{ render_keyword_filter(keywords, suggested_keywords) }}
 
     {% if show_org_autocomplete %}
@@ -38,7 +40,6 @@
         {{ render_organization_type_filter(org_types) }}
     {% endif %}
 
-    {{ render_geography_filter() }}
     {{ render_spatial_filter(spatial_filter) }}
 </form>
 {% endmacro %}

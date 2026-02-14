@@ -1,4 +1,4 @@
-{% macro render_geography_filter() %}
+{% macro render_geography_filter(search_result_geometries=None) %}
 <div class="usa-accordion usa-accordion--bordered">
     <h3 class="usa-accordion__heading">
         <button type="button" class="usa-accordion__button"
@@ -10,7 +10,7 @@
         <div class="keyword-autocomplete">
             <label id="geography-input-label" class="usa-label" for="geography-input">
               Filter by Geography <br>
-                <span class="usa-hint">Start typing to see suggestions</span>
+                <span class="usa-hint">Start typing to see suggestions or use the pencil button to open a larger map</span>
             </label>
             <input
                 type="text"
@@ -23,9 +23,9 @@
                 aria-expanded="false"
             >
             <div id="geography-suggestions" class="keyword-suggestions" role="listbox"></div>
-
         </div>
         <div id="geography-map"></div>
+        <script id="geography-search-result-geometries" type="application/json">{{ (search_result_geometries or []) | tojson }}</script>
     </div>
 </div>
 {% endmacro %}
