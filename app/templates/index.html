@@ -61,6 +61,7 @@
 
         <!-- Results Section -->
         <div id="search-results" class="margin-top-3">
+            {{ render_geography_expanded_panel() }}
             {% if datasets %}
             <div class="usa-prose">
               {% if query or org_types or keywords or org_slug or spatial_filter or spatial_geometry %}
@@ -95,8 +96,6 @@
                 </p>
               {% endif %}
             </div>
-
-            {{ render_geography_expanded_panel() }}
 
             <section class="organization-datasets margin-top-3">
                 <ul class="usa-collection organization-datasets__list">
