@@ -17,6 +17,8 @@ from .filters import (
     is_geometry_mapping,
     remove_html_tags,
     usa_icon,
+    json_to_semantic_html,
+    is_json,
 )
 from .models import db
 import newrelic.agent
@@ -82,6 +84,8 @@ def create_app(config_name: str = "local") -> Flask:
     app.add_template_filter(is_geometry_mapping)
     app.add_template_filter(geometry_to_mapping)
     app.add_template_filter(remove_html_tags)
+    app.add_template_filter(json_to_semantic_html)
+    app.add_template_filter(is_json)
 
     # Content-Security-Policy headers
     # single quotes need to appear in some of the strings
