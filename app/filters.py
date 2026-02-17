@@ -5,6 +5,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 import re
 from typing import Any, Union
+import html
 
 from bs4 import BeautifulSoup
 from flask import url_for
@@ -157,6 +158,74 @@ def simplify_resource_type(text: str) -> str:
     match = re.search(pattern, text, flags=re.IGNORECASE)
     if match is not None:
         return match.group(0)
+def json_to_semantic_html(obj, indent=2, level=0):
+    """
+    render a Python dict/list as semantic JSON HTML
+    with blue keys and green values.
+    """
+    pad = " " * (indent * level)
+    next_pad = " " * (indent * (level + 1))
+
+    if isinstance(obj, dict):
+        if not obj:
+            return '<span class="punctuation">{}</span>'
+
+        items = []
+        for i, (k, v) in enumerate(obj.items()):
+            comma = '<span class="punctuation">,</span>' if i < len(obj) - 1 else ""
+            items.append(
+                f"{next_pad}"
+                f'<span class="key">"{html.escape(str(k))}"</span>'
+                f'<span class="punctuation">: </span>'
+                f"{json_to_semantic_html(v, indent, level + 1)}"
+                f"{comma}"
+            )
+
+        return (
+            '<span class="punctuation">{</span>\n'
+            + "\n".join(items)
+            + "\n"
+            + f'{pad}<span class="punctuation">}}</span>'
+        )
+
+    if isinstance(obj, list):
+        if not obj:
+            return '<span class="punctuation">[]</span>'
+
+        items = []
+        for i, v in enumerate(obj):
+            comma = '<span class="punctuation">,</span>' if i < len(obj) - 1 else ""
+            items.append(
+                f"{next_pad}{json_to_semantic_html(v, indent, level + 1)}{comma}"
+            )
+
+        return (
+            '<span class="punctuation">[</span>\n'
+            + "\n".join(items)
+            + "\n"
+            + f'{pad}<span class="punctuation">]</span>'
+        )
+
+    # Scalars
+    if isinstance(obj, str):
+        return f'<span class="string">"{html.escape(obj)}"</span>'
+
+    if isinstance(obj, bool):
+        return f'<span class="boolean">{str(obj).lower()}</span>'
+
+    if obj is None:
+        return '<span class="null">null</span>'
+
+    # numbers
+    return f'<span class="number">{obj}</span>'
+
+
+def is_json(value):
+    try:
+        json.loads(value)
+        return True
+    except (TypeError, ValueError):
+        return False
 
 
 __all__ = [
@@ -170,4 +239,6 @@ __all__ = [
     "format_contact_point_email",
     "remove_html_tags",
     "simplify_resource_type",
+    "json_to_semantic_html",
+    "is_json",
 ]
