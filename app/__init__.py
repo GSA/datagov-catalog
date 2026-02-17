@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 
+import newrelic.agent
 from dotenv import load_dotenv
 from flask import Flask
 from flask_htmx import HTMX
@@ -15,17 +16,13 @@ from .filters import (
     geometry_to_mapping,
     is_bbox_string,
     is_geometry_mapping,
-    remove_html_tags,
-    usa_icon,
-<<<<<<< fix-resource-types
-    simplify_resource_type,
-=======
-    json_to_semantic_html,
     is_json,
->>>>>>> main
+    json_to_semantic_html,
+    remove_html_tags,
+    simplify_resource_type,
+    usa_icon,
 )
 from .models import db
-import newrelic.agent
 from .utils import normalize_site_url
 
 logger = logging.getLogger(__name__)
@@ -88,12 +85,9 @@ def create_app(config_name: str = "local") -> Flask:
     app.add_template_filter(is_geometry_mapping)
     app.add_template_filter(geometry_to_mapping)
     app.add_template_filter(remove_html_tags)
-<<<<<<< fix-resource-types
     app.add_template_filter(simplify_resource_type)
-=======
     app.add_template_filter(json_to_semantic_html)
     app.add_template_filter(is_json)
->>>>>>> main
 
     # Content-Security-Policy headers
     # single quotes need to appear in some of the strings
