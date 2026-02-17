@@ -1095,6 +1095,10 @@ def test_index_page_has_filters_sidebar(db_client):
     # Check sort has popularity option
     popularity_option = soup.find("option", {"value": "popularity"})
     assert popularity_option is not None
+    # Check sort has distance option (disabled without geography)
+    distance_option = soup.find("option", {"value": "distance"})
+    assert distance_option is not None
+    assert "disabled" in distance_option.attrs
 
     # Check for organization type filters
     filter_form = soup.find("form", {"id": "filter-form"})

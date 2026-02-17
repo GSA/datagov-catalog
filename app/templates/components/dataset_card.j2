@@ -1,9 +1,18 @@
-{% macro dataset_card(dataset, from_hint='', result_number=None) -%}
+{% macro dataset_card(dataset, from_hint='', result_number=None, sort_value=None, allow_distance=false) -%}
 {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
 {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
 {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
 {% set updated_display = dataset_meta.get('modified') %}
 {% set view_count = dataset.get('popularity') %}
+{% set sort_values = dataset.get('_sort') %}
+{% set distance_km = none %}
+{% if allow_distance %}
+  {% if dataset.get('_distance_km') is not none %}
+    {% set distance_km = dataset.get('_distance_km') %}
+  {% elif sort_value == 'distance' and sort_values %}
+    {% set distance_km = sort_values[0] %}
+  {% endif %}
+{% endif %}
 
 {% autoescape true %}
 
@@ -67,7 +76,7 @@
           </ul>
           {% endif %}
           {% set search_score = dataset.get('_score') %}
-          {% if search_score is not none or view_count is not none %}
+          {% if search_score is not none or view_count is not none or distance_km is not none %}
           <div class="margin-top-1">
               <small class="text-base-dark">
                   {% if search_score is not none %}
@@ -80,6 +89,11 @@
                     {% if view_count is not none %}
                       Views last month: {{ view_count }}
                     {% endif %}
+                  {% endif %}
+                  {% if distance_km is not none %}
+                    {% set distance_mi = distance_km * 0.621371 %}
+                    {% if search_score is not none or view_count is not none %} | {% endif %}
+                    Distance: {{ '%.1f' % distance_mi }} mi
                   {% endif %}
               </small>
           </div>
