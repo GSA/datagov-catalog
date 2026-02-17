@@ -2,10 +2,11 @@
 {% import 'components/dataset_card.j2' as dataset_card -%}
 {% if datasets %}
   {% for dataset in datasets %}
+    {% set allow_distance = spatial_geometry is not none %}
     {% if from_hint %}
-      {{ dataset_card.dataset_card(dataset, from_hint) }}
+      {{ dataset_card.dataset_card(dataset, from_hint, sort_value=sort_by, allow_distance=allow_distance) }}
     {% else %}
-      {{ dataset_card.dataset_card(dataset) }}
+      {{ dataset_card.dataset_card(dataset, sort_value=sort_by, allow_distance=allow_distance) }}
     {% endif %}
 
   {% endfor %}
@@ -24,6 +25,8 @@
               org_type=org_types,
               keyword=keywords,
               spatial_filter=spatial_filter,
+              spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
+              spatial_within=spatial_within if spatial_geometry else none,
               from_hint=from_hint
           ) }}"
         {% else %}
@@ -37,6 +40,8 @@
               org_type=org_types,
               keyword=keywords,
               spatial_filter=spatial_filter,
+              spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
+              spatial_within=spatial_within if spatial_geometry else none,
           ) }}"
         {% endif %}
         hx-target="#replaceMe"
@@ -48,7 +53,9 @@
             org_slug=org_slug,
             org_type=org_types,
             keyword=keywords,
-            spatial_filter=spatial_filter
+            spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
+            spatial_within=spatial_within if spatial_geometry else none,
         ) }}"
         hx-trigger="click">
         Show more results

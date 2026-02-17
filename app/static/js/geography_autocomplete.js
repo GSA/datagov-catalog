@@ -37,6 +37,25 @@ class GeographyAutocomplete {
         this.debounceTimer = null;
         this.currentFocusIndex = -1;
         this.map = null;
+        this.mapHandlersInitialized = false;
+        this.drawControl = null;
+        this.modalTrigger = null;
+        this.modalElement = null;
+        this.modalMapContainer = null;
+        this.modalMap = null;
+        this.modalGeoLayer = null;
+        this.modalApplyButton = null;
+        this.drawButton = null;
+        this.isDrawing = false;
+        this.drawStartLatLng = null;
+        this.drawRect = null;
+        this.pendingGeometry = null;
+        this.spatialWithin = true;
+        this.pendingSpatialWithin = null;
+        this.spatialWithinRadios = null;
+        this.boundDrawStart = this.onDrawStart.bind(this);
+        this.boundDrawMove = this.onDrawMove.bind(this);
+        this.boundDrawEnd = this.onDrawEnd.bind(this);
 
         if (!this.input || !this.suggestionsContainer) {
             console.error('GeographyAutocomplete: Required elements not found');
@@ -75,12 +94,75 @@ class GeographyAutocomplete {
                 this.syncHiddenInputsToMainSearch();
             });
         }
+
+        this.initModal();
+    }
+
+    initModal() {
+      this.modalTrigger = document.getElementById('geography-map-modal-trigger');
+      this.modalElement = document.getElementById('geography-map-modal');
+      this.modalMapContainer = document.getElementById('geography-map-modal-map');
+      this.drawButton = document.getElementById('geography-modal-draw-toggle');
+      this.modalApplyButton = document.getElementById('geography-modal-apply');
+      this.spatialWithinRadios = this.modalElement
+        ? this.modalElement.querySelectorAll('input[name="spatial_within"]')
+        : null;
+
+      if (this.drawButton) {
+        this.drawButton.setAttribute('aria-pressed', 'false');
+        this.drawButton.addEventListener('click', () => {
+          this.toggleDrawMode();
+        });
+      }
+
+      if (this.modalApplyButton) {
+        this.modalApplyButton.addEventListener('click', () => {
+          this.applyPendingGeometry();
+        });
+        this.updateApplyButtonState();
+      }
+
+      if (this.spatialWithinRadios && this.spatialWithinRadios.length) {
+        this.spatialWithinRadios.forEach((radio) => {
+          radio.addEventListener('change', (e) => {
+            this.onSpatialWithinChange(e);
+          });
+        });
+        this.syncSpatialWithinRadios();
+      }
+
+      if (this.modalElement) {
+        this.modalElement.addEventListener('click', (e) => {
+          if (e.target && e.target.closest('[data-close-modal]')) {
+            this.disableDrawMode();
+            if (!e.target.closest('#geography-modal-apply')) {
+              this.pendingGeometry = null;
+              this.pendingSpatialWithin = null;
+              this.syncSpatialWithinRadios();
+              this.updateApplyButtonState();
+              this._syncModalMap();
+            }
+          }
+        });
+      }
+    }
+
+    parseSpatialWithinParam(value) {
+      if (typeof value !== 'string') return true;
+      const normalized = value.trim().toLowerCase();
+      if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
+      if (['false', '0', 'no', 'n', 'off'].includes(normalized)) return false;
+      return true;
     }
 
     loadExistingGeography() {
         // Load geography from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const existingGeometry = urlParams.get('spatial_geometry');
+        this.spatialWithin = this.parseSpatialWithinParam(
+          urlParams.get('spatial_within')
+        );
+        this.pendingSpatialWithin = null;
         if (existingGeometry) {
             // URL-encoded parameter is a string of a GeoJSON object
             this.selectedGeometry = JSON.parse(decodeURI(existingGeometry))
@@ -89,6 +171,26 @@ class GeographyAutocomplete {
         } else {
           this.displayNoGeometry();
         }
+    }
+
+    syncSpatialWithinRadios() {
+      if (!this.spatialWithinRadios || !this.spatialWithinRadios.length) return;
+      const value =
+        this.pendingSpatialWithin !== null
+          ? this.pendingSpatialWithin
+          : this.spatialWithin;
+      const targetValue = value ? 'true' : 'false';
+      this.spatialWithinRadios.forEach((radio) => {
+        radio.checked = radio.value === targetValue;
+      });
+    }
+
+    onSpatialWithinChange(event) {
+      if (!event || !event.target) return;
+      const nextWithin = event.target.value === 'true';
+      this.pendingSpatialWithin =
+        nextWithin === this.spatialWithin ? null : nextWithin;
+      this.updateApplyButtonState();
     }
 
     showClearButton() {
@@ -112,6 +214,7 @@ class GeographyAutocomplete {
     // handle the click of the clear button
     clearClicked() {
       this.selectedGeometry = null;
+      this.disableDrawMode();
       this.displayNoGeometry();
       if (this.map) this.map.removeLayer(this.geoLayer);
 
@@ -136,6 +239,243 @@ class GeographyAutocomplete {
         maxZoom: 19
       }).addTo(map);
       this.map = map;
+      this._initMapHandlers();
+    }
+
+    _initMapHandlers() {
+      if (!this.map || this.mapHandlersInitialized) return;
+      this.mapHandlersInitialized = true;
+
+      // Allow shift+drag box zoom to set a spatial filter box
+      this.map.on('boxzoomend', (e) => {
+        const bounds = e && e.boxZoomBounds ? e.boxZoomBounds : null;
+        if (!bounds || !bounds.isValid()) return;
+        this.applyBoundsSelection(bounds);
+      });
+
+      this._addDrawControl();
+    }
+
+    _addDrawControl() {
+      if (!this.map || this.drawControl) return;
+      const self = this;
+      const DrawControl = L.Control.extend({
+        onAdd: function () {
+          const container = L.DomUtil.create('div', 'leaflet-bar geography-draw-control');
+          const button = L.DomUtil.create('a', 'geography-draw-button', container);
+          button.href = '#';
+          button.title = 'Open a larger map to draw a box';
+          button.setAttribute('role', 'button');
+          button.setAttribute('aria-label', 'Open a larger map to draw a box');
+          button.setAttribute('aria-controls', 'geography-map-modal');
+          button.innerHTML = '<i class="fa-solid fa-pencil" aria-hidden="true"></i>';
+          L.DomEvent.on(button, 'click', function (e) {
+            L.DomEvent.stop(e);
+            self.openModal();
+          });
+          L.DomEvent.disableClickPropagation(container);
+          L.DomEvent.disableScrollPropagation(container);
+          return container;
+        }
+      });
+
+      this.drawControl = new DrawControl({ position: 'topleft' });
+      this.drawControl.addTo(this.map);
+    }
+
+    openModal() {
+      if (this.modalTrigger) {
+        this.modalTrigger.click();
+      }
+      window.setTimeout(() => {
+        this._ensureModalMap();
+        this.disableDrawMode();
+      }, 50);
+    }
+
+    _ensureModalMap(options = {}) {
+      if (!this.modalMapContainer || typeof L === 'undefined') return;
+      const { syncView = true } = options;
+      const isGeographyModal = this.modalMapContainer.closest('.usa-modal--geography');
+      if (isGeographyModal) {
+        this.modalMapContainer.style.removeProperty('height');
+        this.modalMapContainer.style.removeProperty('min-height');
+      } else {
+        const computedStyles = window.getComputedStyle(this.modalMapContainer);
+        const computedHeight = computedStyles.height;
+        const computedMinHeight = computedStyles.minHeight;
+        const hasHeight =
+          computedHeight &&
+          computedHeight !== 'auto' &&
+          computedHeight !== '0px';
+        const hasMinHeight =
+          computedMinHeight &&
+          computedMinHeight !== 'auto' &&
+          computedMinHeight !== '0px';
+        if (!hasHeight) {
+          this.modalMapContainer.style.height = '60vh';
+        }
+        if (!hasMinHeight) {
+          this.modalMapContainer.style.minHeight = '26.25rem';
+        }
+      }
+      if (!this.modalMap) {
+        this.modalMap = L.map(this.modalMapContainer, {
+          zoomControl: true,
+          attributionControl: false
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19
+        }).addTo(this.modalMap);
+      }
+
+      if (syncView) {
+        this._syncModalMap();
+      }
+      this.modalMap.invalidateSize();
+    }
+
+    _syncModalMap() {
+      if (!this.modalMap) return;
+      if (this.pendingGeometry) {
+        this.modalGeoLayer = this._renderGeometryOnMap(
+          this.modalMap,
+          this.modalGeoLayer,
+          this.pendingGeometry
+        );
+      } else if (this.selectedGeometry) {
+        this.modalGeoLayer = this._renderGeometryOnMap(
+          this.modalMap,
+          this.modalGeoLayer,
+          this.selectedGeometry
+        );
+      } else {
+        if (this.modalGeoLayer) {
+          this.modalMap.removeLayer(this.modalGeoLayer);
+          this.modalGeoLayer = null;
+        }
+        this._setDefaultView(this.modalMap, { usa: true });
+      }
+    }
+
+    toggleDrawMode() {
+      this._ensureModalMap({ syncView: false });
+      if (!this.modalMap) return;
+      if (this.isDrawing) {
+        this.disableDrawMode();
+      } else {
+        this.enableDrawMode();
+      }
+    }
+
+    enableDrawMode() {
+      if (!this.modalMap) return;
+      this.isDrawing = true;
+      this.drawStartLatLng = null;
+      if (this.drawButton) {
+        this.drawButton.classList.add('geography-draw-button--active');
+        this.drawButton.setAttribute('aria-pressed', 'true');
+      }
+      if (this.modalMap.dragging) this.modalMap.dragging.disable();
+      if (this.modalMap.doubleClickZoom) this.modalMap.doubleClickZoom.disable();
+      if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.disable();
+      this.modalMap.getContainer().style.cursor = 'crosshair';
+      this.modalMap.on('mousedown', this.boundDrawStart);
+      this.modalMap.on('mousemove', this.boundDrawMove);
+      this.modalMap.on('mouseup', this.boundDrawEnd);
+    }
+
+    disableDrawMode() {
+      if (!this.modalMap || !this.isDrawing) return;
+      this.isDrawing = false;
+      this.drawStartLatLng = null;
+      this._clearDrawRect();
+      if (this.drawButton) {
+        this.drawButton.classList.remove('geography-draw-button--active');
+        this.drawButton.setAttribute('aria-pressed', 'false');
+      }
+      if (this.modalMap.dragging) this.modalMap.dragging.enable();
+      if (this.modalMap.doubleClickZoom) this.modalMap.doubleClickZoom.enable();
+      if (this.modalMap.scrollWheelZoom) this.modalMap.scrollWheelZoom.enable();
+      this.modalMap.getContainer().style.cursor = '';
+      this.modalMap.off('mousedown', this.boundDrawStart);
+      this.modalMap.off('mousemove', this.boundDrawMove);
+      this.modalMap.off('mouseup', this.boundDrawEnd);
+    }
+
+    onDrawStart(e) {
+      if (!this.isDrawing || !this.modalMap) return;
+      this.drawStartLatLng = e.latlng;
+      this._clearDrawRect();
+      this.drawRect = L.rectangle(L.latLngBounds(e.latlng, e.latlng), {
+        color: '#005ea2',
+        weight: 2,
+        fillOpacity: 0.05,
+        interactive: false
+      }).addTo(this.modalMap);
+    }
+
+    onDrawMove(e) {
+      if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng || !this.drawRect) return;
+      const bounds = L.latLngBounds(this.drawStartLatLng, e.latlng);
+      this.drawRect.setBounds(bounds);
+    }
+
+    onDrawEnd(e) {
+      if (!this.isDrawing || !this.modalMap || !this.drawStartLatLng) return;
+      const bounds = L.latLngBounds(this.drawStartLatLng, e.latlng);
+      this.drawStartLatLng = null;
+      if (!bounds.isValid() || bounds.getSouthWest().equals(bounds.getNorthEast())) {
+        this._clearDrawRect();
+        return;
+      }
+      this.setPendingBounds(bounds);
+      this.disableDrawMode();
+    }
+
+    _clearDrawRect() {
+      if (!this.modalMap || !this.drawRect) return;
+      this.modalMap.removeLayer(this.drawRect);
+      this.drawRect = null;
+    }
+
+    applyBoundsSelection(bounds) {
+      const geometry = this.geometryFromBounds(bounds);
+      this.selectedGeometry = geometry;
+      this.pendingGeometry = null;
+      this.updateApplyButtonState();
+      this.showClearButton();
+      this.displayGeometry(this.selectedGeometry);
+      requestFilterFormSubmit(this.form);
+    }
+
+    setPendingBounds(bounds) {
+      const geometry = this.geometryFromBounds(bounds);
+      this.pendingGeometry = geometry;
+      this.updateApplyButtonState();
+      this._ensureModalMap();
+      if (this.modalMap) {
+        this.modalGeoLayer = this._renderGeometryOnMap(
+          this.modalMap,
+          this.modalGeoLayer,
+          geometry
+        );
+      }
+    }
+
+    geometryFromBounds(bounds) {
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      return {
+        type: 'Polygon',
+        coordinates: [[
+          [sw.lng, sw.lat],
+          [ne.lng, sw.lat],
+          [ne.lng, ne.lat],
+          [sw.lng, ne.lat],
+          [sw.lng, sw.lat]
+        ]]
+      };
     }
 
     displayGeometry(geometry) {
@@ -145,22 +485,9 @@ class GeographyAutocomplete {
         console.error('Could not construct map');
         return;
       }
-      this.geoLayer = L.geoJSON(geometry, {
-        style: function () {
-          return { color: '#005ea2', weight: 2, fillOpacity: 0.05 };
-        },
-        pointToLayer: function (_feature, latlng) {
-          return L.marker(latlng);
-        }
-      }).addTo(this.map);
-
-      var geoBounds = this.geoLayer.getBounds();
-      if (geoBounds.isValid()) {
-        if (geoBounds.getSouthWest().equals(geoBounds.getNorthEast())) {
-          this.map.setView(geoBounds.getSouthWest(), 8);
-        } else {
-          this.map.fitBounds(geoBounds.pad(0.1));
-        }
+      this.geoLayer = this._renderGeometryOnMap(this.map, this.geoLayer, geometry);
+      if (this.modalMap) {
+        this._syncModalMap();
       }
     }
 
@@ -170,7 +497,91 @@ class GeographyAutocomplete {
         console.error('Could not construct map');
         return;
       }
-      this.map.setView([44.967243, -103.77155], 2);
+      this.pendingGeometry = null;
+      this.updateApplyButtonState();
+      if (this.geoLayer) {
+        this.map.removeLayer(this.geoLayer);
+        this.geoLayer = null;
+      }
+      this._setDefaultView(this.map);
+      if (this.modalMap) {
+        if (this.modalGeoLayer) {
+          this.modalMap.removeLayer(this.modalGeoLayer);
+          this.modalGeoLayer = null;
+        }
+        this._setDefaultView(this.modalMap, { usa: true });
+      }
+    }
+
+    _renderGeometryOnMap(map, existingLayer, geometry) {
+      if (!map) return existingLayer;
+      if (existingLayer) {
+        map.removeLayer(existingLayer);
+      }
+      const layer = L.geoJSON(geometry, {
+        style: function () {
+          return { color: '#005ea2', weight: 2, fillOpacity: 0.05 };
+        },
+        pointToLayer: function (_feature, latlng) {
+          return L.marker(latlng);
+        }
+      }).addTo(map);
+
+      const geoBounds = layer.getBounds();
+      if (geoBounds.isValid()) {
+        if (geoBounds.getSouthWest().equals(geoBounds.getNorthEast())) {
+          map.setView(geoBounds.getSouthWest(), 8);
+        } else {
+          map.fitBounds(geoBounds.pad(0.1));
+        }
+      }
+      return layer;
+    }
+
+    _setDefaultView(map, options = {}) {
+      if (!map) return;
+      const { usa = false } = options;
+      if (usa) {
+        map.setView([39.8283, -98.5795], 4);
+        return;
+      }
+      map.setView([44.967243, -103.77155], 2);
+    }
+
+    updateApplyButtonState() {
+      if (!this.modalApplyButton) return;
+      const hasGeometry = !!(this.pendingGeometry || this.selectedGeometry);
+      const hasPendingRelation = this.pendingSpatialWithin !== null;
+      const hasPending =
+        !!this.pendingGeometry || (hasPendingRelation && hasGeometry);
+      this.modalApplyButton.disabled = !hasPending;
+    }
+
+    applyPendingGeometry() {
+      const hasPendingGeometry = !!this.pendingGeometry;
+      const hasPendingRelation = this.pendingSpatialWithin !== null;
+      const hasGeometry = !!(this.pendingGeometry || this.selectedGeometry);
+      if (!hasPendingGeometry && !hasPendingRelation) return;
+      if (!hasGeometry) {
+        this.pendingSpatialWithin = null;
+        this.updateApplyButtonState();
+        this.syncSpatialWithinRadios();
+        return;
+      }
+      if (hasPendingGeometry) {
+        this.selectedGeometry = this.pendingGeometry;
+      }
+      if (hasPendingRelation) {
+        this.spatialWithin = this.pendingSpatialWithin;
+      }
+      this.pendingGeometry = null;
+      this.pendingSpatialWithin = null;
+      this.updateApplyButtonState();
+      this.showClearButton();
+      if (hasPendingGeometry) {
+        this.displayGeometry(this.selectedGeometry);
+      }
+      requestFilterFormSubmit(this.form);
     }
 
     initSuggestedGeography() {
@@ -250,7 +661,7 @@ class GeographyAutocomplete {
     async filterAndShowSuggestions(query) {
         // Filter keywords that match the query
         // TODO: this calls the location search API every time, we could
-        // try some caching to save on calls 
+        // try some caching to save on calls
         query = query.toLowerCase();
         const response = await fetch(`${this.apiEndpoint}s/search?q=${query}&size=10`);
         const filtered = await response.json();
@@ -312,40 +723,43 @@ class GeographyAutocomplete {
       }
     }
 
+    _syncSpatialHiddenInputs(form) {
+        if (!form) return;
+
+        const existingGeometryInputs = form.querySelectorAll(
+          'input[name="spatial_geometry"][type="hidden"]'
+        );
+        existingGeometryInputs.forEach(input => input.remove());
+
+        const existingWithinInputs = form.querySelectorAll(
+          'input[name="spatial_within"][type="hidden"]'
+        );
+        existingWithinInputs.forEach(input => input.remove());
+
+        if (this.selectedGeometry) {
+          const geometryInput = document.createElement('input');
+          geometryInput.type = 'hidden';
+          geometryInput.name = 'spatial_geometry';
+          // URI-encoding should be handled by form submission
+          geometryInput.value = JSON.stringify(this.selectedGeometry);
+          form.appendChild(geometryInput);
+
+          const withinInput = document.createElement('input');
+          withinInput.type = 'hidden';
+          withinInput.name = 'spatial_within';
+          withinInput.value = this.spatialWithin ? 'true' : 'false';
+          form.appendChild(withinInput);
+        }
+    }
+
     // Sync geometry to hidden inputs in the filter form
     syncHiddenInputs() {
-        // Remove existing geometry hidden input from filter form
-        const existingInputs = this.form.querySelectorAll('input[name="spatial_geometry"]');
-        existingInputs.forEach(input => input.remove());
-
-        // add hidden input for spatial_geometry
-        if (this.selectedGeometry) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'spatial_geometry';
-          // URI-encoding should be handled by form submission
-          input.value = JSON.stringify(this.selectedGeometry);
-          this.form.appendChild(input);
-        }
+        this._syncSpatialHiddenInputs(this.form);
     }
 
     // Sync geometry to hidden inputs in the main search form
     syncHiddenInputsToMainSearch() {
-        if (!this.mainSearchForm) return;
-
-        // Remove existing keyword hidden inputs from main search form
-        const existingInputs = this.mainSearchForm.querySelectorAll('input[name="spatial_geometry"][type="hidden"]');
-        existingInputs.forEach(input => input.remove());
-
-        // Add hidden input for spatial geometry
-        if (this.selectedGeometry) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = 'spatial_geometry';
-          // URI-encoding should be handled by form submission
-          input.value = JSON.stringify(this.selectedGeometry);
-          this.mainSearchForm.appendChild(input);
-        }
+        this._syncSpatialHiddenInputs(this.mainSearchForm);
     }
 
     escapeHtml(text) {
