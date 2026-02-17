@@ -763,8 +763,7 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
 
     geography_section = soup.find("div", {"id": "filter-geography"})
     assert geography_section is not None
-    assert soup.find("button", {"id": "geography-map-modal-trigger"}) is not None
-    assert soup.find("div", {"id": "geography-map-modal"}) is not None
+    assert soup.find("div", {"id": "geography-map-expanded-panel"}) is not None
     assert soup.find("button", {"id": "geography-modal-draw-toggle"}) is not None
     assert soup.find("button", {"id": "geography-modal-apply"}) is not None
     assert (
