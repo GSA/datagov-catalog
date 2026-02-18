@@ -118,30 +118,36 @@ dataLayer.push({
                     </div>
                 </div>
                 {% endif %}
+                
+                <!-- <h2 class="text-primary-darker margin-bottom-2">Complete Metadata</h2> -->
 
-                <!-- Complete Metadata -->
-                <section class="margin-top-4">
-                    <h2 class="text-primary-darker margin-bottom-2">Complete Metadata</h2>
-
-                    <table class="metadata-table">
-                        <tbody>
-                            {% set excluded_keys = ['title', 'description', 'distribution', 'keyword', '@type', 'publisher', 'modified', 'contactPoint', 'license', 'accessLevel', 'accrualPeriodicity'] %}
-                            {% for key, value in dataset.dcat|dictsort if key not in excluded_keys %}
-                            {% set rendered_value = value|format_dcat_value %}
-                            <tr>
-                                <th scope="row">{{ key }}</th>
-                                <td>
-                                    {% if '\n' in rendered_value %}
-                                    <pre>{{ rendered_value }}</pre>
-                                    {% else %}
-                                    {{ rendered_value }}
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </section>
+                <details>
+                    <summary>
+                        <h2 class="complete-metadata-heading">Complete Metadata</h2>
+                    </summary>
+                    <!-- Complete Metadata -->
+                    <section class="margin-top-4">
+                        <table class="metadata-table">
+                            <tbody>
+                                {% for key, value in dataset.dcat|dictsort %}
+                                {% set rendered_value = value|format_dcat_value %}
+                                <tr>
+                                    <th scope="row">{{ key }}</th>
+                                    <td>
+                                        {% if rendered_value | is_json %}
+                                        <pre class="json">
+                                            {{ value | json_to_semantic_html | safe }}
+                                        </pre>
+                                        {% else %}
+                                        {{ rendered_value }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </section>
+                </details>
             </div>
 
             <!-- Sidebar -->

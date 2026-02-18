@@ -24,13 +24,7 @@ from .sitemap_s3 import (
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
-from .utils import (
-    build_dataset_dict,
-    dict_from_hint,
-    hint_from_dict,
-    json_not_found,
-    valid_id_required,
-)
+from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
@@ -218,7 +212,7 @@ def index():
         logger.exception("Dataset search failed", extra={"query": query})
     else:
         # Build dataset dictionaries with organization data
-        datasets = [build_dataset_dict(each) for each in result.results]
+        datasets = [each for each in result.results]
 
     if result is not None:
         after = result.search_after_obscured()
@@ -393,7 +387,7 @@ def search():
     )
 
     if htmx:
-        results = [build_dataset_dict(each) for each in result.results]
+        results = [each for each in result.results]
         if selected_organization:
             # specified organization so give org results
             return render_template(
@@ -425,7 +419,7 @@ def search():
         )
 
     response_dict = {
-        "results": [build_dataset_dict(result) for result in result.results],
+        "results": [result for result in result.results],
         "sort": sort_by,
     }
     if result.search_after is not None:
