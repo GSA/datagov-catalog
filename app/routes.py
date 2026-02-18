@@ -1,6 +1,5 @@
 import json
 import logging
-from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
 from urllib.parse import unquote
@@ -219,7 +218,12 @@ def index():
                 org_filter_id = org_slug_param
 
     has_filters = (
-        query or org_types or keywords or org_filter_id or spatial_filter or spatial_geometry
+        query
+        or org_types
+        or keywords
+        or org_filter_id
+        or spatial_filter
+        or spatial_geometry
     )
 
     try:
@@ -254,31 +258,78 @@ def index():
     else:
         after = None
 
-    if not keywords:
-        try:
-            suggested_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
-            if suggested_keywords:
-                suggested_keywords = [
-                    keyword["keyword"] for keyword in suggested_keywords
-                ]
-        except Exception:
-            logger.exception("Failed to fetch suggested keywords")
+    # Initialize contextual counts
+    contextual_keyword_counts = {}
+    contextual_org_counts = {}
+    contextual_aggs = {"keywords": [], "organizations": []}
 
-    if not org_slug_param:
-        try:
-            org_suggestions = interface.get_top_organizations(limit=10)
-        except Exception:
-            logger.exception("Failed to fetch suggested organizations")
-        else:
-            if isinstance(org_suggestions, Iterable) and not isinstance(
-                org_suggestions, (str, bytes)
-            ):
-                suggested_organizations = list(org_suggestions)
-            elif org_suggestions not in (None, []):
-                logger.warning(
-                    "Suggested organizations response is not iterable; ignoring",
-                    extra={"type": type(org_suggestions).__name__},
-                )
+    # Get contextual aggregations based on current search parameters
+    try:
+        contextual_aggs = interface.get_contextual_aggregations(
+            query=query,
+            org_id=org_filter_id,
+            org_types=org_types,
+            keywords=keywords,
+            spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
+            keyword_size=100,
+            org_size=100,
+        )
+
+        # Create lookup dictionaries for counts
+        contextual_keyword_counts = {
+            item["keyword"]: item["count"]
+            for item in contextual_aggs.get("keywords", [])
+        }
+        contextual_org_counts = {
+            item["slug"]: item["count"]
+            for item in contextual_aggs.get("organizations", [])
+        }
+    except Exception:
+        logger.exception("Failed to fetch contextual aggregations")
+
+    # Always compute suggested keywords from contextual aggregations,
+    # excluding any already-selected keywords so users can keep refining.
+    try:
+        keyword_items = sorted(
+            contextual_aggs.get("keywords", []),
+            key=lambda x: x["count"],
+            reverse=True,
+        )
+        selected_keyword_set = set(keywords)
+        suggested_keywords = [
+            item["keyword"]
+            for item in keyword_items
+            if item["keyword"] not in selected_keyword_set
+        ][:10]
+    except Exception:
+        logger.exception("Failed to fetch suggested keywords")
+
+    # Always compute suggested organizations from contextual aggregations,
+    # excluding the currently-selected organization.
+    try:
+        org_suggestions = interface.get_top_organizations(limit=100)
+        # Add contextual counts to organizations
+        for org in org_suggestions:
+            org_slug = org.get("slug")
+            if org_slug:
+                org["dataset_count"] = contextual_org_counts.get(org_slug, 0)
+
+        # Filter to only orgs with counts > 0 and sort by count
+        org_suggestions = [
+            org for org in org_suggestions if org.get("dataset_count", 0) > 0
+        ]
+
+        # Exclude the already-selected organization from suggestions
+        if org_slug_param:
+            org_suggestions = [
+                org for org in org_suggestions if org.get("slug") != org_slug_param
+            ]
+
+        org_suggestions.sort(key=lambda x: x.get("dataset_count", 0), reverse=True)
+        suggested_organizations = org_suggestions[:10]
+    except Exception:
+        logger.exception("Failed to fetch suggested organizations")
 
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
@@ -308,6 +359,8 @@ def index():
         spatial_within=spatial_within,
         from_hint=from_hint,
         selected_organization=selected_organization,
+        contextual_keyword_counts=contextual_keyword_counts,
+        contextual_org_counts=contextual_org_counts,
     )
 
 

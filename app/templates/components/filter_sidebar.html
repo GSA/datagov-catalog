@@ -21,6 +21,8 @@
     org_types=None,
     selected_organization=None,
     suggested_organizations=None
+    contextual_keyword_counts=None,
+    contextual_org_counts=None
 ) %}
 <p class="font-body-2xs text-light">Filter selections are applied on each click</p>
 <form class="usa-form margin-top-neg-2" method="get" action="{{ form_action }}" id="{{ form_id }}">
@@ -31,14 +33,15 @@
 
     {{ render_sort_filter(sort_value, spatial_geometry is not none) }}
     {{ render_geography_filter(search_result_geometries) }}
-    {{ render_keyword_filter(keywords, suggested_keywords) }}
+    {{ render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts) }}
 
     {% if show_org_autocomplete %}
-        {{ render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations) }}
+    {{ render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations,
+    contextual_org_counts) }}
     {% endif %}
 
     {% if show_org_type_filters %}
-        {{ render_organization_type_filter(org_types) }}
+    {{ render_organization_type_filter(org_types) }}
     {% endif %}
 
     {{ render_spatial_filter(spatial_filter) }}
