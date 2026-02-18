@@ -45,14 +45,6 @@ class KeywordAutocomplete {
         if (countsData) {
             try {
                 this.contextualCounts = JSON.parse(countsData);
-                console.log('Loaded contextual keyword counts:', Object.keys(this.contextualCounts).length, 'keywords');
-                // Log specific keywords we care about
-                if (this.contextualCounts['payments']) {
-                    console.log('payments count:', this.contextualCounts['payments']);
-                }
-                if (this.contextualCounts['americorps']) {
-                    console.log('americorps count:', this.contextualCounts['americorps']);
-                }
             } catch (e) {
                 console.error('Failed to parse contextual counts:', e);
             }
@@ -219,10 +211,6 @@ class KeywordAutocomplete {
             const displayCount = this.contextualCounts[item.keyword] !== undefined
                 ? this.contextualCounts[item.keyword]
                 : item.count;
-
-            if (index === 0) {
-                console.log(`First suggestion "${item.keyword}": API count=${item.count}, contextual count=${this.contextualCounts[item.keyword]}, displaying=${displayCount}`);
-            }
 
             div.innerHTML = `
                 <span class="keyword-suggestion__text">${this.highlightMatch(item.keyword, this.input.value)}</span>
