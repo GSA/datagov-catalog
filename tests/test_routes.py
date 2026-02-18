@@ -44,14 +44,21 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
     assert len(response.json) > 0
     assert "results" in response.json
 
-def test_search_api_response_containes_harvest_record_url(interface_with_dataset, db_client):
+
+def test_search_api_response_containes_harvest_record_url(
+    interface_with_dataset, db_client
+):
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
     )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
-    assert response.json["results"][0]["harvest_record"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+    assert (
+        response.json["results"][0]["harvest_record"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+    )
+
 
 def test_search_api_pagination(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -528,16 +535,19 @@ def test_index_page_meta_tags(db_client):
     # meta tags are there
     response = db_client.get("/")
     soup = BeautifulSoup(response.text, "html.parser")
-    assert all(soup.select_one(selector) is not None for selector in [
-        'meta[property="og:title"]',
-        'meta[property="og:description"]',
-        'meta[property="og:url"]',
-        'meta[property="og:image"]',
-        'meta[name="twitter:title"]',
-        'meta[name="twitter:description"]',
-        'meta[name="twitter:url"]',
-        'meta[name="twitter:image"]',
-    ])
+    assert all(
+        soup.select_one(selector) is not None
+        for selector in [
+            'meta[property="og:title"]',
+            'meta[property="og:description"]',
+            'meta[property="og:url"]',
+            'meta[property="og:image"]',
+            'meta[name="twitter:title"]',
+            'meta[name="twitter:description"]',
+            'meta[name="twitter:url"]',
+            'meta[name="twitter:image"]',
+        ]
+    )
 
 
 def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
@@ -1518,6 +1528,7 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
     tip_text = tip_div.find("p", class_="advanced-search-tip__text")
     assert tip_text is not None
 
+
 class TestContextualKeywordSuggestions:
 
     def _make_mock_interface(
@@ -1541,12 +1552,10 @@ class TestContextualKeywordSuggestions:
         mock.get_organization_by_slug.return_value = None
         return mock
 
-
     def _get_index(self, client, mock_interface, query_string=None):
         """GET the index page with a patched interface."""
         with patch("app.routes.interface", mock_interface):
             return client.get("/", query_string=query_string or {})
-
 
     def _parse_suggested_keywords(self, html: str) -> list[str]:
         """Extract suggested keyword text values from the response HTML."""
@@ -1562,7 +1571,6 @@ class TestContextualKeywordSuggestions:
                 count_span.decompose()
             keywords.append(btn.get_text(strip=True))
         return keywords
-
 
     def test_suggestions_shown_without_any_filters(
         self, db_client, sample_contextual_keywords
