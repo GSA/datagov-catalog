@@ -1129,6 +1129,7 @@ class GeographyAutocomplete {
         this.selectedGeometry = JSON.parse(data.geometry);
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
+        this.setMapPanelReopenOnNextLoad();
         requestFilterFormSubmit(this.form);
       } catch (error) {
         console.error('Error loading location data:', error);
