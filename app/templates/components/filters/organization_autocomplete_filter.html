@@ -36,8 +36,7 @@ contextual_org_counts=None) %}
                 data-initial-org-id="{{ (selected_organization.id if selected_organization else '') | e }}"
                 data-initial-org-name="{{ (selected_organization.name if selected_organization else '') | e }}"
                 data-initial-org-slug="{{ (selected_organization.slug if selected_organization else '') | e }}" {% if
-                contextual_org_counts %} data-contextual-counts='{{ contextual_org_counts | tojson }}' {% endif %}>
-            </div>
+                contextual_org_counts %} data-contextual-counts='{{ contextual_org_counts | tojson }}' {% endif %}></div>
 
             {% if suggested_organizations %}
             <div id="suggested-organizations" class="suggested-keywords margin-top-2">
