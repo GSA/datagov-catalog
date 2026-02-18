@@ -120,8 +120,6 @@ class KeywordAutocomplete {
                 const keyword = button.dataset.keyword;
                 if (keyword) {
                     this.addKeyword(keyword);
-                    // Hide suggested keywords container after selection
-                    this.hideSuggestedKeywords();
                 }
             });
         });
@@ -262,8 +260,6 @@ class KeywordAutocomplete {
         this.selectedKeywords.add(keyword);
         this.renderChip(keyword);
 
-        // Hide suggested keywords container
-        this.hideSuggestedKeywords();
 
         if (!silent) {
             requestFilterFormSubmit(this.form);

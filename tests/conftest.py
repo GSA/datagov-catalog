@@ -261,3 +261,53 @@ def mock_opensearch_client():
     client.index_datasets = Mock(return_value=(100, 0, []))
     client.count_all_datasets = Mock(return_value=100)
     return client
+
+
+@pytest.fixture
+def sample_contextual_keywords():
+    return [
+        {"keyword": "environment", "count": 50},
+        {"keyword": "health", "count": 40},
+        {"keyword": "education", "count": 30},
+        {"keyword": "climate", "count": 20},
+        {"keyword": "water", "count": 10},
+    ]
+
+
+@pytest.fixture
+def sample_contextual_orgs():
+    return [
+        {"slug": "epa", "count": 80},
+        {"slug": "noaa", "count": 60},
+        {"slug": "usda", "count": 40},
+    ]
+
+
+@pytest.fixture
+def sample_top_organizations():
+    return [
+        {
+            "id": "org-epa",
+            "name": "Environmental Protection Agency",
+            "slug": "epa",
+            "organization_type": "Federal Government",
+            "dataset_count": 0,
+            "aliases": [],
+        },
+        {
+            "id": "org-noaa",
+            "name": "National Oceanic and Atmospheric Administration",
+            "slug": "noaa",
+            "organization_type": "Federal Government",
+            "dataset_count": 0,
+            "aliases": [],
+        },
+        {
+            "id": "org-usda",
+            "name": "U.S. Department of Agriculture",
+            "slug": "usda",
+            "organization_type": "Federal Government",
+            "dataset_count": 0,
+            "aliases": [],
+        },
+    ]

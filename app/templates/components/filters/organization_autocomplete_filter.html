@@ -2,7 +2,7 @@
 contextual_org_counts=None) %}
 <div class="usa-accordion usa-accordion--bordered margin-bottom-2">
     <h3 class="usa-accordion__heading">
-        <button 
+        <button
             type="button"
             class="usa-accordion__button"
             aria-expanded="true"
@@ -39,7 +39,7 @@ contextual_org_counts=None) %}
                 contextual_org_counts %} data-contextual-counts='{{ contextual_org_counts | tojson }}' {% endif %}>
             </div>
 
-            {% if suggested_organizations and not org_slug %}
+            {% if suggested_organizations %}
             <div id="suggested-organizations" class="suggested-keywords margin-top-2">
                 <p class="text-base-dark margin-bottom-1"><strong>Popular organizations:</strong></p>
                 <div class="suggested-keywords__list">

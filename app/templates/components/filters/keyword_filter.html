@@ -27,7 +27,7 @@
                 contextual_keyword_counts %} data-contextual-counts='{{ contextual_keyword_counts | tojson }}' {% endif
                 %}></div>
 
-            {% if suggested_keywords and not keywords %}
+            {% if suggested_keywords %}
             <div id="suggested-keywords" class="suggested-keywords margin-top-2">
                 <p class="text-base-dark margin-bottom-1"><strong>Popular keywords:</strong></p>
                 <div class="suggested-keywords__list">
