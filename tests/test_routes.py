@@ -506,13 +506,13 @@ def test_index_page_renders(db_client):
     assert org_banner is not None
     assert org_banner.text == "Federal"
 
-    # default href is the dataset page if accessURL is null
-    html_resource = soup.find("a", {"data-format": "html"})
-    assert html_resource is not None
-    assert (
-        html_resource["href"]
-        == "/dataset/segal-americorps-education-award-detailed-payments-by-institution-2020"
-    )
+    for resource_type in ["json", "rdf", "xml", "csv"]:
+        html_resource = soup.find("a", {"data-format": resource_type})
+        assert html_resource is not None
+        assert (
+            html_resource["href"]
+            == "/dataset/segal-americorps-education-award-detailed-payments-by-institution-2020"
+        )
 
     # line arrow up is present and has a hover/title with view count
     line_arrow = soup.find("i", class_="fa-arrow-trend-up")
