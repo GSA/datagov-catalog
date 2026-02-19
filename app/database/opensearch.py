@@ -339,7 +339,7 @@ class OpenSearchInterface:
         # Normalize DCAT dates to ensure they're strings
         normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
 
-        return {
+        document = {
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
             "title": dataset.dcat.get("title", ""),
@@ -359,11 +359,45 @@ class OpenSearchInterface:
             ),
             "spatial_shape": dataset.translated_spatial,
             "harvest_record": self._create_harvest_record_url(dataset),
+            "harvest_record_raw": self._create_harvest_record_raw_url(dataset),
         }
+        if self._has_harvest_record_transformed(dataset):
+            document["harvest_record_transformed"] = (
+                self._create_harvest_record_transformed_url(dataset)
+            )
+        return document
 
     def _create_harvest_record_url(self, dataset) -> str:
         """Generates a url to the harvest record."""
         return url_for("main.get_harvest_record", record_id=dataset.harvest_record_id)
+
+    def _create_harvest_record_raw_url(self, dataset) -> str:
+        """Generates a url to the raw harvest-record payload."""
+        return url_for(
+            "main.get_harvest_record_raw", record_id=dataset.harvest_record_id
+        )
+
+    def _create_harvest_record_transformed_url(self, dataset) -> str:
+        """Generates a url to the transformed harvest-record payload."""
+        return url_for(
+            "main.get_harvest_record_transformed", record_id=dataset.harvest_record_id
+        )
+
+    @staticmethod
+    def _has_harvest_record_transformed(dataset) -> bool:
+        """True when dataset's harvest record has a non-empty transformed payload."""
+        record = getattr(dataset, "harvest_record", None)
+        if record is None:
+            return False
+
+        transformed = getattr(record, "source_transform", None)
+        if transformed is None:
+            return False
+
+        if isinstance(transformed, str) and not transformed.strip():
+            return False
+
+        return True
 
     def _run_with_timeout_retry(
         self,
