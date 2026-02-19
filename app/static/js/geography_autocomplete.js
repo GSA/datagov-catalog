@@ -135,6 +135,9 @@ class GeographyAutocomplete {
       if (!el) return;
       if (typeof L === 'undefined') return;
       var map = L.map(el, { zoomControl: true, attributionControl: true });
+      if (map.attributionControl && typeof map.attributionControl.setPrefix === 'function') {
+        map.attributionControl.setPrefix(false);
+      }
       var tiles = L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: OSM_ATTRIBUTION
