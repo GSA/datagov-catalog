@@ -299,12 +299,12 @@ def sync_opensearch(
     help="How many example IDs to print for each discrepancy type.",
 )
 @click.option(
-    "--fix",
+    "--update",
     is_flag=True,
     help="Automatically index missing datasets and delete extra docs from OpenSearch.",
 )
-def compare_opensearch(sample_size: int, fix: bool):
-    """Report (and optionally fix) dataset ID discrepancies between DB and OpenSearch."""
+def compare_opensearch(sample_size: int, update: bool):
+    """Report (and optionally update) dataset ID discrepancies between DB and OpenSearch."""
 
     interface = CatalogDBInterface()
     client = OpenSearchInterface.from_environment()
@@ -464,10 +464,10 @@ def compare_opensearch(sample_size: int, fix: bool):
     else:
         click.echo("Example updated IDs: none")
 
-    if not fix:
+    if not update:
         return
 
-    click.echo("\nFixing discrepancies…")
+    click.echo("\nUpdating discrepancies…")
 
     if missing:
         index_dataset_batches(
@@ -512,7 +512,7 @@ def compare_opensearch(sample_size: int, fix: bool):
         client._refresh()
         click.echo("Done.")
     else:
-        click.echo("Nothing to fix; datasets and index are already in sync.")
+        click.echo("Nothing to update; datasets and index are already in sync.")
 
 
 # ----------------------

@@ -604,7 +604,7 @@ class TestCompareCommand:
         os_client.client.delete.assert_not_called()
         os_client._refresh.assert_not_called()
 
-    def test_compare_fix_indexes_and_deletes(
+    def test_compare_update_indexes_and_deletes(
         self, cli_runner, interface_with_harvest_record, monkeypatch
     ):
         _insert_dataset(
@@ -630,9 +630,9 @@ class TestCompareCommand:
             interface_with_harvest_record, hits, monkeypatch
         )
 
-        result = cli_runner.invoke(args=["search", "compare", "--fix"])
+        result = cli_runner.invoke(args=["search", "compare", "--update"])
         assert result.exit_code == 0
-        assert "Fixing discrepancies" in result.output
+        assert "Updating discrepancies" in result.output
         assert os_client.index_datasets.call_count == 2
         reindexed_sets = [
             {dataset.id for dataset in call.args[0]}
@@ -671,7 +671,7 @@ class TestCompareCommand:
 
         os_client.index_datasets = Mock(return_value=(98, 2, test_errors))
 
-        result = cli_runner.invoke(args=["search", "compare", "--fix"])
+        result = cli_runner.invoke(args=["search", "compare", "--update"])
 
         assert (
             "Harvest sources not synced with opensearch...\n1 test-source"

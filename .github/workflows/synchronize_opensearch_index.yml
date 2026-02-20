@@ -15,7 +15,7 @@ on:
           - search sync
           - search sync --recreate-index
           - search compare
-          - search compare --fix
+          - search compare --update
       environment:
         description: "cf environment"
         required: true
@@ -73,8 +73,8 @@ jobs:
             "search compare")
               cmd="flask search compare"
               ;;
-            "search compare --fix")
-              cmd="flask search compare --fix"
+            "search compare --update")
+              cmd="flask search compare --update"
               ;;
             *)
               echo "Unknown command: ${{ inputs.command }}" >&2
@@ -85,7 +85,7 @@ jobs:
       - name: Determine command for scheduled run
         if: github.event_name == 'schedule'
         run: |
-          echo 'TASK_COMMAND=flask search compare --fix' >> $GITHUB_ENV
+          echo 'TASK_COMMAND=flask search compare --update' >> $GITHUB_ENV
       - name: run task
         uses: cloud-gov/cg-cli-tools@main
         with:
