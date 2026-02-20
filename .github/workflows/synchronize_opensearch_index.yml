@@ -16,6 +16,7 @@ on:
           - search sync --recreate-index
           - search compare
           - search compare --update
+          - search compare --force-update
       environment:
         description: "cf environment"
         required: true
@@ -75,6 +76,9 @@ jobs:
               ;;
             "search compare --update")
               cmd="flask search compare --update"
+              ;;
+            "search compare --force-update")
+              cmd="flask search compare --force-update"
               ;;
             *)
               echo "Unknown command: ${{ inputs.command }}" >&2

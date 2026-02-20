@@ -301,9 +301,17 @@ def sync_opensearch(
 @click.option(
     "--update",
     is_flag=True,
-    help="Automatically index missing datasets and delete extra docs from OpenSearch.",
+    help=(
+        "Automatically index missing/updated datasets and delete extra docs "
+        "from OpenSearch."
+    ),
 )
-def compare_opensearch(sample_size: int, update: bool):
+@click.option(
+    "--force-update",
+    is_flag=True,
+    help="Re-index all datasets from DB regardless of last_harvested_date.",
+)
+def compare_opensearch(sample_size: int, update: bool, force_update: bool):
     """Report (and optionally update) dataset ID discrepancies between DB and OpenSearch."""
 
     interface = CatalogDBInterface()
@@ -464,22 +472,38 @@ def compare_opensearch(sample_size: int, update: bool):
     else:
         click.echo("Example updated IDs: none")
 
+    if force_update:
+        update = True
+
     if not update:
         return
 
     click.echo("\nUpdating discrepancies…")
 
-    if missing:
+    force_reindex_ids = sorted(db_ids) if force_update else []
+    if force_reindex_ids:
         index_dataset_batches(
-            missing, f"Indexing {len(missing)} missing datasets…", log_all_errors=True
-        )
-
-    if updated_ids:
-        index_dataset_batches(
-            updated_ids,
-            f"Re-indexing {len(updated_ids)} updated datasets…",
+            force_reindex_ids,
+            (
+                "Force re-indexing "
+                f"{len(force_reindex_ids)} datasets regardless of last_harvested_date…"
+            ),
             log_all_errors=True,
         )
+    else:
+        if missing:
+            index_dataset_batches(
+                missing,
+                f"Indexing {len(missing)} missing datasets…",
+                log_all_errors=True,
+            )
+
+        if updated_ids:
+            index_dataset_batches(
+                updated_ids,
+                f"Re-indexing {len(updated_ids)} updated datasets…",
+                log_all_errors=True,
+            )
 
     # print the harvest sources with datasets that couldn't sync with opensearch
     click.echo("Harvest sources not synced with opensearch...")
@@ -507,7 +531,7 @@ def compare_opensearch(sample_size: int, update: bool):
 
         click.echo(f"Deleted {deleted} documents from OpenSearch.")
 
-    if missing or extra or updated_ids:
+    if missing or extra or updated_ids or force_reindex_ids:
         click.echo("Refreshing OpenSearch index…")
         client._refresh()
         click.echo("Done.")

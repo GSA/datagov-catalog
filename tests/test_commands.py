@@ -677,3 +677,44 @@ class TestCompareCommand:
             "Harvest sources not synced with opensearch...\n1 test-source"
             in result.output
         )
+
+    def test_compare_force_update_reindexes_all_datasets(
+        self, cli_runner, interface_with_harvest_record, monkeypatch
+    ):
+        _insert_dataset(
+            interface_with_harvest_record,
+            "current",
+            datetime(2024, 3, 1, 0, 0, 0),
+        )
+        _insert_dataset(
+            interface_with_harvest_record,
+            "also-current",
+            datetime(2024, 3, 2, 0, 0, 0),
+        )
+
+        hits = [
+            {
+                "_id": "current",
+                "_source": {"last_harvested_date": "2024-03-01T00:00:00Z"},
+            },
+            {
+                "_id": "also-current",
+                "_source": {"last_harvested_date": "2024-03-02T00:00:00Z"},
+            },
+        ]
+
+        os_client = self._prepare_environment(
+            interface_with_harvest_record, hits, monkeypatch
+        )
+
+        result = cli_runner.invoke(args=["search", "compare", "--force-update"])
+
+        assert result.exit_code == 0
+        assert "Force re-indexing 2 datasets" in result.output
+        assert os_client.index_datasets.call_count == 1
+        reindexed_ids = {
+            dataset.id for dataset in os_client.index_datasets.call_args.args[0]
+        }
+        assert reindexed_ids == {"current", "also-current"}
+        os_client.client.delete.assert_not_called()
+        os_client._refresh.assert_called_once()
