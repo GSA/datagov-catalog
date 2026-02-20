@@ -44,7 +44,10 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
     assert len(response.json) > 0
     assert "results" in response.json
 
-def test_search_api_response_containes_harvest_record_url(interface_with_dataset, db_client):
+
+def test_search_api_response_containes_harvest_record_url(
+    interface_with_dataset, db_client
+):
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
     )
@@ -173,6 +176,13 @@ def test_index_page_shows_top_organizations(db_client):
     )
     mock_interface.get_unique_keywords.return_value = []
     mock_interface.total_datasets.return_value = 1
+    mock_interface.get_contextual_aggregations.return_value = {
+        "keywords": [],
+        "organizations": [
+            {"slug": "org-one", "count": 2345},
+            {"slug": "org-two", "count": 100},
+        ],
+    }
     mock_interface.get_top_organizations.return_value = [
         {
             "id": "org-1",
@@ -523,17 +533,19 @@ def test_index_page_meta_tags(db_client):
     # meta tags are there
     response = db_client.get("/")
     soup = BeautifulSoup(response.text, "html.parser")
-    assert all(soup.select_one(selector) is not None for selector in [
-        'meta[property="og:title"]',
-        'meta[property="og:description"]',
-        'meta[property="og:url"]',
-        'meta[property="og:image"]',
-        'meta[name="twitter:title"]',
-        'meta[name="twitter:description"]',
-        'meta[name="twitter:url"]',
-        'meta[name="twitter:image"]',
-    ])
-
+    assert all(
+        soup.select_one(selector) is not None
+        for selector in [
+            'meta[property="og:title"]',
+            'meta[property="og:description"]',
+            'meta[property="og:url"]',
+            'meta[property="og:image"]',
+            'meta[name="twitter:title"]',
+            'meta[name="twitter:description"]',
+            'meta[name="twitter:url"]',
+            'meta[name="twitter:image"]',
+        ]
+    )
 
 
 def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
@@ -1513,3 +1525,96 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
     # Check for the tip text content
     tip_text = tip_div.find("p", class_="advanced-search-tip__text")
     assert tip_text is not None
+
+
+class TestContextualKeywordSuggestions:
+
+    def _make_mock_interface(
+        self,
+        contextual_keywords=None,
+        contextual_orgs=None,
+        top_organizations=None,
+        search_total=100,
+    ):
+        """Build a mock interface with configurable contextual aggregations."""
+        mock = Mock()
+        mock.search_datasets.return_value = SearchResult(
+            total=search_total, results=[], search_after=None
+        )
+        mock.get_contextual_aggregations.return_value = {
+            "keywords": contextual_keywords or [],
+            "organizations": contextual_orgs or [],
+        }
+        mock.get_top_organizations.return_value = top_organizations or []
+        mock.count_all_datasets_in_search.return_value = search_total
+        mock.get_organization_by_slug.return_value = None
+        return mock
+
+    def _get_index(self, client, mock_interface, query_string=None):
+        """GET the index page with a patched interface."""
+        with patch("app.routes.interface", mock_interface):
+            return client.get("/", query_string=query_string or {})
+
+    def _parse_suggested_keywords(self, html: str) -> list[str]:
+        """Extract suggested keyword text values from the response HTML."""
+        soup = BeautifulSoup(html, "html.parser")
+        container = soup.find(id="suggested-keywords")
+        if not container:
+            return []
+        buttons = container.find_all("button", class_="tag-link--suggested")
+        keywords = []
+        for btn in buttons:
+            count_span = btn.find("span", class_="tag-link__count")
+            if count_span:
+                count_span.decompose()
+            keywords.append(btn.get_text(strip=True))
+        return keywords
+
+    def test_suggestions_shown_without_any_filters(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Confirm that suggestions are shown."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock)
+        assert response.status_code == 200
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert "environment" in suggested
+        assert "health" in suggested
+
+    def test_suggestions_still_shown_when_keyword_is_selected(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Chips still appear even with an active keyword."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock, query_string={"keyword": "health"})
+        assert response.status_code == 200
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert len(suggested) > 0
+
+    def test_selected_keyword_excluded_from_suggestions(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Confirm that selected keyword is not in suggestion."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock, query_string={"keyword": "health"})
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert "health" not in suggested
+        assert "environment" in suggested
+
+    def test_max_ten_suggestions(self, db_client):
+        """Confirm only 10 keywords appear."""
+        many_keywords = [{"keyword": f"kw-{i}", "count": 100 - i} for i in range(20)]
+        mock = self._make_mock_interface(contextual_keywords=many_keywords)
+        response = self._get_index(db_client, mock)
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert len(suggested) <= 10
+
+    def test_suggestions_ordered_by_count_desc(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Test that the keywords are properly ordered."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock)
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        expected = [kw["keyword"] for kw in sample_contextual_keywords]
+        assert suggested == expected
