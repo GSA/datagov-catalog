@@ -448,10 +448,17 @@ class GeographyAutocomplete {
       if (!this.mapPanelMap) {
         this.mapPanelMap = L.map(this.mapPanelMapContainer, {
           zoomControl: true,
-          attributionControl: false
+          attributionControl: true
         });
+        if (
+          this.mapPanelMap.attributionControl &&
+          typeof this.mapPanelMap.attributionControl.setPrefix === 'function'
+        ) {
+          this.mapPanelMap.attributionControl.setPrefix(false);
+        }
         L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
-          maxZoom: 19
+          maxZoom: 19,
+          attribution: OSM_ATTRIBUTION
         }).addTo(this.mapPanelMap);
       }
       this.mapPanelResultsLayer = this._renderSearchResultsLayer(
