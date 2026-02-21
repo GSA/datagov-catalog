@@ -364,6 +364,17 @@ def test_dataset_to_document_omits_harvest_record_transformed_without_payload(
         assert "harvest_record_transformed" not in document
 
 
+def test_geometry_centroid_from_polygon():
+    geometry = {
+        "type": "Polygon",
+        "coordinates": [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]],
+    }
+    centroid = OpenSearchInterface._geometry_centroid(geometry)
+    assert centroid is not None
+    assert centroid["lon"] == pytest.approx(0.8)
+    assert centroid["lat"] == pytest.approx(0.8)
+
+
 class TestOpenSearchMappings:
     """Test suite for OpenSearch mappings."""
 
@@ -398,6 +409,11 @@ class TestOpenSearchMappings:
         assert mappings["properties"]["keyword"]["fields"]["raw"]["type"] == "keyword"
         assert mappings["properties"]["organization"]["type"] == "nested"
 
+    def test_spatial_centroid_mapping(self):
+        """Test that spatial centroid field is mapped as geo_point."""
+        mappings = OpenSearchInterface.MAPPINGS
+        assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
+
 
 def test_relevance_sort_uses_popularity_tie_breaker():
     client = OpenSearchInterface.__new__(OpenSearchInterface)
@@ -407,6 +423,18 @@ def test_relevance_sort_uses_popularity_tie_breaker():
         {"popularity": {"order": "desc", "missing": "_last"}},
         {"_id": {"order": "desc"}},
     ]
+
+
+def test_distance_sort_uses_geo_distance():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    sort_clause = client._build_sort_clause(
+        "distance", sort_point={"lat": 40.0, "lon": -75.0}
+    )
+    assert sort_clause[0]["_geo_distance"]["spatial_centroid"] == {
+        "lat": 40.0,
+        "lon": -75.0,
+    }
+    assert sort_clause[0]["_geo_distance"]["order"] == "asc"
 
 
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
