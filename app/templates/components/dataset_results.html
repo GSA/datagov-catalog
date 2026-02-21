@@ -26,6 +26,8 @@
               org_type=org_types,
               keyword=keywords,
               spatial_filter=spatial_filter,
+              spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
+              spatial_within=spatial_within if spatial_geometry else none,
               from_hint=from_hint
           ) }}"
         {% else %}
@@ -39,6 +41,8 @@
               org_type=org_types,
               keyword=keywords,
               spatial_filter=spatial_filter,
+              spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
+              spatial_within=spatial_within if spatial_geometry else none,
           ) }}"
         {% endif %}
         hx-target="#replaceMe"
@@ -50,7 +54,9 @@
             org_slug=org_slug,
             org_type=org_types,
             keyword=keywords,
-            spatial_filter=spatial_filter
+            spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
+            spatial_within=spatial_within if spatial_geometry else none,
         ) }}"
         hx-trigger="click">
         Show more results
