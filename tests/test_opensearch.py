@@ -306,6 +306,63 @@ class TestDatasetToDocument:
         # Document should have string
         assert isinstance(document["dcat"]["modified"], str)
 
+    def test_dataset_to_document_includes_harvest_record_raw_url(
+        self, dbapp, opensearch_client, mock_dataset_with_datetime, mock_organization
+    ):
+        """Test that harvest_record_raw is included as a URL."""
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            mock_dataset_with_datetime.harvest_record_id = (
+                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+            document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+            assert (
+                document["harvest_record_raw"]
+                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/raw"
+            )
+
+    def test_dataset_to_document_includes_harvest_record_transformed_url(
+        self, dbapp, opensearch_client, mock_dataset_with_datetime, mock_organization
+    ):
+        """Test that harvest_record_transformed is included as a URL."""
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            mock_dataset_with_datetime.harvest_record_id = (
+                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+            mock_dataset_with_datetime.harvest_record = type(
+                "Record", (), {"source_transform": {"title": "x"}}
+            )()
+
+            document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+            assert (
+                document["harvest_record_transformed"]
+                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
+            )
+
+
+def test_dataset_to_document_omits_harvest_record_transformed_without_payload(
+    dbapp, opensearch_client, mock_dataset_with_datetime, mock_organization
+):
+    with dbapp.app_context():
+        dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+        dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+        mock_dataset_with_datetime.harvest_record_id = (
+            "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+        )
+        mock_dataset_with_datetime.harvest_record = type(
+            "Record", (), {"source_transform": None}
+        )()
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert "harvest_record_transformed" not in document
+
 
 class TestOpenSearchMappings:
     """Test suite for OpenSearch mappings."""
@@ -439,4 +496,86 @@ class TestCreateHarvestRecordUrl:
             assert (
                 url
                 == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+    def test_create_harvest_record_raw_url_with_local_server(
+        self, dbapp, mock_dataset_with_datetime, opensearch_client
+    ):
+        """Test that _create_harvest_record_raw_url generates correct URL for local server."""
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            mock_dataset_with_datetime.harvest_record_id = (
+                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+            url = opensearch_client._create_harvest_record_raw_url(
+                mock_dataset_with_datetime
+            )
+
+            assert (
+                url
+                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/raw"
+            )
+
+    def test_create_harvest_record_raw_url_with_production_server(
+        self, mock_dataset_with_datetime, opensearch_client, monkeypatch
+    ):
+        """Test that _create_harvest_record_raw_url generates correct URL for production server."""
+        monkeypatch.setenv("SITE_URL", "example.gov")
+        app = create_app(config_name="production")
+
+        with app.app_context():
+            mock_dataset_with_datetime.harvest_record_id = (
+                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+            url = opensearch_client._create_harvest_record_raw_url(
+                mock_dataset_with_datetime
+            )
+
+            assert (
+                url
+                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/raw"
+            )
+
+    def test_create_harvest_record_transformed_url_with_local_server(
+        self, dbapp, mock_dataset_with_datetime, opensearch_client
+    ):
+        """Test that _create_harvest_record_transformed_url generates correct URL for local server."""
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            mock_dataset_with_datetime.harvest_record_id = (
+                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+            url = opensearch_client._create_harvest_record_transformed_url(
+                mock_dataset_with_datetime
+            )
+
+            assert (
+                url
+                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
+            )
+
+    def test_create_harvest_record_transformed_url_with_production_server(
+        self, mock_dataset_with_datetime, opensearch_client, monkeypatch
+    ):
+        """Test that _create_harvest_record_transformed_url generates correct URL for production server."""
+        monkeypatch.setenv("SITE_URL", "example.gov")
+        app = create_app(config_name="production")
+
+        with app.app_context():
+            mock_dataset_with_datetime.harvest_record_id = (
+                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+            )
+
+            url = opensearch_client._create_harvest_record_transformed_url(
+                mock_dataset_with_datetime
+            )
+
+            assert (
+                url
+                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
             )

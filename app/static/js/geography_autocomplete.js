@@ -1,4 +1,7 @@
 /* global L */
+const OSM_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
 function requestFilterFormSubmit(form, options = {}) {
     const controller = window.dataGovFilterFormAutoSubmit;
     if (controller && typeof controller.request === 'function' && controller.form) {
@@ -364,9 +367,13 @@ class GeographyAutocomplete {
       var el = document.getElementById('geography-map');
       if (!el) return;
       if (typeof L === 'undefined') return;
-      var map = L.map(el, { zoomControl: true, attributionControl: false });
+      var map = L.map(el, { zoomControl: true, attributionControl: true });
+      if (map.attributionControl && typeof map.attributionControl.setPrefix === 'function') {
+        map.attributionControl.setPrefix(false);
+      }
       var tiles = L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
-        maxZoom: 19
+        maxZoom: 19,
+        attribution: OSM_ATTRIBUTION
       }).addTo(map);
       this.map = map;
       this._initMapHandlers();
