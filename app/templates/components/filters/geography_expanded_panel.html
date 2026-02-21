@@ -1,0 +1,76 @@
+{% macro render_geography_expanded_panel() %}
+<div id="geography-map-expanded-panel" class="geography-map-expanded-panel" hidden>
+    <div class="geography-map-expanded-panel__header">
+        <h2 class="geography-map-expanded-panel__heading">Draw a geographic box</h2>
+        <button
+            type="button"
+            id="geography-map-expanded-close"
+            class="usa-button usa-button--unstyled geography-map-expanded-panel__close"
+        >
+            Hide map
+        </button>
+    </div>
+    <p class="usa-prose geography-map-expanded-panel__description">
+        Draw <i class="fa-solid fa-draw-polygon geography-map-expanded-panel__inline-icon" aria-hidden="true"></i>
+        and drag to set the area, then Apply <i class="fa-solid fa-check geography-map-expanded-panel__inline-icon" aria-hidden="true"></i>.
+        Use <span class="geography-map-expanded-panel__term">Within</span>/<span class="geography-map-expanded-panel__term">Intersect</span> to match datasets to the box.
+        The map displays top 20 <span class="geography-map-expanded-panel__term">Within</span> results.
+    </p>
+    <div class="geography-map-modal__map">
+        <div id="geography-map-expanded-map"></div>
+        <div class="geography-map-modal__controls">
+            <div class="geography-map-modal__controls-row">
+                <button
+                    type="button"
+                    class="usa-button usa-button--outline geography-map-modal__control-button"
+                    id="geography-modal-draw-toggle"
+                    aria-label="Draw box"
+                    title="Draw box"
+                >
+                    <i class="fa-solid fa-draw-polygon" aria-hidden="true"></i>
+                </button>
+                <button
+                    type="button"
+                    class="usa-button geography-map-modal__control-button geography-map-modal__control-button--apply"
+                    id="geography-modal-apply"
+                    aria-label="Apply"
+                    title="Apply"
+                >
+                    <i class="fa-solid fa-check" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+        <div
+            class="geography-map-modal__relation"
+            role="group"
+            aria-label="Match datasets"
+        >
+            <div class="usa-radio">
+                <input
+                    class="usa-radio__input"
+                    id="geography-relation-within"
+                    type="radio"
+                    name="spatial_within"
+                    value="true"
+                    checked
+                >
+                <label class="usa-radio__label" for="geography-relation-within">
+                    Within
+                </label>
+            </div>
+            <div class="usa-radio">
+                <input
+                    class="usa-radio__input"
+                    id="geography-relation-intersects"
+                    type="radio"
+                    name="spatial_within"
+                    value="false"
+                >
+                <label class="usa-radio__label" for="geography-relation-intersects">
+                    Intersect
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}

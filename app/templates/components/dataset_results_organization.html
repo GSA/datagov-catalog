@@ -1,8 +1,9 @@
 {% import 'components/dataset_card.j2' as dataset_card -%}
 
 {% if datasets %}
+  {% set result_start = result_start_index if result_start_index is defined else 1 %}
   {% for dataset in datasets %}
-    {{ dataset_card.dataset_card(dataset) }}
+    {{ dataset_card.dataset_card(dataset, result_number=result_start + loop.index0) }}
   {% endfor %}
     {% if after %}
     <div id="replaceMe">

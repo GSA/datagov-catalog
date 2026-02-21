@@ -6,21 +6,22 @@
 {% from "components/filters/spatial_filter.html" import render_spatial_filter %}
 
 {% macro render_filter_sidebar(
-form_action,
-query_value,
-sort_value,
-keywords,
-suggested_keywords,
-spatial_filter,
-form_id='filter-form',
-org_slug=None,
-show_org_autocomplete=False,
-show_org_type_filters=False,
-org_types=None,
-selected_organization=None,
-suggested_organizations=None,
-contextual_keyword_counts=None,
-contextual_org_counts=None
+    form_action,
+    query_value,
+    sort_value,
+    keywords,
+    suggested_keywords,
+    spatial_filter,
+    search_result_geometries=None,
+    form_id='filter-form',
+    org_slug=None,
+    show_org_autocomplete=False,
+    show_org_type_filters=False,
+    org_types=None,
+    selected_organization=None,
+    suggested_organizations=None,
+    contextual_keyword_counts=None,
+    contextual_org_counts=None
 ) %}
 <p class="font-body-2xs text-light">Filter selections are applied on each click</p>
 <form class="usa-form margin-top-neg-2" method="get" action="{{ form_action }}" id="{{ form_id }}">
@@ -30,6 +31,7 @@ contextual_org_counts=None
     {% endif %}
 
     {{ render_sort_filter(sort_value) }}
+    {{ render_geography_filter(search_result_geometries) }}
     {{ render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts) }}
 
     {% if show_org_autocomplete %}
@@ -41,7 +43,6 @@ contextual_org_counts=None
     {{ render_organization_type_filter(org_types) }}
     {% endif %}
 
-    {{ render_geography_filter() }}
     {{ render_spatial_filter(spatial_filter) }}
 </form>
 {% endmacro %}
