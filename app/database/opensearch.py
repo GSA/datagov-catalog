@@ -621,9 +621,32 @@ class OpenSearchInterface:
 
         return (succeeded, failed, errors)
 
-    def _build_sort_clause(self, sort_by: str) -> list[dict]:
+    # allow sort_by values: distance, popularity, relevance
+    # optionalsort_point can be passed as a keyword argument
+    def _build_sort_clause(
+        self, sort_by: str, *, sort_point: dict | None = None
+    ) -> list[dict]:
         """Return the OpenSearch sort clause for the requested key."""
         sort_key = (sort_by or "relevance").lower()
+
+        if sort_key == "distance":
+            if sort_point:
+                return [
+                    {
+                        "_geo_distance": {
+                            "spatial_centroid": sort_point,
+                            "order": "asc",
+                            "unit": "km",
+                            "distance_type": "arc",
+                            "mode": "min",
+                            "ignore_unmapped": True,
+                        }
+                    },
+                    {"_score": {"order": "desc"}},
+                    {"popularity": {"order": "desc", "missing": "_last"}},
+                    {"_id": {"order": "desc"}},
+                ]
+            sort_key = "relevance"
 
         if sort_key == "popularity":
             return [
@@ -842,9 +865,18 @@ class OpenSearchInterface:
             # No query, match all
             base_query = {"match_all": {}}
 
+        # If the caller requested sorting by distance, attempt to compute a centroid
+        # from the provided spatial_geometry.
+        sort_point = None
+        sort_key = (sort_by or "relevance").lower()
+        if sort_key == "distance":
+            sort_point = self._geometry_centroid(spatial_geometry)
+            if sort_point is None:
+                sort_by = "relevance"
+
         search_body = {
             "query": base_query,
-            "sort": self._build_sort_clause(sort_by),
+            "sort": self._build_sort_clause(sort_by, sort_point=sort_point),
             # ask for one more to help with pagination, see
             # from_opensearch_result above
             "size": per_page + 1,
