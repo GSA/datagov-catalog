@@ -203,6 +203,7 @@ class OpenSearchInterface:
                 },
             },
             "spatial_shape": {"type": "geo_shape", "ignore_malformed": True },
+            "spatial_centroid": {"type": "geo_point"},
         }
     }
 
@@ -323,6 +324,77 @@ class OpenSearchInterface:
 
         return normalized_dcat
 
+    @staticmethod
+    def _geometry_centroid(geometry: Any) -> dict | None:
+        """
+        Return a centroid point (latitude/longitude) for a GeoJSON geometry mapping.
+
+        Parameters
+        ----------
+        geometry : Any
+            A GeoJSON geometry mapping (dict) or a JSON-encoded string containing such a mapping.
+            If None is passed, or if the input cannot be parsed / does not contain coordinates,
+            the function returns None.
+
+        Returns
+        -------
+        dict | None
+            A dictionary with keys 'lat' and 'lon' containing the arithmetic mean of the
+            collected coordinates as floats, e.g. {'lat': 12.34, 'lon': 56.78}, or None if no
+            valid coordinate pairs were found.
+
+        Examples
+        --------
+        - Point: {'type': 'Point', 'coordinates': [lon, lat]} yields {'lon': lon, 'lat': lat}
+        - Polygon: the centroid returned is the mean of all polygon vertex coordinates (not the true polygon centroid).
+        """
+        """Return a centroid point for a GeoJSON geometry mapping."""
+        if geometry is None:
+            return None
+
+        if isinstance(geometry, str):
+            try:
+                geometry = json.loads(geometry)
+            except json.JSONDecodeError:
+                return None
+
+        if not isinstance(geometry, dict):
+            return None
+
+        coords = geometry.get("coordinates")
+        if coords is None:
+            return None
+
+        points: list[tuple[float, float]] = []
+
+        def _add_point(value: Any) -> bool:
+            if not isinstance(value, (list, tuple)):
+                return False
+            if len(value) < 2:
+                return False
+            lon, lat = value[0], value[1]
+            if not isinstance(lon, (int, float)) or not isinstance(lat, (int, float)):
+                return False
+            points.append((float(lon), float(lat)))
+            return True
+
+        def _walk(value: Any) -> None:
+            if _add_point(value):
+                return
+            if isinstance(value, (list, tuple)):
+                for item in value:
+                    _walk(item)
+
+        _walk(coords)
+
+        if not points:
+            return None
+
+        lon_total = sum(point[0] for point in points)
+        lat_total = sum(point[1] for point in points)
+        count = len(points)
+        return {"lat": lat_total / count, "lon": lon_total / count}
+
     def dataset_to_document(self, dataset):
         """Map a dataset into a document for indexing.
 
@@ -338,6 +410,8 @@ class OpenSearchInterface:
 
         # Normalize DCAT dates to ensure they're strings
         normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
+
+        spatial_centroid = self._geometry_centroid(dataset.translated_spatial)
 
         document = {
             "_index": self.INDEX_NAME,
@@ -358,6 +432,7 @@ class OpenSearchInterface:
                 dataset.popularity if dataset.popularity is not None else None
             ),
             "spatial_shape": dataset.translated_spatial,
+            "spatial_centroid": spatial_centroid,
             "harvest_record": self._create_harvest_record_url(dataset),
             "harvest_record_raw": self._create_harvest_record_raw_url(dataset),
         }
