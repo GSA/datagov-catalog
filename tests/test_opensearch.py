@@ -425,6 +425,18 @@ def test_relevance_sort_uses_popularity_tie_breaker():
     ]
 
 
+def test_distance_sort_uses_geo_distance():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    sort_clause = client._build_sort_clause(
+        "distance", sort_point={"lat": 40.0, "lon": -75.0}
+    )
+    assert sort_clause[0]["_geo_distance"]["spatial_centroid"] == {
+        "lat": 40.0,
+        "lon": -75.0,
+    }
+    assert sort_clause[0]["_geo_distance"]["order"] == "asc"
+
+
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
     interface = OpenSearchInterface.__new__(OpenSearchInterface)
     monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
