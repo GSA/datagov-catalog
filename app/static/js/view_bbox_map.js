@@ -1,5 +1,7 @@
 /* global L */
 (function () {
+  var OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
   function parseGeometry(geometryStr) {
     if (!geometryStr) return null;
     try {
@@ -21,9 +23,10 @@
 
     if (!geometry) return;
 
-    var map = L.map(el, { zoomControl: true, attributionControl: false });
+    var map = L.map(el, { zoomControl: true, attributionControl: true });
     var tiles = L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
-      maxZoom: 19
+      maxZoom: 19,
+      attribution: OSM_ATTRIBUTION
     }).addTo(map);
 
     var geoLayer = L.geoJSON(geometry, {
