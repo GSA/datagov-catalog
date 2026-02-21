@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -323,6 +324,45 @@ class OpenSearchInterface:
                     normalized_dcat[field] = str(value)
 
         return normalized_dcat
+
+    @staticmethod
+    def _distance_km(point_a: dict, point_b: dict) -> float | None:
+        """Return the great-circle distance in kilometers between two points."""
+        if not point_a or not point_b:
+            return None
+
+        def _extract(point: dict):
+            if isinstance(point, dict):
+                lat = point.get("lat")
+                lon = point.get("lon")
+                if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                    return float(lat), float(lon)
+            if isinstance(point, (list, tuple)) and len(point) >= 2:
+                lon, lat = point[0], point[1]
+                if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                    return float(lat), float(lon)
+            return None
+
+        parsed_a = _extract(point_a)
+        parsed_b = _extract(point_b)
+        if not parsed_a or not parsed_b:
+            return None
+
+        lat1, lon1 = parsed_a
+        lat2, lon2 = parsed_b
+
+        radius_km = 6371.0
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        d_phi = math.radians(lat2 - lat1)
+        d_lambda = math.radians(lon2 - lon1)
+
+        a = (
+            math.sin(d_phi / 2) ** 2
+            + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+        )
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return radius_km * c
 
     @staticmethod
     def _geometry_centroid(geometry: Any) -> dict | None:
@@ -865,14 +905,16 @@ class OpenSearchInterface:
             # No query, match all
             base_query = {"match_all": {}}
 
-        # If the caller requested sorting by distance, attempt to compute a centroid
-        # from the provided spatial_geometry.
-        sort_point = None
-        sort_key = (sort_by or "relevance").lower()
-        if sort_key == "distance":
-            sort_point = self._geometry_centroid(spatial_geometry)
-            if sort_point is None:
-                sort_by = "relevance"
+        # compute centroid only if spatial_geometry provided (used for distance calc)
+        distance_point = (
+            self._geometry_centroid(spatial_geometry) if spatial_geometry is not None else None
+        )
+        # normalize requested sort and pick sort_point only when appropriate
+        normalized_sort = (sort_by or "relevance").lower()
+        sort_point = distance_point if (normalized_sort == "distance" and distance_point is not None) else None
+        # if user requested distance sorting but we don't have a point, fall back to relevance
+        if normalized_sort == "distance" and sort_point is None:
+            sort_by = "relevance"
 
         search_body = {
             "query": base_query,
@@ -951,7 +993,14 @@ class OpenSearchInterface:
         # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
-        return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
+        result = SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
+        if distance_point:
+            for item in result.results:
+                spatial_centroid = item.get("spatial_centroid")
+                distance_km = self._distance_km(distance_point, spatial_centroid)
+                if distance_km is not None:
+                    item["_distance_km"] = distance_km
+        return result
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
         """

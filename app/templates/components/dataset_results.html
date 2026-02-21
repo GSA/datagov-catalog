@@ -2,12 +2,13 @@
 {% import 'components/dataset_card.j2' as dataset_card -%}
 {% if datasets %}
   {% set result_start = result_start_index if result_start_index is defined else 1 %}
+  {% set allow_distance = spatial_geometry is not none %}
   {% for dataset in datasets %}
     {% set result_number = result_start + loop.index0 %}
     {% if from_hint %}
-      {{ dataset_card.dataset_card(dataset, from_hint=from_hint, result_number=result_number) }}
+      {{ dataset_card.dataset_card(dataset, from_hint=from_hint, result_number=result_number, sort_value=sort_by, allow_distance=allow_distance) }}
     {% else %}
-      {{ dataset_card.dataset_card(dataset, result_number=result_number) }}
+      {{ dataset_card.dataset_card(dataset, result_number=result_number, sort_value=sort_by, allow_distance=allow_distance) }}
     {% endif %}
 
   {% endfor %}
