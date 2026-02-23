@@ -52,6 +52,8 @@ def test_search_api_response_containes_harvest_record_url(interface_with_dataset
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
     assert response.json["results"][0]["harvest_record"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+    assert response.json["results"][0]["harvest_record_raw"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/raw"
+    assert response.json["results"][0]["harvest_record_transformed"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/transformed"
 
 def test_search_api_pagination(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -504,13 +506,13 @@ def test_index_page_renders(db_client):
     assert org_banner is not None
     assert org_banner.text == "Federal"
 
-    # default href is the dataset page if accessURL is null
-    html_resource = soup.find("a", {"data-format": "html"})
-    assert html_resource is not None
-    assert (
-        html_resource["href"]
-        == "/dataset/segal-americorps-education-award-detailed-payments-by-institution-2020"
-    )
+    for resource_type in ["json", "rdf", "xml", "csv"]:
+        html_resource = soup.find("a", {"data-format": resource_type})
+        assert html_resource is not None
+        assert (
+            html_resource["href"]
+            == "/dataset/segal-americorps-education-award-detailed-payments-by-institution-2020"
+        )
 
     # line arrow up is present and has a hover/title with view count
     line_arrow = soup.find("i", class_="fa-arrow-trend-up")
