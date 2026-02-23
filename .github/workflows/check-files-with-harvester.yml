@@ -1,4 +1,4 @@
-name: Check DB Models
+name: Check shared files with harvester app
 
 on:
   workflow_dispatch:
