@@ -114,6 +114,7 @@ def create_app(config_name: str = "local") -> Flask:
             [
                 "'self'",
                 "https://s3-us-gov-west-1.amazonaws.com",  # logos
+                "https://raw.githubusercontent.com",  # github logos repo
                 "data:",  # leaflet
                 "https://cg-1b082c1b-3db7-477f-9ca5-bd51a786b41e.s3-us-gov-west-1.amazonaws.com",  # touchpoints
                 "https://touchpoints.app.cloud.gov",  # touchpoints
@@ -132,6 +133,12 @@ def create_app(config_name: str = "local") -> Flask:
                 "'self'",
                 "'unsafe-hashes'",
                 "'sha256-kELgoK46JmGjLd8UHfzN0qJToDgIB+yMtRHG8PtGL7s='",  # Google tag manager inline
+            ]
+        ),
+        "style-src": " ".join(
+            [
+                "'self'",  # local styles.css
+                "https://cdnjs.cloudflare.com",  # font-awesome
             ]
         ),
         "style-src-elem": " ".join(
