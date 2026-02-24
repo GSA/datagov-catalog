@@ -11,27 +11,27 @@
 
 {% block datalayer %}
 <script nonce="{{ csp_nonce() }}">
-window.dataLayer = window.dataLayer || [];
+    window.dataLayer = window.dataLayer || [];
 
-// determine whether the user-agent is a bot
-const bot_regex = /(googlebot|bingbot|yahoo|y!j|yeti|bytespider|applebot|headlesschrome|facebook(bot|externalhit)?|baidu|petalbot|duckduckbot|slurp|semrush|ahrefs|mj12bot|dotbot|crawler|spider|bot)/i;
-let is_bot = false
+    // determine whether the user-agent is a bot
+    const bot_regex = /(googlebot|bingbot|yahoo|y!j|yeti|bytespider|applebot|headlesschrome|facebook(bot|externalhit)?|baidu|petalbot|duckduckbot|slurp|semrush|ahrefs|mj12bot|dotbot|crawler|spider|bot)/i;
+    let is_bot = false
 
-if (bot_regex.test(navigator.userAgent)) {
-    is_bot = true
-}
+    if (bot_regex.test(navigator.userAgent)) {
+        is_bot = true
+    }
 
-dataLayer.push({
-    "nodeID": "{{ dataset.id }}",
-    "contentType": "dataset",
-    "language": "en",
-    "homepageTest": "not_homepage",
-    "basicPagesubType": "dataset",
-    "Page_Type": "Dataset Page",
-    "organization": "{{ organization.name if organization else 'Unknown' }}",
-    "publisher": "{{ dataset.dcat.get('publisher', {}).get('name') }}",
-    "is_bot": is_bot
-});
+    dataLayer.push({
+        "nodeID": "{{ dataset.id }}",
+        "contentType": "dataset",
+        "language": "en",
+        "homepageTest": "not_homepage",
+        "basicPagesubType": "dataset",
+        "Page_Type": "Dataset Page",
+        "organization": "{{ organization.name if organization else 'Unknown' }}",
+        "publisher": "{{ dataset.dcat.get('publisher', {}).get('name') }}",
+        "is_bot": is_bot
+    });
 </script>
 {% endblock %}
 
@@ -85,7 +85,8 @@ dataLayer.push({
                     {% endif %}
                     {% if organization %}
                     {% if dataset.dcat.get('publisher', {}).get('name') %} | {% endif %}
-                    <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name }}</a>
+                    <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name
+                        }}</a>
                     {% endif %}
                     {% if dataset.last_harvested_date %}
                     | Metadata Last Checked: <strong>{{ dataset.last_harvested_date.strftime('%B %d, %Y') }}</strong>
@@ -104,6 +105,76 @@ dataLayer.push({
                 <p class="dataset-description text-base-light">No description available</p>
                 {% endif %}
 
+                <!-- Resources -->
+                {% if distributions %}
+                {% set resource_items = distributions %}
+                {% if resource_items is mapping or resource_items is string %}
+                {% set resource_items = [resource_items] %}
+                {% elif resource_items is not sequence %}
+                {% set resource_items = [resource_items] %}
+                {% endif %}
+
+                <div class="resources-section">
+                    <h2 class="text-primary-darker margin-bottom-1">Resources</h2>
+                    <p class="resources-label margin-top-0">
+                        {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
+                    </p>
+
+                    <ul class="resources-list resources-list--main">
+                        {% for resource in resource_items %}
+                        {% set download_url = None %}
+                        {% set access_url = None %}
+                        {% set resource_title = 'Resource ' ~ loop.index %}
+                        {% set resource_format = 'FILE' %}
+
+                        {% if resource is mapping %}
+                        {% set download_url = resource.get('downloadURL') %}
+                        {% set access_url = resource.get('accessURL') %}
+                        {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~
+                        loop.index %}
+                        {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper
+                        %}
+                        {% endif %}
+
+                        <li class="resources-list__item resources-list__item--main">
+                            <div class="resources-list__info">
+                                <div class="resources-list__icon">
+                                    <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                </div>
+                                <div class="resources-list__details">
+                                    <p class="resources-list__name" title="{{ resource_title }}">
+                                        {{ resource_title }}
+                                    </p>
+                                    <div class="resources-list__format">{{ resource_format }}</div>
+                                </div>
+                            </div>
+                            <div class="resources-list__actions">
+                                {% if download_url %}
+                                <a href="{{ download_url }}" target="_blank" rel="noopener"
+                                    class="usa-button usa-button--small resources-list__btn"
+                                    aria-label="Download {{ resource_title }}">
+                                    <i class="fa-solid fa-download margin-right-05"></i>
+                                    Download
+                                </a>
+                                {% endif %}
+                                {% if access_url %}
+                                <a href="{{ access_url }}" target="_blank" rel="noopener"
+                                    class="usa-button usa-button--outline usa-button--small resources-list__btn"
+                                    aria-label="Visit page for {{ resource_title }}">
+                                    <i class="fa-solid fa-arrow-up-right-from-square margin-right-05"></i>
+                                    Visit Page
+                                </a>
+                                {% endif %}
+                                {% if not download_url and not access_url %}
+                                <span class="text-base-light font-sans-xs">No link available</span>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
                 <!-- Tags as Search Actions -->
                 {% if dataset.dcat.get('keyword') %}
                 <div class="tags-section">
@@ -118,7 +189,7 @@ dataLayer.push({
                     </div>
                 </div>
                 {% endif %}
-                
+
                 <!-- <h2 class="text-primary-darker margin-bottom-2">Complete Metadata</h2> -->
 
                 <details>
@@ -153,88 +224,6 @@ dataLayer.push({
             <!-- Sidebar -->
             <aside class="desktop:grid-col-4">
 
-                <!-- Resources -->
-                {% if distributions %}
-                <div class="sidebar-section">
-                    <h3 class="sidebar-section__heading">Resources</h3>
-
-                    {% set resource_items = distributions %}
-                    {% if resource_items is mapping or resource_items is string %}
-                        {% set resource_items = [resource_items] %}
-                    {% elif resource_items is not sequence %}
-                        {% set resource_items = [resource_items] %}
-                    {% endif %}
-
-                    <p class="resources-label">
-                        {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
-                    </p>
-
-                    <details class="resources-dropdown" open>
-                        <summary>View all resources</summary>
-                        <ul class="resources-list">
-                            {% for resource in resource_items %}
-                            {% set resource_url = None %}
-                            {% set resource_title = resource|format_dcat_value %}
-                            {% set resource_format = None %}
-
-                            {% if resource is mapping %}
-                                {% set download_url = resource.get('downloadURL') %}
-                                {% set access_url = resource.get('accessURL') %}
-                                {% set resource_url = download_url or access_url %}
-                                {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~ loop.index %}
-                                {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper %}
-                            {% endif %}
-
-                            <li class="resources-list__item">
-                                {% if resource_url %}
-                                <a href="{{ resource_url }}" target="_blank" rel="noopener" class="resources-list__link">
-                                    <div class="resources-list__icon">
-                                        <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
-                                    </div>
-                                    <div class="resources-list__details">
-                                        <p class="resources-list__name" title="{{ resource_title }}">
-                                            {{ resource_title }}
-                                        </p>
-                                        <div class="resources-list__format">{{ resource_format or 'file' }}</div>
-                                    </div>
-                                </a>
-                                {% else %}
-                                <div class="resources-list__icon">
-                                    <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
-                                </div>
-                                <div class="resources-list__details">
-                                    <p class="resources-list__name" title="{{ resource_title }}">
-                                        {{ resource_title }}
-                                    </p>
-                                    <div class="resources-list__format">{{ resource_format or 'file' }}</div>
-                                </div>
-                                {% endif %}
-                            </li>
-                            {% endfor %}
-                        </ul>
-                    </details>
-                </div>
-                {% endif %}
-
-                <!-- Access and Use Information -->
-                <div class="sidebar-section">
-                    <h3 class="sidebar-section__heading">Access & Use</h3>
-
-                    {% if dataset.dcat.get('license') %}
-                    <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">License</div>
-                        <div class="sidebar-section__value">{{ dataset.dcat.license }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.dcat.get('accessLevel') %}
-                    <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Access Level</div>
-                        <div class="sidebar-section__value">{{ dataset.dcat.accessLevel }}</div>
-                    </div>
-                    {% endif %}
-                </div>
-
                 <!-- Contact Information -->
                 {% if dataset.dcat.get('contactPoint') %}
                 <div class="sidebar-section">
@@ -261,9 +250,71 @@ dataLayer.push({
                 </div>
                 {% endif %}
 
+                <!-- Access and Use Information -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Access & Use</h3>
+
+                    {% if dataset.dcat.get('license') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">License</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.license }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.dcat.get('accessLevel') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Access Level</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.accessLevel }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+
                 <!-- Dataset Information -->
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Dataset Information</h3>
+
+                    {% if dataset.dcat.get('issued') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Dataset Issued</div>
+                        <div class="sidebar-section__value">
+                            {{ dataset.dcat.get('issued') }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.dcat.get('modified') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Dataset Last Modified</div>
+                        <div class="sidebar-section__value">
+                            {{ dataset.dcat.get('modified') }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if dataset.dcat.get('accrualPeriodicity') %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Accrual Periodicity</div>
+                        <div class="sidebar-section__value">
+                            {{ dataset.dcat.get('accrualPeriodicity') }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+
+                    {% set spatial_shape = dataset.translated_spatial %}
+                    {% if spatial_shape %}
+                    <div class="margin-top-3">
+                        <p class="margin-0"><strong>Location</strong></p>
+                        <div id="dataset-map" class="map-container"
+                            data-geometry='{{ spatial_shape | tojson | forceescape }}'></div>
+                    </div>
+                    {% endif %}
+                </div>
+
+
+                <!-- Metadata Information -->
+                <div class="sidebar-section">
+                    <h3 class="sidebar-section__heading">Metadata Information</h3>
 
                     {% if dataset.last_harvested_date %}
                     <div class="sidebar-section__item">
@@ -284,18 +335,6 @@ dataLayer.push({
                         </div>
                     </div>
                     {% endif %}
-
-                    {% set spatial_shape = dataset.translated_spatial %}
-                    {% if spatial_shape %}
-                    <div class="margin-top-3">
-                      <p class="margin-0"><strong>Location</strong></p>
-                      <div
-                        id="dataset-map"
-                        class="map-container"
-                        data-geometry='{{ spatial_shape | tojson | forceescape }}'
-                      ></div>
-                    </div>
-                    {% endif %}
                 </div>
 
                 <!-- Feedback -->
@@ -304,14 +343,9 @@ dataLayer.push({
                     <p class="dataset-feedback">
                         Have questions or suggestions about this dataset?
                     </p>
-                    <button
-                        class="usa-button width-full"
-                        type="button"
-                        id="contact-btn"
-                        data-dataset-identifier="{{ dataset_identifier }}"
-                        data-dataset-title="{{ dataset_title }}"
-                        aria-label="Provide feedback on {{ dataset_title }}"
-                    >
+                    <button class="usa-button width-full" type="button" id="contact-btn"
+                        data-dataset-identifier="{{ dataset_identifier }}" data-dataset-title="{{ dataset_title }}"
+                        aria-label="Provide feedback on {{ dataset_title }}">
                         <i class="fa-solid fa-comment-dots margin-right-05"></i>
                         Send Feedback
                     </button>
@@ -327,9 +361,9 @@ dataLayer.push({
 {{ super() }}
 <script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
 {% if dataset.translated_spatial %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}"/>
-  <script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/view_bbox_map.js') }}"></script>
-  </script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}" />
+<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
+<script src="{{ url_for('static', filename='js/view_bbox_map.js') }}"></script>
+</script>
 {% endif %}
 {% endblock %}
