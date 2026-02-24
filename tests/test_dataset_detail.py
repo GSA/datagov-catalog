@@ -89,9 +89,7 @@ class TestDatasetDetail:
         }
 
         dataset_info_box = sidebar_headings.get("Dataset Information")
-        assert (
-            dataset_info_box is not None
-        )
+        assert dataset_info_box is not None
 
         dataset_info_items = {
             item.select_one(".sidebar-section__label")
@@ -107,9 +105,7 @@ class TestDatasetDetail:
         assert dataset_info_items["Accrual Periodicity"] == "R/P1Y"
 
         metadata_info_box = sidebar_headings.get("Metadata Information")
-        assert (
-            metadata_info_box is not None
-        )
+        assert metadata_info_box is not None
 
         metadata_items = {
             item.select_one(".sidebar-section__label")
@@ -271,9 +267,7 @@ class TestDatasetDetail:
         assert dataset_info_items["Accrual Periodicity"] == "R/P1Y"
 
         metadata_info_box = sidebar_headings.get("Metadata Information")
-        assert (
-            metadata_info_box is not None
-        )
+        assert metadata_info_box is not None
 
         metadata_items = {
             item.select_one(".sidebar-section__label")
