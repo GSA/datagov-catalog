@@ -1,9 +1,14 @@
-{% macro render_sort_filter(sort_value) %}
+{% macro render_sort_filter(sort_value, allow_distance=false) %}
 <div class="margin-bottom-4">
     <label class="usa-label" for="sort-select">Sort by</label>
     <select class="usa-select" name="sort" id="sort-select">
         <option value="relevance" {% if sort_value == 'relevance' %}selected{% endif %}>Relevance</option>
         <option value="popularity" {% if sort_value == 'popularity' %}selected{% endif %}>Popularity</option>
+        {% if allow_distance %}
+        <option value="distance" {% if sort_value == 'distance' %}selected{% endif %}>Distance</option>
+        {% else %}
+        <option value="distance" disabled>Distance (select geography)</option>
+        {% endif %}
     </select>
 </div>
 {% endmacro %}

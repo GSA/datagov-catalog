@@ -10,6 +10,7 @@ from typing import Any, Callable, TypeVar
 
 from botocore.credentials import Credentials
 from flask import url_for
+from haversine import Unit, haversine
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
 from opensearchpy.exceptions import ConnectionTimeout
 
@@ -234,6 +235,110 @@ class OpenSearchInterface:
 
         return normalized_dcat
 
+    @staticmethod
+    def _distance_km(point_a: dict, point_b: dict) -> float | None:
+        """Return the great-circle distance in km between two points.
+
+        Accepts ``{"lat": ..., "lon": ...}`` or ``[lon, lat]`` / ``(lon, lat)``.
+        Uses ``haversine.haversine`` with ``Unit.KILOMETERS``.
+        Haversine formula: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.haversine_distances.html
+        """
+        if not point_a or not point_b:
+            return None
+
+        def _extract(point: dict):
+            if isinstance(point, dict):
+                lat = point.get("lat")
+                lon = point.get("lon")
+                if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                    return float(lat), float(lon)
+            if isinstance(point, (list, tuple)) and len(point) >= 2:
+                lon, lat = point[0], point[1]
+                if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+                    return float(lat), float(lon)
+            return None
+
+        parsed_a = _extract(point_a)
+        parsed_b = _extract(point_b)
+        if not parsed_a or not parsed_b:
+            return None
+
+        lat1, lon1 = parsed_a
+        lat2, lon2 = parsed_b
+
+        return haversine((lat1, lon1), (lat2, lon2), unit=Unit.KILOMETERS)
+
+    @staticmethod
+    def _geometry_centroid(geometry: Any) -> dict | None:
+        """
+        Return a centroid point (latitude/longitude) for a GeoJSON geometry mapping.
+
+        Parameters
+        ----------
+        geometry : Any
+            A GeoJSON geometry mapping (dict) or a JSON-encoded string containing such a mapping.
+            If None is passed, or if the input cannot be parsed / does not contain coordinates,
+            the function returns None.
+
+        Returns
+        -------
+        dict | None
+            A dictionary with keys 'lat' and 'lon' containing the arithmetic mean of the
+            collected coordinates as floats, e.g. {'lat': 12.34, 'lon': 56.78}, or None if no
+            valid coordinate pairs were found.
+
+        Examples
+        --------
+        - Point: {'type': 'Point', 'coordinates': [lon, lat]} yields {'lon': lon, 'lat': lat}
+        - Polygon: the centroid returned is the mean of all polygon vertex coordinates (not the true polygon centroid).
+        """
+        """Return a centroid point for a GeoJSON geometry mapping."""
+        if geometry is None:
+            return None
+
+        if isinstance(geometry, str):
+            try:
+                geometry = json.loads(geometry)
+            except json.JSONDecodeError:
+                return None
+
+        if not isinstance(geometry, dict):
+            return None
+
+        coords = geometry.get("coordinates")
+        if coords is None:
+            return None
+
+        points: list[tuple[float, float]] = []
+
+        def _add_point(value: Any) -> bool:
+            if not isinstance(value, (list, tuple)):
+                return False
+            if len(value) < 2:
+                return False
+            lon, lat = value[0], value[1]
+            if not isinstance(lon, (int, float)) or not isinstance(lat, (int, float)):
+                return False
+            points.append((float(lon), float(lat)))
+            return True
+
+        def _walk(value: Any) -> None:
+            if _add_point(value):
+                return
+            if isinstance(value, (list, tuple)):
+                for item in value:
+                    _walk(item)
+
+        _walk(coords)
+
+        if not points:
+            return None
+
+        lon_total = sum(point[0] for point in points)
+        lat_total = sum(point[1] for point in points)
+        count = len(points)
+        return {"lat": lat_total / count, "lon": lon_total / count}
+
     def dataset_to_document(self, dataset):
         """Map a dataset into a document for indexing.
 
@@ -249,6 +354,8 @@ class OpenSearchInterface:
 
         # Normalize DCAT dates to ensure they're strings
         normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
+
+        spatial_centroid = self._geometry_centroid(dataset.translated_spatial)
 
         document = {
             "_index": self.INDEX_NAME,
@@ -269,6 +376,7 @@ class OpenSearchInterface:
                 dataset.popularity if dataset.popularity is not None else None
             ),
             "spatial_shape": dataset.translated_spatial,
+            "spatial_centroid": spatial_centroid,
             "harvest_record": self._create_harvest_record_url(dataset),
             "harvest_record_raw": self._create_harvest_record_raw_url(dataset),
         }
@@ -457,9 +565,32 @@ class OpenSearchInterface:
 
         return (succeeded, failed, errors)
 
-    def _build_sort_clause(self, sort_by: str) -> list[dict]:
+    # allow sort_by values: distance, popularity, relevance
+    # optionalsort_point can be passed as a keyword argument
+    def _build_sort_clause(
+        self, sort_by: str, *, sort_point: dict | None = None
+    ) -> list[dict]:
         """Return the OpenSearch sort clause for the requested key."""
         sort_key = (sort_by or "relevance").lower()
+
+        if sort_key == "distance":
+            if sort_point:
+                return [
+                    {
+                        "_geo_distance": {
+                            "spatial_centroid": sort_point,
+                            "order": "asc",
+                            "unit": "km",
+                            "distance_type": "arc",
+                            "mode": "min",
+                            "ignore_unmapped": True,
+                        }
+                    },
+                    {"_score": {"order": "desc"}},
+                    {"popularity": {"order": "desc", "missing": "_last"}},
+                    {"_id": {"order": "desc"}},
+                ]
+            sort_key = "relevance"
 
         if sort_key == "popularity":
             return [
@@ -678,9 +809,20 @@ class OpenSearchInterface:
             # No query, match all
             base_query = {"match_all": {}}
 
+        # compute centroid only if spatial_geometry provided (used for distance calc)
+        distance_point = (
+            self._geometry_centroid(spatial_geometry) if spatial_geometry is not None else None
+        )
+        # normalize requested sort and pick sort_point only when appropriate
+        normalized_sort = (sort_by or "relevance").lower()
+        sort_point = distance_point if (normalized_sort == "distance" and distance_point is not None) else None
+        # if user requested distance sorting but we don't have a point, fall back to relevance
+        if normalized_sort == "distance" and sort_point is None:
+            sort_by = "relevance"
+
         search_body = {
             "query": base_query,
-            "sort": self._build_sort_clause(sort_by),
+            "sort": self._build_sort_clause(sort_by, sort_point=sort_point),
             # ask for one more to help with pagination, see
             # from_opensearch_result above
             "size": per_page + 1,
@@ -755,7 +897,14 @@ class OpenSearchInterface:
         # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
-        return SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
+        result = SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
+        if distance_point:
+            for item in result.results:
+                spatial_centroid = item.get("spatial_centroid")
+                distance_km = self._distance_km(distance_point, spatial_centroid)
+                if distance_km is not None:
+                    item["_distance_km"] = distance_km
+        return result
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
         """

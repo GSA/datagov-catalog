@@ -84,5 +84,6 @@ OPENSEARCH_MAPPINGS = {
             },
         },
         "spatial_shape": {"type": "geo_shape", "ignore_malformed": True},
+        "spatial_centroid": {"type": "geo_point"},
     }
 }

@@ -13,6 +13,7 @@
     suggested_keywords,
     spatial_filter,
     search_result_geometries=None,
+    spatial_geometry=None,
     form_id='filter-form',
     org_slug=None,
     show_org_autocomplete=False,
@@ -28,7 +29,7 @@
     <input type="hidden" name="org_slug" value="{{ org_slug }}">
     {% endif %}
 
-    {{ render_sort_filter(sort_value) }}
+    {{ render_sort_filter(sort_value, spatial_geometry is not none) }}
     {{ render_geography_filter(search_result_geometries) }}
     {{ render_keyword_filter(keywords, suggested_keywords) }}
 

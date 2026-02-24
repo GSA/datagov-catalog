@@ -2,17 +2,18 @@
 
 {% if datasets %}
   {% set result_start = result_start_index if result_start_index is defined else 1 %}
+  {% set allow_distance = spatial_geometry is not none %}
   {% for dataset in datasets %}
-    {{ dataset_card.dataset_card(dataset, result_number=result_start + loop.index0) }}
+    {{ dataset_card.dataset_card(dataset, result_number=result_start + loop.index0, sort_value=selected_sort, allow_distance=allow_distance) }}
   {% endfor %}
     {% if after %}
     <div id="replaceMe">
     {% set new_results = results_hint + per_page %}
     <button class="usa-button margin-top-2"
-        hx-get="{{ url_for('main.search', q=dataset_search_query, org_slug=organization.slug, per_page=per_page, after=after, results=new_results, sort=selected_sort, keyword=keywords, spatial_filter=spatial_filter) }}"
+        hx-get="{{ url_for('main.search', q=dataset_search_query, org_slug=organization.slug, per_page=per_page, after=after, results=new_results, sort=selected_sort, keyword=keywords, spatial_filter=spatial_filter, spatial_geometry=spatial_geometry|tojson if spatial_geometry else none, spatial_within=spatial_within if spatial_geometry else none) }}"
         hx-target="#replaceMe"
         hx-swap="outerHTML"
-        hx-push-url="{{ url_for('main.organization_detail', slug=organization_slug_or_id,  q=dataset_search_query, results=new_results, sort=selected_sort, keyword=keywords, spatial_filter=spatial_filter) }}"
+        hx-push-url="{{ url_for('main.organization_detail', slug=organization_slug_or_id,  q=dataset_search_query, results=new_results, sort=selected_sort, keyword=keywords, spatial_filter=spatial_filter, spatial_geometry=spatial_geometry|tojson if spatial_geometry else none, spatial_within=spatial_within if spatial_geometry else none) }}"
         hx-trigger="click">
       Show more results
     </button>
