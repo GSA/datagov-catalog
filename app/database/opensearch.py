@@ -1,7 +1,6 @@
 import base64
 import json
 import logging
-import math
 import os
 import re
 import time
@@ -11,6 +10,7 @@ from typing import Any, Callable, TypeVar
 
 from botocore.credentials import Credentials
 from flask import url_for
+from haversine import Unit, haversine
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
 from opensearchpy.exceptions import ConnectionTimeout
 
@@ -327,7 +327,12 @@ class OpenSearchInterface:
 
     @staticmethod
     def _distance_km(point_a: dict, point_b: dict) -> float | None:
-        """Return the great-circle distance in kilometers between two points."""
+        """Return the great-circle distance in km between two points.
+
+        Accepts ``{"lat": ..., "lon": ...}`` or ``[lon, lat]`` / ``(lon, lat)``.
+        Uses ``haversine.haversine`` with ``Unit.KILOMETERS``.
+        Haversine formula: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.haversine_distances.html
+        """
         if not point_a or not point_b:
             return None
 
@@ -351,18 +356,7 @@ class OpenSearchInterface:
         lat1, lon1 = parsed_a
         lat2, lon2 = parsed_b
 
-        radius_km = 6371.0
-        phi1 = math.radians(lat1)
-        phi2 = math.radians(lat2)
-        d_phi = math.radians(lat2 - lat1)
-        d_lambda = math.radians(lon2 - lon1)
-
-        a = (
-            math.sin(d_phi / 2) ** 2
-            + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
-        )
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        return radius_km * c
+        return haversine((lat1, lon1), (lat2, lon2), unit=Unit.KILOMETERS)
 
     @staticmethod
     def _geometry_centroid(geometry: Any) -> dict | None:
