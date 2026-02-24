@@ -48,7 +48,7 @@
           <ul class="dataset-resources unstyled">
               {% for resource in dataset.dcat.distribution[:6] %}
               <li>
-                  <a href="{{ resource.accessURL or url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}" class="label label-default text-uppercase" data-format="{{ resource.format | default('HTML') | lower }}" data-organization="{{ dataset.organization.name }}">{{ resource.format | default('HTML') | lower }}</a>
+                  <a href="{{ resource.accessURL or url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}" class="label label-default text-uppercase" data-format="{{ (resource.format or resource.mediaType) | default('HTML') | simplify_resource_type | lower }}" data-organization="{{ dataset.organization.name }}">{{ (resource.format or resource.mediaType) | default('HTML') | simplify_resource_type | lower }}</a>
               </li>
               {% endfor %}
               {% if dataset.dcat.distribution|length > 6 %}

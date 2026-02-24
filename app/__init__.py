@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 
+import newrelic.agent
 from dotenv import load_dotenv
 from flask import Flask
 from flask_htmx import HTMX
@@ -15,13 +16,13 @@ from .filters import (
     geometry_to_mapping,
     is_bbox_string,
     is_geometry_mapping,
-    remove_html_tags,
-    usa_icon,
-    json_to_semantic_html,
     is_json,
+    json_to_semantic_html,
+    remove_html_tags,
+    simplify_resource_type,
+    usa_icon,
 )
 from .models import db
-import newrelic.agent
 from .utils import normalize_site_url
 
 logger = logging.getLogger(__name__)
@@ -84,6 +85,7 @@ def create_app(config_name: str = "local") -> Flask:
     app.add_template_filter(is_geometry_mapping)
     app.add_template_filter(geometry_to_mapping)
     app.add_template_filter(remove_html_tags)
+    app.add_template_filter(simplify_resource_type)
     app.add_template_filter(json_to_semantic_html)
     app.add_template_filter(is_json)
 
@@ -112,7 +114,6 @@ def create_app(config_name: str = "local") -> Flask:
             [
                 "'self'",
                 "https://s3-us-gov-west-1.amazonaws.com",  # logos
-                "https://tile.openstreetmap.org",  # map tiles
                 "data:",  # leaflet
                 "https://cg-1b082c1b-3db7-477f-9ca5-bd51a786b41e.s3-us-gov-west-1.amazonaws.com",  # touchpoints
                 "https://touchpoints.app.cloud.gov",  # touchpoints

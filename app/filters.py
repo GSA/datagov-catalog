@@ -3,6 +3,7 @@
 import json
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
+import re
 from typing import Any, Union
 import html
 
@@ -146,6 +147,17 @@ def remove_html_tags(text: str) -> str:
     return soup.get_text()
 
 
+def simplify_resource_type(text: str) -> str:
+    """
+    returns the basic form of the resource type
+    e.g. application/json -> json
+    """
+
+    pattern = "html|json|xml|kml|csv|xls|zip|api|pdf|rdf|nquad|ntriples|turtle"
+
+    match = re.search(pattern, text, flags=re.IGNORECASE)
+    if match is not None:
+        return match.group(0)
 def json_to_semantic_html(obj, indent=2, level=0):
     """
     render a Python dict/list as semantic JSON HTML
@@ -226,6 +238,7 @@ __all__ = [
     "fa_icon_from_extension",
     "format_contact_point_email",
     "remove_html_tags",
+    "simplify_resource_type",
     "json_to_semantic_html",
     "is_json",
 ]
