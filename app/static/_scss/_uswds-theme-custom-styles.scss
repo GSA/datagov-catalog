@@ -765,15 +765,9 @@ ul.dataset-resources {
     display: none;
 }
 
-/* leaflet controls are too "high" */
-.leaflet-control-container {
-  position: relative;
-  z-index: 400;
-}
-
 .map-container {
-  height: 220px; 
-  border-radius: 4px; 
+  height: 220px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -1076,7 +1070,7 @@ div.grid-row.grid-gap#menu-footer {
 }
 
 .key {
-  color: #1f5fbf; 
+  color: #1f5fbf;
   font-weight: 500;
 }
 
