@@ -201,13 +201,12 @@ class OpenSearchInterface:
                     },
                     "slug": {"type": "keyword"},
                     "organization_type": {"type": "keyword"},
-                    "aliases": {
-                        "type": "text",
-                        "analyzer": TEXT_ANALYZER,
-                        "search_analyzer": TEXT_ANALYZER,
-                        "fields": {"raw": {"type": "keyword"}},
-                    },
                 },
+            },
+            "distribution_titles": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
             },
             "spatial_shape": {"type": "geo_shape", "ignore_malformed": True},
             "spatial_centroid": {"type": "geo_point"},
@@ -468,7 +467,11 @@ class OpenSearchInterface:
             "identifier": dataset.dcat.get("identifier", ""),
             "has_spatial": has_spatial,
             "organization": dataset.organization.to_dict(),
-            "organization_aliases": dataset.organization.aliases or [],
+            "distribution_titles": [
+                dist["title"]
+                for dist in dataset.dcat.get("distribution", [])
+                if isinstance(dist, dict) and dist.get("title")
+            ],
             "popularity": (
                 dataset.popularity if dataset.popularity is not None else None
             ),
@@ -773,7 +776,7 @@ class OpenSearchInterface:
                     "keyword^2",
                     "theme",
                     "identifier",
-                    "organization_aliases^2",
+                    "distribution_titles^2",
                 ],
                 "operator": "AND",
                 "zero_terms_query": "all",
@@ -805,7 +808,7 @@ class OpenSearchInterface:
                     {"match_phrase": {"identifier": {"query": phrase_text}}},
                     {
                         "match_phrase": {
-                            "organization_aliases": {"query": phrase_text, "boost": 2}
+                            "distribution_titles": {"query": phrase_text, "boost": 2}
                         }
                     },
                 ],
