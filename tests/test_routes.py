@@ -326,6 +326,313 @@ def test_index_spatial_geometry(interface_with_dataset, db_client):
     assert len(dataset_items) >= 1
 
 
+def test_index_includes_top_20_result_geometries_for_map(db_client):
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+
+    datasets = []
+    for idx in range(25):
+        datasets.append(
+            {
+                "id": f"dataset-{idx}",
+                "slug": f"dataset-{idx}",
+                "dcat": {
+                    "title": f"Dataset {idx}",
+                    "description": "test",
+                    "distribution": [],
+                },
+                "organization": {
+                    "name": "Test Org",
+                    "slug": "test-org",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": {
+                    "type": "Point",
+                    "coordinates": [-120.0 + idx, 35.0],
+                },
+            }
+        )
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=25, results=datasets, search_after=None
+    )
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/", query_string={"spatial_geometry": polygon_escaped})
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    data_script = soup.find("script", {"id": "geography-search-result-geometries"})
+    assert data_script is not None
+    payload = json.loads(data_script.text)
+    assert len(payload) == 20
+    assert payload[0]["type"] == "Point"
+    assert payload[19]["coordinates"] == [-101.0, 35.0]
+
+
+def test_index_omits_result_geometries_for_map_without_geography_filter(db_client):
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1,
+        results=[
+            {
+                "id": "dataset-1",
+                "slug": "dataset-1",
+                "dcat": {
+                    "title": "Dataset 1",
+                    "description": "test",
+                    "distribution": [],
+                },
+                "organization": {
+                    "name": "Test Org",
+                    "slug": "test-org",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": {"type": "Point", "coordinates": [-120.0, 35.0]},
+            }
+        ],
+        search_after=None,
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    data_script = soup.find("script", {"id": "geography-search-result-geometries"})
+    assert data_script is not None
+    payload = json.loads(data_script.text)
+    assert payload == []
+
+
+def test_index_page_parses_spatial_within_param(db_client):
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/",
+            query_string={
+                "spatial_geometry": polygon_escaped,
+                "spatial_within": "intersect",
+            },
+        )
+
+    assert response.status_code == 200
+    _, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs["spatial_within"] is False
+    assert kwargs["spatial_geometry"] == polygon
+
+
+def test_search_api_parses_spatial_within_param(db_client):
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/search",
+            query_string={
+                "spatial_geometry": polygon_escaped,
+                "spatial_within": "within",
+            },
+        )
+
+    assert response.status_code == 200
+    _, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs["spatial_within"] is True
+    assert kwargs["spatial_geometry"] == polygon
+
+
+def test_organization_detail_parses_spatial_within_param(db_client):
+    mock_org = type(
+        "Org",
+        (),
+        {
+            "id": "org-1",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+            "total_datasets": 0,
+            "logo": None,
+            "description": "",
+        },
+    )()
+    mock_interface = Mock()
+    mock_interface.get_organization_by_slug.return_value = mock_org
+    mock_interface.list_datasets_for_organization.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_opensearch_org_dataset_counts.return_value = {}
+
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/organization/test-org",
+            query_string={
+                "spatial_geometry": polygon_escaped,
+                "spatial_within": "0",
+            },
+        )
+
+    assert response.status_code == 200
+    _, kwargs = mock_interface.list_datasets_for_organization.call_args
+    assert kwargs["spatial_within"] is False
+    assert kwargs["spatial_geometry"] == polygon
+
+
+def test_organization_detail_includes_top_20_result_geometries_for_map(db_client):
+    mock_org = type(
+        "Org",
+        (),
+        {
+            "id": "org-1",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+            "total_datasets": 0,
+            "logo": None,
+            "description": "",
+        },
+    )()
+    mock_interface = Mock()
+    mock_interface.get_organization_by_slug.return_value = mock_org
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_opensearch_org_dataset_counts.return_value = {"test-org": 25}
+
+    datasets = []
+    for idx in range(25):
+        datasets.append(
+            {
+                "id": f"dataset-{idx}",
+                "slug": f"dataset-{idx}",
+                "dcat": {
+                    "title": f"Dataset {idx}",
+                    "description": "test",
+                    "distribution": [],
+                },
+                "organization": {
+                    "name": "Test Org",
+                    "slug": "test-org",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": {
+                    "type": "Point",
+                    "coordinates": [-95.0 + idx, 39.0],
+                },
+            }
+        )
+    mock_interface.list_datasets_for_organization.return_value = SearchResult(
+        total=25, results=datasets, search_after=None
+    )
+    polygon = {
+        "type": "polygon",
+        "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
+    }
+    polygon_json = json.dumps(polygon, separators=(",", ":"))
+    polygon_escaped = quote(polygon_json)
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/organization/test-org",
+            query_string={"spatial_geometry": polygon_escaped},
+        )
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    data_script = soup.find("script", {"id": "geography-search-result-geometries"})
+    assert data_script is not None
+    payload = json.loads(data_script.text)
+    assert len(payload) == 20
+    assert payload[0]["coordinates"] == [-95.0, 39.0]
+    assert payload[19]["coordinates"] == [-76.0, 39.0]
+
+
+def test_organization_detail_omits_result_geometries_without_geography_filter(db_client):
+    mock_org = type(
+        "Org",
+        (),
+        {
+            "id": "org-1",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+            "total_datasets": 0,
+            "logo": None,
+            "description": "",
+        },
+    )()
+    mock_interface = Mock()
+    mock_interface.get_organization_by_slug.return_value = mock_org
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_opensearch_org_dataset_counts.return_value = {"test-org": 1}
+    mock_interface.list_datasets_for_organization.return_value = SearchResult(
+        total=1,
+        results=[
+            {
+                "id": "dataset-1",
+                "slug": "dataset-1",
+                "dcat": {
+                    "title": "Dataset 1",
+                    "description": "test",
+                    "distribution": [],
+                },
+                "organization": {
+                    "name": "Test Org",
+                    "slug": "test-org",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": {"type": "Point", "coordinates": [-95.0, 39.0]},
+            }
+        ],
+        search_after=None,
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    data_script = soup.find("script", {"id": "geography-search-result-geometries"})
+    assert data_script is not None
+    payload = json.loads(data_script.text)
+    assert payload == []
+
+
 def test_organization_list_shows_type_and_count(db_client, interface_with_dataset):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/organization")
@@ -468,6 +775,23 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
 
     geography_section = soup.find("div", {"id": "filter-geography"})
     assert geography_section is not None
+    assert soup.find("div", {"id": "geography-map-expanded-panel"}) is not None
+    assert soup.find("button", {"id": "geography-modal-draw-toggle"}) is not None
+    assert soup.find("button", {"id": "geography-modal-apply"}) is not None
+    assert (
+        soup.find(
+            "input",
+            {"name": "spatial_within", "value": "true", "type": "radio"},
+        )
+        is not None
+    )
+    assert (
+        soup.find(
+            "input",
+            {"name": "spatial_within", "value": "false", "type": "radio"},
+        )
+        is not None
+    )
 
     spatial_section = soup.find("div", {"id": "filter-spatial"})
     assert spatial_section is not None
@@ -514,7 +838,12 @@ def test_index_page_renders(db_client):
     # misc dataset checks
     org_banner = soup.find("div", class_="dataset-org-banner")
     assert org_banner is not None
-    assert org_banner.text == "Federal"
+    org_banner_type = org_banner.find("span", class_="dataset-org-banner__type")
+    assert org_banner_type is not None
+    assert org_banner_type.text == "Federal"
+    org_banner_rank = org_banner.find("span", class_="dataset-org-banner__rank")
+    assert org_banner_rank is not None
+    assert org_banner_rank.text == "#1"
 
     for resource_type in ["json", "rdf", "xml", "csv"]:
         html_resource = soup.find("a", {"data-format": resource_type})
@@ -780,6 +1109,10 @@ def test_index_page_has_filters_sidebar(db_client):
     # Check sort has popularity option
     popularity_option = soup.find("option", {"value": "popularity"})
     assert popularity_option is not None
+    # Check sort has distance option (disabled without geography)
+    distance_option = soup.find("option", {"value": "distance"})
+    assert distance_option is not None
+    assert "disabled" in distance_option.attrs
 
     # Check for organization type filters
     filter_form = soup.find("form", {"id": "filter-form"})
@@ -1147,6 +1480,9 @@ class TestKeywordSearch:
         no_results_alert = soup.find(id="no-datasets-alert")
         assert no_results_alert is not None
         assert "No datasets found" in no_results_alert.text
+        # Expanded geography panel should still exist so pencil button can open it.
+        geography_panel = soup.find(id="geography-map-expanded-panel")
+        assert geography_panel is not None
 
 
 class TestGeospatialSearch:

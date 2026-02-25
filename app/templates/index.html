@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
 
 {% set page_title = "Catalog - Data.gov" %}
 {% block title %}{{ page_title }}{% endblock %}
@@ -95,6 +96,8 @@
               {% endif %}
             </div>
 
+            {{ render_geography_expanded_panel() }}
+
             <section class="organization-datasets margin-top-3">
                 <ul class="usa-collection organization-datasets__list">
                   {% include 'components/dataset_results.html' %}
@@ -108,6 +111,7 @@
                     </p>
                 </div>
             </div>
+            {{ render_geography_expanded_panel() }}
             {% endif %}
         </div>
     </div>
@@ -115,20 +119,22 @@
     <!-- Sidebar for filters and sort -->
     <aside class="tablet:grid-col-12 desktop:grid-col-3 margin-top-0">
         {{ render_filter_sidebar(
-        form_action=url_for('main.index'),
-        query_value=query,
-        sort_value=sort_by,
-        keywords=keywords,
-        suggested_keywords=suggested_keywords,
-        spatial_filter=spatial_filter,
-        org_slug=org_slug,
-        show_org_autocomplete=True,
-        show_org_type_filters=True,
-        org_types=org_types,
-        selected_organization=selected_organization,
-        suggested_organizations=suggested_organizations,
-        contextual_keyword_counts=contextual_keyword_counts,
-        contextual_org_counts=contextual_org_counts
+            form_action=url_for('main.index'),
+            query_value=query,
+            sort_value=sort_by,
+            keywords=keywords,
+            suggested_keywords=suggested_keywords,
+            spatial_filter=spatial_filter,
+            search_result_geometries=search_result_geometries,
+            spatial_geometry=spatial_geometry,
+            org_slug=org_slug,
+            show_org_autocomplete=True,
+            show_org_type_filters=True,
+            org_types=org_types,
+            selected_organization=selected_organization,
+            suggested_organizations=suggested_organizations,
+            contextual_keyword_counts=contextual_keyword_counts,
+            contextual_org_counts=contextual_org_counts
         ) }}
     </aside>
 </div>
