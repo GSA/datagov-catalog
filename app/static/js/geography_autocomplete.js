@@ -1,9 +1,16 @@
 /* global L */
+const OSM_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
 function requestFilterFormSubmit(form, options = {}) {
     const controller = window.dataGovFilterFormAutoSubmit;
     if (controller && typeof controller.request === 'function' && controller.form) {
         controller.request(options);
         return;
+    }
+
+    if (controller && typeof controller.captureMapPanelState === 'function') {
+        controller.captureMapPanelState();
     }
 
     if (!form) {
@@ -19,8 +26,7 @@ function requestFilterFormSubmit(form, options = {}) {
 
 class GeographyAutocomplete {
     constructor(options) {
-        this.mapPanelReopenStorageKey = 'datagov.geographyMapExpanded.reopenOnce';
-        this.mapPanelLegacyStateStorageKey = 'datagov.geographyMapExpanded.open';
+        this.mapPanelNextStateStorageKey = 'datagov.geographyMapExpanded.nextState';
         this.inputId = options.inputId;
         this.suggestionsId = options.suggestionsId;
         this.apiEndpoint = options.apiEndpoint || '/api/location';
@@ -98,12 +104,15 @@ class GeographyAutocomplete {
 
         // Sync selection to hidden inputs on form submit
         if (this.form) {
-            this.form.addEventListener('submit', () => this.syncHiddenInputs());
+            this.form.addEventListener('submit', () => {
+                this.syncHiddenInputs();
+            });
         }
 
         if (this.mainSearchForm) {
-            this.mainSearchForm.addEventListener('submit', (e) => {
+            this.mainSearchForm.addEventListener('submit', () => {
                 this.syncHiddenInputsToMainSearch();
+                this.persistCurrentMapPanelStateForNextLoad();
             });
         }
 
@@ -183,9 +192,10 @@ class GeographyAutocomplete {
         });
       }
 
-      this.clearLegacyMapPanelState();
-      if (this.consumeMapPanelReopenState()) {
-        this.setMapPanelOpen(true, { discardPending: false });
+      const nextMapPanelState = this.consumeMapPanelStateOnNextLoad();
+      if (nextMapPanelState !== null) {
+        const shouldOpen = !!(nextMapPanelState && this.hasOpenEligibleMapPanelState());
+        this.setMapPanelOpen(shouldOpen, { discardPending: false });
       }
     }
 
@@ -193,43 +203,38 @@ class GeographyAutocomplete {
       return !!(this.mapPanelElement && !this.mapPanelElement.hidden);
     }
 
-    setMapPanelReopenOnNextLoad() {
+    hasOpenEligibleMapPanelState() {
+      return !!(this.selectedGeometry && this.spatialWithin);
+    }
+
+    setMapPanelStateOnNextLoad(isOpen) {
       if (typeof window === 'undefined' || !window.sessionStorage) return;
       try {
-        window.sessionStorage.setItem(this.mapPanelReopenStorageKey, '1');
+        window.sessionStorage.setItem(
+          this.mapPanelNextStateStorageKey,
+          isOpen ? '1' : '0'
+        );
       } catch (_err) {
         // Ignore storage errors (privacy mode, quota, disabled storage).
       }
     }
 
-    clearMapPanelReopenState() {
-      if (typeof window === 'undefined' || !window.sessionStorage) return;
+    consumeMapPanelStateOnNextLoad() {
+      if (typeof window === 'undefined' || !window.sessionStorage) return null;
       try {
-        window.sessionStorage.removeItem(this.mapPanelReopenStorageKey);
+        const nextState = window.sessionStorage.getItem(this.mapPanelNextStateStorageKey);
+        window.sessionStorage.removeItem(this.mapPanelNextStateStorageKey);
+        if (nextState === '1') return true;
+        if (nextState === '0') return false;
+        return null;
       } catch (_err) {
-        // Ignore storage errors (privacy mode, quota, disabled storage).
+        return null;
       }
     }
 
-    consumeMapPanelReopenState() {
-      if (typeof window === 'undefined' || !window.sessionStorage) return false;
-      try {
-        const shouldReopen =
-          window.sessionStorage.getItem(this.mapPanelReopenStorageKey) === '1';
-        window.sessionStorage.removeItem(this.mapPanelReopenStorageKey);
-        return shouldReopen;
-      } catch (_err) {
-        return false;
-      }
-    }
-
-    clearLegacyMapPanelState() {
-      if (typeof window === 'undefined' || !window.sessionStorage) return;
-      try {
-        window.sessionStorage.removeItem(this.mapPanelLegacyStateStorageKey);
-      } catch (_err) {
-        // Ignore storage errors (privacy mode, quota, disabled storage).
-      }
+    persistCurrentMapPanelStateForNextLoad() {
+      const shouldOpen = !!(this.isMapPanelOpen() && this.hasOpenEligibleMapPanelState());
+      this.setMapPanelStateOnNextLoad(shouldOpen);
     }
 
     setMapPanelOpen(isOpen, options = {}) {
@@ -362,9 +367,13 @@ class GeographyAutocomplete {
       var el = document.getElementById('geography-map');
       if (!el) return;
       if (typeof L === 'undefined') return;
-      var map = L.map(el, { zoomControl: true, attributionControl: false });
+      var map = L.map(el, { zoomControl: true, attributionControl: true });
+      if (map.attributionControl && typeof map.attributionControl.setPrefix === 'function') {
+        map.attributionControl.setPrefix(false);
+      }
       var tiles = L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
-        maxZoom: 19
+        maxZoom: 19,
+        attribution: OSM_ATTRIBUTION
       }).addTo(map);
       this.map = map;
       this._initMapHandlers();
@@ -439,10 +448,17 @@ class GeographyAutocomplete {
       if (!this.mapPanelMap) {
         this.mapPanelMap = L.map(this.mapPanelMapContainer, {
           zoomControl: true,
-          attributionControl: false
+          attributionControl: true
         });
+        if (
+          this.mapPanelMap.attributionControl &&
+          typeof this.mapPanelMap.attributionControl.setPrefix === 'function'
+        ) {
+          this.mapPanelMap.attributionControl.setPrefix(false);
+        }
         L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
-          maxZoom: 19
+          maxZoom: 19,
+          attribution: OSM_ATTRIBUTION
         }).addTo(this.mapPanelMap);
       }
       this.mapPanelResultsLayer = this._renderSearchResultsLayer(
@@ -988,11 +1004,6 @@ class GeographyAutocomplete {
       if (hasPendingGeometry) {
         this.displayGeometry(this.selectedGeometry);
       }
-      if (this.spatialWithin) {
-        this.setMapPanelReopenOnNextLoad();
-      } else {
-        this.clearMapPanelReopenState();
-      }
       requestFilterFormSubmit(this.form);
     }
 
@@ -1129,7 +1140,7 @@ class GeographyAutocomplete {
         this.selectedGeometry = JSON.parse(data.geometry);
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
-        this.setMapPanelReopenOnNextLoad();
+        this.setMapPanelOpen(true, { discardPending: false });
         requestFilterFormSubmit(this.form);
       } catch (error) {
         console.error('Error loading location data:', error);
@@ -1192,4 +1203,5 @@ document.addEventListener('DOMContentLoaded', () => {
         apiEndpoint: '/api/location',
         debounceDelay: 300
     });
+    window.dataGovGeographyAutocomplete = geographyAutocomplete;
 });

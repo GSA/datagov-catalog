@@ -10,7 +10,7 @@ requires-python = "<4.0,>=3.12"
 dependencies = [
     "flask (>=3.1.2,<4.0.0)",
     "dotenv (>=0.9.9,<0.10.0)",
-    "poetry-plugin-export (>=1.9.0,<2.0.0)",
+    "poetry-plugin-export (>=1.10.0,<2.0.0)",
     "gunicorn (>=23.0.0,<24.0.0)",
     "sqlalchemy (>=2.0.0,<3.0.0)",
     "psycopg[binary] (>=3.2.0,<4.0.0)",
@@ -22,7 +22,7 @@ dependencies = [
     "beautifulsoup4 (>=4.14.2,<5.0.0)",
     "flask-talisman (>=1.1.0,<2.0.0)",
     "newrelic (>=11.4.0,<12.0.0)",
-    
+
 ]
 
 [tool.poetry]
@@ -32,7 +32,7 @@ packages = [
 
 [tool.poetry.group.dev.dependencies]
 black = "^26.1.0"
-ruff = "^0.15.0"
+ruff = "^0.15.1"
 isort = "^7.0.0"
 beautifulsoup4 = "^4.14.2"
 moto = {version = ">=5.0.0,<6.0.0", extras = ["s3"]}
@@ -43,4 +43,4 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.requires-plugins]
-poetry-plugin-export = ">=1.8"
+poetry-plugin-export = ">=1.10"
