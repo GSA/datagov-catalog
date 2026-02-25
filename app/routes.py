@@ -1,5 +1,6 @@
 import json
 import logging
+from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
 from urllib.parse import unquote
