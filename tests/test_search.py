@@ -1,7 +1,7 @@
 import copy
 
 from app.database.opensearch import OpenSearchInterface
-from app.models import Dataset
+from app.models import Dataset, Organization
 
 
 def test_search(interface_with_dataset):
@@ -244,7 +244,7 @@ class TestPhraseSearch:
         # Should find at least the fixture dataset with "test" in title
         assert result.total > 0
         assert len(result.results) > 0
-        
+
         # Verify all results belong to the specified organization
         for dataset in result.results:
             assert dataset["organization"]["id"] == org.id
@@ -320,10 +320,52 @@ class TestOrQuerySearch:
         # Should return results sorted by popularity
         assert result.total > 0
         assert len(result.results) > 0
-        
+
         # Verify results are sorted by popularity
-        popularities = [
-            dataset.get("popularity") or 0 for dataset in result.results
-        ]
+        popularities = [dataset.get("popularity") or 0 for dataset in result.results]
         # Should be in descending order
         assert popularities == sorted(popularities, reverse=True)
+
+
+def test_alias_search_returns_only_matching_org_datasets(interface_with_dataset):
+    """
+    Two orgs with distinct aliases, searching one alias returns only that org's
+    datasets
+    """
+    # Assign distinct aliases to each org
+    org1 = interface_with_dataset.db.query(Organization).filter_by(id="1").first()
+    org2 = interface_with_dataset.db.query(Organization).filter_by(id="2").first()
+    org1.aliases = ["alias1"]
+    org2.aliases = ["alias2"]
+    interface_with_dataset.db.commit()
+
+    # Give org2 a dataset so it has something to find
+    base = interface_with_dataset.db.query(Dataset).first().to_dict()
+    base["id"] = "org2-dataset"
+    base["slug"] = "org2-dataset"
+    base["organization_id"] = "2"
+    base["dcat"] = {
+        "title": "Org Two Dataset",
+        "description": "dataset belonging to org two",
+        "keyword": [],
+    }
+    interface_with_dataset.db.add(Dataset(**base))
+    interface_with_dataset.db.commit()
+
+    # Re-index so alias changes are reflected
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    alpha_results = interface_with_dataset.search_datasets("alias1")
+    beta_results = interface_with_dataset.search_datasets("alias2")
+
+    # Each alias returns results
+    assert alpha_results.total > 0
+    assert beta_results.total > 0
+
+    # Each search only returns datasets from the org that owns that alias
+    assert all(d["organization"]["slug"] == "test-org" for d in alpha_results.results)
+    assert all(
+        d["organization"]["slug"] == "test-org-filtered" for d in beta_results.results
+    )

@@ -201,9 +201,15 @@ class OpenSearchInterface:
                     },
                     "slug": {"type": "keyword"},
                     "organization_type": {"type": "keyword"},
+                    "aliases": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                        "fields": {"raw": {"type": "keyword"}},
+                    },
                 },
             },
-            "spatial_shape": {"type": "geo_shape", "ignore_malformed": True },
+            "spatial_shape": {"type": "geo_shape", "ignore_malformed": True},
             "spatial_centroid": {"type": "geo_point"},
         }
     }
@@ -462,6 +468,7 @@ class OpenSearchInterface:
             "identifier": dataset.dcat.get("identifier", ""),
             "has_spatial": has_spatial,
             "organization": dataset.organization.to_dict(),
+            "organization_aliases": dataset.organization.aliases or [],
             "popularity": (
                 dataset.popularity if dataset.popularity is not None else None
             ),
@@ -478,9 +485,7 @@ class OpenSearchInterface:
 
     def _create_harvest_record_url(self, dataset) -> str:
         """Generates a url to the harvest record."""
-        return url_for(
-            "main.get_harvest_record", record_id=dataset.harvest_record_id
-        )
+        return url_for("main.get_harvest_record", record_id=dataset.harvest_record_id)
 
     def _create_harvest_record_raw_url(self, dataset) -> str:
         """Generates a url to the raw harvest-record payload."""
@@ -768,6 +773,7 @@ class OpenSearchInterface:
                     "keyword^2",
                     "theme",
                     "identifier",
+                    "organization_aliases^2",
                 ],
                 "operator": "AND",
                 "zero_terms_query": "all",
@@ -797,6 +803,11 @@ class OpenSearchInterface:
                     {"match_phrase": {"keyword": {"query": phrase_text, "boost": 2}}},
                     {"match_phrase": {"theme": {"query": phrase_text}}},
                     {"match_phrase": {"identifier": {"query": phrase_text}}},
+                    {
+                        "match_phrase": {
+                            "organization_aliases": {"query": phrase_text, "boost": 2}
+                        }
+                    },
                 ],
                 "minimum_should_match": 1,
             }
@@ -901,11 +912,17 @@ class OpenSearchInterface:
 
         # compute centroid only if spatial_geometry provided (used for distance calc)
         distance_point = (
-            self._geometry_centroid(spatial_geometry) if spatial_geometry is not None else None
+            self._geometry_centroid(spatial_geometry)
+            if spatial_geometry is not None
+            else None
         )
         # normalize requested sort and pick sort_point only when appropriate
         normalized_sort = (sort_by or "relevance").lower()
-        sort_point = distance_point if (normalized_sort == "distance" and distance_point is not None) else None
+        sort_point = (
+            distance_point
+            if (normalized_sort == "distance" and distance_point is not None)
+            else None
+        )
         # if user requested distance sorting but we don't have a point, fall back to relevance
         if normalized_sort == "distance" and sort_point is None:
             sort_by = "relevance"
@@ -987,7 +1004,9 @@ class OpenSearchInterface:
         # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
-        result = SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
+        result = SearchResult.from_opensearch_result(
+            result_dict, per_page_hint=per_page
+        )
         if distance_point:
             for item in result.results:
                 spatial_centroid = item.get("spatial_centroid")
