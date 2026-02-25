@@ -326,6 +326,7 @@ class TestOrQuerySearch:
         # Should be in descending order
         assert popularities == sorted(popularities, reverse=True)
 
+
 def test_distribution_title_search_returns_only_matching_dataset(
     interface_with_dataset,
 ):
