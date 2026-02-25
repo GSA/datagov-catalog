@@ -375,15 +375,15 @@ def test_geometry_centroid_from_polygon():
     assert centroid["lat"] == pytest.approx(0.8)
 
 
-def test_geometry_centroid_from_polygon():
-    geometry = {
-        "type": "Polygon",
-        "coordinates": [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]],
-    }
-    centroid = OpenSearchInterface._geometry_centroid(geometry)
-    assert centroid is not None
-    assert centroid["lon"] == pytest.approx(0.8)
-    assert centroid["lat"] == pytest.approx(0.8)
+# def test_geometry_centroid_from_polygon():
+#     geometry = {
+#         "type": "Polygon",
+#         "coordinates": [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]],
+#     }
+#     centroid = OpenSearchInterface._geometry_centroid(geometry)
+#     assert centroid is not None
+#     assert centroid["lon"] == pytest.approx(0.8)
+#     assert centroid["lat"] == pytest.approx(0.8)
 
 
 class TestOpenSearchMappings:
