@@ -1,7 +1,7 @@
 import copy
 
 from app.database.opensearch import OpenSearchInterface
-from app.models import Dataset, Organization
+from app.models import Dataset
 
 
 def test_search(interface_with_dataset):
@@ -325,3 +325,53 @@ class TestOrQuerySearch:
         popularities = [dataset.get("popularity") or 0 for dataset in result.results]
         # Should be in descending order
         assert popularities == sorted(popularities, reverse=True)
+
+def test_distribution_title_search_returns_only_matching_dataset(
+    interface_with_dataset,
+):
+    """
+    Two datasets each with a distribution — searching a distribution title
+    unique to one dataset returns only that dataset.
+    """
+    base = interface_with_dataset.db.query(Dataset).first().to_dict()
+
+    dataset_a = {**base, "id": "dist-dataset-a", "slug": "dist-dataset-a"}
+    dataset_a["dcat"] = {
+        "title": "Dataset A",
+        "description": "first dataset",
+        "keyword": [],
+        "distribution": [
+            {
+                "title": "Rainfall Measurements Report",
+                "format": "CSV",
+                "downloadURL": "https://example.com/rainfall.csv",
+            }
+        ],
+    }
+
+    dataset_b = {**base, "id": "dist-dataset-b", "slug": "dist-dataset-b"}
+    dataset_b["dcat"] = {
+        "title": "Dataset B",
+        "description": "second dataset",
+        "keyword": [],
+        "distribution": [
+            {
+                "title": "Snowfall Measurements Report",
+                "format": "CSV",
+                "downloadURL": "https://example.com/snowfall.csv",
+            }
+        ],
+    }
+
+    interface_with_dataset.db.add(Dataset(**dataset_a))
+    interface_with_dataset.db.add(Dataset(**dataset_b))
+    interface_with_dataset.db.commit()
+
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    result = interface_with_dataset.search_datasets("Rainfall Measurements Report")
+
+    assert result.total == 1
+    assert result.results[0]["slug"] == "dist-dataset-a"
