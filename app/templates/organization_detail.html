@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
 
 {% block title %}{{ organization.name }} - Organization - Data.gov{% endblock %}
 
@@ -85,6 +86,7 @@
                 </div>
             </div>
         </form>
+        {{ render_geography_expanded_panel() }}
 
         {% if datasets %}
         <div class="usa-prose">
@@ -125,7 +127,9 @@
             sort_value=selected_sort,
             keywords=keywords,
             suggested_keywords=suggested_keywords,
-            spatial_filter=spatial_filter
+            spatial_filter=spatial_filter,
+            search_result_geometries=search_result_geometries,
+            spatial_geometry=spatial_geometry
         ) }}
       </aside>
     </div>

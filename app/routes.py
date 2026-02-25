@@ -40,6 +40,17 @@ STATUS_STRINGS_ENUM = {404: "Not Found"}
 interface = CatalogDBInterface()
 
 
+def _parse_bool_param(value: str | None, default: bool) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on", "within"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off", "intersect", "intersects"}:
+        return False
+    return default
+
+
 def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
     pages = []
     last = 0
@@ -53,6 +64,7 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 
 
 SITEMAP_PAGE_SIZE = 10000
+ALLOWED_SORTS = {"relevance", "popularity", "distance"}
 
 
 def _homepage_dataset_total(default_total: int) -> int:
@@ -81,6 +93,32 @@ def _homepage_dataset_total(default_total: int) -> int:
             continue
 
     return default_total
+
+
+def _normalize_sort(sort_value: str | None, spatial_geometry: dict | None) -> str:
+    sort_key = (sort_value or "relevance").lower()
+    if sort_key not in ALLOWED_SORTS:
+        return "relevance"
+    if sort_key == "distance" and spatial_geometry is None:
+        return "relevance"
+    return sort_key
+
+
+def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
+    """Return up to `limit` GeoJSON geometries from search results."""
+    shapes: list[dict] = []
+    for dataset in datasets:
+        if not isinstance(dataset, dict):
+            continue
+        geometry = dataset.get("spatial_shape")
+        if not isinstance(geometry, dict):
+            continue
+        if not geometry.get("type"):
+            continue
+        shapes.append(geometry)
+        if len(shapes) >= limit:
+            break
+    return shapes
 
 
 def _get_sitemap_body_or_404(bucket: str, key: str) -> bytes:
@@ -137,9 +175,8 @@ def index():
     keywords = request.args.getlist("keyword")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
-    sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
-    if sort_by not in {"relevance", "popularity"}:
-        sort_by = "relevance"
+    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
+    sort_by = request.args.get("sort", "relevance") or "relevance"
     # there's a limit on how many results can be requested
     num_results = min(num_results, 9999)
 
@@ -157,6 +194,7 @@ def index():
                 ),
                 400,
             )
+    sort_by = _normalize_sort(sort_by, spatial_geometry)
 
     # Initialize empty results
     datasets: list[dict] = []
@@ -194,6 +232,7 @@ def index():
             sort_by=sort_by,
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
         )
 
         # For homepage without filters, get accurate total count
@@ -243,10 +282,14 @@ def index():
 
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
+    search_result_geometries = (
+        _collect_spatial_shapes(datasets) if spatial_geometry is not None else []
+    )
     return render_template(
         "index.html",
         query=query,
         results_hint=num_results,
+        result_start_index=1,
         per_page=DEFAULT_PER_PAGE,
         after=after,
         datasets=datasets,
@@ -261,6 +304,8 @@ def index():
         suggested_organizations=suggested_organizations,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
+        search_result_geometries=search_result_geometries,
+        spatial_within=spatial_within,
         from_hint=from_hint,
         selected_organization=selected_organization,
     )
@@ -283,11 +328,8 @@ def search():
     after = request.args.get("after")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
-    spatial_within = request.args.get("spatial_within", True, type=bool)
-
-    sort_by = (request.args.get("sort", "relevance") or "relevance").lower()
-    if sort_by not in {"relevance", "popularity"}:
-        sort_by = "relevance"
+    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
+    sort_by = request.args.get("sort", "relevance") or "relevance"
 
     selected_organization = None
     org_filter_id = None
@@ -318,6 +360,7 @@ def search():
                 ),
                 400,
             )
+    sort_by = _normalize_sort(sort_by, spatial_geometry)
 
     # Use keyword search if keywords are provided
     result = interface.search_datasets(
@@ -335,6 +378,9 @@ def search():
 
     if htmx:
         results = [each for each in result.results]
+        result_start_index = 1
+        if results_hint and per_page:
+            result_start_index = max(results_hint - per_page + 1, 1)
         if selected_organization:
             # specified organization so give org results
             return render_template(
@@ -343,10 +389,13 @@ def search():
                 datasets=results,
                 per_page=per_page,
                 results_hint=results_hint,
+                result_start_index=result_start_index,
                 after=result.search_after_obscured(),
                 selected_sort=sort_by,
                 organization=selected_organization,
                 organization_slug_or_id=selected_organization.slug,
+                spatial_geometry=spatial_geometry,
+                spatial_within=spatial_within,
             )
         return render_template(
             "components/dataset_results.html",
@@ -354,6 +403,7 @@ def search():
             datasets=results,
             per_page=per_page,
             results_hint=results_hint,
+            result_start_index=result_start_index,
             from_hint=from_hint,
             after=result.search_after_obscured(),
             sort_by=sort_by,
@@ -363,6 +413,8 @@ def search():
                 selected_organization.slug if selected_organization else org_slug_param
             ),
             spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
         )
 
     response_dict = {
@@ -512,10 +564,8 @@ def organization_detail(slug: str):
     keywords = request.args.getlist("keyword")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
-    spatial_within = request.args.get("spatial_within", True, type=bool)
-    sort_by = request.args.get("sort", default="relevance").lower()
-    if sort_by not in {"relevance", "popularity"}:
-        sort_by = "relevance"
+    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
+    sort_by = request.args.get("sort", default="relevance")
 
     if spatial_geometry is not None:
         try:
@@ -530,6 +580,7 @@ def organization_detail(slug: str):
                 ),
                 400,
             )
+    sort_by = _normalize_sort(sort_by, spatial_geometry)
 
     suggested_keywords: list[str] = []
     if not keywords:
@@ -553,6 +604,11 @@ def organization_detail(slug: str):
         spatial_within=spatial_within,
     )
     after = dataset_result.search_after_obscured()
+    search_result_geometries = (
+        _collect_spatial_shapes(dataset_result.results)
+        if spatial_geometry is not None
+        else []
+    )
 
     slug_or_id = organization.slug or slug
 
@@ -570,11 +626,15 @@ def organization_detail(slug: str):
         after=after,
         per_page=DEFAULT_PER_PAGE,
         results_hint=num_results,
+        result_start_index=1,
         organization_slug_or_id=slug_or_id,
         selected_sort=sort_by,
         dataset_search_query=dataset_search_query,
         keywords=keywords,
         spatial_filter=spatial_filter,
+        spatial_geometry=spatial_geometry,
+        spatial_within=spatial_within,
+        search_result_geometries=search_result_geometries,
         suggested_keywords=suggested_keywords,
     )
 
