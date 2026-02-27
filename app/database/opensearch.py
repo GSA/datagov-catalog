@@ -31,6 +31,7 @@ class SearchResult:
     total: int
     results: list[dict]
     search_after: list
+    aggregations: dict | None = None
 
     def __len__(self):
         """Length of this is the length of results."""
@@ -39,7 +40,7 @@ class SearchResult:
     @classmethod
     def empty(cls):
         """Return an empty search result instance."""
-        return cls(total=0, results=[], search_after=None)
+        return cls(total=0, results=[], search_after=None, aggregations=None)
 
     @classmethod
     def from_opensearch_result(cls, result_dict: dict, per_page_hint=0):
@@ -52,6 +53,10 @@ class SearchResult:
 
         In the `search` method we asked for one more than the per_page size
         to determine if there will be any more results left for another call.
+
+        When the search body included aggregation "clauses", the parsed
+        `aggregations` dict will be populated on the returned instance with
+        `keywords` and `organizations` lists.
         """
 
         total = result_dict["hits"]["total"]["value"]
@@ -84,10 +89,28 @@ class SearchResult:
                 # no results in the list
                 search_after = None
 
+        raw_aggs = result_dict.get("aggregations")
+        aggregations = None
+        if raw_aggs is not None:
+            keyword_buckets = raw_aggs.get("unique_keywords", {}).get("buckets", [])
+            org_buckets = (
+                raw_aggs.get("organizations", {}).get("by_slug", {}).get("buckets", [])
+            )
+            aggregations = {
+                "keywords": [
+                    {"keyword": b["key"], "count": b["doc_count"]}
+                    for b in keyword_buckets
+                ],
+                "organizations": [
+                    {"slug": b["key"], "count": b["doc_count"]} for b in org_buckets
+                ],
+            }
+
         return cls(
             total=total,
             results=results,
             search_after=search_after,
+            aggregations=aggregations,
         )
 
     def search_after_obscured(self):
@@ -203,7 +226,7 @@ class OpenSearchInterface:
                     "organization_type": {"type": "keyword"},
                 },
             },
-            "spatial_shape": {"type": "geo_shape", "ignore_malformed": True },
+            "spatial_shape": {"type": "geo_shape", "ignore_malformed": True},
             "spatial_centroid": {"type": "geo_point"},
         }
     }
@@ -830,6 +853,9 @@ class OpenSearchInterface:
         spatial_within=True,
         sort_by: str = "relevance",
         keywords: list[str] = None,
+        include_aggregations: bool = False,
+        keyword_size: int = 100,
+        org_size: int = 100,
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -863,6 +889,10 @@ class OpenSearchInterface:
         We pass the `after` argument through to OpenSearch. It should be the
         value of the last `_sort` field from a previous search result with the
         same query.
+
+        When include_aggregations is True, keyword and organization
+        aggregations are embedded in the same request and returned via
+        `SearchResult.aggregations`.
         """
         # Parse query for phrases and OR operators
         parsed_query = self._parse_search_query(query) if query else None
@@ -899,11 +929,17 @@ class OpenSearchInterface:
 
         # compute centroid only if spatial_geometry provided (used for distance calc)
         distance_point = (
-            self._geometry_centroid(spatial_geometry) if spatial_geometry is not None else None
+            self._geometry_centroid(spatial_geometry)
+            if spatial_geometry is not None
+            else None
         )
         # normalize requested sort and pick sort_point only when appropriate
         normalized_sort = (sort_by or "relevance").lower()
-        sort_point = distance_point if (normalized_sort == "distance" and distance_point is not None) else None
+        sort_point = (
+            distance_point
+            if (normalized_sort == "distance" and distance_point is not None)
+            else None
+        )
         # if user requested distance sorting but we don't have a point, fall back to relevance
         if normalized_sort == "distance" and sort_point is None:
             sort_by = "relevance"
@@ -912,8 +948,10 @@ class OpenSearchInterface:
             "query": base_query,
             "sort": self._build_sort_clause(sort_by, sort_point=sort_point),
             # ask for one more to help with pagination, see
-            # from_opensearch_result above
-            "size": per_page + 1,
+            # from_opensearch_result above.
+            # When per_page is 0 the caller only wants aggregations; set size
+            # to 0 so OpenSearch skips hits entirely.
+            "size": 0 if per_page == 0 else per_page + 1,
         }
 
         # Build filter list for bool query
@@ -982,10 +1020,38 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
+        # `keyword` and `organization` aggregations for the chips
+        if include_aggregations:
+            search_body["aggs"] = {
+                "unique_keywords": {
+                    "terms": {
+                        "field": "keyword.raw",
+                        "size": keyword_size,
+                        "min_doc_count": 1,
+                        "order": {"_count": "desc"},
+                    }
+                },
+                "organizations": {
+                    "nested": {"path": "organization"},
+                    "aggs": {
+                        "by_slug": {
+                            "terms": {
+                                "field": "organization.slug",
+                                "size": org_size,
+                                "min_doc_count": 1,
+                                "order": {"_count": "desc"},
+                            }
+                        }
+                    },
+                },
+            }
+
         # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
         # print("OPENSEARCH:", result_dict)
-        result = SearchResult.from_opensearch_result(result_dict, per_page_hint=per_page)
+        result = SearchResult.from_opensearch_result(
+            result_dict, per_page_hint=per_page
+        )
         if distance_point:
             for item in result.results:
                 spatial_centroid = item.get("spatial_centroid")

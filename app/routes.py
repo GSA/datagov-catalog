@@ -238,6 +238,9 @@ def index():
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
+            include_aggregations=True,
+            keyword_size=100,
+            org_size=100,
         )
 
         # For homepage without filters, get accurate total count
@@ -259,35 +262,17 @@ def index():
     else:
         after = None
 
-    # Initialize contextual counts
-    contextual_keyword_counts = {}
-    contextual_org_counts = {}
-    contextual_aggs = {"keywords": [], "organizations": []}
-
-    # Get contextual aggregations based on current search parameters
-    try:
-        contextual_aggs = interface.get_contextual_aggregations(
-            query=query,
-            org_id=org_filter_id,
-            org_types=org_types,
-            keywords=keywords,
-            spatial_filter=spatial_filter,
-            spatial_geometry=spatial_geometry,
-            keyword_size=100,
-            org_size=100,
-        )
-
-        # Create lookup dictionaries for counts
-        contextual_keyword_counts = {
-            item["keyword"]: item["count"]
-            for item in contextual_aggs.get("keywords", [])
-        }
-        contextual_org_counts = {
-            item["slug"]: item["count"]
-            for item in contextual_aggs.get("organizations", [])
-        }
-    except Exception:
-        logger.exception("Failed to fetch contextual aggregations")
+    contextual_aggs = (
+        result.aggregations
+        if result is not None and result.aggregations is not None
+        else {"keywords": [], "organizations": []}
+    )
+    contextual_keyword_counts = {
+        item["keyword"]: item["count"] for item in contextual_aggs.get("keywords", [])
+    }
+    contextual_org_counts = {
+        item["slug"]: item["count"] for item in contextual_aggs.get("organizations", [])
+    }
 
     # Always compute suggested keywords from contextual aggregations,
     # excluding any already-selected keywords so users can keep refining.

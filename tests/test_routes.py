@@ -54,9 +54,19 @@ def test_search_api_response_containes_harvest_record_url(
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
-    assert response.json["results"][0]["harvest_record"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
-    assert response.json["results"][0]["harvest_record_raw"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/raw"
-    assert response.json["results"][0]["harvest_record_transformed"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/transformed"
+    assert (
+        response.json["results"][0]["harvest_record"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+    )
+    assert (
+        response.json["results"][0]["harvest_record_raw"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/raw"
+    )
+    assert (
+        response.json["results"][0]["harvest_record_transformed"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/transformed"
+    )
+
 
 def test_search_api_pagination(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -171,18 +181,22 @@ def test_index_page_shows_top_organizations(db_client):
         "popularity": 42,
     }
     mock_interface = Mock()
+    # Aggregations are now embedded on the SearchResult so that a single
+    # search_datasets call provides both hits and contextual counts.
     mock_interface.search_datasets.return_value = SearchResult(
-        total=1, results=[mock_dataset], search_after=None
+        total=1,
+        results=[mock_dataset],
+        search_after=None,
+        aggregations={
+            "keywords": [],
+            "organizations": [
+                {"slug": "org-one", "count": 2345},
+                {"slug": "org-two", "count": 100},
+            ],
+        },
     )
     mock_interface.get_unique_keywords.return_value = []
     mock_interface.total_datasets.return_value = 1
-    mock_interface.get_contextual_aggregations.return_value = {
-        "keywords": [],
-        "organizations": [
-            {"slug": "org-one", "count": 2345},
-            {"slug": "org-two", "count": 100},
-        ],
-    }
     mock_interface.get_top_organizations.return_value = [
         {
             "id": "org-1",
@@ -364,7 +378,9 @@ def test_index_includes_top_20_result_geometries_for_map(db_client):
     polygon_escaped = quote(polygon_json)
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get("/", query_string={"spatial_geometry": polygon_escaped})
+        response = db_client.get(
+            "/", query_string={"spatial_geometry": polygon_escaped}
+        )
 
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
@@ -416,7 +432,10 @@ def test_index_omits_result_geometries_for_map_without_geography_filter(db_clien
 def test_index_page_parses_spatial_within_param(db_client):
     mock_interface = Mock()
     mock_interface.search_datasets.return_value = SearchResult(
-        total=0, results=[], search_after=None
+        total=0,
+        results=[],
+        search_after=None,
+        aggregations={"keywords": [], "organizations": []},
     )
     mock_interface.get_unique_keywords.return_value = []
     mock_interface.get_top_organizations.return_value = []
@@ -438,6 +457,8 @@ def test_index_page_parses_spatial_within_param(db_client):
         )
 
     assert response.status_code == 200
+    # The route now makes a single search_datasets call with include_aggregations=True.
+    assert mock_interface.search_datasets.call_count == 1
     _, kwargs = mock_interface.search_datasets.call_args
     assert kwargs["spatial_within"] is False
     assert kwargs["spatial_geometry"] == polygon
@@ -582,7 +603,9 @@ def test_organization_detail_includes_top_20_result_geometries_for_map(db_client
     assert payload[19]["coordinates"] == [-76.0, 39.0]
 
 
-def test_organization_detail_omits_result_geometries_without_geography_filter(db_client):
+def test_organization_detail_omits_result_geometries_without_geography_filter(
+    db_client,
+):
     mock_org = type(
         "Org",
         (),
@@ -1872,15 +1895,21 @@ class TestContextualKeywordSuggestions:
         top_organizations=None,
         search_total=100,
     ):
-        """Build a mock interface with configurable contextual aggregations."""
+        """Build a mock interface with configurable contextual aggregations.
+
+        Aggregations are embedded directly on the SearchResult returned by
+        search_datasets, matching the route's use of include_aggregations=True.
+        """
         mock = Mock()
         mock.search_datasets.return_value = SearchResult(
-            total=search_total, results=[], search_after=None
+            total=search_total,
+            results=[],
+            search_after=None,
+            aggregations={
+                "keywords": contextual_keywords or [],
+                "organizations": contextual_orgs or [],
+            },
         )
-        mock.get_contextual_aggregations.return_value = {
-            "keywords": contextual_keywords or [],
-            "organizations": contextual_orgs or [],
-        }
         mock.get_top_organizations.return_value = top_organizations or []
         mock.count_all_datasets_in_search.return_value = search_total
         mock.get_organization_by_slug.return_value = None

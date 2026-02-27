@@ -64,6 +64,9 @@ class CatalogDBInterface:
         spatial_within=True,
         after=None,
         sort_by="relevance",
+        include_aggregations: bool = False,
+        keyword_size: int = 100,
+        org_size: int = 100,
         *args,
         **kwargs,
     ):
@@ -79,6 +82,10 @@ class CatalogDBInterface:
         "non-geospatial" to filter by presence of spatial data.
         spatial_geometry and spatial_within allow searching geographically for
         datasets. See OpenSearchInterface.search for details.
+
+        When `include_aggregations` is True, keyword and organization
+        aggregations are embedded in the same OpenSearch request and
+        returned via `SearchResult.aggregations`.
         """
         if after is not None:
             search_after = SearchResult.decode_search_after(after)
@@ -95,6 +102,9 @@ class CatalogDBInterface:
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
             sort_by=sort_by,
+            include_aggregations=include_aggregations,
+            keyword_size=keyword_size,
+            org_size=org_size,
         )
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
@@ -126,17 +136,20 @@ class CatalogDBInterface:
         Returns aggregations that reflect the current search query and filters,
         allowing for contextual filter counts.
         """
-        return self.opensearch.get_contextual_aggregations(
-            query=query,
+        result = self.search_datasets(
+            query,
+            keywords=keywords or [],
+            per_page=0,
             org_id=org_id,
             org_types=org_types,
-            keywords=keywords,
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
+            include_aggregations=True,
             keyword_size=keyword_size,
             org_size=org_size,
         )
+        return result.aggregations or {"keywords": [], "organizations": []}
 
     def search_locations(self, query, size=100):
         """
