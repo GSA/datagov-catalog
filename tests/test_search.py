@@ -244,7 +244,7 @@ class TestPhraseSearch:
         # Should find at least the fixture dataset with "test" in title
         assert result.total > 0
         assert len(result.results) > 0
-        
+
         # Verify all results belong to the specified organization
         for dataset in result.results:
             assert dataset["organization"]["id"] == org.id
@@ -320,10 +320,8 @@ class TestOrQuerySearch:
         # Should return results sorted by popularity
         assert result.total > 0
         assert len(result.results) > 0
-        
+
         # Verify results are sorted by popularity
-        popularities = [
-            dataset.get("popularity") or 0 for dataset in result.results
-        ]
+        popularities = [dataset.get("popularity") or 0 for dataset in result.results]
         # Should be in descending order
         assert popularities == sorted(popularities, reverse=True)
