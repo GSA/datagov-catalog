@@ -1,4 +1,5 @@
 # NOTE: Keep this file in sync between datagov-harvester and datagov-catalog
+
 ACTION_VALUES = ["create", "update", "delete"]
 
 FREQUENCY_VALUES = [
