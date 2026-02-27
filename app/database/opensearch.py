@@ -226,6 +226,11 @@ class OpenSearchInterface:
                     "organization_type": {"type": "keyword"},
                 },
             },
+            "distribution_titles": {
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
+            },
             "spatial_shape": {"type": "geo_shape", "ignore_malformed": True},
             "spatial_centroid": {"type": "geo_point"},
         }
@@ -485,6 +490,11 @@ class OpenSearchInterface:
             "identifier": dataset.dcat.get("identifier", ""),
             "has_spatial": has_spatial,
             "organization": dataset.organization.to_dict(),
+            "distribution_titles": [
+                dist["title"]
+                for dist in dataset.dcat.get("distribution", [])
+                if isinstance(dist, dict) and dist.get("title")
+            ],
             "popularity": (
                 dataset.popularity if dataset.popularity is not None else None
             ),
@@ -789,6 +799,7 @@ class OpenSearchInterface:
                     "keyword^2",
                     "theme",
                     "identifier",
+                    "distribution_titles^2",
                 ],
                 "operator": "AND",
                 "zero_terms_query": "all",
@@ -818,6 +829,11 @@ class OpenSearchInterface:
                     {"match_phrase": {"keyword": {"query": phrase_text, "boost": 2}}},
                     {"match_phrase": {"theme": {"query": phrase_text}}},
                     {"match_phrase": {"identifier": {"query": phrase_text}}},
+                    {
+                        "match_phrase": {
+                            "distribution_titles": {"query": phrase_text, "boost": 2}
+                        }
+                    },
                 ],
                 "minimum_should_match": 1,
             }
