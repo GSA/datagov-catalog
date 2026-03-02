@@ -474,7 +474,6 @@ class CatalogDBInterface:
             .all()
         )
 
-        organization_selector: list[dict[str, Any]] = []
         organization_type_metrics: dict[str, dict[str, int]] = {}
         excluded_org_types = {"Tribal", "Non-Profit", "University"}
 
@@ -498,28 +497,6 @@ class CatalogDBInterface:
             entry["harvestSources"] += harvest_sources_by_org_id.get(row.id, 0)
             organization_type_metrics[org_type] = entry
 
-        if counts_by_slug:
-            slugs = list(counts_by_slug.keys())
-            rows = (
-                self.db.query(
-                    Organization.id,
-                    Organization.slug,
-                    Organization.name,
-                )
-                .filter(Organization.slug.in_(slugs))
-                .all()
-            )
-
-            for row in rows:
-                selector_name = row.slug or row.id
-                organization_selector.append(
-                    {
-                        "name": selector_name,
-                        "display_name": row.name,
-                    }
-                )
-            organization_selector.sort(key=lambda item: item["name"].upper())
-
         age_bins = harvest_stats.get("age_bins", {})
         dataset_age_chart = [
             int(age_bins.get("older", 0)),
@@ -539,7 +516,6 @@ class CatalogDBInterface:
             for org_type, metric in sorted(organization_type_metrics.items())
         ]
         return {
-            "orgList": organization_selector,
             "results": {
                 "datasets": total_datasets,
             },

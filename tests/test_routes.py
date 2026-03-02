@@ -286,7 +286,6 @@ def test_get_stats_api_returns_data(db_client):
         "results": {"datasets": 123456},
         "metrics": {"orgBarMetric": "%5B%5D", "datasetsBarMetric": "%5B%5D"},
         "meta": {"date": "Thu, 01 Jan 2026 00:00:00 GMT"},
-        "orgList": [{"name": "agency-a", "display_name": "Agency A"}],
     }
 
     with patch("app.routes.interface", mock_interface):
