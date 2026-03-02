@@ -1,11 +1,11 @@
 """Jinja template filters for the catalog application."""
 
-import html
 import json
-import re
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
+import re
 from typing import Any, Union
+import html
 
 from bs4 import BeautifulSoup
 from flask import url_for
