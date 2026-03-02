@@ -158,8 +158,6 @@ def simplify_resource_type(text: str) -> str:
     match = re.search(pattern, text, flags=re.IGNORECASE)
     if match is not None:
         return match.group(0)
-
-
 def json_to_semantic_html(obj, indent=2, level=0):
     """
     render a Python dict/list as semantic JSON HTML
