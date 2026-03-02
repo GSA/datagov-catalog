@@ -799,6 +799,21 @@ def get_opensearch_health_api():
         )
 
 
+@main.route("/api/stats", methods=["GET"])
+def get_stats_api():
+    """Endpoint for stats consumers."""
+
+    try:
+        stats = interface.get_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.exception("Failed to fetch stats")
+        return (
+            jsonify({"error": "Failed to fetch stats", "message": str(e)}),
+            500,
+        )
+
+
 @main.route("/api/locations/search", methods=["GET"])
 def get_locations_api():
     """API endpoint to search location display names and ids.

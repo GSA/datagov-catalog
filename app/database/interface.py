@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+import json
 import logging
+import math
 from functools import wraps
 from typing import Any
+from urllib.parse import quote
 
 from sqlalchemy import func, or_
 
-from app.models import Dataset, HarvestRecord, Locations, Organization, db
+from app.models import (
+    Dataset,
+    HarvestRecord,
+    HarvestSource,
+    Locations,
+    Organization,
+    db,
+)
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
 from .opensearch import OpenSearchInterface, SearchResult
@@ -463,3 +474,110 @@ class CatalogDBInterface:
         Get the total number of datasets from our index
         """
         return self.opensearch.count_all_datasets()
+
+    @staticmethod
+    def _normalize_metric_count(number: int) -> float:
+        """feed the data the way 11ty chart wants it (log-scaled)"""
+        if number <= 0:
+            return 0.0
+        return math.log10(number)
+
+    @staticmethod
+    def _encode_metric_payload(payload: Any) -> str:
+        """ 11ty JS explicitly expects encoded data """
+        return quote(json.dumps(payload, separators=(",", ":")))
+
+    def get_stats(self) -> dict[str, Any]:
+        """Collect analytics stats without affecting search endpoint behavior.
+
+        This method is intentionally isolated from the `/search` request path so we can return
+        exact totals and chart metrics without changing search behavior (for example, without
+        enabling expensive total-hit tracking on normal user searches). The extra OpenSearch/DB
+        work is performed only when `/api/stats` is called.
+        """
+        total_datasets = self.count_all_datasets_in_search()
+        harvest_stats = self.opensearch.get_last_harvested_stats()
+        counts_by_slug = self.get_opensearch_org_dataset_counts(as_dict=True)
+        harvest_sources_by_org_id = dict(
+            self.db.query(HarvestSource.organization_id, func.count(HarvestSource.id))
+            .group_by(HarvestSource.organization_id)
+            .all()
+        )
+
+        organization_selector: list[dict[str, Any]] = []
+        organization_type_metrics: dict[str, dict[str, int]] = {}
+        excluded_org_types = {"Tribal", "Non-Profit", "University"}
+
+        all_org_rows = self.db.query(
+            Organization.id,
+            Organization.slug,
+            Organization.name,
+            Organization.organization_type,
+        ).all()
+
+        for row in all_org_rows:
+            org_type = row.organization_type
+            if org_type in excluded_org_types or org_type is None:
+                continue
+            entry = organization_type_metrics.get(
+                org_type,
+                {"agencies": 0, "packages": 0, "harvestSources": 0},
+            )
+            entry["agencies"] += 1
+            entry["packages"] += counts_by_slug.get(row.slug, 0)
+            entry["harvestSources"] += harvest_sources_by_org_id.get(row.id, 0)
+            organization_type_metrics[org_type] = entry
+
+        if counts_by_slug:
+            slugs = list(counts_by_slug.keys())
+            rows = (
+                self.db.query(
+                    Organization.id,
+                    Organization.slug,
+                    Organization.name,
+                )
+                .filter(Organization.slug.in_(slugs))
+                .all()
+            )
+
+            for row in rows:
+                selector_name = row.slug or row.id
+                organization_selector.append(
+                    {
+                        "name": selector_name,
+                        "display_name": row.name,
+                    }
+                )
+            organization_selector.sort(key=lambda item: item["name"].upper())
+
+        age_bins = harvest_stats.get("age_bins", {})
+        dataset_age_chart = [
+            int(age_bins.get("older", 0)),
+            int(age_bins.get("last_year", 0)),
+            int(age_bins.get("last_month", 0)),
+            int(age_bins.get("last_week", 0)),
+        ]
+        org_metric_rows = [
+            {
+                "label": org_type,
+                "data": [
+                    self._normalize_metric_count(metric["agencies"]),
+                    self._normalize_metric_count(metric["packages"]),
+                    self._normalize_metric_count(metric["harvestSources"]),
+                ],
+            }
+            for org_type, metric in sorted(organization_type_metrics.items())
+        ]
+        return {
+            "orgList": organization_selector,
+            "results": {
+                "datasets": total_datasets,
+            },
+            "metrics": {
+                "orgBarMetric": self._encode_metric_payload(org_metric_rows),
+                "datasetsBarMetric": self._encode_metric_payload(
+                    [{"data": dataset_age_chart}]
+                ),
+            },
+            "meta": {"date": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")},
+        }

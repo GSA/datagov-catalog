@@ -290,6 +290,40 @@ def test_get_opensearch_health_api_handles_errors(db_client):
     assert data["error"] == "Failed to fetch OpenSearch cluster health"
 
 
+def test_get_stats_api_returns_data(db_client):
+    mock_interface = Mock()
+    mock_interface.get_stats.return_value = {
+        "results": {"datasets": 123456},
+        "metrics": {"orgBarMetric": "%5B%5D", "datasetsBarMetric": "%5B%5D"},
+        "meta": {"date": "Thu, 01 Jan 2026 00:00:00 GMT"},
+        "orgList": [{"name": "agency-a", "display_name": "Agency A"}],
+    }
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/stats")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["results"]["datasets"] == 123456
+    mock_interface.get_stats.assert_called_once_with()
+
+
+def test_get_stats_api_defaults(db_client):
+    mock_interface = Mock()
+    mock_interface.get_stats.return_value = {
+        "results": {"datasets": 1},
+        "metrics": {"orgBarMetric": "%5B%5D", "datasetsBarMetric": "%5B%5D"},
+        "meta": {"date": "Thu, 01 Jan 2026 00:00:00 GMT"},
+        "orgList": [],
+    }
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/stats")
+
+    assert response.status_code == 200
+    mock_interface.get_stats.assert_called_once_with()
+
+
 def test_search_api_spatial_geometry(interface_with_dataset, db_client):
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
