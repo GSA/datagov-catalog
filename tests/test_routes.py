@@ -1143,6 +1143,11 @@ def test_index_page_has_filters_sidebar(db_client):
     # Check sort has popularity option
     popularity_option = soup.find("option", {"value": "popularity"})
     assert popularity_option is not None
+
+    # Check sort has last_harvested_date option
+    last_harvested_option = soup.find("option", {"value": "last_harvested_date"})
+    assert last_harvested_option is not None
+
     # Check sort has distance option (disabled without geography)
     distance_option = soup.find("option", {"value": "distance"})
     assert distance_option is not None
@@ -1204,6 +1209,27 @@ def test_index_page_popularity_sort_preserved(db_client):
     hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
     assert hidden_sort_input is not None
     assert hidden_sort_input.get("value") == "popularity"
+
+
+def test_index_page_last_harvested_sort_preserved(db_client):
+    """Test that last_harvested_date sort selection is preserved between requests."""
+    response = db_client.get("/?q=climate&per_page=10&sort=last_harvested_date")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    sort_select = soup.find("select", {"name": "sort", "id": "sort-select"})
+    assert sort_select is not None
+
+    last_harvested_option = sort_select.find(
+        "option", {"value": "last_harvested_date"}
+    )
+    assert last_harvested_option is not None
+    assert "selected" in last_harvested_option.attrs
+
+    hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
+    assert hidden_sort_input is not None
+    assert hidden_sort_input.get("value") == "last_harvested_date"
 
 
 def test_index_page_lists_results_without_query(db_client):
@@ -1303,6 +1329,47 @@ def test_index_search_result_includes_dataset_link(interface_with_dataset, db_cl
 
     # dataset link should include a from_hint
     assert "from_hint=" in dataset_link.get("href")
+
+
+def test_index_search_result_includes_published_on_in_metrics_line(db_client):
+    mock_dataset = {
+        "id": "mock-id",
+        "slug": "mock-slug",
+        "dcat": {
+            "title": "Mock Dataset",
+            "description": "Mock description",
+            "distribution": [],
+        },
+        "organization": {
+            "id": "org-id",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+        },
+        "_score": 1.0,
+        "popularity": 0,
+        "last_harvested_date": "2024-01-15T12:30:00",
+    }
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1, results=[mock_dataset], search_after=None
+    )
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/?q=test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    first_item = soup.find("li", class_="usa-collection__item")
+    assert first_item is not None
+    metadata_line = first_item.find("small", class_="text-base-dark")
+    assert metadata_line is not None
+    assert (
+        "Search relevance: 1.00 | Views last month: 0 | Published on: 2024-01-15"
+        in metadata_line.get_text(" ", strip=True)
+    )
 
 
 def test_index_pagination_preserves_query_params(interface_with_dataset, db_client):
