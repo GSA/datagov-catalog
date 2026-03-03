@@ -849,6 +849,11 @@ def get_location_by_id_api(location_id, **kwargs):
     )
 
 
+@main.route("/openapi/docs", methods=["GET"])
+def openapi_docs():
+    return render_template("swagger.html")
+
+
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
