@@ -14,7 +14,8 @@ def test_lt_or_gt_not_removed():
 
 class TestSimplifyResourceType:
     """
-    Tests to ensure 
+    Tests for `simplify_resource_type`. We should either get a supported 
+    str based from the regex or a None value.
     """
 
     def test_mime_type_xml(self):
