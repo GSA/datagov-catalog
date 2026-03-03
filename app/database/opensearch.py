@@ -469,7 +469,7 @@ class OpenSearchInterface:
             "organization": dataset.organization.to_dict(),
             "distribution_titles": [
                 dist["title"]
-                for dist in dataset.dcat.get("distribution", [])
+                for dist in (dataset.dcat.get("distribution") or [])
                 if isinstance(dist, dict) and dist.get("title")
             ],
             "popularity": (
