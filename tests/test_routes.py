@@ -1097,6 +1097,11 @@ def test_index_page_has_filters_sidebar(db_client):
     # Check sort has popularity option
     popularity_option = soup.find("option", {"value": "popularity"})
     assert popularity_option is not None
+
+    # Check sort has last_harvested_date option
+    last_harvested_option = soup.find("option", {"value": "last_harvested_date"})
+    assert last_harvested_option is not None
+
     # Check sort has distance option (disabled without geography)
     distance_option = soup.find("option", {"value": "distance"})
     assert distance_option is not None
@@ -1158,6 +1163,27 @@ def test_index_page_popularity_sort_preserved(db_client):
     hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
     assert hidden_sort_input is not None
     assert hidden_sort_input.get("value") == "popularity"
+
+
+def test_index_page_last_harvested_sort_preserved(db_client):
+    """Test that last_harvested_date sort selection is preserved between requests."""
+    response = db_client.get("/?q=climate&per_page=10&sort=last_harvested_date")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    sort_select = soup.find("select", {"name": "sort", "id": "sort-select"})
+    assert sort_select is not None
+
+    last_harvested_option = sort_select.find(
+        "option", {"value": "last_harvested_date"}
+    )
+    assert last_harvested_option is not None
+    assert "selected" in last_harvested_option.attrs
+
+    hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
+    assert hidden_sort_input is not None
+    assert hidden_sort_input.get("value") == "last_harvested_date"
 
 
 def test_index_page_lists_results_without_query(db_client):

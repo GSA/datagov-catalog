@@ -439,6 +439,17 @@ def test_distance_sort_uses_geo_distance():
     assert sort_clause[0]["_geo_distance"]["order"] == "asc"
 
 
+def test_last_harvested_date_sort_uses_latest_first():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    sort_clause = client._build_sort_clause("last_harvested_date")
+    assert sort_clause == [
+        {"last_harvested_date": {"order": "desc", "missing": "_last"}},
+        {"_score": {"order": "desc"}},
+        {"popularity": {"order": "desc", "missing": "_last"}},
+        {"_id": {"order": "desc"}},
+    ]
+
+
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
     interface = OpenSearchInterface.__new__(OpenSearchInterface)
     monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)

@@ -663,7 +663,7 @@ class OpenSearchInterface:
 
         return (succeeded, failed, errors)
 
-    # allow sort_by values: distance, popularity, relevance
+    # allow sort_by values: distance, popularity, relevance, last_harvested_date
     # optionalsort_point can be passed as a keyword argument
     def _build_sort_clause(
         self, sort_by: str, *, sort_point: dict | None = None
@@ -694,6 +694,14 @@ class OpenSearchInterface:
             return [
                 {"popularity": {"order": "desc", "missing": "_last"}},
                 {"_score": {"order": "desc"}},
+                {"_id": {"order": "desc"}},
+            ]
+
+        if sort_key == "last_harvested_date":
+            return [
+                {"last_harvested_date": {"order": "desc", "missing": "_last"}},
+                {"_score": {"order": "desc"}},
+                {"popularity": {"order": "desc", "missing": "_last"}},
                 {"_id": {"order": "desc"}},
             ]
 
