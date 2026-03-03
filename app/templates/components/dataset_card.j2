@@ -4,6 +4,11 @@
 {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
 {% set updated_display = dataset_meta.get('modified') %}
 {% set view_count = dataset.get('popularity') %}
+{% set published_on = dataset.get('last_harvested_date') %}
+{% set published_on_text = none %}
+{% if published_on is not none %}
+  {% set published_on_text = '%s' % published_on %}
+{% endif %}
 {% set sort_values = dataset.get('_sort') %}
 {% set distance_km = none %}
 {% if allow_distance %}
@@ -76,23 +81,30 @@
           </ul>
           {% endif %}
           {% set search_score = dataset.get('_score') %}
-          {% if search_score is not none or view_count is not none or distance_km is not none %}
+          {% set has_score_or_views = search_score is not none or view_count is not none %}
+          {% if has_score_or_views or published_on_text is not none or distance_km is not none %}
           <div class="margin-top-1">
               <small class="text-base-dark">
-                  {% if search_score is not none %}
-                    {% if view_count is not none %}
-                      Search relevance: {{ '%.2f' % search_score }} | Views last month: {{ view_count }}
+                  {% if has_score_or_views %}
+                    {% if search_score is not none %}
+                      {% if view_count is not none %}
+                        Search relevance: {{ '%.2f' % search_score }} | Views last month: {{ view_count }}
+                      {% else %}
+                        Search relevance: {{ '%.2f' % search_score }}
+                      {% endif %}
                     {% else %}
-                      Search relevance: {{ '%.2f' % search_score }}
+                      {% if view_count is not none %}
+                        Views last month: {{ view_count }}
+                      {% endif %}
                     {% endif %}
-                  {% else %}
-                    {% if view_count is not none %}
-                      Views last month: {{ view_count }}
-                    {% endif %}
+                  {% endif %}
+                  {% if published_on_text is not none %}
+                    {% if has_score_or_views %} | {% endif %}
+                    Published on: {{ published_on_text[:10] }}
                   {% endif %}
                   {% if distance_km is not none %}
                     {% set distance_mi = distance_km * 0.621371 %}
-                    {% if search_score is not none or view_count is not none %} | {% endif %}
+                    {% if has_score_or_views or published_on_text is not none %} | {% endif %}
                     Distance: {{ '%.1f' % distance_mi }} mi
                   {% endif %}
               </small>
