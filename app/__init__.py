@@ -4,7 +4,7 @@ from pathlib import Path
 
 import newrelic.agent
 from dotenv import load_dotenv
-from flask import Flask
+from apiflask import APIFlask
 from flask_htmx import HTMX
 from flask_talisman import Talisman
 
@@ -33,8 +33,13 @@ load_dotenv()
 htmx = None
 
 
-def create_app(config_name: str = "local") -> Flask:
-    app = Flask(__name__, static_url_path="", static_folder="static")
+def create_app(config_name: str = "local") -> APIFlask:
+    app = APIFlask(__name__, static_url_path="", static_folder="static", docs_path=None)
+
+    app.config["INFO"] = {
+        "title": "Datagov Catalog",
+        "version": "0.1.0",
+    }
 
     app.config["PREFERRED_URL_SCHEME"] = "https"
     # enable template hot template reloading in local
