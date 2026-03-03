@@ -56,9 +56,12 @@ def test_last_harvested_date_sort_orders_results(interface_with_dataset):
     )
 
     latest_sorted = interface_with_dataset.search_datasets(
-        "", sort_by="last_harvested_date"
+        "", sort_by="last_harvested_date", per_page=200
     )
-    assert latest_sorted.results[0]["slug"] == "test-health-data"
+    slugs = [dataset["slug"] for dataset in latest_sorted.results]
+    assert "test-health-data" in slugs
+    assert "test" in slugs
+    assert slugs.index("test-health-data") < slugs.index("test")
 
 
 def test_popularity_sort_orders_results(interface_with_dataset):

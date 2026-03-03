@@ -81,32 +81,27 @@
           </ul>
           {% endif %}
           {% set search_score = dataset.get('_score') %}
-          {% set has_score_or_views = search_score is not none or view_count is not none %}
-          {% if has_score_or_views or published_on_text is not none or distance_km is not none %}
+          {% set metric_parts = [] %}
+          {% if search_score is not none %}
+            {% if view_count is not none %}
+              {% set _ = metric_parts.append("Search relevance: %.2f | Views last month: %s" % (search_score, view_count)) %}
+            {% else %}
+              {% set _ = metric_parts.append("Search relevance: %.2f" % search_score) %}
+            {% endif %}
+          {% elif view_count is not none %}
+            {% set _ = metric_parts.append("Views last month: %s" % view_count) %}
+          {% endif %}
+          {% if published_on_text is not none %}
+            {% set _ = metric_parts.append("Published on: %s" % published_on_text[:10]) %}
+          {% endif %}
+          {% if distance_km is not none %}
+            {% set distance_mi = distance_km * 0.621371 %}
+            {% set _ = metric_parts.append("Distance: %.1f mi" % distance_mi) %}
+          {% endif %}
+          {% if metric_parts %}
           <div class="margin-top-1">
               <small class="text-base-dark">
-                  {% if has_score_or_views %}
-                    {% if search_score is not none %}
-                      {% if view_count is not none %}
-                        Search relevance: {{ '%.2f' % search_score }} | Views last month: {{ view_count }}
-                      {% else %}
-                        Search relevance: {{ '%.2f' % search_score }}
-                      {% endif %}
-                    {% else %}
-                      {% if view_count is not none %}
-                        Views last month: {{ view_count }}
-                      {% endif %}
-                    {% endif %}
-                  {% endif %}
-                  {% if published_on_text is not none %}
-                    {% if has_score_or_views %} | {% endif %}
-                    Published on: {{ published_on_text[:10] }}
-                  {% endif %}
-                  {% if distance_km is not none %}
-                    {% set distance_mi = distance_km * 0.621371 %}
-                    {% if has_score_or_views or published_on_text is not none %} | {% endif %}
-                    Distance: {{ '%.1f' % distance_mi }} mi
-                  {% endif %}
+                  {{ metric_parts | join(' | ') }}
               </small>
           </div>
           {% endif %}
