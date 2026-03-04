@@ -44,16 +44,29 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
     assert len(response.json) > 0
     assert "results" in response.json
 
-def test_search_api_response_containes_harvest_record_url(interface_with_dataset, db_client):
+
+def test_search_api_response_containes_harvest_record_url(
+    interface_with_dataset, db_client
+):
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
     )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
-    assert response.json["results"][0]["harvest_record"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
-    assert response.json["results"][0]["harvest_record_raw"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/raw"
-    assert response.json["results"][0]["harvest_record_transformed"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/transformed"
+    assert (
+        response.json["results"][0]["harvest_record"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+    )
+    assert (
+        response.json["results"][0]["harvest_record_raw"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/raw"
+    )
+    assert (
+        response.json["results"][0]["harvest_record_transformed"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/transformed"
+    )
+
 
 def test_search_api_pagination(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -354,7 +367,9 @@ def test_index_includes_top_20_result_geometries_for_map(db_client):
     polygon_escaped = quote(polygon_json)
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get("/", query_string={"spatial_geometry": polygon_escaped})
+        response = db_client.get(
+            "/", query_string={"spatial_geometry": polygon_escaped}
+        )
 
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
@@ -572,7 +587,9 @@ def test_organization_detail_includes_top_20_result_geometries_for_map(db_client
     assert payload[19]["coordinates"] == [-76.0, 39.0]
 
 
-def test_organization_detail_omits_result_geometries_without_geography_filter(db_client):
+def test_organization_detail_omits_result_geometries_without_geography_filter(
+    db_client,
+):
     mock_org = type(
         "Org",
         (),
@@ -848,21 +865,81 @@ def test_index_page_renders(db_client):
     assert line_arrow is not None
 
 
+def test_resource_chip_defaults_to_html(db_client):
+    """
+    Have it so resource chip is passed None in the template and that
+    the template renders HTML by default.
+    """
+
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organization_by_slug.return_value = None
+    # set up a dataset with an unexpected file type
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1,
+        results=[
+            {
+                "id": "fruit-and-tree-nuts-data-id",
+                "slug": "fruit-and-tree-nuts-data",
+                "dcat": {
+                    "title": "Fruit and Tree Nuts Data",
+                    "description": "USDA data on fruit and tree nut production.",
+                    "distribution": [
+                        {
+                            "title": "Fruit and Tree Nuts Shapefile",
+                            "format": "shp",
+                            "downloadURL": "https://example.com/fruit-tree-nuts.shp",
+                        }
+                    ],
+                },
+                "organization": {
+                    "name": "Department of Agriculture",
+                    "slug": "department-of-agriculture",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": None,
+            }
+        ],
+        search_after=None,
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    format_link = soup.find(
+        "a",
+        attrs={
+            "data-format": "html",
+            "data-organization": "Department of Agriculture",
+        },
+    )
+    assert format_link is not None
+
+    assert format_link.get("href") == "/dataset/fruit-and-tree-nuts-data"
+    assert format_link.get_text(strip=True).lower() == "html"
+
+
 def test_index_page_meta_tags(db_client):
     # meta tags are there
     response = db_client.get("/")
     soup = BeautifulSoup(response.text, "html.parser")
-    assert all(soup.select_one(selector) is not None for selector in [
-        'meta[property="og:title"]',
-        'meta[property="og:description"]',
-        'meta[property="og:url"]',
-        'meta[property="og:image"]',
-        'meta[name="twitter:title"]',
-        'meta[name="twitter:description"]',
-        'meta[name="twitter:url"]',
-        'meta[name="twitter:image"]',
-    ])
-
+    assert all(
+        soup.select_one(selector) is not None
+        for selector in [
+            'meta[property="og:title"]',
+            'meta[property="og:description"]',
+            'meta[property="og:url"]',
+            'meta[property="og:image"]',
+            'meta[name="twitter:title"]',
+            'meta[name="twitter:description"]',
+            'meta[name="twitter:url"]',
+            'meta[name="twitter:image"]',
+        ]
+    )
 
 
 def test_index_page_includes_dataset_total(db_client, interface_with_dataset):

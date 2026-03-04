@@ -1,4 +1,4 @@
-from app.filters import remove_html_tags
+from app.filters import remove_html_tags, simplify_resource_type
 
 
 def test_remove_html_tags(html_tags_within_text):
@@ -10,3 +10,25 @@ def test_remove_html_tags(html_tags_within_text):
 
 def test_lt_or_gt_not_removed():
     assert remove_html_tags("in x < 0, but also y > 0") == "in x < 0, but also y > 0"
+
+
+class TestSimplifyResourceType:
+    """
+    Tests for `simplify_resource_type`. We should either get a supported 
+    str based from the regex or a None value.
+    """
+
+    def test_mime_type_xml(self):
+        assert simplify_resource_type("application/xml") == "xml"
+
+    def test_bare_extension(self):
+        assert simplify_resource_type("PDF") == "PDF"
+
+    def test_unused_string_returns_none(self):
+        assert simplify_resource_type("shp") is None
+
+    def test_empty_string_returns_none(self):
+        assert simplify_resource_type("") is None
+
+    def test_none_returns_none(self):
+        assert simplify_resource_type(None) is None
