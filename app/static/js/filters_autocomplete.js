@@ -348,7 +348,6 @@ class OrganizationAutocomplete {
         this.formId = options.formId;
         this.mainSearchFormId = options.mainSearchFormId;
         this.debounceDelay = options.debounceDelay || 300;
-        this.requestSize = options.requestSize || 500;
         this.suggestedContainerId = options.suggestedContainerId || 'suggested-organizations';
 
         this.input = document.getElementById(this.inputId);
@@ -440,7 +439,7 @@ class OrganizationAutocomplete {
 
     async loadOrganizations() {
         try {
-            const response = await fetch(`${this.apiEndpoint}?size=${this.requestSize}`);
+            const response = await fetch(this.apiEndpoint);
             const data = await response.json();
             const organizations = data.organizations || [];
             this.organizations = organizations
@@ -749,7 +748,6 @@ document.addEventListener('DOMContentLoaded', () => {
             mainSearchFormId: 'main-search-form',
             apiEndpoint: '/api/organizations',
             debounceDelay: 300,
-            requestSize: 500,
             suggestedContainerId: 'suggested-organizations'
         });
     }

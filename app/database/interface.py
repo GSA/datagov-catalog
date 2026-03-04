@@ -271,22 +271,21 @@ class CatalogDBInterface:
         # ensure the requested size is always slightly bigger than what we have
         return self.opensearch.get_organization_counts(size=total + 1, as_dict=as_dict)
 
-    def get_top_organizations(self, limit: int = 10) -> list[dict]:
+    def get_organizations(self) -> list[dict]:
         """Return organizations ordered by dataset count, using OpenSearch counts."""
-        limit = max(min(limit, 100), 1)
-
         try:
-            org_counts = self.opensearch.get_organization_counts(size=limit)
+            total = self._organization_query(ignore_empty_orgs=True).count()
+            org_counts = self.opensearch.get_organization_counts(size=total + 1)
         except Exception:
             logger.exception("Failed to fetch organization counts from OpenSearch")
-            return self._get_top_organizations_from_db(limit)
+            return self._get_organizations_from_db()
 
         if not org_counts:
-            return self._get_top_organizations_from_db(limit)
+            return self._get_organizations_from_db()
 
         slugs = [entry["slug"] for entry in org_counts if entry.get("slug")]
         if not slugs:
-            return self._get_top_organizations_from_db(limit)
+            return self._get_organizations_from_db()
 
         organizations = (
             self.db.query(Organization).filter(Organization.slug.in_(slugs)).all()
@@ -315,9 +314,9 @@ class CatalogDBInterface:
         if hydrated:
             return hydrated
 
-        return self._get_top_organizations_from_db(limit)
+        return self._get_organizations_from_db()
 
-    def _get_top_organizations_from_db(self, limit: int) -> list[dict]:
+    def _get_organizations_from_db(self) -> list[dict]:
         rows = (
             self.db.query(
                 Organization.id,
@@ -336,7 +335,6 @@ class CatalogDBInterface:
                 Organization.aliases,
             )
             .order_by(func.count(Dataset.id).desc())
-            .limit(limit)
             .all()
         )
 

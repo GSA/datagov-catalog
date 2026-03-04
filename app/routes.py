@@ -266,14 +266,14 @@ def index():
 
     if not org_slug_param:
         try:
-            org_suggestions = interface.get_top_organizations(limit=10)
+            org_suggestions = interface.get_organizations()
         except Exception:
             logger.exception("Failed to fetch suggested organizations")
         else:
             if isinstance(org_suggestions, Iterable) and not isinstance(
                 org_suggestions, (str, bytes)
             ):
-                suggested_organizations = list(org_suggestions)
+                suggested_organizations = list(org_suggestions)[:10]
             elif org_suggestions not in (None, []):
                 logger.warning(
                     "Suggested organizations response is not iterable; ignoring",
@@ -704,16 +704,12 @@ def get_keywords_api():
 def get_organizations_api():
     """API endpoint to fetch organizations for autocomplete suggestions."""
 
-    size = request.args.get("size", 100, type=int)
-    size = max(min(size, 1000), 1)
-
     try:
-        organizations = interface.get_top_organizations(limit=size)
+        organizations = interface.get_organizations()
         return jsonify(
             {
                 "organizations": organizations,
                 "total": len(organizations),
-                "size": size,
             }
         )
     except Exception as e:
