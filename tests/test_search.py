@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime
 
 from app.database.opensearch import OpenSearchInterface
 from app.models import Dataset
@@ -32,6 +33,35 @@ def test_search_popularity_sort(interface_with_dataset):
     """Search returns results when using the popularity sort."""
     result = interface_with_dataset.search_datasets("test", sort_by="popularity")
     assert len(result) > 0
+
+
+def test_search_last_harvested_date_sort(interface_with_dataset):
+    """Search returns results when using last harvested date sort."""
+    result = interface_with_dataset.search_datasets(
+        "test", sort_by="last_harvested_date"
+    )
+    assert len(result) > 0
+
+
+def test_last_harvested_date_sort_orders_results(interface_with_dataset):
+    """Explicit last harvested date sorting returns newest datasets first."""
+    older_dataset = interface_with_dataset.get_dataset_by_slug("test")
+    newer_dataset = interface_with_dataset.get_dataset_by_slug("test-health-data")
+
+    older_dataset.last_harvested_date = datetime(2024, 1, 1)
+    newer_dataset.last_harvested_date = datetime(2025, 1, 1)
+    interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    latest_sorted = interface_with_dataset.search_datasets(
+        "", sort_by="last_harvested_date", per_page=200
+    )
+    slugs = [dataset["slug"] for dataset in latest_sorted.results]
+    assert "test-health-data" in slugs
+    assert "test" in slugs
+    assert slugs.index("test-health-data") < slugs.index("test")
 
 
 def test_popularity_sort_orders_results(interface_with_dataset):
