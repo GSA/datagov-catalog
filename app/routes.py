@@ -844,7 +844,7 @@ def get_stats_api():
         logger.exception("Failed to fetch stats")
         response = jsonify({"error": "Failed to fetch stats", "message": str(e)}),
         response.status_code = 500
-        return reponse
+        return response
 
 @api.get("/api/locations/search")
 @api.output(LocationsResults)
