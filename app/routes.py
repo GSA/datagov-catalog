@@ -6,6 +6,7 @@ from math import ceil
 from urllib.parse import unquote
 from xml.etree import ElementTree
 
+from apiflask import APIBlueprint
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
@@ -26,10 +27,25 @@ from .sitemap_s3 import (
     get_sitemap_s3_config,
 )
 from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_required
+from .api_schemas import (
+    KeywordsQuery,
+    KeywordsResults,
+    LocationDetail,
+    LocationId,
+    LocationsQuery,
+    LocationsResults,
+    OpensearchHealth,
+    OrganizationsQuery,
+    OrganizationsResults,
+    SearchResults,
+    SearchQuery,
+    StatsResult,
+)
 
 logger = logging.getLogger(__name__)
 
 main = Blueprint("main", __name__)
+api = APIBlueprint("api", __name__)
 
 # Login authentication
 load_dotenv()
@@ -365,8 +381,18 @@ def index():
     )
 
 
-@main.route("/search", methods=["GET"])
-def search():
+@api.get("/search")
+@api.input(SearchQuery, location="query", validation=False)
+@api.doc(
+    description="Search the catalog for datasets based on query parameters",
+    responses={  # HTMX return is optional, so manually document
+        200: {
+            "description": "Dataset search results",
+            "content": {"application/json": {"schema": SearchResults}},
+        }
+    },
+)
+def search(**kwargs):
     """Search for datasets.
 
     The search argument is `q`: `/search?q=search%20term`.
@@ -719,9 +745,12 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     )
 
 
-@main.route("/api/keywords", methods=["GET"])
-def get_keywords_api():
-    """API endpoint to get unique keywords with counts.
+@api.get("/api/keywords")
+@api.input(KeywordsQuery, location="query", validation=False)
+@api.output(KeywordsResults)
+@api.doc(description="Get a list of the most popular keywords and how often they occur")
+def get_keywords_api(**kwargs):
+    """Get unique keywords with counts.
 
     Query parameters:
         size: Maximum number of keywords to return (default 100, max 1000)
@@ -754,9 +783,12 @@ def get_keywords_api():
         return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
 
 
-@main.route("/api/organizations", methods=["GET"])
-def get_organizations_api():
-    """API endpoint to fetch organizations for autocomplete suggestions."""
+@api.route("/api/organizations", methods=["GET"])
+@api.input(OrganizationsQuery, location="query", validation=False)
+@api.output(OrganizationsResults)
+@api.doc(description="Get a list of the organizations for autocomplete")
+def get_organizations_api(**kwargs):
+    """Fetch organizations for autocomplete suggestions."""
 
     size = request.args.get("size", 100, type=int)
     size = max(min(size, 1000), 1)
@@ -771,15 +803,17 @@ def get_organizations_api():
             }
         )
     except Exception as e:
-        return (
-            jsonify({"error": "Failed to fetch organizations", "message": str(e)}),
-            500,
+        response = jsonify(
+            {"error": "Failed to fetch organizations", "message": str(e)}
         )
+        response.status_code = 500
+        return response
 
 
-@main.route("/api/opensearch/health", methods=["GET"])
+@api.get("/api/opensearch/health")
+@api.output(OpensearchHealth)
 def get_opensearch_health_api():
-    """API endpoint to fetch OpenSearch cluster health."""
+    """Fetch OpenSearch cluster health."""
 
     try:
         health = interface.opensearch.client.cluster.health()
@@ -787,19 +821,19 @@ def get_opensearch_health_api():
         return jsonify({"status": status})
     except Exception as e:
         logger.exception("Failed to fetch OpenSearch cluster health")
-        return (
-            jsonify(
-                {
-                    "status": "unknown",
-                    "error": "Failed to fetch OpenSearch cluster health",
-                    "message": str(e),
-                }
-            ),
-            500,
+        response = jsonify(
+            {
+                "status": "unknown",
+                "error": "Failed to fetch OpenSearch cluster health",
+                "message": str(e),
+            }
         )
+        response.status_code = 500
+        return response
 
 
-@main.route("/api/stats", methods=["GET"])
+@api.get("/api/stats")
+@api.output(StatsResult)
 def get_stats_api():
     """Endpoint for stats consumers."""
 
@@ -808,15 +842,18 @@ def get_stats_api():
         return jsonify(stats)
     except Exception as e:
         logger.exception("Failed to fetch stats")
-        return (
-            jsonify({"error": "Failed to fetch stats", "message": str(e)}),
-            500,
-        )
+        response = jsonify({"error": "Failed to fetch stats", "message": str(e)}),
+        response.status_code = 500
+        return reponse
 
-
-@main.route("/api/locations/search", methods=["GET"])
-def get_locations_api():
-    """API endpoint to search location display names and ids.
+@api.get("/api/locations/search")
+@api.output(LocationsResults)
+@api.input(LocationsQuery, location="query", validation=False)
+@api.doc(
+    description="For autocomplete, we use an API to search our locations database for the typed query"
+)
+def get_locations_api(**kwargs):
+    """Search location display names and ids.
 
     Query parameters:
         q: the text to search for in display names
@@ -853,9 +890,14 @@ def get_locations_api():
         return jsonify({"error": "Failed to fetch locations", "message": str(e)}), 400
 
 
-@main.route("/api/location/<location_id>", methods=["GET"])
-def get_location_by_id_api(location_id):
-    """API endpoint to get geometry for one location
+@api.get("/api/location/<location_id>")
+@api.input(LocationId, location="path", validation=False)
+@api.output(LocationDetail)
+@api.doc(
+    description="To display a location client-side, this gives us the location's geometry."
+)
+def get_location_by_id_api(location_id, **kwargs):
+    """Get geometry for one location
 
     Returns:
         JSON with at least a "geometry" with the location's GeoJSON.
@@ -871,5 +913,11 @@ def get_location_by_id_api(location_id):
     )
 
 
+@main.route("/openapi/docs", methods=["GET"])
+def openapi_docs():
+    return render_template("swagger.html")
+
+
 def register_routes(app):
     app.register_blueprint(main)
+    app.register_blueprint(api)
