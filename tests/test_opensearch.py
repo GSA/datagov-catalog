@@ -1,14 +1,13 @@
 from datetime import date, datetime
+from unittest.mock import Mock
 
 import pytest
 from opensearchpy.exceptions import ConnectionTimeout
 
 import app.database.opensearch as opensearch_module
+from app import create_app
 from app.database import OpenSearchInterface
 from app.models import Dataset
-from app import create_app
-
-from unittest.mock import Mock
 
 
 class TestOpenSearch:
@@ -432,9 +431,7 @@ class TestOpenSearchMappings:
             "normalizer", {}
         )
 
-        assert (
-            OpenSearchInterface.KEYWORD_NORMALIZER in normalizers
-        )
+        assert OpenSearchInterface.KEYWORD_NORMALIZER in normalizers
         normalizer_cfg = normalizers[OpenSearchInterface.KEYWORD_NORMALIZER]
         assert normalizer_cfg["type"] == "custom"
         assert "lowercase" in normalizer_cfg["filter"]
@@ -507,15 +504,11 @@ class TestCaseInsensitiveKeywords:
 
         # Filtering with the lowercase form must still find the document.
         result_lower = opensearch_client.search("", keywords=["environment"])
-        assert (
-            len(result_lower.results) == 1
-        )
+        assert len(result_lower.results) == 1
 
         # Filtering with the original Title Case form must also work.
         result_title = opensearch_client.search("", keywords=["Environment"])
-        assert (
-            len(result_title.results) == 1
-        )
+        assert len(result_title.results) == 1
 
         # An unrelated keyword must return 0.
         result_none = opensearch_client.search("", keywords=["unrelated"])
@@ -545,9 +538,7 @@ class TestCaseInsensitiveKeywords:
         # "ENVIRONMENT", "Environment", and "eNvIrOnMeNt" should all match.
         for variant in ("ENVIRONMENT", "Environment", "eNvIrOnMeNt"):
             result = opensearch_client.search("", keywords=[variant])
-            assert (
-                len(result.results) == 1
-            )
+            assert len(result.results) == 1
 
     def test_get_unique_keywords_combines_case_variants(
         self, dbapp, opensearch_client, mock_organization
@@ -580,12 +571,9 @@ class TestCaseInsensitiveKeywords:
 
         # Both variants must collapse into one bucket.
         env_buckets = [k for k in keywords if k["keyword"] == "environment"]
-        assert (
-            len(env_buckets) == 1
-        )
-        assert (
-            env_buckets[0]["count"] == 2
-        )
+        assert len(env_buckets) == 1
+        assert env_buckets[0]["count"] == 2
+
 
 def test_relevance_sort_uses_popularity_tie_breaker():
     client = OpenSearchInterface.__new__(OpenSearchInterface)
