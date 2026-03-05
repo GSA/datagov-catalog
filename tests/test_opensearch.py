@@ -1,14 +1,13 @@
 from datetime import date, datetime
+from unittest.mock import Mock
 
 import pytest
 from opensearchpy.exceptions import ConnectionTimeout
 
 import app.database.opensearch as opensearch_module
+from app import create_app
 from app.database import OpenSearchInterface
 from app.models import Dataset
-from app import create_app
-
-from unittest.mock import Mock
 
 
 class TestOpenSearch:
@@ -621,9 +620,9 @@ class TestCreateHarvestRecordUrl:
                 == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
             )
 
+
 class TestDistributionTitles:
     """Validate the `or []` fallback in dataset_to_document's distribution_titles."""
-
 
     def _make_dataset(self, dcat: dict, mock_organization: Mock) -> Mock:
         """Return a minimal mock dataset whose dcat is the supplied dict."""

@@ -219,7 +219,12 @@ def index():
                 org_filter_id = org_slug_param
 
     has_filters = (
-        query or org_types or keywords or org_filter_id or spatial_filter or spatial_geometry
+        query
+        or org_types
+        or keywords
+        or org_filter_id
+        or spatial_filter
+        or spatial_geometry
     )
 
     try:
