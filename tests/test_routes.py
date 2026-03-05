@@ -181,8 +181,19 @@ def test_index_page_shows_top_organizations(db_client):
         "popularity": 42,
     }
     mock_interface = Mock()
+    # Aggregations are now embedded on the SearchResult so that a single
+    # search_datasets call provides both hits and contextual counts.
     mock_interface.search_datasets.return_value = SearchResult(
-        total=1, results=[mock_dataset], search_after=None
+        total=1,
+        results=[mock_dataset],
+        search_after=None,
+        aggregations={
+            "keywords": [],
+            "organizations": [
+                {"slug": "org-one", "count": 2345},
+                {"slug": "org-two", "count": 100},
+            ],
+        },
     )
     mock_interface.get_unique_keywords.return_value = []
     mock_interface.total_datasets.return_value = 1
@@ -438,7 +449,10 @@ def test_index_omits_result_geometries_for_map_without_geography_filter(db_clien
 def test_index_page_parses_spatial_within_param(db_client):
     mock_interface = Mock()
     mock_interface.search_datasets.return_value = SearchResult(
-        total=0, results=[], search_after=None
+        total=0,
+        results=[],
+        search_after=None,
+        aggregations={"keywords": [], "organizations": []},
     )
     mock_interface.get_unique_keywords.return_value = []
     mock_interface.get_top_organizations.return_value = []
@@ -460,6 +474,8 @@ def test_index_page_parses_spatial_within_param(db_client):
         )
 
     assert response.status_code == 200
+    # The route now makes a single search_datasets call with include_aggregations=True.
+    assert mock_interface.search_datasets.call_count == 1
     _, kwargs = mock_interface.search_datasets.call_args
     assert kwargs["spatial_within"] is False
     assert kwargs["spatial_geometry"] == polygon
@@ -2010,3 +2026,102 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
     # Check for the tip text content
     tip_text = tip_div.find("p", class_="advanced-search-tip__text")
     assert tip_text is not None
+
+
+class TestContextualKeywordSuggestions:
+
+    def _make_mock_interface(
+        self,
+        contextual_keywords=None,
+        contextual_orgs=None,
+        top_organizations=None,
+        search_total=100,
+    ):
+        """Build a mock interface with configurable contextual aggregations.
+
+        Aggregations are embedded directly on the SearchResult returned by
+        search_datasets, matching the route's use of include_aggregations=True.
+        """
+        mock = Mock()
+        mock.search_datasets.return_value = SearchResult(
+            total=search_total,
+            results=[],
+            search_after=None,
+            aggregations={
+                "keywords": contextual_keywords or [],
+                "organizations": contextual_orgs or [],
+            },
+        )
+        mock.get_top_organizations.return_value = top_organizations or []
+        mock.count_all_datasets_in_search.return_value = search_total
+        mock.get_organization_by_slug.return_value = None
+        return mock
+
+    def _get_index(self, client, mock_interface, query_string=None):
+        """GET the index page with a patched interface."""
+        with patch("app.routes.interface", mock_interface):
+            return client.get("/", query_string=query_string or {})
+
+    def _parse_suggested_keywords(self, html: str) -> list[str]:
+        """Extract suggested keyword text values from the response HTML."""
+        soup = BeautifulSoup(html, "html.parser")
+        container = soup.find(id="suggested-keywords")
+        if not container:
+            return []
+        buttons = container.find_all("button", class_="tag-link--suggested")
+        keywords = []
+        for btn in buttons:
+            count_span = btn.find("span", class_="tag-link__count")
+            if count_span:
+                count_span.decompose()
+            keywords.append(btn.get_text(strip=True))
+        return keywords
+
+    def test_suggestions_shown_without_any_filters(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Confirm that suggestions are shown."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock)
+        assert response.status_code == 200
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert "environment" in suggested
+        assert "health" in suggested
+
+    def test_suggestions_still_shown_when_keyword_is_selected(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Chips still appear even with an active keyword."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock, query_string={"keyword": "health"})
+        assert response.status_code == 200
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert len(suggested) > 0
+
+    def test_selected_keyword_excluded_from_suggestions(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Confirm that selected keyword is not in suggestion."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock, query_string={"keyword": "health"})
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert "health" not in suggested
+        assert "environment" in suggested
+
+    def test_max_ten_suggestions(self, db_client):
+        """Confirm only 10 keywords appear."""
+        many_keywords = [{"keyword": f"kw-{i}", "count": 100 - i} for i in range(20)]
+        mock = self._make_mock_interface(contextual_keywords=many_keywords)
+        response = self._get_index(db_client, mock)
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert len(suggested) <= 10
+
+    def test_suggestions_ordered_by_count_desc(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Test that the keywords are properly ordered."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock)
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        expected = [kw["keyword"] for kw in sample_contextual_keywords]
+        assert suggested == expected
