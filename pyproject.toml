@@ -33,8 +33,8 @@ packages = [
 
 [tool.poetry.group.dev.dependencies]
 black = "^26.1.0"
-ruff = "^0.15.1"
-isort = "^7.0.0"
+ruff = "^0.15.4"
+isort = "^8.0.1"
 beautifulsoup4 = "^4.14.2"
 moto = {version = ">=5.0.0,<6.0.0", extras = ["s3"]}
 pytest = ">=8.4.2,<10.0.0"
@@ -45,3 +45,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.10"
+
+[tool.isort]
+profile = "black"
+skip = [".poetry", "app/static/node_modules"]

@@ -47,10 +47,15 @@ down: ## Tears down the flask and harvester containers
 clean: ## Cleans docker images
 	docker compose down -v --remove-orphans
 
-lint:  ## Lints wtih ruff, isort, black
+lint-check:  ## Lints wtih ruff, isort, black
 	poetry run ruff check .
+	poetry run isort --check .
+	poetry run black --check .
+
+lint-fix:  ## fix linting automatically where possible
 	poetry run isort .
 	poetry run black .
+
 
 # Output documentation for top-level targets
 # Thanks to https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html

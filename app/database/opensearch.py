@@ -663,7 +663,7 @@ class OpenSearchInterface:
 
         return (succeeded, failed, errors)
 
-    # allow sort_by values: distance, popularity, relevance
+    # allow sort_by values: distance, popularity, relevance, last_harvested_date
     # optionalsort_point can be passed as a keyword argument
     def _build_sort_clause(
         self, sort_by: str, *, sort_point: dict | None = None
@@ -694,6 +694,14 @@ class OpenSearchInterface:
             return [
                 {"popularity": {"order": "desc", "missing": "_last"}},
                 {"_score": {"order": "desc"}},
+                {"_id": {"order": "desc"}},
+            ]
+
+        if sort_key == "last_harvested_date":
+            return [
+                {"last_harvested_date": {"order": "desc", "missing": "_last"}},
+                {"_score": {"order": "desc"}},
+                {"popularity": {"order": "desc", "missing": "_last"}},
                 {"_id": {"order": "desc"}},
             ]
 
@@ -1086,6 +1094,55 @@ class OpenSearchInterface:
         return [
             {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]
+
+    def get_last_harvested_stats(self) -> dict[str, Any]:
+        """Get dataset age-bin counts."""
+
+        agg_body = {
+            "size": 0,
+            "aggs": {
+                "age_bins": {
+                    "filters": {
+                        "filters": {
+                            "last_week": {
+                                "range": {"last_harvested_date": {"gte": "now-7d/d"}}
+                            },
+                            "last_month": {
+                                "range": {
+                                    "last_harvested_date": {
+                                        "gte": "now-30d/d",
+                                        "lt": "now-7d/d",
+                                    }
+                                }
+                            },
+                            "last_year": {
+                                "range": {
+                                    "last_harvested_date": {
+                                        "gte": "now-365d/d",
+                                        "lt": "now-30d/d",
+                                    }
+                                }
+                            },
+                            "older": {
+                                "range": {"last_harvested_date": {"lt": "now-365d/d"}}
+                            },
+                        }
+                    }
+                },
+            },
+        }
+
+        result = self.client.search(index=self.INDEX_NAME, body=agg_body)
+        age_bins = result.get("aggregations", {}).get("age_bins", {}).get("buckets", {})
+
+        return {
+            "age_bins": {
+                "older": age_bins.get("older", {}).get("doc_count", 0),
+                "last_year": age_bins.get("last_year", {}).get("doc_count", 0),
+                "last_month": age_bins.get("last_month", {}).get("doc_count", 0),
+                "last_week": age_bins.get("last_week", {}).get("doc_count", 0),
+            },
+        }
 
     def count_all_datasets(self) -> int:
         """

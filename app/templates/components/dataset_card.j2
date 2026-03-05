@@ -4,6 +4,11 @@
 {% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
 {% set updated_display = dataset_meta.get('modified') %}
 {% set view_count = dataset.get('popularity') %}
+{% set published_on = dataset.get('last_harvested_date') %}
+{% set published_on_text = none %}
+{% if published_on is not none %}
+  {% set published_on_text = '%s' % published_on %}
+{% endif %}
 {% set sort_values = dataset.get('_sort') %}
 {% set distance_km = none %}
 {% if allow_distance %}
@@ -65,10 +70,8 @@
                   <a 
                     href="{{ resource.accessURL or url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}"
                     class="label label-default text-uppercase"
-                    data-format="{{ (resource.format or resource.mediaType) | simplify_resource_type | default('html', true) }}"
-                    data-organization="{{ dataset.organization.name }}">
-                      {{ (resource.format or resource.mediaType) | simplify_resource_type | default('html', true) }}
-                  </a>
+                    data-format="{{ (resource.format or resource.mediaType) | simplify_resource_type | default('html', true) | lower }}"
+                    data-organization="{{ dataset.organization.name }}">{{ (resource.format or resource.mediaType) | simplify_resource_type | default('html', true) | lower }}</a>
               </li>
               {% endfor %}
               {% if dataset.dcat.distribution|length > 6 %}
@@ -82,25 +85,27 @@
           </ul>
           {% endif %}
           {% set search_score = dataset.get('_score') %}
-          {% if search_score is not none or view_count is not none or distance_km is not none %}
+          {% set metric_parts = [] %}
+          {% if search_score is not none %}
+            {% if view_count is not none %}
+              {% set _ = metric_parts.append("Search relevance: %.2f | Views last month: %s" % (search_score, view_count)) %}
+            {% else %}
+              {% set _ = metric_parts.append("Search relevance: %.2f" % search_score) %}
+            {% endif %}
+          {% elif view_count is not none %}
+            {% set _ = metric_parts.append("Views last month: %s" % view_count) %}
+          {% endif %}
+          {% if published_on_text is not none %}
+            {% set _ = metric_parts.append("Published on: %s" % published_on_text[:10]) %}
+          {% endif %}
+          {% if distance_km is not none %}
+            {% set distance_mi = distance_km * 0.621371 %}
+            {% set _ = metric_parts.append("Distance: %.1f mi" % distance_mi) %}
+          {% endif %}
+          {% if metric_parts %}
           <div class="margin-top-1">
               <small class="text-base-dark">
-                  {% if search_score is not none %}
-                    {% if view_count is not none %}
-                      Search relevance: {{ '%.2f' % search_score }} | Views last month: {{ view_count }}
-                    {% else %}
-                      Search relevance: {{ '%.2f' % search_score }}
-                    {% endif %}
-                  {% else %}
-                    {% if view_count is not none %}
-                      Views last month: {{ view_count }}
-                    {% endif %}
-                  {% endif %}
-                  {% if distance_km is not none %}
-                    {% set distance_mi = distance_km * 0.621371 %}
-                    {% if search_score is not none or view_count is not none %} | {% endif %}
-                    Distance: {{ '%.1f' % distance_mi }} mi
-                  {% endif %}
+                  {{ metric_parts | join(' | ') }}
               </small>
           </div>
           {% endif %}

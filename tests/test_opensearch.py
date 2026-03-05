@@ -1,14 +1,13 @@
 from datetime import date, datetime
+from unittest.mock import Mock
 
 import pytest
 from opensearchpy.exceptions import ConnectionTimeout
 
 import app.database.opensearch as opensearch_module
+from app import create_app
 from app.database import OpenSearchInterface
 from app.models import Dataset
-from app import create_app
-
-from unittest.mock import Mock
 
 
 class TestOpenSearch:
@@ -439,6 +438,17 @@ def test_distance_sort_uses_geo_distance():
     assert sort_clause[0]["_geo_distance"]["order"] == "asc"
 
 
+def test_last_harvested_date_sort_uses_latest_first():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    sort_clause = client._build_sort_clause("last_harvested_date")
+    assert sort_clause == [
+        {"last_harvested_date": {"order": "desc", "missing": "_last"}},
+        {"_score": {"order": "desc"}},
+        {"popularity": {"order": "desc", "missing": "_last"}},
+        {"_id": {"order": "desc"}},
+    ]
+
+
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
     interface = OpenSearchInterface.__new__(OpenSearchInterface)
     monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
@@ -610,9 +620,9 @@ class TestCreateHarvestRecordUrl:
                 == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
             )
 
+
 class TestDistributionTitles:
     """Validate the `or []` fallback in dataset_to_document's distribution_titles."""
-
 
     def _make_dataset(self, dcat: dict, mock_organization: Mock) -> Mock:
         """Return a minimal mock dataset whose dcat is the supplied dict."""
