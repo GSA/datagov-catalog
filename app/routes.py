@@ -39,6 +39,7 @@ from .api_schemas import (
     OrganizationsResults,
     SearchResults,
     SearchQuery,
+    StatsResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 
 
 SITEMAP_PAGE_SIZE = 10000
-ALLOWED_SORTS = {"relevance", "popularity", "distance"}
+ALLOWED_SORTS = {"relevance", "popularity", "distance", "last_harvested_date"}
 
 
 def _homepage_dataset_total(default_total: int) -> int:
@@ -781,6 +782,20 @@ def get_opensearch_health_api():
         response.status_code = 500
         return response
 
+
+@api.get("/api/stats")
+@api.output(StatsResult)
+def get_stats_api():
+    """Endpoint for stats consumers."""
+
+    try:
+        stats = interface.get_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.exception("Failed to fetch stats")
+        response = jsonify({"error": "Failed to fetch stats", "message": str(e)}),
+        response.status_code = 500
+        return reponse
 
 @api.get("/api/locations/search")
 @api.output(LocationsResults)
