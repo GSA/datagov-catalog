@@ -79,7 +79,7 @@ def fixture_data():
                 dcat={
                     "title": "test",
                     "description": "this is the test description",
-                    "keyword": ["health", "education"],
+                    "keyword": ["health", "education", "Health"],
                     "distribution": [
                         {
                             "title": "Test CSV",
@@ -134,7 +134,7 @@ def fixture_data():
                 dcat={
                     "title": "Climate Change Environmental Data",
                     "description": "Environmental monitoring and climate science datasets",
-                    "keyword": ["environment", "science", "climate"],
+                    "keyword": ["environment", "science", "climate", "Environment"],
                     "spatial": "-122.4194,37.7749,-122.4094,37.7849",
                     "distribution": [
                         {
