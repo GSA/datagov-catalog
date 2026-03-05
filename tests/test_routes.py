@@ -1269,9 +1269,7 @@ def test_index_page_last_harvested_sort_preserved(db_client):
     sort_select = soup.find("select", {"name": "sort", "id": "sort-select"})
     assert sort_select is not None
 
-    last_harvested_option = sort_select.find(
-        "option", {"value": "last_harvested_date"}
-    )
+    last_harvested_option = sort_select.find("option", {"value": "last_harvested_date"})
     assert last_harvested_option is not None
     assert "selected" in last_harvested_option.attrs
 

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
 import logging
 import math
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any
 from urllib.parse import quote
@@ -454,7 +454,7 @@ class CatalogDBInterface:
 
     @staticmethod
     def _encode_metric_payload(payload: Any) -> str:
-        """ 11ty JS explicitly expects encoded data """
+        """11ty JS explicitly expects encoded data"""
         return quote(json.dumps(payload, separators=(",", ":")))
 
     def get_stats(self) -> dict[str, Any]:
@@ -525,5 +525,7 @@ class CatalogDBInterface:
                     [{"data": dataset_age_chart}]
                 ),
             },
-            "meta": {"date": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")},
+            "meta": {
+                "date": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+            },
         }
