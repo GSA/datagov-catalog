@@ -156,3 +156,22 @@ class LocationDetail(Schema):
 
 class LocationId(Schema):
     location_id = UUID()
+
+
+class StatsMeta(Schema):
+    date = String()
+
+
+class StatsMetrics(Schema):
+    datasetsBarMetric = String()
+    orgBarMetric = String()
+
+
+class StatsResults(Schema):
+    datasets = Integer()
+
+
+class StatsResult(Schema):
+    meta = Nested(StatsMeta)
+    metrics = Nested(StatsMetrics)
+    results = Nested(StatsResults)
