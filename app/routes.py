@@ -64,7 +64,7 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 
 
 SITEMAP_PAGE_SIZE = 10000
-ALLOWED_SORTS = {"relevance", "popularity", "distance"}
+ALLOWED_SORTS = {"relevance", "popularity", "distance", "last_harvested_date"}
 
 
 def _homepage_dataset_total(default_total: int) -> int:
@@ -741,6 +741,21 @@ def get_opensearch_health_api():
                     "message": str(e),
                 }
             ),
+            500,
+        )
+
+
+@main.route("/api/stats", methods=["GET"])
+def get_stats_api():
+    """Endpoint for stats consumers."""
+
+    try:
+        stats = interface.get_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.exception("Failed to fetch stats")
+        return (
+            jsonify({"error": "Failed to fetch stats", "message": str(e)}),
             500,
         )
 
