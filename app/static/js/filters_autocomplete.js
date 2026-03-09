@@ -45,7 +45,6 @@ class KeywordAutocomplete {
         }
         // Load contextual counts from data attribute
         const countsData = this.chipsContainer.dataset.contextualCounts;
-        console.log('Raw contextual counts data:', countsData ? countsData.substring(0, 200) + '...' : 'NONE');
         if (countsData) {
             try {
                 this.contextualCounts = JSON.parse(countsData);
@@ -204,7 +203,6 @@ class KeywordAutocomplete {
         this.suggestionsContainer.innerHTML = '';
         this.currentFocusIndex = -1;
 
-        console.log('Rendering suggestions with contextual counts:', Object.keys(this.contextualCounts).length > 0);
 
         keywords.forEach((item, index) => {
             const div = document.createElement('div');
