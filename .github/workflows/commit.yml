@@ -34,7 +34,7 @@ jobs:
           poetry install
 
       - name: Run linting
-        run: make lint
+        run: make lint-check
 
   test:
     environment: development
