@@ -110,10 +110,6 @@ class KeywordsResults(Schema):
     min_count = Integer()
 
 
-class OrganizationsQuery(Schema):
-    size = Integer()
-
-
 class OrganizationResponse(Schema):
     id = UUID()
     name = String()
@@ -126,7 +122,6 @@ class OrganizationResponse(Schema):
 class OrganizationsResults(Schema):
     organizations = List(Nested(OrganizationResponse))
     total = Integer()
-    size = Integer()
 
 
 class OpensearchHealth(Schema):

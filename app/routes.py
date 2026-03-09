@@ -28,7 +28,6 @@ from .api_schemas import (
     LocationsQuery,
     LocationsResults,
     OpensearchHealth,
-    OrganizationsQuery,
     OrganizationsResults,
     SearchQuery,
     SearchResults,
@@ -769,11 +768,10 @@ def get_keywords_api(**kwargs):
 
 
 @api.route("/api/organizations", methods=["GET"])
-@api.input(OrganizationsQuery, location="query", validation=False)
 @api.output(OrganizationsResults)
-@api.doc(description="Get a list of the organizations for autocomplete")
+@api.doc(description="Get the complete list of organizations")
 def get_organizations_api(**kwargs):
-    """Fetch organizations for autocomplete suggestions."""
+    """Fetch the complete list of organizations."""
 
     try:
         organizations = interface.get_organizations()
