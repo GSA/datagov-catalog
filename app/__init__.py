@@ -40,8 +40,8 @@ def create_app(config_name: str = "local") -> APIFlask:
         "title": "Datagov Catalog",
         "version": "0.1.0",
     }
-    if os.getenv("EXTERNAL_ROUTE"):
-        app.config["SERVERS"] = [{"url": f"https://{os.getenv("EXTERNAL_ROUTE")}/"}]
+    if os.getenv("SITE_URL"):
+        app.config["SERVERS"] = [{"url": f"{os.getenv("SITE_URL")}"}]
 
     app.config["PREFERRED_URL_SCHEME"] = "https"
     # enable template hot template reloading in local
