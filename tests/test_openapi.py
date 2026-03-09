@@ -2,6 +2,7 @@
 
 from bs4 import BeautifulSoup
 
+
 class TestOpenAPI:
 
     def test_openapi_json(self, db_client):

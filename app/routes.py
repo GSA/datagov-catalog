@@ -20,13 +20,6 @@ from flask import (
 )
 
 from . import htmx
-from .database import DEFAULT_PER_PAGE, CatalogDBInterface
-from .sitemap_s3 import (
-    SitemapS3ConfigError,
-    create_sitemap_s3_client,
-    get_sitemap_s3_config,
-)
-from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_required
 from .api_schemas import (
     KeywordsQuery,
     KeywordsResults,
@@ -37,10 +30,17 @@ from .api_schemas import (
     OpensearchHealth,
     OrganizationsQuery,
     OrganizationsResults,
-    SearchResults,
     SearchQuery,
+    SearchResults,
     StatsResult,
 )
+from .database import DEFAULT_PER_PAGE, CatalogDBInterface
+from .sitemap_s3 import (
+    SitemapS3ConfigError,
+    create_sitemap_s3_client,
+    get_sitemap_s3_config,
+)
+from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
 
