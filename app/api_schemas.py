@@ -2,6 +2,8 @@ from enum import Enum as PyEnum
 
 from apiflask import Schema
 from apiflask.fields import (
+    URL,
+    UUID,
     Boolean,
     Date,
     Dict,
@@ -12,8 +14,6 @@ from apiflask.fields import (
     List,
     Nested,
     String,
-    URL,
-    UUID,
 )
 from apiflask.validators import Length, Range
 
