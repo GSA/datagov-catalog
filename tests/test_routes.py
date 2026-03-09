@@ -145,7 +145,7 @@ def test_index_page_filters_by_org_slug(db_client):
         total=0, results=[], search_after=None
     )
     mock_interface.get_organization_by_slug.return_value = mock_org
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
     mock_interface.total_datasets.return_value = 0
     mock_interface.get_unique_keywords.return_value = []
 
@@ -186,7 +186,7 @@ def test_index_page_shows_top_organizations(db_client):
     )
     mock_interface.get_unique_keywords.return_value = []
     mock_interface.total_datasets.return_value = 1
-    mock_interface.get_top_organizations.return_value = [
+    mock_interface.get_organizations.return_value = [
         {
             "id": "org-1",
             "name": "Org One",
@@ -220,7 +220,7 @@ def test_index_page_shows_top_organizations(db_client):
 
 def test_get_organizations_api_returns_data(db_client):
     mock_interface = Mock()
-    mock_interface.get_top_organizations.return_value = [
+    mock_interface.get_organizations.return_value = [
         {
             "id": "org-1",
             "name": "Org One",
@@ -240,19 +240,19 @@ def test_get_organizations_api_returns_data(db_client):
     ]
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get("/api/organizations?size=5")
+        response = db_client.get("/api/organizations")
 
     assert response.status_code == 200
     data = response.get_json()
     assert len(data["organizations"]) == 2
     assert data["organizations"][0]["id"] == "org-1"
     assert data["organizations"][0]["aliases"] == ["Org 1"]
-    mock_interface.get_top_organizations.assert_called_once_with(limit=5)
+    mock_interface.get_organizations.assert_called_once_with()
 
 
 def test_get_organizations_api_handles_errors(db_client):
     mock_interface = Mock()
-    mock_interface.get_top_organizations.side_effect = Exception("boom")
+    mock_interface.get_organizations.side_effect = Exception("boom")
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/api/organizations")
@@ -349,7 +349,7 @@ def test_index_spatial_geometry(interface_with_dataset, db_client):
 def test_index_includes_top_20_result_geometries_for_map(db_client):
     mock_interface = Mock()
     mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
 
     datasets = []
     for idx in range(25):
@@ -401,7 +401,7 @@ def test_index_includes_top_20_result_geometries_for_map(db_client):
 def test_index_omits_result_geometries_for_map_without_geography_filter(db_client):
     mock_interface = Mock()
     mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
     mock_interface.search_datasets.return_value = SearchResult(
         total=1,
         results=[
@@ -441,7 +441,7 @@ def test_index_page_parses_spatial_within_param(db_client):
         total=0, results=[], search_after=None
     )
     mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
 
     polygon = {
         "type": "polygon",
@@ -1269,9 +1269,7 @@ def test_index_page_last_harvested_sort_preserved(db_client):
     sort_select = soup.find("select", {"name": "sort", "id": "sort-select"})
     assert sort_select is not None
 
-    last_harvested_option = sort_select.find(
-        "option", {"value": "last_harvested_date"}
-    )
+    last_harvested_option = sort_select.find("option", {"value": "last_harvested_date"})
     assert last_harvested_option is not None
     assert "selected" in last_harvested_option.attrs
 
@@ -1988,7 +1986,7 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
         results=[mock_dataset] * 20,  # Return some sample results
         search_after=None,
     )
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
     mock_interface.total_datasets.return_value = 10000
     mock_interface.get_unique_keywords.return_value = []
 
