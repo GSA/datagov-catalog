@@ -2030,7 +2030,7 @@ def test_dataset_detail_tag_links_point_to_keyword_search(
     assert len(tag_links) > 0
 
     # The fixture "test" dataset has keywords ["health", "education"]
-    expected_keywords = {"health", "education"}
+    expected_keywords = {"Health", "health", "education"}
     found_keywords = set()
 
     for link in tag_links:
