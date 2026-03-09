@@ -215,7 +215,6 @@ def test_index_page_shows_top_organizations(db_client):
             "aliases": [],
         },
     ]
-    mock_interface.get_top_organizations.return_value = top_orgs
     mock_interface.get_organizations.return_value = top_orgs
 
     with patch("app.routes.interface", mock_interface):
@@ -908,7 +907,7 @@ def test_resource_chip_defaults_to_html(db_client):
 
     mock_interface = Mock()
     mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
     mock_interface.get_organization_by_slug.return_value = None
     # set up a dataset with an unexpected file type
     mock_interface.search_datasets.return_value = SearchResult(
@@ -1419,7 +1418,7 @@ def test_index_search_result_includes_published_on_in_metrics_line(db_client):
         total=1, results=[mock_dataset], search_after=None
     )
     mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/?q=test")
@@ -2052,7 +2051,7 @@ class TestContextualKeywordSuggestions:
                 "organizations": contextual_orgs or [],
             },
         )
-        mock.get_top_organizations.return_value = top_organizations or []
+        mock.get_organizations.return_value = top_organizations or []
         mock.count_all_datasets_in_search.return_value = search_total
         mock.get_organization_by_slug.return_value = None
         return mock

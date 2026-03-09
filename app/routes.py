@@ -310,7 +310,7 @@ def index():
     # Always compute suggested organizations from contextual aggregations,
     # excluding the currently-selected organization.
     try:
-        org_suggestions = interface.get_top_organizations(limit=100)
+        org_suggestions = interface.get_organizations()
         # Add contextual counts to organizations
         for org in org_suggestions:
             org_slug = org.get("slug")
