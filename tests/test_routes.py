@@ -2125,3 +2125,38 @@ class TestContextualKeywordSuggestions:
         suggested = self._parse_suggested_keywords(response.data.decode())
         expected = [kw["keyword"] for kw in sample_contextual_keywords]
         assert suggested == expected
+
+
+def test_dataset_detail_tag_links_point_to_keyword_search(
+    interface_with_dataset, db_client
+):
+    """
+    Each tag in the tags-section should be an anchor whose href
+    is /?keyword=<keyword>.
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/dataset/test")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    tags_section = soup.find(class_="tags-section")
+    assert tags_section is not None
+
+    tag_links = tags_section.find_all("a", class_="tag-link")
+    assert len(tag_links) > 0
+
+    # The fixture "test" dataset has keywords ["health", "education"]
+    expected_keywords = {"Health", "health", "education"}
+    found_keywords = set()
+
+    for link in tag_links:
+        href = link.get("href", "")
+        parsed = urlparse(href)
+        assert parsed.path == "/"
+        qs = parse_qs(parsed.query)
+        assert "keyword" in qs
+        assert len(qs["keyword"]) == 1
+        found_keywords.add(qs["keyword"][0])
+
+    assert found_keywords == expected_keywords
