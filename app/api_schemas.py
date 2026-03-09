@@ -111,7 +111,7 @@ class KeywordsResults(Schema):
 
 
 class OrganizationsQuery(Schema):
-    size = Integer()
+    pass
 
 
 class OrganizationResponse(Schema):
@@ -126,7 +126,6 @@ class OrganizationResponse(Schema):
 class OrganizationsResults(Schema):
     organizations = List(Nested(OrganizationResponse))
     total = Integer()
-    size = Integer()
 
 
 class OpensearchHealth(Schema):
