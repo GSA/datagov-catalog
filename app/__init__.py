@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 
 import newrelic.agent
-from dotenv import load_dotenv
 from apiflask import APIFlask
+from dotenv import load_dotenv
 from flask_htmx import HTMX
 from flask_talisman import Talisman
 
