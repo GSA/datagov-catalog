@@ -115,9 +115,14 @@ class OpenSearchInterface:
     INDEX_NAME = "datasets"
     TEXT_ANALYZER = "datagov_text"
     STOP_FILTER = "datagov_stop"
+    KEYWORD_NORMALIZER = "lowercase_normalizer"
 
     # Custom analyzer removes English stop words so connective terms like
     # "and" do not reduce search recall.
+    #
+    # The lowercase_normalizer is used for the keyword.normalized sub-field so
+    # that keyword filtering and aggregation are case-insensitive while the
+    # original casing is preserved in keyword.raw.
     SETTINGS = {
         "analysis": {
             "filter": {
@@ -131,6 +136,12 @@ class OpenSearchInterface:
                     "type": "custom",
                     "tokenizer": "standard",
                     "filter": ["lowercase", STOP_FILTER],
+                }
+            },
+            "normalizer": {
+                KEYWORD_NORMALIZER: {
+                    "type": "custom",
+                    "filter": ["lowercase"],
                 }
             },
         }
@@ -162,14 +173,16 @@ class OpenSearchInterface:
                 "analyzer": TEXT_ANALYZER,
                 "search_analyzer": TEXT_ANALYZER,
             },
-            # Opensearch natively handles array-valued properties
-            # Use multi-field mapping: text for search, keyword for aggregations
             "keyword": {
                 "type": "text",
                 "analyzer": TEXT_ANALYZER,
                 "search_analyzer": TEXT_ANALYZER,
                 "fields": {
-                    "raw": {"type": "keyword"}  # For exact matching and aggregations
+                    "raw": {"type": "keyword"},
+                    "normalized": {
+                        "type": "keyword",
+                        "normalizer": KEYWORD_NORMALIZER,
+                    },
                 },
             },
             "theme": {
@@ -869,9 +882,6 @@ class OpenSearchInterface:
         If the org_id argument is given then we only return search results
         that are in that organization.
 
-        If keywords are provided, only datasets with those exact keywords will
-        be returned (exact match on keyword.raw field).
-
         spatial_filter can be "geospatial" or "non-geospatial" to filter
         datasets by presence of spatial data.
 
@@ -949,11 +959,9 @@ class OpenSearchInterface:
         # Build filter list for bool query
         filters = []
 
-        # Add keyword filter (exact match) - AND logic
-        # Each keyword gets its own term filter, so all must match
         if keywords:
             for keyword in keywords:
-                filters.append({"term": {"keyword.raw": keyword}})
+                filters.append({"term": {"keyword.normalized": keyword.lower()}})
 
         if org_id is not None:
             filters.append(
@@ -1012,9 +1020,7 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
-        # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)
-        # print("OPENSEARCH:", result_dict)
         result = SearchResult.from_opensearch_result(
             result_dict, per_page_hint=per_page
         )
@@ -1029,13 +1035,18 @@ class OpenSearchInterface:
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
+
+        Keywords are aggregated on the normalized (lowercased) sub-field so
+        that case variants such as "Environment" and "environment" are counted
+        as a single bucket. The returned ``keyword`` value is the lowercased
+        canonical form.
         """
         agg_body = {
             "size": 0,  # Don't return documents, just aggregations
             "aggs": {
                 "unique_keywords": {
                     "terms": {
-                        "field": "keyword.raw",
+                        "field": "keyword.normalized",
                         "size": size,
                         "min_doc_count": min_doc_count,
                         "order": {"_count": "desc"},

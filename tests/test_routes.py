@@ -2008,3 +2008,38 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
     # Check for the tip text content
     tip_text = tip_div.find("p", class_="advanced-search-tip__text")
     assert tip_text is not None
+
+
+def test_dataset_detail_tag_links_point_to_keyword_search(
+    interface_with_dataset, db_client
+):
+    """
+    Each tag in the tags-section should be an anchor whose href
+    is /?keyword=<keyword>.
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/dataset/test")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    tags_section = soup.find(class_="tags-section")
+    assert tags_section is not None
+
+    tag_links = tags_section.find_all("a", class_="tag-link")
+    assert len(tag_links) > 0
+
+    # The fixture "test" dataset has keywords ["health", "education"]
+    expected_keywords = {"Health", "health", "education"}
+    found_keywords = set()
+
+    for link in tag_links:
+        href = link.get("href", "")
+        parsed = urlparse(href)
+        assert parsed.path == "/"
+        qs = parse_qs(parsed.query)
+        assert "keyword" in qs
+        assert len(qs["keyword"]) == 1
+        found_keywords.add(qs["keyword"][0])
+
+    assert found_keywords == expected_keywords
