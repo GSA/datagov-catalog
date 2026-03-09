@@ -46,3 +46,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.10"
+
+[tool.isort]
+profile = "black"
+skip = [".poetry", "app/static/node_modules"]
