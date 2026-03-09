@@ -283,49 +283,47 @@ class CatalogDBInterface:
         return self.opensearch.get_organization_counts(size=total + 1, as_dict=as_dict)
 
     def get_organizations(self) -> list[dict]:
-        """Return organizations ordered by dataset count, using OpenSearch counts."""
+        """Return all organizations ordered by dataset count."""
+        organizations = self._organization_query().all()
+        if not organizations:
+            return []
+
         try:
-            total = self._organization_query(ignore_empty_orgs=True).count()
-            org_counts = self.opensearch.get_organization_counts(size=total + 1)
+            org_counts = self.opensearch.get_organization_counts(
+                size=len(organizations) + 1
+            )
         except Exception:
             logger.exception("Failed to fetch organization counts from OpenSearch")
             return self._get_organizations_from_db()
 
-        if not org_counts:
-            return self._get_organizations_from_db()
+        count_by_slug = {
+            entry.get("slug"): entry.get("count", 0)
+            for entry in (org_counts or [])
+            if entry.get("slug")
+        }
 
-        slugs = [entry["slug"] for entry in org_counts if entry.get("slug")]
-        if not slugs:
-            return self._get_organizations_from_db()
-
-        organizations = (
-            self.db.query(Organization).filter(Organization.slug.in_(slugs)).all()
-        )
-        org_by_slug = {org.slug: org for org in organizations}
-
-        hydrated: list[dict] = []
-        for entry in org_counts:
-            slug = entry.get("slug")
-            if not slug:
-                continue
-            org = org_by_slug.get(slug)
-            if not org:
-                continue
+        hydrated = []
+        for org in organizations:
+            count = count_by_slug.get(org.slug, 0)
+            try:
+                dataset_count = int(count)
+            except (TypeError, ValueError):
+                dataset_count = 0
             hydrated.append(
                 {
                     "id": org.id,
                     "name": org.name,
                     "slug": org.slug,
                     "organization_type": org.organization_type,
-                    "dataset_count": entry.get("count", 0),
+                    "dataset_count": dataset_count,
                     "aliases": org.aliases or [],
                 }
             )
 
-        if hydrated:
-            return hydrated
-
-        return self._get_organizations_from_db()
+        return sorted(
+            hydrated,
+            key=lambda item: (-item["dataset_count"], (item["name"] or "").lower()),
+        )
 
     def _get_organizations_from_db(self) -> list[dict]:
         rows = (
@@ -337,7 +335,7 @@ class CatalogDBInterface:
                 Organization.aliases,
                 func.count(Dataset.id).label("dataset_count"),
             )
-            .join(Dataset, Dataset.organization_id == Organization.id)
+            .outerjoin(Dataset, Dataset.organization_id == Organization.id)
             .group_by(
                 Organization.id,
                 Organization.name,
@@ -345,7 +343,7 @@ class CatalogDBInterface:
                 Organization.organization_type,
                 Organization.aliases,
             )
-            .order_by(func.count(Dataset.id).desc())
+            .order_by(func.count(Dataset.id).desc(), Organization.name.asc())
             .all()
         )
 
