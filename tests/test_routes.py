@@ -197,7 +197,7 @@ def test_index_page_shows_top_organizations(db_client):
     )
     mock_interface.get_unique_keywords.return_value = []
     mock_interface.total_datasets.return_value = 1
-    mock_interface.get_organizations.return_value = [
+    top_orgs = [
         {
             "id": "org-1",
             "name": "Org One",
@@ -215,6 +215,8 @@ def test_index_page_shows_top_organizations(db_client):
             "aliases": [],
         },
     ]
+    mock_interface.get_top_organizations.return_value = top_orgs
+    mock_interface.get_organizations.return_value = top_orgs
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/")
