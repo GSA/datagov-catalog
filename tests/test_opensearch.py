@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from unittest.mock import Mock
 
 import pytest
 from opensearchpy.exceptions import ConnectionTimeout
@@ -437,6 +438,17 @@ def test_distance_sort_uses_geo_distance():
     assert sort_clause[0]["_geo_distance"]["order"] == "asc"
 
 
+def test_last_harvested_date_sort_uses_latest_first():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    sort_clause = client._build_sort_clause("last_harvested_date")
+    assert sort_clause == [
+        {"last_harvested_date": {"order": "desc", "missing": "_last"}},
+        {"_score": {"order": "desc"}},
+        {"popularity": {"order": "desc", "missing": "_last"}},
+        {"_id": {"order": "desc"}},
+    ]
+
+
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
     interface = OpenSearchInterface.__new__(OpenSearchInterface)
     monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
@@ -607,3 +619,82 @@ class TestCreateHarvestRecordUrl:
                 url
                 == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
             )
+
+
+class TestDistributionTitles:
+    """Validate the `or []` fallback in dataset_to_document's distribution_titles."""
+
+    def _make_dataset(self, dcat: dict, mock_organization: Mock) -> Mock:
+        """Return a minimal mock dataset whose dcat is the supplied dict."""
+        dataset = Mock()
+        dataset.id = "dist-test-id"
+        dataset.slug = "dist-test-dataset"
+        dataset.last_harvested_date = Mock()
+        dataset.last_harvested_date.isoformat.return_value = "2024-01-01"
+        dataset.translated_spatial = None
+        dataset.harvest_record_id = "harvest-rec-id"
+        dataset.harvest_record = None
+        dataset.popularity = 0
+        dataset.organization = mock_organization
+        dataset.dcat = dcat
+        return dataset
+
+    def test_distribution_key_absent_yields_empty_list(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """When 'distribution' is not present in dcat at all, distribution_titles
+        must be an empty list (the `or []` prevents a TypeError on None)."""
+        dcat = {
+            "title": "No Distribution Dataset",
+            "description": "DCAT with no distribution key whatsoever.",
+            "publisher": {"name": "Test Agency"},
+            # intentionally omitting "distribution"
+        }
+        dataset = self._make_dataset(dcat, mock_organization)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            document = opensearch_client.dataset_to_document(dataset)
+
+        assert document["distribution_titles"] == []
+
+    def test_distribution_none_yields_empty_list(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """When 'distribution' is explicitly None, the `or []` guard kicks in
+        and distribution_titles must still be an empty list."""
+        dcat = {
+            "title": "Null Distribution Dataset",
+            "description": "DCAT where distribution is None.",
+            "publisher": {"name": "Test Agency"},
+            "distribution": None,
+        }
+        dataset = self._make_dataset(dcat, mock_organization)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            document = opensearch_client.dataset_to_document(dataset)
+
+        assert document["distribution_titles"] == []
+
+    def test_distribution_empty_list_yields_empty_list(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """When 'distribution' is an empty list the comprehension iterates
+        zero times, so distribution_titles must be an empty list."""
+        dcat = {
+            "title": "Empty Distribution Dataset",
+            "description": "DCAT where distribution is [].",
+            "publisher": {"name": "Test Agency"},
+            "distribution": [],
+        }
+        dataset = self._make_dataset(dcat, mock_organization)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            document = opensearch_client.dataset_to_document(dataset)
+
+        assert document["distribution_titles"] == []

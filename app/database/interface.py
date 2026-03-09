@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import math
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any
+from urllib.parse import quote
 
 from sqlalchemy import func, or_
 
-from app.models import Dataset, HarvestRecord, Locations, Organization, db
+from app.models import (
+    Dataset,
+    HarvestRecord,
+    HarvestSource,
+    Locations,
+    Organization,
+    db,
+)
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
 from .opensearch import OpenSearchInterface, SearchResult
@@ -314,22 +325,21 @@ class CatalogDBInterface:
         # ensure the requested size is always slightly bigger than what we have
         return self.opensearch.get_organization_counts(size=total + 1, as_dict=as_dict)
 
-    def get_top_organizations(self, limit: int = 10) -> list[dict]:
+    def get_organizations(self) -> list[dict]:
         """Return organizations ordered by dataset count, using OpenSearch counts."""
-        limit = max(min(limit, 100), 1)
-
         try:
-            org_counts = self.opensearch.get_organization_counts(size=limit)
+            total = self._organization_query(ignore_empty_orgs=True).count()
+            org_counts = self.opensearch.get_organization_counts(size=total + 1)
         except Exception:
             logger.exception("Failed to fetch organization counts from OpenSearch")
-            return self._get_top_organizations_from_db(limit)
+            return self._get_organizations_from_db()
 
         if not org_counts:
-            return self._get_top_organizations_from_db(limit)
+            return self._get_organizations_from_db()
 
         slugs = [entry["slug"] for entry in org_counts if entry.get("slug")]
         if not slugs:
-            return self._get_top_organizations_from_db(limit)
+            return self._get_organizations_from_db()
 
         organizations = (
             self.db.query(Organization).filter(Organization.slug.in_(slugs)).all()
@@ -358,9 +368,9 @@ class CatalogDBInterface:
         if hydrated:
             return hydrated
 
-        return self._get_top_organizations_from_db(limit)
+        return self._get_organizations_from_db()
 
-    def _get_top_organizations_from_db(self, limit: int) -> list[dict]:
+    def _get_organizations_from_db(self) -> list[dict]:
         rows = (
             self.db.query(
                 Organization.id,
@@ -379,7 +389,6 @@ class CatalogDBInterface:
                 Organization.aliases,
             )
             .order_by(func.count(Dataset.id).desc())
-            .limit(limit)
             .all()
         )
 
@@ -476,3 +485,88 @@ class CatalogDBInterface:
         Get the total number of datasets from our index
         """
         return self.opensearch.count_all_datasets()
+
+    @staticmethod
+    def _normalize_metric_count(number: int) -> float:
+        """feed the data the way 11ty chart wants it (log-scaled)"""
+        if number <= 0:
+            return 0.0
+        return math.log10(number)
+
+    @staticmethod
+    def _encode_metric_payload(payload: Any) -> str:
+        """11ty JS explicitly expects encoded data"""
+        return quote(json.dumps(payload, separators=(",", ":")))
+
+    def get_stats(self) -> dict[str, Any]:
+        """Collect analytics stats without affecting search endpoint behavior.
+
+        This method is intentionally isolated from the `/search` request path so we can return
+        exact totals and chart metrics without changing search behavior (for example, without
+        enabling expensive total-hit tracking on normal user searches). The extra OpenSearch/DB
+        work is performed only when `/api/stats` is called.
+        """
+        total_datasets = self.count_all_datasets_in_search()
+        harvest_stats = self.opensearch.get_last_harvested_stats()
+        counts_by_slug = self.get_opensearch_org_dataset_counts(as_dict=True)
+        harvest_sources_by_org_id = dict(
+            self.db.query(HarvestSource.organization_id, func.count(HarvestSource.id))
+            .group_by(HarvestSource.organization_id)
+            .all()
+        )
+
+        organization_type_metrics: dict[str, dict[str, int]] = {}
+        excluded_org_types = {"Tribal", "Non-Profit", "University"}
+
+        all_org_rows = self.db.query(
+            Organization.id,
+            Organization.slug,
+            Organization.name,
+            Organization.organization_type,
+        ).all()
+
+        for row in all_org_rows:
+            org_type = row.organization_type
+            if org_type in excluded_org_types or org_type is None:
+                continue
+            entry = organization_type_metrics.get(
+                org_type,
+                {"agencies": 0, "packages": 0, "harvestSources": 0},
+            )
+            entry["agencies"] += 1
+            entry["packages"] += counts_by_slug.get(row.slug, 0)
+            entry["harvestSources"] += harvest_sources_by_org_id.get(row.id, 0)
+            organization_type_metrics[org_type] = entry
+
+        age_bins = harvest_stats.get("age_bins", {})
+        dataset_age_chart = [
+            int(age_bins.get("older", 0)),
+            int(age_bins.get("last_year", 0)),
+            int(age_bins.get("last_month", 0)),
+            int(age_bins.get("last_week", 0)),
+        ]
+        org_metric_rows = [
+            {
+                "label": org_type,
+                "data": [
+                    self._normalize_metric_count(metric["agencies"]),
+                    self._normalize_metric_count(metric["packages"]),
+                    self._normalize_metric_count(metric["harvestSources"]),
+                ],
+            }
+            for org_type, metric in sorted(organization_type_metrics.items())
+        ]
+        return {
+            "results": {
+                "datasets": total_datasets,
+            },
+            "metrics": {
+                "orgBarMetric": self._encode_metric_payload(org_metric_rows),
+                "datasetsBarMetric": self._encode_metric_payload(
+                    [{"data": dataset_age_chart}]
+                ),
+            },
+            "meta": {
+                "date": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+            },
+        }
