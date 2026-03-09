@@ -109,11 +109,6 @@ class KeywordsResults(Schema):
     size = Integer()
     min_count = Integer()
 
-
-class OrganizationsQuery(Schema):
-    pass
-
-
 class OrganizationResponse(Schema):
     id = UUID()
     name = String()
