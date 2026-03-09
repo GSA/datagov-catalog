@@ -215,7 +215,6 @@ def test_index_page_shows_top_organizations(db_client):
             "aliases": [],
         },
     ]
-    mock_interface.get_top_organizations.return_value = top_orgs
     mock_interface.get_organizations.return_value = top_orgs
 
     with patch("app.routes.interface", mock_interface):
@@ -2052,7 +2051,7 @@ class TestContextualKeywordSuggestions:
                 "organizations": contextual_orgs or [],
             },
         )
-        mock.get_top_organizations.return_value = top_organizations or []
+        mock.get_organizations.return_value = top_organizations or []
         mock.count_all_datasets_in_search.return_value = search_total
         mock.get_organization_by_slug.return_value = None
         return mock
