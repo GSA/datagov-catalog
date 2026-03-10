@@ -310,6 +310,12 @@ def index():
     # excluding the currently-selected organization.
     try:
         org_suggestions = interface.get_organizations()
+        # Tests and stubs may leave this as a Mock or another non-list value.
+        # Strings are iterable too, but neither case is usable as organization rows.
+        if not isinstance(org_suggestions, Iterable) or isinstance(
+            org_suggestions, (str, bytes)
+        ):
+            org_suggestions = []
         # Add contextual counts to organizations
         for org in org_suggestions:
             org_slug = org.get("slug")
@@ -332,8 +338,8 @@ def index():
     except Exception:
         logger.exception("Failed to fetch suggested organizations")
 
-    # construct a from-string for this search to go into the dataset links
-    from_hint = hint_from_dict(request.args)
+    # Only emit a return-to-search hint when there is actual search or filter state.
+    from_hint = hint_from_dict(request.args) if request.args else None
     search_result_geometries = (
         _collect_spatial_shapes(datasets) if spatial_geometry is not None else []
     )

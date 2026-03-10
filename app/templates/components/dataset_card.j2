@@ -32,14 +32,16 @@
       <div class="dataset-content">
           <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">
               <h3 class="usa-collection__heading margin-0">
-                  <a class="usa-link"
+                  <a
+                      class="usa-link"
                       {% if dataset_slug and from_hint %}
-                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug, from_hint=from_hint) }}">
+                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug, from_hint=from_hint) }}"
                       {% elif dataset_slug %}
-                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug) }}">
+                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug) }}"
                       {% else %}
                       href="#"
-                      {% endif %}>
+                      {% endif %}
+                  >
                       {{ dataset_title }}
                   </a>
                   {% if view_count is not none and view_count >= 100 %}
