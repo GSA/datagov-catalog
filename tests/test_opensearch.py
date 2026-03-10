@@ -1,12 +1,13 @@
 from datetime import date, datetime
+from unittest.mock import Mock
 
 import pytest
 from opensearchpy.exceptions import ConnectionTimeout
 
 import app.database.opensearch as opensearch_module
+from app import create_app
 from app.database import OpenSearchInterface
 from app.models import Dataset
-from app import create_app
 
 
 class TestOpenSearch:
@@ -409,10 +410,169 @@ class TestOpenSearchMappings:
         assert mappings["properties"]["keyword"]["fields"]["raw"]["type"] == "keyword"
         assert mappings["properties"]["organization"]["type"] == "nested"
 
+    def test_keyword_normalized_sub_field_exists(self):
+        """
+        keyword.normalized sub-field must be present for case-insensitive search.
+        """
+        keyword_fields = OpenSearchInterface.MAPPINGS["properties"]["keyword"]["fields"]
+
+        assert "normalized" in keyword_fields
+        assert keyword_fields["normalized"]["type"] == "keyword"
+        assert keyword_fields["normalized"]["normalizer"] == (
+            OpenSearchInterface.KEYWORD_NORMALIZER
+        )
+
+    def test_lowercase_normalizer_defined_in_settings(self):
+        """
+        The lowercase_normalizer must be declared in SETTINGS so OpenSearch
+        can apply it when doing index.
+        """
+        normalizers = OpenSearchInterface.SETTINGS.get("analysis", {}).get(
+            "normalizer", {}
+        )
+
+        assert OpenSearchInterface.KEYWORD_NORMALIZER in normalizers
+        normalizer_cfg = normalizers[OpenSearchInterface.KEYWORD_NORMALIZER]
+        assert normalizer_cfg["type"] == "custom"
+        assert "lowercase" in normalizer_cfg["filter"]
+
     def test_spatial_centroid_mapping(self):
         """Test that spatial centroid field is mapped as geo_point."""
         mappings = OpenSearchInterface.MAPPINGS
         assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
+
+
+class TestCaseInsensitiveKeywords:
+    """
+    Tests for case-insensitive keyword filtering and aggregation.
+    """
+
+    def _recreate_index(self, client: OpenSearchInterface) -> None:
+        """Drop and recreate the index to pick up the latest mapping."""
+        if client.client.indices.exists(index=client.INDEX_NAME):
+            client.client.indices.delete(index=client.INDEX_NAME)
+        body = {"mappings": client.MAPPINGS, "settings": client.SETTINGS}
+        client.client.indices.create(index=client.INDEX_NAME, body=body)
+
+    def _make_mock_dataset(
+        self,
+        doc_id: str,
+        slug: str,
+        keywords: list[str],
+        mock_organization: Mock,
+    ) -> Mock:
+        """Return a minimal mock Dataset with the given keywords."""
+        dataset = Mock()
+        dataset.id = doc_id
+        dataset.slug = slug
+        dataset.last_harvested_date = Mock()
+        dataset.last_harvested_date.isoformat.return_value = "2024-01-01"
+        dataset.translated_spatial = None
+        dataset.harvest_record_id = "harvest-rec-id"
+        dataset.harvest_record = None
+        dataset.popularity = 0
+        dataset.organization = mock_organization
+        dataset.dcat = {
+            "title": f"Dataset {slug}",
+            "description": "Test dataset for keyword case-insensitivity",
+            "keyword": keywords,
+            "publisher": {"name": "Test Agency"},
+        }
+        return dataset
+
+    def test_keyword_filter_is_case_insensitive(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """
+        Searching by lowercase keyword should match a dataset indexed with
+        the same keyword in Title Case, and vice versa.
+        """
+        self._recreate_index(opensearch_client)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+
+            # Index one dataset whose keyword is stored as "Environment" (Title Case)
+            dataset = self._make_mock_dataset(
+                doc_id="kw-case-test-1",
+                slug="kw-case-dataset-1",
+                keywords=["Environment", "Climate"],
+                mock_organization=mock_organization,
+            )
+            opensearch_client.index_datasets([dataset])
+
+        # Filtering with the lowercase form must still find the document.
+        result_lower = opensearch_client.search("", keywords=["environment"])
+        assert len(result_lower.results) == 1
+
+        # Filtering with the original Title Case form must also work.
+        result_title = opensearch_client.search("", keywords=["Environment"])
+        assert len(result_title.results) == 1
+
+        # An unrelated keyword must return 0.
+        result_none = opensearch_client.search("", keywords=["unrelated"])
+        assert len(result_none.results) == 0
+
+    def test_keyword_filter_case_insensitive_mixed_case(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """
+        Mixed-case filter values must still resolve to the correct
+        document regardless of how the keyword was stored.
+        """
+        self._recreate_index(opensearch_client)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+
+            dataset = self._make_mock_dataset(
+                doc_id="kw-case-test-mixed",
+                slug="kw-case-dataset-mixed",
+                keywords=["environment"],
+                mock_organization=mock_organization,
+            )
+            opensearch_client.index_datasets([dataset])
+
+        # "ENVIRONMENT", "Environment", and "eNvIrOnMeNt" should all match.
+        for variant in ("ENVIRONMENT", "Environment", "eNvIrOnMeNt"):
+            result = opensearch_client.search("", keywords=[variant])
+            assert len(result.results) == 1
+
+    def test_get_unique_keywords_combines_case_variants(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """
+        Indexing 'environment' and 'Environment' across two datasets should
+        produce a single aggregation bucket with a combined doc_count of 2.
+        """
+        self._recreate_index(opensearch_client)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+
+            dataset_lower = self._make_mock_dataset(
+                doc_id="kw-agg-test-1",
+                slug="kw-agg-dataset-lower",
+                keywords=["environment"],
+                mock_organization=mock_organization,
+            )
+            dataset_title = self._make_mock_dataset(
+                doc_id="kw-agg-test-2",
+                slug="kw-agg-dataset-title",
+                keywords=["Environment"],
+                mock_organization=mock_organization,
+            )
+            opensearch_client.index_datasets([dataset_lower, dataset_title])
+
+        keywords = opensearch_client.get_unique_keywords()
+
+        # Both variants must collapse into one bucket.
+        env_buckets = [k for k in keywords if k["keyword"] == "environment"]
+        assert len(env_buckets) == 1
+        assert env_buckets[0]["count"] == 2
 
 
 def test_relevance_sort_uses_popularity_tie_breaker():
@@ -435,6 +595,17 @@ def test_distance_sort_uses_geo_distance():
         "lon": -75.0,
     }
     assert sort_clause[0]["_geo_distance"]["order"] == "asc"
+
+
+def test_last_harvested_date_sort_uses_latest_first():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    sort_clause = client._build_sort_clause("last_harvested_date")
+    assert sort_clause == [
+        {"last_harvested_date": {"order": "desc", "missing": "_last"}},
+        {"_score": {"order": "desc"}},
+        {"popularity": {"order": "desc", "missing": "_last"}},
+        {"_id": {"order": "desc"}},
+    ]
 
 
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
@@ -607,3 +778,82 @@ class TestCreateHarvestRecordUrl:
                 url
                 == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
             )
+
+
+class TestDistributionTitles:
+    """Validate the `or []` fallback in dataset_to_document's distribution_titles."""
+
+    def _make_dataset(self, dcat: dict, mock_organization: Mock) -> Mock:
+        """Return a minimal mock dataset whose dcat is the supplied dict."""
+        dataset = Mock()
+        dataset.id = "dist-test-id"
+        dataset.slug = "dist-test-dataset"
+        dataset.last_harvested_date = Mock()
+        dataset.last_harvested_date.isoformat.return_value = "2024-01-01"
+        dataset.translated_spatial = None
+        dataset.harvest_record_id = "harvest-rec-id"
+        dataset.harvest_record = None
+        dataset.popularity = 0
+        dataset.organization = mock_organization
+        dataset.dcat = dcat
+        return dataset
+
+    def test_distribution_key_absent_yields_empty_list(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """When 'distribution' is not present in dcat at all, distribution_titles
+        must be an empty list (the `or []` prevents a TypeError on None)."""
+        dcat = {
+            "title": "No Distribution Dataset",
+            "description": "DCAT with no distribution key whatsoever.",
+            "publisher": {"name": "Test Agency"},
+            # intentionally omitting "distribution"
+        }
+        dataset = self._make_dataset(dcat, mock_organization)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            document = opensearch_client.dataset_to_document(dataset)
+
+        assert document["distribution_titles"] == []
+
+    def test_distribution_none_yields_empty_list(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """When 'distribution' is explicitly None, the `or []` guard kicks in
+        and distribution_titles must still be an empty list."""
+        dcat = {
+            "title": "Null Distribution Dataset",
+            "description": "DCAT where distribution is None.",
+            "publisher": {"name": "Test Agency"},
+            "distribution": None,
+        }
+        dataset = self._make_dataset(dcat, mock_organization)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            document = opensearch_client.dataset_to_document(dataset)
+
+        assert document["distribution_titles"] == []
+
+    def test_distribution_empty_list_yields_empty_list(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """When 'distribution' is an empty list the comprehension iterates
+        zero times, so distribution_titles must be an empty list."""
+        dcat = {
+            "title": "Empty Distribution Dataset",
+            "description": "DCAT where distribution is [].",
+            "publisher": {"name": "Test Agency"},
+            "distribution": [],
+        }
+        dataset = self._make_dataset(dcat, mock_organization)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+            document = opensearch_client.dataset_to_document(dataset)
+
+        assert document["distribution_titles"] == []

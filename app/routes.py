@@ -6,6 +6,7 @@ from math import ceil
 from urllib.parse import unquote
 from xml.etree import ElementTree
 
+from apiflask import APIBlueprint
 from dotenv import load_dotenv
 from flask import (
     Blueprint,
@@ -19,6 +20,19 @@ from flask import (
 )
 
 from . import htmx
+from .api_schemas import (
+    KeywordsQuery,
+    KeywordsResults,
+    LocationDetail,
+    LocationId,
+    LocationsQuery,
+    LocationsResults,
+    OpensearchHealth,
+    OrganizationsResults,
+    SearchQuery,
+    SearchResults,
+    StatsResult,
+)
 from .database import DEFAULT_PER_PAGE, CatalogDBInterface
 from .sitemap_s3 import (
     SitemapS3ConfigError,
@@ -30,6 +44,7 @@ from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_requ
 logger = logging.getLogger(__name__)
 
 main = Blueprint("main", __name__)
+api = APIBlueprint("api", __name__)
 
 # Login authentication
 load_dotenv()
@@ -64,7 +79,7 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 
 
 SITEMAP_PAGE_SIZE = 10000
-ALLOWED_SORTS = {"relevance", "popularity", "distance"}
+ALLOWED_SORTS = {"relevance", "popularity", "distance", "last_harvested_date"}
 
 
 def _homepage_dataset_total(default_total: int) -> int:
@@ -219,7 +234,12 @@ def index():
                 org_filter_id = org_slug_param
 
     has_filters = (
-        query or org_types or keywords or org_filter_id or spatial_filter or spatial_geometry
+        query
+        or org_types
+        or keywords
+        or org_filter_id
+        or spatial_filter
+        or spatial_geometry
     )
 
     try:
@@ -233,6 +253,9 @@ def index():
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
+            include_aggregations=True,
+            keyword_size=100,
+            org_size=100,
         )
 
         # For homepage without filters, get accurate total count
@@ -254,31 +277,60 @@ def index():
     else:
         after = None
 
-    if not keywords:
-        try:
-            suggested_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
-            if suggested_keywords:
-                suggested_keywords = [
-                    keyword["keyword"] for keyword in suggested_keywords
-                ]
-        except Exception:
-            logger.exception("Failed to fetch suggested keywords")
+    contextual_aggs = (
+        result.aggregations
+        if result is not None and result.aggregations is not None
+        else {"keywords": [], "organizations": []}
+    )
+    contextual_keyword_counts = {
+        item["keyword"]: item["count"] for item in contextual_aggs.get("keywords", [])
+    }
+    contextual_org_counts = {
+        item["slug"]: item["count"] for item in contextual_aggs.get("organizations", [])
+    }
 
-    if not org_slug_param:
-        try:
-            org_suggestions = interface.get_top_organizations(limit=10)
-        except Exception:
-            logger.exception("Failed to fetch suggested organizations")
-        else:
-            if isinstance(org_suggestions, Iterable) and not isinstance(
-                org_suggestions, (str, bytes)
-            ):
-                suggested_organizations = list(org_suggestions)
-            elif org_suggestions not in (None, []):
-                logger.warning(
-                    "Suggested organizations response is not iterable; ignoring",
-                    extra={"type": type(org_suggestions).__name__},
-                )
+    # Always compute suggested keywords from contextual aggregations,
+    # excluding any already-selected keywords so users can keep refining.
+    try:
+        keyword_items = sorted(
+            contextual_aggs.get("keywords", []),
+            key=lambda x: x["count"],
+            reverse=True,
+        )
+        selected_keyword_set = set(keywords)
+        suggested_keywords = [
+            item["keyword"]
+            for item in keyword_items
+            if item["keyword"] not in selected_keyword_set
+        ][:10]
+    except Exception:
+        logger.exception("Failed to fetch suggested keywords")
+
+    # Always compute suggested organizations from contextual aggregations,
+    # excluding the currently-selected organization.
+    try:
+        org_suggestions = interface.get_organizations()
+        # Add contextual counts to organizations
+        for org in org_suggestions:
+            org_slug = org.get("slug")
+            if org_slug:
+                org["dataset_count"] = contextual_org_counts.get(org_slug, 0)
+
+        # Filter to only orgs with counts > 0 and sort by count
+        org_suggestions = [
+            org for org in org_suggestions if org.get("dataset_count", 0) > 0
+        ]
+
+        # Exclude the already-selected organization from suggestions
+        if org_slug_param:
+            org_suggestions = [
+                org for org in org_suggestions if org.get("slug") != org_slug_param
+            ]
+
+        org_suggestions.sort(key=lambda x: x.get("dataset_count", 0), reverse=True)
+        suggested_organizations = org_suggestions[:10]
+    except Exception:
+        logger.exception("Failed to fetch suggested organizations")
 
     # construct a from-string for this search to go into the dataset links
     from_hint = hint_from_dict(request.args)
@@ -308,11 +360,23 @@ def index():
         spatial_within=spatial_within,
         from_hint=from_hint,
         selected_organization=selected_organization,
+        contextual_keyword_counts=contextual_keyword_counts,
+        contextual_org_counts=contextual_org_counts,
     )
 
 
-@main.route("/search", methods=["GET"])
-def search():
+@api.get("/search")
+@api.input(SearchQuery, location="query", validation=False)
+@api.doc(
+    description="Search the catalog for datasets based on query parameters",
+    responses={  # HTMX return is optional, so manually document
+        200: {
+            "description": "Dataset search results",
+            "content": {"application/json": {"schema": SearchResults}},
+        }
+    },
+)
+def search(**kwargs):
     """Search for datasets.
 
     The search argument is `q`: `/search?q=search%20term`.
@@ -665,9 +729,12 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     )
 
 
-@main.route("/api/keywords", methods=["GET"])
-def get_keywords_api():
-    """API endpoint to get unique keywords with counts.
+@api.get("/api/keywords")
+@api.input(KeywordsQuery, location="query", validation=False)
+@api.output(KeywordsResults)
+@api.doc(description="Get a list of the most popular keywords and how often they occur")
+def get_keywords_api(**kwargs):
+    """Get unique keywords with counts.
 
     Query parameters:
         size: Maximum number of keywords to return (default 100, max 1000)
@@ -700,32 +767,32 @@ def get_keywords_api():
         return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
 
 
-@main.route("/api/organizations", methods=["GET"])
-def get_organizations_api():
-    """API endpoint to fetch organizations for autocomplete suggestions."""
-
-    size = request.args.get("size", 100, type=int)
-    size = max(min(size, 1000), 1)
+@api.route("/api/organizations", methods=["GET"])
+@api.output(OrganizationsResults)
+@api.doc(description="Get the complete list of organizations")
+def get_organizations_api(**kwargs):
+    """Fetch the complete list of organizations."""
 
     try:
-        organizations = interface.get_top_organizations(limit=size)
+        organizations = interface.get_organizations()
         return jsonify(
             {
                 "organizations": organizations,
                 "total": len(organizations),
-                "size": size,
             }
         )
     except Exception as e:
-        return (
-            jsonify({"error": "Failed to fetch organizations", "message": str(e)}),
-            500,
+        response = jsonify(
+            {"error": "Failed to fetch organizations", "message": str(e)}
         )
+        response.status_code = 500
+        return response
 
 
-@main.route("/api/opensearch/health", methods=["GET"])
+@api.get("/api/opensearch/health")
+@api.output(OpensearchHealth)
 def get_opensearch_health_api():
-    """API endpoint to fetch OpenSearch cluster health."""
+    """Fetch OpenSearch cluster health."""
 
     try:
         health = interface.opensearch.client.cluster.health()
@@ -733,21 +800,40 @@ def get_opensearch_health_api():
         return jsonify({"status": status})
     except Exception as e:
         logger.exception("Failed to fetch OpenSearch cluster health")
-        return (
-            jsonify(
-                {
-                    "status": "unknown",
-                    "error": "Failed to fetch OpenSearch cluster health",
-                    "message": str(e),
-                }
-            ),
-            500,
+        response = jsonify(
+            {
+                "status": "unknown",
+                "error": "Failed to fetch OpenSearch cluster health",
+                "message": str(e),
+            }
         )
+        response.status_code = 500
+        return response
 
 
-@main.route("/api/locations/search", methods=["GET"])
-def get_locations_api():
-    """API endpoint to search location display names and ids.
+@api.get("/api/stats")
+@api.output(StatsResult)
+def get_stats_api():
+    """Endpoint for stats consumers."""
+
+    try:
+        stats = interface.get_stats()
+        return jsonify(stats)
+    except Exception as e:
+        logger.exception("Failed to fetch stats")
+        response = jsonify({"error": "Failed to fetch stats", "message": str(e)})
+        response.status_code = 500
+        return response
+
+
+@api.get("/api/locations/search")
+@api.output(LocationsResults)
+@api.input(LocationsQuery, location="query", validation=False)
+@api.doc(
+    description="For autocomplete, we use an API to search our locations database for the typed query"
+)
+def get_locations_api(**kwargs):
+    """Search location display names and ids.
 
     Query parameters:
         q: the text to search for in display names
@@ -784,9 +870,14 @@ def get_locations_api():
         return jsonify({"error": "Failed to fetch locations", "message": str(e)}), 400
 
 
-@main.route("/api/location/<location_id>", methods=["GET"])
-def get_location_by_id_api(location_id):
-    """API endpoint to get geometry for one location
+@api.get("/api/location/<location_id>")
+@api.input(LocationId, location="path", validation=False)
+@api.output(LocationDetail)
+@api.doc(
+    description="To display a location client-side, this gives us the location's geometry."
+)
+def get_location_by_id_api(location_id, **kwargs):
+    """Get geometry for one location
 
     Returns:
         JSON with at least a "geometry" with the location's GeoJSON.
@@ -802,5 +893,11 @@ def get_location_by_id_api(location_id):
     )
 
 
+@main.route("/openapi/docs", methods=["GET"])
+def openapi_docs():
+    return render_template("swagger.html")
+
+
 def register_routes(app):
     app.register_blueprint(main)
+    app.register_blueprint(api)

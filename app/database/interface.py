@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import math
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any
+from urllib.parse import quote
 
 from sqlalchemy import func, or_
 
-from app.models import Dataset, HarvestRecord, Locations, Organization, db
+from app.models import (
+    Dataset,
+    HarvestRecord,
+    HarvestSource,
+    Locations,
+    Organization,
+    db,
+)
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
 from .opensearch import OpenSearchInterface, SearchResult
@@ -64,6 +75,9 @@ class CatalogDBInterface:
         spatial_within=True,
         after=None,
         sort_by="relevance",
+        include_aggregations: bool = False,
+        keyword_size: int = 100,
+        org_size: int = 100,
         *args,
         **kwargs,
     ):
@@ -79,6 +93,10 @@ class CatalogDBInterface:
         "non-geospatial" to filter by presence of spatial data.
         spatial_geometry and spatial_within allow searching geographically for
         datasets. See OpenSearchInterface.search for details.
+
+        When `include_aggregations` is True, keyword and organization
+        aggregations are embedded in the same OpenSearch request and
+        returned via `SearchResult.aggregations`.
         """
         if after is not None:
             search_after = SearchResult.decode_search_after(after)
@@ -95,6 +113,9 @@ class CatalogDBInterface:
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
             sort_by=sort_by,
+            include_aggregations=include_aggregations,
+            keyword_size=keyword_size,
+            org_size=org_size,
         )
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
@@ -107,6 +128,39 @@ class CatalogDBInterface:
         return self.opensearch.get_unique_keywords(
             size=size, min_doc_count=min_doc_count
         )
+
+    def get_contextual_aggregations(
+        self,
+        query: str = "",
+        org_id=None,
+        org_types=None,
+        keywords: list[str] = None,
+        spatial_filter=None,
+        spatial_geometry=None,
+        spatial_within=True,
+        keyword_size=100,
+        org_size=100,
+    ) -> dict:
+        """
+        Get keyword and organization aggregations based on current search context.
+
+        Returns aggregations that reflect the current search query and filters,
+        allowing for contextual filter counts.
+        """
+        result = self.search_datasets(
+            query,
+            keywords=keywords or [],
+            per_page=0,
+            org_id=org_id,
+            org_types=org_types,
+            spatial_filter=spatial_filter,
+            spatial_geometry=spatial_geometry,
+            spatial_within=spatial_within,
+            include_aggregations=True,
+            keyword_size=keyword_size,
+            org_size=org_size,
+        )
+        return result.aggregations or {"keywords": [], "organizations": []}
 
     def search_locations(self, query, size=100):
         """
@@ -271,53 +325,50 @@ class CatalogDBInterface:
         # ensure the requested size is always slightly bigger than what we have
         return self.opensearch.get_organization_counts(size=total + 1, as_dict=as_dict)
 
-    def get_top_organizations(self, limit: int = 10) -> list[dict]:
-        """Return organizations ordered by dataset count, using OpenSearch counts."""
-        limit = max(min(limit, 100), 1)
+    def get_organizations(self) -> list[dict]:
+        """Return all organizations ordered by dataset count."""
+        organizations = self._organization_query().all()
+        if not organizations:
+            return []
 
         try:
-            org_counts = self.opensearch.get_organization_counts(size=limit)
+            org_counts = self.opensearch.get_organization_counts(
+                size=len(organizations) + 1
+            )
         except Exception:
             logger.exception("Failed to fetch organization counts from OpenSearch")
-            return self._get_top_organizations_from_db(limit)
+            return self._get_organizations_from_db()
 
-        if not org_counts:
-            return self._get_top_organizations_from_db(limit)
+        count_by_slug = {
+            entry.get("slug"): entry.get("count", 0)
+            for entry in (org_counts or [])
+            if entry.get("slug")
+        }
 
-        slugs = [entry["slug"] for entry in org_counts if entry.get("slug")]
-        if not slugs:
-            return self._get_top_organizations_from_db(limit)
-
-        organizations = (
-            self.db.query(Organization).filter(Organization.slug.in_(slugs)).all()
-        )
-        org_by_slug = {org.slug: org for org in organizations}
-
-        hydrated: list[dict] = []
-        for entry in org_counts:
-            slug = entry.get("slug")
-            if not slug:
-                continue
-            org = org_by_slug.get(slug)
-            if not org:
-                continue
+        hydrated = []
+        for org in organizations:
+            count = count_by_slug.get(org.slug, 0)
+            try:
+                dataset_count = int(count)
+            except (TypeError, ValueError):
+                dataset_count = 0
             hydrated.append(
                 {
                     "id": org.id,
                     "name": org.name,
                     "slug": org.slug,
                     "organization_type": org.organization_type,
-                    "dataset_count": entry.get("count", 0),
+                    "dataset_count": dataset_count,
                     "aliases": org.aliases or [],
                 }
             )
 
-        if hydrated:
-            return hydrated
+        return sorted(
+            hydrated,
+            key=lambda item: (-item["dataset_count"], (item["name"] or "").lower()),
+        )
 
-        return self._get_top_organizations_from_db(limit)
-
-    def _get_top_organizations_from_db(self, limit: int) -> list[dict]:
+    def _get_organizations_from_db(self) -> list[dict]:
         rows = (
             self.db.query(
                 Organization.id,
@@ -327,7 +378,7 @@ class CatalogDBInterface:
                 Organization.aliases,
                 func.count(Dataset.id).label("dataset_count"),
             )
-            .join(Dataset, Dataset.organization_id == Organization.id)
+            .outerjoin(Dataset, Dataset.organization_id == Organization.id)
             .group_by(
                 Organization.id,
                 Organization.name,
@@ -335,8 +386,7 @@ class CatalogDBInterface:
                 Organization.organization_type,
                 Organization.aliases,
             )
-            .order_by(func.count(Dataset.id).desc())
-            .limit(limit)
+            .order_by(func.count(Dataset.id).desc(), Organization.name.asc())
             .all()
         )
 
@@ -433,3 +483,88 @@ class CatalogDBInterface:
         Get the total number of datasets from our index
         """
         return self.opensearch.count_all_datasets()
+
+    @staticmethod
+    def _normalize_metric_count(number: int) -> float:
+        """feed the data the way 11ty chart wants it (log-scaled)"""
+        if number <= 0:
+            return 0.0
+        return math.log10(number)
+
+    @staticmethod
+    def _encode_metric_payload(payload: Any) -> str:
+        """11ty JS explicitly expects encoded data"""
+        return quote(json.dumps(payload, separators=(",", ":")))
+
+    def get_stats(self) -> dict[str, Any]:
+        """Collect analytics stats without affecting search endpoint behavior.
+
+        This method is intentionally isolated from the `/search` request path so we can return
+        exact totals and chart metrics without changing search behavior (for example, without
+        enabling expensive total-hit tracking on normal user searches). The extra OpenSearch/DB
+        work is performed only when `/api/stats` is called.
+        """
+        total_datasets = self.count_all_datasets_in_search()
+        harvest_stats = self.opensearch.get_last_harvested_stats()
+        counts_by_slug = self.get_opensearch_org_dataset_counts(as_dict=True)
+        harvest_sources_by_org_id = dict(
+            self.db.query(HarvestSource.organization_id, func.count(HarvestSource.id))
+            .group_by(HarvestSource.organization_id)
+            .all()
+        )
+
+        organization_type_metrics: dict[str, dict[str, int]] = {}
+        excluded_org_types = {"Tribal", "Non-Profit", "University"}
+
+        all_org_rows = self.db.query(
+            Organization.id,
+            Organization.slug,
+            Organization.name,
+            Organization.organization_type,
+        ).all()
+
+        for row in all_org_rows:
+            org_type = row.organization_type
+            if org_type in excluded_org_types or org_type is None:
+                continue
+            entry = organization_type_metrics.get(
+                org_type,
+                {"agencies": 0, "packages": 0, "harvestSources": 0},
+            )
+            entry["agencies"] += 1
+            entry["packages"] += counts_by_slug.get(row.slug, 0)
+            entry["harvestSources"] += harvest_sources_by_org_id.get(row.id, 0)
+            organization_type_metrics[org_type] = entry
+
+        age_bins = harvest_stats.get("age_bins", {})
+        dataset_age_chart = [
+            int(age_bins.get("older", 0)),
+            int(age_bins.get("last_year", 0)),
+            int(age_bins.get("last_month", 0)),
+            int(age_bins.get("last_week", 0)),
+        ]
+        org_metric_rows = [
+            {
+                "label": org_type,
+                "data": [
+                    self._normalize_metric_count(metric["agencies"]),
+                    self._normalize_metric_count(metric["packages"]),
+                    self._normalize_metric_count(metric["harvestSources"]),
+                ],
+            }
+            for org_type, metric in sorted(organization_type_metrics.items())
+        ]
+        return {
+            "results": {
+                "datasets": total_datasets,
+            },
+            "metrics": {
+                "orgBarMetric": self._encode_metric_payload(org_metric_rows),
+                "datasetsBarMetric": self._encode_metric_payload(
+                    [{"data": dataset_age_chart}]
+                ),
+            },
+            "meta": {
+                "date": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+            },
+        }

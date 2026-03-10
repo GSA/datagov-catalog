@@ -182,7 +182,7 @@
                     <p class="tags-section__subtitle">Click any tag below to search for similar datasets</p>
                     <div>
                         {% for keyword in dataset.dcat.keyword %}
-                        <a href="{{ url_for('main.index', q=keyword) }}" class="tag-link">
+                        <a href="{{ url_for('main.index', keyword=keyword) }}" class="tag-link">
                             {{ keyword }}
                         </a>
                         {% endfor %}

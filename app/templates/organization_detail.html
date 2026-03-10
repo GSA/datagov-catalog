@@ -90,14 +90,18 @@
 
         {% if datasets %}
         <div class="usa-prose">
-          {% if dataset_search_query %}
+          {% if dataset_search_query or keywords or spatial_filter or spatial_geometry %}
           <p class="text-base-dark">
             {% if num_matches < 2 %}
-                Found <strong>{{ num_matches }}</strong> dataset matching "{{ dataset_search_query }}".
+                Found <strong>{{ num_matches }}</strong> dataset matching
             {% elif num_matches < 10000 %}
-                Found <strong>{{ num_matches }}</strong> datasets matching "{{ dataset_search_query }}".
+                Found <strong>{{ num_matches }}</strong> datasets matching
             {% else %}
-                Found over <strong>{{ num_matches }}</strong> datasets matching "{{ dataset_search_query }}".
+                Found over <strong>{{ num_matches }}</strong> datasets matching
+            {% endif %}
+            {% if dataset_search_query and (keywords or spatial_filter or spatial_geometry) %} "{{ dataset_search_query }}" and filters.
+            {% elif dataset_search_query %} "{{ dataset_search_query }}".
+            {% else %} filters.
             {% endif %}
           </p>
           {% endif %}

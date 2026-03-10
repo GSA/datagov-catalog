@@ -44,16 +44,29 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
     assert len(response.json) > 0
     assert "results" in response.json
 
-def test_search_api_response_containes_harvest_record_url(interface_with_dataset, db_client):
+
+def test_search_api_response_containes_harvest_record_url(
+    interface_with_dataset, db_client
+):
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
     )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
-    assert response.json["results"][0]["harvest_record"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
-    assert response.json["results"][0]["harvest_record_raw"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/raw"
-    assert response.json["results"][0]["harvest_record_transformed"] == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/transformed"
+    assert (
+        response.json["results"][0]["harvest_record"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+    )
+    assert (
+        response.json["results"][0]["harvest_record_raw"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/raw"
+    )
+    assert (
+        response.json["results"][0]["harvest_record_transformed"]
+        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/transformed"
+    )
+
 
 def test_search_api_pagination(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -132,7 +145,7 @@ def test_index_page_filters_by_org_slug(db_client):
         total=0, results=[], search_after=None
     )
     mock_interface.get_organization_by_slug.return_value = mock_org
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
     mock_interface.total_datasets.return_value = 0
     mock_interface.get_unique_keywords.return_value = []
 
@@ -168,12 +181,23 @@ def test_index_page_shows_top_organizations(db_client):
         "popularity": 42,
     }
     mock_interface = Mock()
+    # Aggregations are now embedded on the SearchResult so that a single
+    # search_datasets call provides both hits and contextual counts.
     mock_interface.search_datasets.return_value = SearchResult(
-        total=1, results=[mock_dataset], search_after=None
+        total=1,
+        results=[mock_dataset],
+        search_after=None,
+        aggregations={
+            "keywords": [],
+            "organizations": [
+                {"slug": "org-one", "count": 2345},
+                {"slug": "org-two", "count": 100},
+            ],
+        },
     )
     mock_interface.get_unique_keywords.return_value = []
     mock_interface.total_datasets.return_value = 1
-    mock_interface.get_top_organizations.return_value = [
+    top_orgs = [
         {
             "id": "org-1",
             "name": "Org One",
@@ -191,6 +215,7 @@ def test_index_page_shows_top_organizations(db_client):
             "aliases": [],
         },
     ]
+    mock_interface.get_organizations.return_value = top_orgs
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/")
@@ -207,7 +232,7 @@ def test_index_page_shows_top_organizations(db_client):
 
 def test_get_organizations_api_returns_data(db_client):
     mock_interface = Mock()
-    mock_interface.get_top_organizations.return_value = [
+    mock_interface.get_organizations.return_value = [
         {
             "id": "org-1",
             "name": "Org One",
@@ -227,19 +252,19 @@ def test_get_organizations_api_returns_data(db_client):
     ]
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get("/api/organizations?size=5")
+        response = db_client.get("/api/organizations")
 
     assert response.status_code == 200
     data = response.get_json()
     assert len(data["organizations"]) == 2
     assert data["organizations"][0]["id"] == "org-1"
     assert data["organizations"][0]["aliases"] == ["Org 1"]
-    mock_interface.get_top_organizations.assert_called_once_with(limit=5)
+    mock_interface.get_organizations.assert_called_once_with()
 
 
 def test_get_organizations_api_handles_errors(db_client):
     mock_interface = Mock()
-    mock_interface.get_top_organizations.side_effect = Exception("boom")
+    mock_interface.get_organizations.side_effect = Exception("boom")
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/api/organizations")
@@ -278,6 +303,23 @@ def test_get_opensearch_health_api_handles_errors(db_client):
     data = response.get_json()
     assert data["status"] == "unknown"
     assert data["error"] == "Failed to fetch OpenSearch cluster health"
+
+
+def test_get_stats_api_returns_data(db_client):
+    mock_interface = Mock()
+    mock_interface.get_stats.return_value = {
+        "results": {"datasets": 123456},
+        "metrics": {"orgBarMetric": "%5B%5D", "datasetsBarMetric": "%5B%5D"},
+        "meta": {"date": "Thu, 01 Jan 2026 00:00:00 GMT"},
+    }
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/stats")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["results"]["datasets"] == 123456
+    mock_interface.get_stats.assert_called_once_with()
 
 
 def test_search_api_spatial_geometry(interface_with_dataset, db_client):
@@ -319,7 +361,7 @@ def test_index_spatial_geometry(interface_with_dataset, db_client):
 def test_index_includes_top_20_result_geometries_for_map(db_client):
     mock_interface = Mock()
     mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
 
     datasets = []
     for idx in range(25):
@@ -354,7 +396,9 @@ def test_index_includes_top_20_result_geometries_for_map(db_client):
     polygon_escaped = quote(polygon_json)
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get("/", query_string={"spatial_geometry": polygon_escaped})
+        response = db_client.get(
+            "/", query_string={"spatial_geometry": polygon_escaped}
+        )
 
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
@@ -369,7 +413,7 @@ def test_index_includes_top_20_result_geometries_for_map(db_client):
 def test_index_omits_result_geometries_for_map_without_geography_filter(db_client):
     mock_interface = Mock()
     mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
     mock_interface.search_datasets.return_value = SearchResult(
         total=1,
         results=[
@@ -406,10 +450,13 @@ def test_index_omits_result_geometries_for_map_without_geography_filter(db_clien
 def test_index_page_parses_spatial_within_param(db_client):
     mock_interface = Mock()
     mock_interface.search_datasets.return_value = SearchResult(
-        total=0, results=[], search_after=None
+        total=0,
+        results=[],
+        search_after=None,
+        aggregations={"keywords": [], "organizations": []},
     )
     mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
 
     polygon = {
         "type": "polygon",
@@ -428,6 +475,8 @@ def test_index_page_parses_spatial_within_param(db_client):
         )
 
     assert response.status_code == 200
+    # The route now makes a single search_datasets call with include_aggregations=True.
+    assert mock_interface.search_datasets.call_count == 1
     _, kwargs = mock_interface.search_datasets.call_args
     assert kwargs["spatial_within"] is False
     assert kwargs["spatial_geometry"] == polygon
@@ -572,7 +621,9 @@ def test_organization_detail_includes_top_20_result_geometries_for_map(db_client
     assert payload[19]["coordinates"] == [-76.0, 39.0]
 
 
-def test_organization_detail_omits_result_geometries_without_geography_filter(db_client):
+def test_organization_detail_omits_result_geometries_without_geography_filter(
+    db_client,
+):
     mock_org = type(
         "Org",
         (),
@@ -848,21 +899,81 @@ def test_index_page_renders(db_client):
     assert line_arrow is not None
 
 
+def test_resource_chip_defaults_to_html(db_client):
+    """
+    Have it so resource chip is passed None in the template and that
+    the template renders HTML by default.
+    """
+
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organization_by_slug.return_value = None
+    # set up a dataset with an unexpected file type
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1,
+        results=[
+            {
+                "id": "fruit-and-tree-nuts-data-id",
+                "slug": "fruit-and-tree-nuts-data",
+                "dcat": {
+                    "title": "Fruit and Tree Nuts Data",
+                    "description": "USDA data on fruit and tree nut production.",
+                    "distribution": [
+                        {
+                            "title": "Fruit and Tree Nuts Shapefile",
+                            "format": "shp",
+                            "downloadURL": "https://example.com/fruit-tree-nuts.shp",
+                        }
+                    ],
+                },
+                "organization": {
+                    "name": "Department of Agriculture",
+                    "slug": "department-of-agriculture",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": None,
+            }
+        ],
+        search_after=None,
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    format_link = soup.find(
+        "a",
+        attrs={
+            "data-format": "html",
+            "data-organization": "Department of Agriculture",
+        },
+    )
+    assert format_link is not None
+
+    assert format_link.get("href") == "/dataset/fruit-and-tree-nuts-data"
+    assert format_link.get_text(strip=True).lower() == "html"
+
+
 def test_index_page_meta_tags(db_client):
     # meta tags are there
     response = db_client.get("/")
     soup = BeautifulSoup(response.text, "html.parser")
-    assert all(soup.select_one(selector) is not None for selector in [
-        'meta[property="og:title"]',
-        'meta[property="og:description"]',
-        'meta[property="og:url"]',
-        'meta[property="og:image"]',
-        'meta[name="twitter:title"]',
-        'meta[name="twitter:description"]',
-        'meta[name="twitter:url"]',
-        'meta[name="twitter:image"]',
-    ])
-
+    assert all(
+        soup.select_one(selector) is not None
+        for selector in [
+            'meta[property="og:title"]',
+            'meta[property="og:description"]',
+            'meta[property="og:url"]',
+            'meta[property="og:image"]',
+            'meta[name="twitter:title"]',
+            'meta[name="twitter:description"]',
+            'meta[name="twitter:url"]',
+            'meta[name="twitter:image"]',
+        ]
+    )
 
 
 def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
@@ -1097,6 +1208,11 @@ def test_index_page_has_filters_sidebar(db_client):
     # Check sort has popularity option
     popularity_option = soup.find("option", {"value": "popularity"})
     assert popularity_option is not None
+
+    # Check sort has last_harvested_date option
+    last_harvested_option = soup.find("option", {"value": "last_harvested_date"})
+    assert last_harvested_option is not None
+
     # Check sort has distance option (disabled without geography)
     distance_option = soup.find("option", {"value": "distance"})
     assert distance_option is not None
@@ -1158,6 +1274,25 @@ def test_index_page_popularity_sort_preserved(db_client):
     hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
     assert hidden_sort_input is not None
     assert hidden_sort_input.get("value") == "popularity"
+
+
+def test_index_page_last_harvested_sort_preserved(db_client):
+    """Test that last_harvested_date sort selection is preserved between requests."""
+    response = db_client.get("/?q=climate&per_page=10&sort=last_harvested_date")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    sort_select = soup.find("select", {"name": "sort", "id": "sort-select"})
+    assert sort_select is not None
+
+    last_harvested_option = sort_select.find("option", {"value": "last_harvested_date"})
+    assert last_harvested_option is not None
+    assert "selected" in last_harvested_option.attrs
+
+    hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
+    assert hidden_sort_input is not None
+    assert hidden_sort_input.get("value") == "last_harvested_date"
 
 
 def test_index_page_lists_results_without_query(db_client):
@@ -1257,6 +1392,47 @@ def test_index_search_result_includes_dataset_link(interface_with_dataset, db_cl
 
     # dataset link should include a from_hint
     assert "from_hint=" in dataset_link.get("href")
+
+
+def test_index_search_result_includes_published_on_in_metrics_line(db_client):
+    mock_dataset = {
+        "id": "mock-id",
+        "slug": "mock-slug",
+        "dcat": {
+            "title": "Mock Dataset",
+            "description": "Mock description",
+            "distribution": [],
+        },
+        "organization": {
+            "id": "org-id",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+        },
+        "_score": 1.0,
+        "popularity": 0,
+        "last_harvested_date": "2024-01-15T12:30:00",
+    }
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1, results=[mock_dataset], search_after=None
+    )
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/?q=test")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    first_item = soup.find("li", class_="usa-collection__item")
+    assert first_item is not None
+    metadata_line = first_item.find("small", class_="text-base-dark")
+    assert metadata_line is not None
+    assert (
+        "Search relevance: 1.00 | Views last month: 0 | Published on: 2024-01-15"
+        in metadata_line.get_text(" ", strip=True)
+    )
 
 
 def test_index_pagination_preserves_query_params(interface_with_dataset, db_client):
@@ -1827,7 +2003,7 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
         results=[mock_dataset] * 20,  # Return some sample results
         search_after=None,
     )
-    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organizations.return_value = []
     mock_interface.total_datasets.return_value = 10000
     mock_interface.get_unique_keywords.return_value = []
 
@@ -1849,3 +2025,137 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
     # Check for the tip text content
     tip_text = tip_div.find("p", class_="advanced-search-tip__text")
     assert tip_text is not None
+
+
+class TestContextualKeywordSuggestions:
+
+    def _make_mock_interface(
+        self,
+        contextual_keywords=None,
+        contextual_orgs=None,
+        top_organizations=None,
+        search_total=100,
+    ):
+        """Build a mock interface with configurable contextual aggregations.
+
+        Aggregations are embedded directly on the SearchResult returned by
+        search_datasets, matching the route's use of include_aggregations=True.
+        """
+        mock = Mock()
+        mock.search_datasets.return_value = SearchResult(
+            total=search_total,
+            results=[],
+            search_after=None,
+            aggregations={
+                "keywords": contextual_keywords or [],
+                "organizations": contextual_orgs or [],
+            },
+        )
+        mock.get_organizations.return_value = top_organizations or []
+        mock.count_all_datasets_in_search.return_value = search_total
+        mock.get_organization_by_slug.return_value = None
+        return mock
+
+    def _get_index(self, client, mock_interface, query_string=None):
+        """GET the index page with a patched interface."""
+        with patch("app.routes.interface", mock_interface):
+            return client.get("/", query_string=query_string or {})
+
+    def _parse_suggested_keywords(self, html: str) -> list[str]:
+        """Extract suggested keyword text values from the response HTML."""
+        soup = BeautifulSoup(html, "html.parser")
+        container = soup.find(id="suggested-keywords")
+        if not container:
+            return []
+        buttons = container.find_all("button", class_="tag-link--suggested")
+        keywords = []
+        for btn in buttons:
+            count_span = btn.find("span", class_="tag-link__count")
+            if count_span:
+                count_span.decompose()
+            keywords.append(btn.get_text(strip=True))
+        return keywords
+
+    def test_suggestions_shown_without_any_filters(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Confirm that suggestions are shown."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock)
+        assert response.status_code == 200
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert "environment" in suggested
+        assert "health" in suggested
+
+    def test_suggestions_still_shown_when_keyword_is_selected(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Chips still appear even with an active keyword."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock, query_string={"keyword": "health"})
+        assert response.status_code == 200
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert len(suggested) > 0
+
+    def test_selected_keyword_excluded_from_suggestions(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Confirm that selected keyword is not in suggestion."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock, query_string={"keyword": "health"})
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert "health" not in suggested
+        assert "environment" in suggested
+
+    def test_max_ten_suggestions(self, db_client):
+        """Confirm only 10 keywords appear."""
+        many_keywords = [{"keyword": f"kw-{i}", "count": 100 - i} for i in range(20)]
+        mock = self._make_mock_interface(contextual_keywords=many_keywords)
+        response = self._get_index(db_client, mock)
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert len(suggested) <= 10
+
+    def test_suggestions_ordered_by_count_desc(
+        self, db_client, sample_contextual_keywords
+    ):
+        """Test that the keywords are properly ordered."""
+        mock = self._make_mock_interface(contextual_keywords=sample_contextual_keywords)
+        response = self._get_index(db_client, mock)
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        expected = [kw["keyword"] for kw in sample_contextual_keywords]
+        assert suggested == expected
+
+
+def test_dataset_detail_tag_links_point_to_keyword_search(
+    interface_with_dataset, db_client
+):
+    """
+    Each tag in the tags-section should be an anchor whose href
+    is /?keyword=<keyword>.
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/dataset/test")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    tags_section = soup.find(class_="tags-section")
+    assert tags_section is not None
+
+    tag_links = tags_section.find_all("a", class_="tag-link")
+    assert len(tag_links) > 0
+
+    # The fixture "test" dataset has keywords ["health", "education"]
+    expected_keywords = {"Health", "health", "education"}
+    found_keywords = set()
+
+    for link in tag_links:
+        href = link.get("href", "")
+        parsed = urlparse(href)
+        assert parsed.path == "/"
+        qs = parse_qs(parsed.query)
+        assert "keyword" in qs
+        assert len(qs["keyword"]) == 1
+        found_keywords.add(qs["keyword"][0])
+
+    assert found_keywords == expected_keywords

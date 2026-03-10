@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 
 import newrelic.agent
+from apiflask import APIFlask
 from dotenv import load_dotenv
-from flask import Flask
 from flask_htmx import HTMX
 from flask_talisman import Talisman
 
@@ -33,8 +33,15 @@ load_dotenv()
 htmx = None
 
 
-def create_app(config_name: str = "local") -> Flask:
-    app = Flask(__name__, static_url_path="", static_folder="static")
+def create_app(config_name: str = "local") -> APIFlask:
+    app = APIFlask(__name__, static_url_path="", static_folder="static", docs_path=None)
+
+    app.config["INFO"] = {
+        "title": "Datagov Catalog",
+        "version": "0.1.0",
+    }
+    if os.getenv("SITE_URL"):
+        app.config["SERVERS"] = [{"url": f"{os.getenv("SITE_URL")}"}]
 
     app.config["PREFERRED_URL_SCHEME"] = "https"
     # enable template hot template reloading in local
@@ -99,6 +106,7 @@ def create_app(config_name: str = "local") -> Flask:
                 "https://www.googletagmanager.com",
                 "https://buttons.github.io",  # github button
                 "https://touchpoints.app.cloud.gov",
+                "https://unpkg.com",  # swagger
                 "'unsafe-hashes'",
                 "'sha256-osjxnKEPL/pQJbFk1dKsF7PYFmTyMWGmVSiL9inhxJY='",  # form autosubmit
                 "'sha256-A1KDZ6CTgI16YJ4cUNyyCFExM5+Sv4ApvahuZIQRXPA='",  # return to top
@@ -145,6 +153,7 @@ def create_app(config_name: str = "local") -> Flask:
             [
                 "'self'",  # local styles.css
                 "https://cdnjs.cloudflare.com",  # font-awesome
+                "https://unpkg.com",  # Swagger
                 "'sha256-faU7yAF8NxuMTNEwVmBz+VcYeIoBQ2EMHW3WaVxCvnk='",  # htms.min.js
                 "'sha256-qo7STIM1L/OgU9y0De47mqod1UZFLJfTn36bRC42rfA='",  # buttons.js
                 "'sha256-d0LwTCBHt5DXTdSVbRSm0wQ/W4m5yoyMcrge+KrScUc='",  # touchpoints
