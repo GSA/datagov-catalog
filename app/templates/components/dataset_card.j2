@@ -1,7 +1,7 @@
 {% macro dataset_card(dataset, from_hint='', result_number=None, sort_value=None, allow_distance=false) -%}
 {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
 {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
-{% set dataset_identifier = dataset.get('slug') or dataset.get('id') %}
+{% set dataset_slug = dataset.get('slug') %}
 {% set updated_display = dataset_meta.get('modified') %}
 {% set view_count = dataset.get('popularity') %}
 {% set published_on = dataset.get('last_harvested_date') %}
@@ -33,12 +33,13 @@
           <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">
               <h3 class="usa-collection__heading margin-0">
                   <a class="usa-link"
-                      {% if from_hint %}
-                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier, from_hint=from_hint) }}">
+                      {% if dataset_slug and from_hint %}
+                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug, from_hint=from_hint) }}">
+                      {% elif dataset_slug %}
+                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug) }}">
                       {% else %}
-                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
-                      {% endif %}
-
+                      href="#"
+                      {% endif %}>
                       {{ dataset_title }}
                   </a>
                   {% if view_count is not none and view_count >= 100 %}
@@ -68,7 +69,7 @@
               {% for resource in dataset.dcat.distribution[:6] %}
               <li>
                   <a 
-                    href="{{ resource.accessURL or url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}"
+                    href="{{ resource.accessURL or (url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug) if dataset_slug else '#') }}"
                     class="label label-default text-uppercase"
                     data-format="{{ (resource.format or resource.mediaType) | simplify_resource_type | default('html', true) | lower }}"
                     data-organization="{{ dataset.organization.name }}">{{ (resource.format or resource.mediaType) | simplify_resource_type | default('html', true) | lower }}</a>
@@ -77,7 +78,7 @@
               {% if dataset.dcat.distribution|length > 6 %}
               <li class="text-base-light">
                   <a class="usa-link"
-                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier) }}">
+                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug) if dataset_slug else '#' }}">
                       +{{ dataset.dcat.distribution|length - 6 }} more
                   </a>
               </li>

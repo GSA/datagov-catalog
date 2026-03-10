@@ -705,14 +705,20 @@ def organization_detail(slug: str):
 
 @main.route("/dataset/<slug_or_id>", methods=["GET"])
 def dataset_detail_by_slug_or_id(slug_or_id: str):
-    """Display dataset detail page by slug or ID."""
+    """Display dataset detail page at its slug URL."""
     dataset = interface.get_dataset_by_slug(slug_or_id)
-    # if the dataset is not found by slug, try to find it by ID
     if dataset is None:
         dataset = interface.get_dataset_by_id(slug_or_id)
-    # if the dataset is still not found, return 404
-    if dataset is None:
-        abort(404)
+        if dataset is None:
+            abort(404)
+        return redirect(
+            url_for(
+                "main.dataset_detail_by_slug_or_id",
+                slug_or_id=dataset.slug,
+                **request.args.to_dict(),
+            ),
+            code=301,
+        )
 
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
