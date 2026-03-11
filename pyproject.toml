@@ -21,7 +21,6 @@ dependencies = [
     "botocore (>=1.40.55,<2.0.0)",
     "beautifulsoup4 (>=4.14.2,<5.0.0)",
     "flask-talisman (>=1.1.0,<2.0.0)",
-    "newrelic (>=11.4.0,<12.0.0)",
     "haversine (>=2.9.0,<3.0.0)",
     "apiflask (>=3.0.2,<4.0.0)",
 
@@ -33,8 +32,8 @@ packages = [
 ]
 
 [tool.poetry.group.dev.dependencies]
-black = "^26.1.0"
-ruff = "^0.15.4"
+black = "^26.3.0"
+ruff = "^0.15.5"
 isort = "^8.0.1"
 beautifulsoup4 = "^4.14.2"
 moto = {version = ">=5.0.0,<6.0.0", extras = ["s3"]}
