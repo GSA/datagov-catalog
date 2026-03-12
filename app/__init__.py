@@ -1,8 +1,6 @@
 import logging
 import os
-from pathlib import Path
 
-import newrelic.agent
 from apiflask import APIFlask
 from dotenv import load_dotenv
 from flask_htmx import HTMX
@@ -41,7 +39,7 @@ def create_app(config_name: str = "local") -> APIFlask:
         "version": "0.1.0",
     }
     if os.getenv("SITE_URL"):
-        app.config["SERVERS"] = [{"url": f"{os.getenv("SITE_URL")}"}]
+        app.config["SERVERS"] = [{"url": f"{os.getenv('SITE_URL')}"}]
 
     app.config["PREFERRED_URL_SCHEME"] = "https"
     # enable template hot template reloading in local
@@ -61,14 +59,6 @@ def create_app(config_name: str = "local") -> APIFlask:
     app.config["SERVER_NAME"] = normalize_site_url(
         os.getenv("SITE_URL", "0.0.0.0:8080")
     )
-
-    # configure new relic
-    try:
-        config_file = Path(__file__).parents[1] / "config" / "newrelic.ini"
-        newrelic.agent.initialize(config_file)
-        app = newrelic.agent.wsgi_application()(app)
-    except Exception as e:
-        logger.warning(f"issue initializing new relic: {repr(e)}")
 
     global htmx
     htmx = HTMX(app)

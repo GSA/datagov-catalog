@@ -6,6 +6,7 @@ applications:
     services:
       - ((app_name))-s3
       - ((app_name))-secrets
+      - logstack-space-drain
     path: ./proxy
     # TODO: tweak with load testing
     memory: 100M
@@ -26,6 +27,7 @@ applications:
       - ((app_name))-secrets
       - ((app_name))-s3
       - ((app_name))-opensearch
+      - logstack-space-drain
     instances: ((instances))
     memory: 1G
     disk_quota: 2G
