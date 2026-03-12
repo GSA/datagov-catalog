@@ -23,7 +23,8 @@ ORGANIZATION_TYPE_ENUM = PyEnum(
     "OrganizationType", [(a, a) for a in ORGANIZATION_TYPE_VALUES]
 )
 SORT_BY_ENUM = PyEnum(
-    "SortBy", [(a, a) for a in ("relevance", "popularity", "distance")]
+    "SortBy",
+    [(a, a) for a in ("relevance", "popularity", "distance", "last_harvested_date")],
 )
 SPATIAL_FILTER_ENUM = PyEnum(
     "SpatialFilter", [(a, a) for a in ("geospatial", "non-geospatial")]
