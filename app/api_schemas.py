@@ -83,7 +83,7 @@ class SearchResults(Schema):
 
 class SearchQuery(Schema):
     q = String()
-    sort_by = Enum(SORT_BY_ENUM)
+    sort = Enum(SORT_BY_ENUM)
     per_page = Integer(validate=Range(min=1))
     org_slug = String()
     org_type = Enum(ORGANIZATION_TYPE_ENUM)
