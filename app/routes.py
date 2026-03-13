@@ -310,6 +310,12 @@ def index():
     # excluding the currently-selected organization.
     try:
         org_suggestions = interface.get_organizations()
+        # Tests and stubs may leave this as a Mock or another non-list value.
+        # Strings are iterable too, but neither case is usable as organization rows.
+        if not isinstance(org_suggestions, Iterable) or isinstance(
+            org_suggestions, (str, bytes)
+        ):
+            org_suggestions = []
         # Add contextual counts to organizations
         for org in org_suggestions:
             org_slug = org.get("slug")
@@ -332,8 +338,8 @@ def index():
     except Exception:
         logger.exception("Failed to fetch suggested organizations")
 
-    # construct a from-string for this search to go into the dataset links
-    from_hint = hint_from_dict(request.args)
+    # Only emit a return-to-search hint when there is actual search or filter state.
+    from_hint = hint_from_dict(request.args) if request.args else None
     search_result_geometries = (
         _collect_spatial_shapes(datasets) if spatial_geometry is not None else []
     )
@@ -705,14 +711,20 @@ def organization_detail(slug: str):
 
 @main.route("/dataset/<slug_or_id>", methods=["GET"])
 def dataset_detail_by_slug_or_id(slug_or_id: str):
-    """Display dataset detail page by slug or ID."""
+    """Display dataset detail page at its slug URL."""
     dataset = interface.get_dataset_by_slug(slug_or_id)
-    # if the dataset is not found by slug, try to find it by ID
     if dataset is None:
         dataset = interface.get_dataset_by_id(slug_or_id)
-    # if the dataset is still not found, return 404
-    if dataset is None:
-        abort(404)
+        if dataset is None:
+            abort(404)
+        return redirect(
+            url_for(
+                "main.dataset_detail_by_slug_or_id",
+                slug_or_id=dataset.slug,
+                **request.args.to_dict(),
+            ),
+            code=301,
+        )
 
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
