@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
-{% set dataset_identifier = dataset.slug or dataset.id %}
+{% set dataset_slug = dataset.slug %}
 {% set organization_title = organization.name %}
 {% set page_title = organization_title ~ ' - ' ~ dataset_title %}
 
@@ -39,7 +39,7 @@
 {% set description_value = dataset.dcat.get('description') %}
 {% set cleaned_description = description_value | remove_html_tags | striptags | replace('\n', ' ') | trim %}
 {% set meta_description = cleaned_description | truncate(200, True, '...') %}
-{% set canonical_url = url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_identifier, _external=True) %}
+{% set canonical_url = url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug, _external=True) %}
 {% set social_image = config.get('SOCIAL_IMAGE_URL') %}
 <link rel="canonical" href="{{ canonical_url }}">
 <meta name="description" content="{{ meta_description }}">
@@ -344,7 +344,7 @@
                         Have questions or suggestions about this dataset?
                     </p>
                     <button class="usa-button width-full" type="button" id="contact-btn"
-                        data-dataset-identifier="{{ dataset_identifier }}" data-dataset-title="{{ dataset_title }}"
+                        data-dataset-identifier="{{ dataset_slug }}" data-dataset-title="{{ dataset_title }}"
                         aria-label="Provide feedback on {{ dataset_title }}">
                         <i class="fa-solid fa-comment-dots margin-right-05"></i>
                         Send Feedback

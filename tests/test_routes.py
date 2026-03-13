@@ -957,6 +957,45 @@ def test_resource_chip_defaults_to_html(db_client):
     assert format_link.get_text(strip=True).lower() == "html"
 
 
+def test_index_page_dataset_links_use_slug_not_id(db_client):
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+    mock_interface.get_top_organizations.return_value = []
+    mock_interface.get_organization_by_slug.return_value = None
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=1,
+        results=[
+            {
+                "id": "dataset-internal-id-123",
+                "slug": "public-dataset-slug",
+                "dcat": {
+                    "title": "Public Dataset",
+                    "description": "Dataset description",
+                    "distribution": [],
+                },
+                "organization": {
+                    "name": "Department of Agriculture",
+                    "slug": "department-of-agriculture",
+                    "organization_type": "Federal Government",
+                },
+                "spatial_shape": None,
+            }
+        ],
+        search_after=None,
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    title_link = soup.select_one(".usa-collection__heading a")
+    assert title_link is not None
+    assert title_link.get("href") == "/dataset/public-dataset-slug"
+    assert "/dataset/dataset-internal-id-123" not in response.text
+
+
 def test_index_page_meta_tags(db_client):
     # meta tags are there
     response = db_client.get("/")
