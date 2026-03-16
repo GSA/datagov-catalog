@@ -41,7 +41,10 @@ def test_get_top_publishers_returns_top_100(interface_with_dataset, monkeypatch)
     def _get_publisher_counts(size):
         nonlocal captured_size
         captured_size = size
-        return [{"name": "Agency Beta", "count": 1}, {"name": "Agency Alpha", "count": 1}]
+        return [
+            {"name": "Agency Beta", "count": 1},
+            {"name": "Agency Alpha", "count": 1},
+        ]
 
     monkeypatch.setattr(
         interface_with_dataset.opensearch,
