@@ -42,6 +42,9 @@
                     {% for keyword in keywords %}
                     <input type="hidden" name="keyword" value="{{ keyword }}">
                     {% endfor %}
+                    {% if publisher %}
+                    <input type="hidden" name="publisher" value="{{ publisher }}">
+                    {% endif %}
                     {% if org_slug %}
                     <input type="hidden" name="org_slug" value="{{ org_slug }}">
                     {% endif %}
@@ -63,7 +66,7 @@
         <div id="search-results" class="margin-top-3">
             {% if datasets %}
             <div class="usa-prose">
-              {% if query or org_types or keywords or org_slug or spatial_filter or spatial_geometry %}
+              {% if query or org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
                 <p class="text-base-dark">
                 {%- if total < 2 -%}
                     Found <strong>{{ total }}</strong> dataset matching
@@ -72,7 +75,7 @@
                 {%- else -%}
                     Found over <strong>{{ total }}</strong> datasets matching
                 {%- endif %}
-                {%- if query and (org_types or keywords or org_slug or spatial_filter or spatial_geometry) %} "{{ query }}" and filters.
+                {%- if query and (org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry) %} "{{ query }}" and filters.
                 {%- elif query %} "{{ query }}".
                 {%- else %} filters.
                 {%- endif -%}
@@ -124,6 +127,8 @@
             sort_value=sort_by,
             keywords=keywords,
             suggested_keywords=suggested_keywords,
+            publisher=publisher,
+            suggested_publishers=suggested_publishers,
             spatial_filter=spatial_filter,
             search_result_geometries=search_result_geometries,
             spatial_geometry=spatial_geometry,
@@ -134,7 +139,8 @@
             selected_organization=selected_organization,
             suggested_organizations=suggested_organizations,
             contextual_keyword_counts=contextual_keyword_counts,
-            contextual_org_counts=contextual_org_counts
+            contextual_org_counts=contextual_org_counts,
+            contextual_publisher_counts=contextual_publisher_counts
         ) }}
     </aside>
 </div>

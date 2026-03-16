@@ -73,6 +73,9 @@
                     {% for keyword in keywords %}
                     <input type="hidden" name="keyword" value="{{ keyword }}">
                     {% endfor %}
+                    {% if publisher %}
+                    <input type="hidden" name="publisher" value="{{ publisher }}">
+                    {% endif %}
                     {% if spatial_filter %}
                     <input type="hidden" name="spatial_filter" value="{{ spatial_filter }}">
                     {% endif %}
@@ -90,7 +93,7 @@
 
         {% if datasets %}
         <div class="usa-prose">
-          {% if dataset_search_query or keywords or spatial_filter or spatial_geometry %}
+          {% if dataset_search_query or keywords or publisher or spatial_filter or spatial_geometry %}
           <p class="text-base-dark">
             {% if num_matches < 2 %}
                 Found <strong>{{ num_matches }}</strong> dataset matching
@@ -99,7 +102,7 @@
             {% else %}
                 Found over <strong>{{ num_matches }}</strong> datasets matching
             {% endif %}
-            {% if dataset_search_query and (keywords or spatial_filter or spatial_geometry) %} "{{ dataset_search_query }}" and filters.
+            {% if dataset_search_query and (keywords or publisher or spatial_filter or spatial_geometry) %} "{{ dataset_search_query }}" and filters.
             {% elif dataset_search_query %} "{{ dataset_search_query }}".
             {% else %} filters.
             {% endif %}
@@ -131,9 +134,13 @@
             sort_value=selected_sort,
             keywords=keywords,
             suggested_keywords=suggested_keywords,
+            publisher=publisher,
+            suggested_publishers=suggested_publishers,
             spatial_filter=spatial_filter,
             search_result_geometries=search_result_geometries,
-            spatial_geometry=spatial_geometry
+            spatial_geometry=spatial_geometry,
+            contextual_keyword_counts=contextual_keyword_counts,
+            contextual_publisher_counts=contextual_publisher_counts
         ) }}
       </aside>
     </div>

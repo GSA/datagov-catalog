@@ -814,6 +814,9 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
     keyword_section = soup.find("div", {"id": "filter-keywords"})
     assert keyword_section is not None
 
+    publisher_section = soup.find("div", {"id": "filter-publishers"})
+    assert publisher_section is not None
+
     geography_section = soup.find("div", {"id": "filter-geography"})
     assert geography_section is not None
     assert soup.find("div", {"id": "geography-map-expanded-panel"}) is not None
@@ -1261,6 +1264,9 @@ def test_index_page_has_filters_sidebar(db_client):
     filter_form = soup.find("form", {"id": "filter-form"})
     assert filter_form is not None
 
+    publisher_input = soup.find("input", {"id": "publisher-input"})
+    assert publisher_input is not None
+
     # Check for specific organization type checkboxes
     federal_checkbox = soup.find(
         "input", {"id": "filter-federal", "value": "Federal Government"}
@@ -1688,6 +1694,54 @@ class TestKeywordSearch:
         assert geography_panel is not None
 
 
+class TestPublisherSearch:
+    """Test publisher filter functionality on index page."""
+
+    def test_publisher_filter_shows_matching_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+
+        dataset_dict["id"] = "publisher-alpha"
+        dataset_dict["slug"] = "publisher-alpha"
+        dataset_dict["dcat"] = {
+            "title": "Alpha Publisher Dataset",
+            "description": "Dataset from Alpha publisher",
+            "publisher": {"name": "Agency Alpha"},
+            "distribution": [],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+
+        dataset_dict["id"] = "publisher-beta"
+        dataset_dict["slug"] = "publisher-beta"
+        dataset_dict["dcat"] = {
+            "title": "Beta Publisher Dataset",
+            "description": "Dataset from Beta publisher",
+            "publisher": {"name": "Agency Beta"},
+            "distribution": [],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        interface_with_dataset.db.commit()
+
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?publisher=Agency Alpha")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        titles = [
+            item.get_text(" ", strip=True)
+            for item in soup.select(".usa-collection__heading")
+        ]
+
+        assert any("Alpha Publisher Dataset" in title for title in titles)
+        assert not any("Beta Publisher Dataset" in title for title in titles)
+
+
 class TestGeospatialSearch:
     """Test geospatial search functionality on index page."""
 
@@ -1785,6 +1839,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"]["title"] = f"test-{i}"
         dataset_dict["dcat"]["keyword"] = ["health", "education"]
+        dataset_dict["dcat"]["publisher"] = {"name": "Test Publisher"}
         dataset_dict["dcat"]["spatial"] = "-90.155,27.155,-90.26,27.255"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
@@ -1803,6 +1858,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
                 "per_page": "10",
                 "org_type": "Federal Government",
                 "keyword": "health",
+                "publisher": "Test Publisher",
                 "spatial_filter": "geospatial",
                 "sort": "popularity",
             },
@@ -1829,6 +1885,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     assert params.get("q") == ["test"]
     assert params.get("org_type") == ["Federal Government"]
     assert params.get("keyword") == ["health"]
+    assert params.get("publisher") == ["Test Publisher"]
     assert params.get("spatial_filter") == ["geospatial"]
     assert params.get("sort") == ["popularity"]
     assert "after" in params
@@ -1844,6 +1901,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     assert push_params.get("q") == ["test"]
     assert push_params.get("org_type") == ["Federal Government"]
     assert push_params.get("keyword") == ["health"]
+    assert push_params.get("publisher") == ["Test Publisher"]
 
 
 def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client):

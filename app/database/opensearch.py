@@ -56,7 +56,7 @@ class SearchResult:
 
         When the search body included aggregation "clauses", the parsed
         `aggregations` dict will be populated on the returned instance with
-        `keywords` and `organizations` lists.
+        `keywords`, `organizations`, and `publishers` lists.
         """
 
         total = result_dict["hits"]["total"]["value"]
@@ -96,6 +96,7 @@ class SearchResult:
             org_buckets = (
                 raw_aggs.get("organizations", {}).get("by_slug", {}).get("buckets", [])
             )
+            publisher_buckets = raw_aggs.get("unique_publishers", {}).get("buckets", [])
             aggregations = {
                 "keywords": [
                     {"keyword": b["key"], "count": b["doc_count"]}
@@ -103,6 +104,10 @@ class SearchResult:
                 ],
                 "organizations": [
                     {"slug": b["key"], "count": b["doc_count"]} for b in org_buckets
+                ],
+                "publishers": [
+                    {"name": b["key"], "count": b["doc_count"]}
+                    for b in publisher_buckets
                 ],
             }
 
@@ -195,6 +200,13 @@ class OpenSearchInterface:
                 "type": "text",
                 "analyzer": TEXT_ANALYZER,
                 "search_analyzer": TEXT_ANALYZER,
+                "fields": {
+                    "raw": {"type": "keyword"},
+                    "normalized": {
+                        "type": "keyword",
+                        "normalizer": KEYWORD_NORMALIZER,
+                    },
+                },
             },
             "keyword": {
                 "type": "text",
@@ -885,6 +897,7 @@ class OpenSearchInterface:
         org_id=None,
         search_after: list = None,
         org_types=None,
+        publisher: str | None = None,
         spatial_filter=None,
         spatial_geometry=None,
         spatial_within=True,
@@ -893,6 +906,7 @@ class OpenSearchInterface:
         include_aggregations: bool = False,
         keyword_size: int = 100,
         org_size: int = 100,
+        publisher_size: int = 100,
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -1019,6 +1033,9 @@ class OpenSearchInterface:
                 }
             )
 
+        if publisher:
+            filters.append({"term": {"publisher.normalized": publisher.lower()}})
+
         # Add spatial filter
         if spatial_filter == "geospatial":
             filters.append({"term": {"has_spatial": True}})
@@ -1052,7 +1069,7 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
-        # `keyword` and `organization` aggregations for the chips
+        # `keyword`, `organization`, and `publisher` aggregations for the chips
         if include_aggregations:
             search_body["aggs"] = {
                 "unique_keywords": {
@@ -1075,6 +1092,14 @@ class OpenSearchInterface:
                             }
                         }
                     },
+                },
+                "unique_publishers": {
+                    "terms": {
+                        "field": "publisher.raw",
+                        "size": publisher_size,
+                        "min_doc_count": 1,
+                        "order": {"_count": "desc"},
+                    }
                 },
             }
 
@@ -1165,6 +1190,41 @@ class OpenSearchInterface:
             {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]
 
+    def get_publisher_counts(
+        self, size=100, min_doc_count=1, as_dict=False
+    ) -> list[dict] | dict[str, int]:
+        """Aggregate datasets by publisher name to get counts."""
+        agg_body = {
+            "size": 0,
+            "aggs": {
+                "unique_publishers": {
+                    "terms": {
+                        "field": "publisher.raw",
+                        "size": size,
+                        "min_doc_count": min_doc_count,
+                        "order": {"_count": "desc"},
+                    }
+                }
+            },
+        }
+
+        result = self.client.search(index=self.INDEX_NAME, body=agg_body)
+        buckets = (
+            result.get("aggregations", {})
+            .get("unique_publishers", {})
+            .get("buckets", [])
+        )
+
+        if as_dict:
+            output = {}
+            for bucket in buckets:
+                output[bucket["key"]] = bucket["doc_count"]
+            return output
+
+        return [
+            {"name": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
+        ]
+
     def get_last_harvested_stats(self) -> dict[str, Any]:
         """Get dataset age-bin counts."""
 
@@ -1231,11 +1291,13 @@ class OpenSearchInterface:
         org_id=None,
         org_types=None,
         keywords: list[str] = None,
+        publisher: str | None = None,
         spatial_filter=None,
         spatial_geometry=None,
         spatial_within=True,
         keyword_size=100,
         org_size=100,
+        publisher_size=100,
     ) -> dict:
         """
         Get keyword and organization aggregations based on current search context.
@@ -1302,6 +1364,9 @@ class OpenSearchInterface:
                     },
                 }
             )
+
+        if publisher:
+            filters.append({"term": {"publisher.normalized": publisher.lower()}})
 
         if spatial_filter == "geospatial":
             filters.append({"term": {"has_spatial": True}})
@@ -1396,6 +1461,40 @@ class OpenSearchInterface:
             .get("buckets", [])
         )
 
+        if filters:
+            publisher_query = {
+                "bool": {
+                    "filter": filters,
+                    "must": [base_query],
+                }
+            }
+        else:
+            publisher_query = base_query
+
+        publisher_agg_body = {
+            "size": 0,
+            "query": publisher_query,
+            "aggs": {
+                "unique_publishers": {
+                    "terms": {
+                        "field": "publisher.raw",
+                        "size": publisher_size,
+                        "min_doc_count": 1,
+                        "order": {"_count": "desc"},
+                    }
+                }
+            },
+        }
+
+        publisher_result = self.client.search(
+            index=self.INDEX_NAME, body=publisher_agg_body
+        )
+        publisher_buckets = (
+            publisher_result.get("aggregations", {})
+            .get("unique_publishers", {})
+            .get("buckets", [])
+        )
+
         return {
             "keywords": [
                 {"keyword": bucket["key"], "count": bucket["doc_count"]}
@@ -1404,5 +1503,9 @@ class OpenSearchInterface:
             "organizations": [
                 {"slug": bucket["key"], "count": bucket["doc_count"]}
                 for bucket in org_buckets
+            ],
+            "publishers": [
+                {"name": bucket["key"], "count": bucket["doc_count"]}
+                for bucket in publisher_buckets
             ],
         }

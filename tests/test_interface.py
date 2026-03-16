@@ -33,3 +33,26 @@ def test_get_organizations_db_fallback_includes_zero_dataset_orgs(
     assert len(organizations) == 2
     assert by_slug["test-org"]["dataset_count"] > 0
     assert by_slug["test-org-filtered"]["dataset_count"] == 0
+
+
+def test_get_top_publishers_returns_top_100(interface_with_dataset, monkeypatch):
+    captured_size = None
+
+    def _get_publisher_counts(size):
+        nonlocal captured_size
+        captured_size = size
+        return [{"name": "Agency Beta", "count": 1}, {"name": "Agency Alpha", "count": 1}]
+
+    monkeypatch.setattr(
+        interface_with_dataset.opensearch,
+        "get_publisher_counts",
+        _get_publisher_counts,
+    )
+
+    publishers = interface_with_dataset.get_top_publishers()
+
+    assert captured_size == 100
+    assert publishers == [
+        {"name": "Agency Alpha", "count": 1},
+        {"name": "Agency Beta", "count": 1},
+    ]
