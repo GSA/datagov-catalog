@@ -4,10 +4,10 @@ import logging
 import os
 import re
 import time
-from urllib.parse import urlparse
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Callable, TypeVar
+from urllib.parse import urlparse
 
 from botocore.credentials import Credentials
 from flask import url_for
