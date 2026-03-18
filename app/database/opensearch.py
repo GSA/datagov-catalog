@@ -314,7 +314,11 @@ class OpenSearchInterface:
         # Parse the value to extract just the hostname for safe validation.
         # Checking the raw string with endswith() can be bypassed by a path
         # component(e.g. "bad.com/es.amazonaws.com") and raise a Snyk finding
-        _raw = opensearch_host if "://" in opensearch_host else f"https://{opensearch_host}"
+        _raw = (
+            opensearch_host
+            if "://" in opensearch_host
+            else f"https://{opensearch_host}"
+        )
         hostname = urlparse(_raw).hostname
         if hostname.endswith(".es.amazonaws.com") or hostname == "es.amazonaws.com":
             return cls(aws_host=hostname)
