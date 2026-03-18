@@ -277,14 +277,27 @@ class KeywordAutocomplete {
         chip.className = 'tag-link';
         chip.dataset.keyword = keyword;
         const count = this.contextualCounts[keyword];
-        const countHtml = count ? `<span class="tag-link__count">(${count})</span>` : '';
-        chip.innerHTML = `
-            <span class="keyword-chip__text">${this.escapeHtml(keyword)}${countHtml}</span>
-            <button type="button" class="keyword-chip__remove" aria-label="Remove ${this.escapeHtml(keyword)}">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        `;
-        const removeBtn = chip.querySelector('.keyword-chip__remove');
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'keyword-chip__text';
+        textSpan.textContent = keyword;
+        if (count) {
+            const countSpan = document.createElement('span');
+            countSpan.className = 'tag-link__count';
+            countSpan.textContent = `(${count})`;
+            textSpan.appendChild(countSpan);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'keyword-chip__remove';
+        removeBtn.setAttribute('aria-label', `Remove ${keyword}`);
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-xmark';
+        removeBtn.appendChild(icon);
+
+        chip.appendChild(textSpan);
+        chip.appendChild(removeBtn);
         removeBtn.addEventListener('click', () => {
             this.removeKeyword(keyword);
         });
@@ -620,16 +633,27 @@ class OrganizationAutocomplete {
         }
 
         const count = organization.slug ? this.contextualCounts[organization.slug] : null;
-        const countHtml = count ? ` <span class="tag-link__count">(${this.formatCount(count)})</span>` : '';
 
-        chip.innerHTML = `
-            <span class="keyword-chip__text">${this.escapeHtml(organization.name)}${countHtml}</span>
-            <button type="button" class="keyword-chip__remove" aria-label="Remove ${this.escapeHtml(organization.name)}">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        `;
+        const textSpan = document.createElement('span');
+        textSpan.className = 'keyword-chip__text';
+        textSpan.textContent = organization.name;
+        if (count) {
+            const countSpan = document.createElement('span');
+            countSpan.className = 'tag-link__count';
+            countSpan.textContent = `(${this.formatCount(count)})`;
+            textSpan.appendChild(countSpan);
+        }
 
-        const removeBtn = chip.querySelector('.keyword-chip__remove');
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'keyword-chip__remove';
+        removeBtn.setAttribute('aria-label', `Remove ${organization.name}`);
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-xmark';
+        removeBtn.appendChild(icon);
+
+        chip.appendChild(textSpan);
+        chip.appendChild(removeBtn);
         removeBtn.addEventListener('click', () => {
             this.clearSelection();
         });
