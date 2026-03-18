@@ -214,10 +214,14 @@ class KeywordAutocomplete {
                 ? this.contextualCounts[item.keyword]
                 : item.count;
 
-            div.innerHTML = `
-                <span class="keyword-suggestion__text">${this.highlightMatch(item.keyword, this.input.value)}</span>
-                <span class="keyword-suggestion__count">${displayCount}</span>
-            `;
+            const textSpan = document.createElement('span');
+            textSpan.className = 'keyword-suggestion__text';
+            textSpan.appendChild(this.highlightMatch(item.keyword, this.input.value));
+            const countSpan = document.createElement('span');
+            countSpan.className = 'keyword-suggestion__count';
+            countSpan.textContent = displayCount;
+            div.appendChild(textSpan);
+            div.appendChild(countSpan);
             div.addEventListener('click', () => {
                 this.addKeyword(item.keyword);
                 this.input.value = '';
@@ -227,12 +231,18 @@ class KeywordAutocomplete {
         });
     }
     highlightMatch(text, query) {
+        const fragment = document.createDocumentFragment();
         const index = text.toLowerCase().indexOf(query.toLowerCase());
-        if (index === -1) return text;
-        const before = text.substring(0, index);
-        const match = text.substring(index, index + query.length);
-        const after = text.substring(index + query.length);
-        return `${before}<strong>${match}</strong>${after}`;
+        if (index === -1) {
+            fragment.appendChild(document.createTextNode(text));
+            return fragment;
+        }
+        fragment.appendChild(document.createTextNode(text.substring(0, index)));
+        const strong = document.createElement('strong');
+        strong.textContent = text.substring(index, index + query.length);
+        fragment.appendChild(strong);
+        fragment.appendChild(document.createTextNode(text.substring(index + query.length)));
+        return fragment;
     }
     showSuggestions() {
         this.suggestionsContainer.classList.add('keyword-suggestions--visible');
@@ -277,14 +287,27 @@ class KeywordAutocomplete {
         chip.className = 'tag-link';
         chip.dataset.keyword = keyword;
         const count = this.contextualCounts[keyword];
-        const countHtml = count ? `<span class="tag-link__count">(${count})</span>` : '';
-        chip.innerHTML = `
-            <span class="keyword-chip__text">${this.escapeHtml(keyword)}${countHtml}</span>
-            <button type="button" class="keyword-chip__remove" aria-label="Remove ${this.escapeHtml(keyword)}">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        `;
-        const removeBtn = chip.querySelector('.keyword-chip__remove');
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'keyword-chip__text';
+        textSpan.textContent = keyword;
+        if (count) {
+            const countSpan = document.createElement('span');
+            countSpan.className = 'tag-link__count';
+            countSpan.textContent = `(${count})`;
+            textSpan.appendChild(countSpan);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'keyword-chip__remove';
+        removeBtn.setAttribute('aria-label', `Remove ${keyword}`);
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-xmark';
+        removeBtn.appendChild(icon);
+
+        chip.appendChild(textSpan);
+        chip.appendChild(removeBtn);
         removeBtn.addEventListener('click', () => {
             this.removeKeyword(keyword);
         });
@@ -566,10 +589,14 @@ class OrganizationAutocomplete {
             if (item.slug) {
                 div.dataset.orgSlug = item.slug;
             }
-            div.innerHTML = `
-                <span class="keyword-suggestion__text">${this.highlightMatch(item.name, this.input.value)}</span>
-                <span class="keyword-suggestion__count">${this.formatCount(item.dataset_count || 0)}</span>
-            `;
+            const textSpan = document.createElement('span');
+            textSpan.className = 'keyword-suggestion__text';
+            textSpan.appendChild(this.highlightMatch(item.name, this.input.value));
+            const countSpan = document.createElement('span');
+            countSpan.className = 'keyword-suggestion__count';
+            countSpan.textContent = this.formatCount(item.dataset_count || 0);
+            div.appendChild(textSpan);
+            div.appendChild(countSpan);
 
             div.addEventListener('click', () => {
                 this.setOrganization({
@@ -620,16 +647,27 @@ class OrganizationAutocomplete {
         }
 
         const count = organization.slug ? this.contextualCounts[organization.slug] : null;
-        const countHtml = count ? ` <span class="tag-link__count">(${this.formatCount(count)})</span>` : '';
 
-        chip.innerHTML = `
-            <span class="keyword-chip__text">${this.escapeHtml(organization.name)}${countHtml}</span>
-            <button type="button" class="keyword-chip__remove" aria-label="Remove ${this.escapeHtml(organization.name)}">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        `;
+        const textSpan = document.createElement('span');
+        textSpan.className = 'keyword-chip__text';
+        textSpan.textContent = organization.name;
+        if (count) {
+            const countSpan = document.createElement('span');
+            countSpan.className = 'tag-link__count';
+            countSpan.textContent = `(${this.formatCount(count)})`;
+            textSpan.appendChild(countSpan);
+        }
 
-        const removeBtn = chip.querySelector('.keyword-chip__remove');
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'keyword-chip__remove';
+        removeBtn.setAttribute('aria-label', `Remove ${organization.name}`);
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-xmark';
+        removeBtn.appendChild(icon);
+
+        chip.appendChild(textSpan);
+        chip.appendChild(removeBtn);
         removeBtn.addEventListener('click', () => {
             this.clearSelection();
         });
@@ -668,22 +706,25 @@ class OrganizationAutocomplete {
     }
 
     highlightMatch(text, query) {
+        const fragment = document.createDocumentFragment();
         if (!text) {
-            return '';
+            return fragment;
         }
 
         const normalizedText = text.toLowerCase();
         const normalizedQuery = query.toLowerCase();
         const index = normalizedText.indexOf(normalizedQuery);
         if (index === -1 || !query) {
-            return this.escapeHtml(text);
+            fragment.appendChild(document.createTextNode(text));
+            return fragment;
         }
 
-        const before = this.escapeHtml(text.substring(0, index));
-        const match = this.escapeHtml(text.substring(index, index + query.length));
-        const after = this.escapeHtml(text.substring(index + query.length));
-
-        return `${before}<strong>${match}</strong>${after}`;
+        fragment.appendChild(document.createTextNode(text.substring(0, index)));
+        const strong = document.createElement('strong');
+        strong.textContent = text.substring(index, index + query.length);
+        fragment.appendChild(strong);
+        fragment.appendChild(document.createTextNode(text.substring(index + query.length)));
+        return fragment;
     }
 
     showSuggestions() {
