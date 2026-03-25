@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Callable, TypeVar
+from urllib.parse import urlparse
 
 from botocore.credentials import Credentials
 from flask import url_for
@@ -322,10 +323,19 @@ class OpenSearchInterface:
         init with aws_host or test_host.
         """
         opensearch_host = os.getenv("OPENSEARCH_HOST")
-        if opensearch_host.endswith("es.amazonaws.com"):
-            return cls(aws_host=opensearch_host)
+        # Parse the value to extract just the hostname for safe validation.
+        # Checking the raw string with endswith() can be bypassed by a path
+        # component(e.g. "bad.com/es.amazonaws.com") and raise a Snyk finding
+        _raw = (
+            opensearch_host
+            if "://" in opensearch_host
+            else f"https://{opensearch_host}"
+        )
+        hostname = urlparse(_raw).hostname
+        if hostname.endswith(".es.amazonaws.com") or hostname == "es.amazonaws.com":
+            return cls(aws_host=hostname)
         else:
-            return cls(test_host=opensearch_host)
+            return cls(test_host=hostname)
 
     def __init__(self, test_host=None, aws_host=None):
         """Interface for our OpenSearch cluster.
