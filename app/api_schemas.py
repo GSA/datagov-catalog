@@ -84,7 +84,10 @@ class SearchResults(Schema):
 class SearchQuery(Schema):
     q = String()
     sort = Enum(SORT_BY_ENUM)
-    per_page = Integer(validate=Range(min=1))
+    per_page = Integer(
+        validate=Range(min=1, max=9999),
+        metadata={"description": "Number of results per page. Must be between 1 and 9999."},
+    )
     org_slug = String()
     org_type = Enum(ORGANIZATION_TYPE_ENUM)
     keyword = List(String())
