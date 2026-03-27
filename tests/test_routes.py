@@ -90,6 +90,14 @@ def test_search_api_pagination(interface_with_dataset, db_client):
         assert len(response.json["results"]) >= 11
 
 
+def test_search_api_rejects_too_large_per_page(db_client):
+    response = db_client.get("/search", query_string={"per_page": "10000"})
+
+    assert response.status_code == 400
+    assert response.json["error"] == "Search failed"
+    assert response.json["message"] == "per_page must be between 1 and 9999"
+
+
 def test_search_api_paginate_after(interface_with_dataset, db_client):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
     for i in range(10):

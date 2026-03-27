@@ -43,6 +43,8 @@ from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_requ
 
 logger = logging.getLogger(__name__)
 
+SEARCH_API_MAX_PER_PAGE = 9999
+
 main = Blueprint("main", __name__)
 api = APIBlueprint("api", __name__)
 
@@ -390,6 +392,18 @@ def search(**kwargs):
     # missing query parameter searches for everything
     query = request.args.get("q", "")
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    if per_page is None or not 1 <= per_page <= SEARCH_API_MAX_PER_PAGE:
+        return (
+            jsonify(
+                {
+                    "error": "Search failed",
+                    "message": (
+                        f"per_page must be between 1 and {SEARCH_API_MAX_PER_PAGE}"
+                    ),
+                }
+            ),
+            400,
+        )
     results_hint = request.args.get("results", 0, type=int)
     from_hint = request.args.get("from_hint")
     org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
