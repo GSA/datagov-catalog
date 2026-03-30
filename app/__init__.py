@@ -93,7 +93,7 @@ def create_app(config_name: str = "local") -> APIFlask:
         "script-src": " ".join(
             [
                 "'self'",
-                "https://www.googletagmanager.com",
+                "https://*.googletagmanager.com",
                 "https://buttons.github.io",  # github button
                 "https://touchpoints.app.cloud.gov",
                 "https://unpkg.com",  # swagger
@@ -116,6 +116,8 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "data:",  # leaflet
                 "https://cg-1b082c1b-3db7-477f-9ca5-bd51a786b41e.s3-us-gov-west-1.amazonaws.com",  # touchpoints
                 "https://touchpoints.app.cloud.gov",  # touchpoints
+                "https://*.google-analytics.com",
+                "https://*.googletagmanager.com",
             ]
         ),
         "connect-src": " ".join(
@@ -123,6 +125,9 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "'self'",
                 "https://api.github.com",
                 "https://touchpoints.app.cloud.gov",
+                "https://*.google-analytics.com",
+                "https://*.analytics.google.com",
+                "https://*.googletagmanager.com",
             ]
         ),
         "frame-src": "https://www.googletagmanager.com",
