@@ -1,0 +1,84 @@
+{% from "components/dataset_metrics.html" import dataset_metrics %}
+
+{% macro collection_card(dataset, dataset_count=None) %}
+
+{% set title = dataset.title %}
+{% set description = dataset.description %}
+{% set collection_url = "/?collection=" + dataset.dcat.isPartOf %}
+{% set metadata_url = "/dataset/" + dataset.slug %}
+{% set file_formats = dataset.dcat.get('distribution', []) %}
+
+<div class="collection-card-wrapper">
+  <div class="collection-card-wrapper__back" aria-hidden="true">
+    <div class="collection-card-wrapper__back-tab">
+    </div>
+  </div>
+  <div class="collection-card" aria-label="Collection: {{ title }}">
+    <div class="collection-card__tab">
+      <svg class="usa-icon" aria-hidden="true" focusable="false" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+      </svg>
+      <span class="collection-card__tab-label">Collection</span>
+    </div>
+
+    <div class="collection-card__body">
+      <div class="collection-card__header">
+        <div class="collection-card__header-left">
+          <span class="collection-card__badge">
+            <svg class="usa-icon" aria-hidden="true" focusable="false" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+              <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+            </svg>
+            <a href="{{ collection_url }}">
+              <button type="button" class="collection-card__collection-link">
+              View Collection
+              </button>
+            </a>
+          </span>
+          <h2 class="collection-card__title">{{ title }}</h2>
+        </div>
+        {% if metadata_url %}
+        <a class="collection-card__metadata-link usa-link" href="{{ metadata_url }}">
+          View Metadata
+        </a>
+        {% endif %}
+      </div>
+
+      <p class="collection-card__description">{{ description }}</p>
+
+      <div class="collection-card__footer">
+        <div class="collection-card__formats">
+          {% if dataset.dcat.distribution %}
+          <ul class="dataset-resources unstyled">
+              {% for resource in dataset.dcat.distribution[:6] %}
+              <li>
+                  <a 
+                    href="{{ resource.accessURL or metadata_url if metadata_url else '#'}}"
+                    class="label label-default text-uppercase"
+                    data-format="{{ (resource.format or resource.mediaType) | simplify_resource_type | default('html', true) | lower }}"
+                    data-organization="{{ dataset.organization.name }}">{{ (resource.format or resource.mediaType) | simplify_resource_type | default('html', true) | lower }}</a>
+              </li>
+              {% endfor %}
+              {% if dataset.dcat.distribution|length > 6 %}
+              <li class="text-base-light">
+                  <a class="usa-link"
+                      href="{{ metadata_url if metadata_url else '#'}}">
+                      +{{ dataset.dcat.distribution|length - 6 }} more
+                  </a>
+              </li>
+              {% endif %}
+          </ul>
+          {% endif %}
+        </div>
+        {% if dataset_count is not none %}
+        <span class="collection-card__dataset-count">
+          {{ dataset_count }} dataset{{ "s" if dataset_count != 1 }} in this collection
+        </span>
+        {% endif %}
+      </div>
+
+      {{ dataset_metrics(dataset, is_collection=true) }}
+
+    </div>
+  </div>
+</div>
+{% endmacro %}

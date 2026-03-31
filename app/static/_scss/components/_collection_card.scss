@@ -1,0 +1,188 @@
+$collection-card-folder-bg:        #f2e4d4 !default;   
+$collection-card-folder-bg-back:   #c05600 !default;  
+$collection-card-folder-tab-bg:    #f5f0e8 !default;   
+$collection-card-folder-tab-back:  #f2e4d4 !default;   
+$collection-card-body-bg:          #faf6ee !default;  
+$collection-card-border-accent:    #1a4480 !default;  
+$collection-card-badge-bg:         #1a4480 !default;
+$collection-card-badge-color:      #ffffff !default;
+$collection-card-title-color:      #1b1b1b !default;
+$collection-card-tab-text-color:   #1a4480 !default;   
+$collection-card-text-color:       #3d4551 !default;  
+$collection-card-link-color:       #1a4480 !default;
+$collection-card-format-bg:        #71767a !default;   
+$collection-card-format-color:     #ffffff !default;
+$collection-card-count-bg:         #e8e0d0 !default;
+$collection-card-count-color:      #3d4551 !default;
+$collection-card-shadow:           10px 10px 10px rgba(0, 0, 0, 0.12) !default;
+$collection-card-shadow-back:      0 1px 6px rgba(0, 0, 0, 0.10) !default;
+$collection-card-radius:           15px !default;
+$collection-card-max-width:        680px !default;
+$collection-card-tab-offset:       1.0rem !default;   
+$collection-card-back-offset-x:    8px !default;       
+$collection-card-back-offset-y:   -10px !default;     
+
+.collection-card-wrapper {
+  position: relative;
+  padding-top: 14px;
+
+  &__back {
+    position: absolute;
+    top: 32px;
+    left: $collection-card-back-offset-x;
+    right: 10px;
+    bottom: 6px;                     
+    background-color: $collection-card-folder-bg-back;
+    border-radius: 0 $collection-card-radius $collection-card-radius $collection-card-radius;
+  }
+
+  &__back-tab {
+    position: absolute;
+    top: -30px;           
+    width: 165px;            
+    height: 36px;
+    padding: 0 2.2rem 0 0.9rem;     
+    background-color: $collection-card-folder-bg-back;
+    border-radius: 15px $collection-card-radius 0 0;
+  }
+}
+
+.collection-card {
+  position: relative;
+
+  &__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 9rem;
+    height: 30px;
+    margin-left: $collection-card-tab-offset;
+    padding: 0 1rem 0 1rem;        
+    background-color: $collection-card-folder-tab-bg;
+    border-radius: 15px $collection-card-radius 0 0;
+
+    color: $collection-card-tab-text-color;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+
+    .usa-icon {
+      width: 1rem;
+      height: 1rem;
+      fill: $collection-card-tab-text-color;
+    }
+  }
+
+  &__body {
+    background-color: $collection-card-folder-bg;
+    border-radius: 10px $collection-card-radius $collection-card-radius $collection-card-radius;
+    box-shadow: $collection-card-shadow;
+    overflow: hidden;
+
+    border-left: 15px solid $collection-card-border-accent;
+  }
+
+  &__header,
+  &__description,
+  &__footer {
+    background-color: $collection-card-body-bg;
+  }
+
+  &__metrics {
+    padding-left: 1.5rem;
+    background-color: $collection-card-body-bg;
+  }
+
+  &__header {
+    display: flex;
+    padding: 1.25rem 1.5rem 0.5rem;
+  }
+
+  &__header-left {
+    display: flex;
+    gap: 0.65rem;
+    flex: 1;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    padding: 0.25rem 0.65rem;
+    background-color: $collection-card-badge-bg;
+    color: $collection-card-badge-color;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.35;
+    color: $collection-card-title-color;
+  }
+  
+  &__collection-link {
+    background-color: $collection-card-tab-text-color;
+    color: white;
+    border: none;
+  }
+
+  &__metadata-link {
+    color: $collection-card-link-color;
+    font-size: 0.9rem;
+    text-decoration: underline;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus {
+      color: darken($collection-card-link-color, 12%);
+    }
+  }
+
+  &__description {
+    margin: 0;
+    padding: 0.4rem 1.5rem 1rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: $collection-card-text-color;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.5rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.07);
+  }
+
+  &__dataset-count {
+    padding: 0.25rem 0.85rem;
+    background-color: $collection-card-count-bg;
+    color: $collection-card-count-color;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .collection-card {
+    &__header {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    &__footer {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+}

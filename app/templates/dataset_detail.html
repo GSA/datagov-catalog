@@ -33,6 +33,9 @@
         "is_bot": is_bot
     });
 </script>
+
+<script src="{{ url_for('static', filename='js/dataset_tags.js') }}"></script>
+
 {% endblock %}
 
 {% block head_extra %}
@@ -174,25 +177,98 @@
                     </ul>
                 </div>
                 {% endif %}
+                
+                <h2 class="text-primary-darker margin-bottom-1">Find Related Datasets</h2>
+                <section class="usa-section bg-base-lightest radius-lg padding-3 margin-top-4">
 
-                <!-- Tags as Search Actions -->
-                {% if dataset.dcat.get('keyword') %}
-                <div class="tags-section">
-                    <h3 class="tags-section__heading">Find Related Datasets</h3>
-                    <p class="tags-section__subtitle">Click any tag below to search for similar datasets</p>
-                    <div>
-                        {% for keyword in dataset.dcat.keyword %}
-                        <a href="{{ url_for('main.index', keyword=keyword) }}" class="tag-link">
-                            {{ keyword }}
-                        </a>
-                        {% endfor %}
+                    <div class="grid-row grid-gap-lg">
+                        
+                        {% if dataset.dcat.get('keyword') %}
+                        <div class="tablet:grid-col-6">
+                        <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
+                            
+                            <h4 class="margin-top-0 display-flex flex-align-center">
+                            Search by Tags
+                            </h4>
+
+                            <p class="text-base margin-top-1 margin-bottom-2">
+                            Click any tag below to search for similar datasets
+                            </p>
+
+                            {% set tags = dataset.dcat.keyword %}
+                            {% set max_tags = 8 %}
+                            {% set total_tags = tags | length %}
+                            {% set visible_tags = tags[:max_tags] %}
+                            {% set remaining = total_tags - max_tags %}
+                            <div class="display-flex flex-wrap gap-1 margin-bottom-2">
+                                <div>
+                                    <div class="tag-list">
+                                        {% set k = visible_tags %}
+                                        {% for keyword in k %}
+                                        <a href="{{ url_for('main.index', keyword=keyword) }}" class="tag-link">
+                                            {{ keyword }}
+                                        </a>
+                                        {% endfor %}
+                                    </div>
+
+                                    <div class="tag-list extra-tags display-none">
+                                        {% for tag in tags[max_tags:] %}
+                                        <a href="{{ url_for('main.index', keyword=keyword) }}"
+                                            class="tag-link">
+                                            {{ tag }}
+                                        </a>
+                                        {% endfor %}
+                                    </div>
+
+                                    {% if remaining > 0 %}
+                                        <button class="usa-button usa-button--outline bg-base-lighter show-more-btn">
+                                        + {{ remaining }} more
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                        </div>
+                        </div>
+                        {% endif %} 
+                        
+                        {% set collection_total = collection_data.get('count') - 1 %}
+                        {% if collection_total > 0 %}
+                        <div class="tablet:grid-col-6 collection-tooltip">
+                        <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
+
+                            <div class="display-flex">
+                                <h4 class="margin-top-0 display-flex flex-align-center">
+                                Explore Collection
+                                </h4>
+                                <button
+                                    type="button"
+                                    class="usa-tooltip usa-button--unstyled"
+                                    data-position="right"
+                                    data-classes="tablet:width-auto"
+                                    title="A 'collection' is a group of related datasets by the data provider"
+                                >
+                                    <svg class="usa-icon" aria-hidden="true">
+                                        <use href="/assets/uswds/img/sprite.svg#info"></use>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <p class="text-base margin-top-0 margin-bottom-2">
+                            Navigate datasets in this collection
+                            </p>
+                            <a href="{{ url_for('main.index', collection=collection_data.get('name')) }}" class="usa-button width-full">Find Related Datasets</a>
+                            <div class="margin-top-2 text-base-dark">
+                            Includes <strong>{{collection_total}}</strong> related dataset{{ "s" if collection_total != 1 }}
+                            </div>
+                        </div>
+                        </div>
+                        {% endif %} 
+
                     </div>
-                </div>
-                {% endif %}
-
-                <!-- <h2 class="text-primary-darker margin-bottom-2">Complete Metadata</h2> -->
-
-                <details>
+                </section>
+                
+                <details class="margin-bottom-3 margin-top-3">
                     <summary>
                         <h2 class="complete-metadata-heading">Complete Metadata</h2>
                     </summary>
