@@ -540,6 +540,7 @@ ul.dataset-resources {
 
 .sidebar-section__item {
     margin-bottom: 1rem;
+    word-wrap: break-word;
 }
 
 .sidebar-section__item:last-child {
@@ -558,6 +559,14 @@ ul.dataset-resources {
 .sidebar-section__value {
     font-size: 1rem;
     color: #1b1b1b;
+}
+
+details {
+  summary {
+    @media (max-width: 700px) {
+      margin-bottom: 1.5em;
+    }
+  }
 }
 
 .metadata-table {
