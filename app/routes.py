@@ -43,8 +43,8 @@ from .utils import (
     dict_from_hint,
     hint_from_dict,
     json_not_found,
-    valid_id_required,
     pop_doc_by_identifier,
+    valid_id_required,
 )
 
 logger = logging.getLogger(__name__)

@@ -1,10 +1,10 @@
 import json
+import re
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, quote, urlparse
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
-import re
 
 from app.database.opensearch import SearchResult
 from app.models import Dataset
