@@ -99,7 +99,10 @@ $collection-card-back-offset-y:   -10px !default;
   }
 
   &__header-left {
-    display: flex;
+    
+    @media (min-width: 512px) {
+      display: flex;
+    }
     gap: 0.65rem;
     flex: 1;
   }

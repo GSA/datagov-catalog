@@ -43,7 +43,7 @@
         {% endif %}
       </div>
 
-      <p class="collection-card__description">{{ description }}</p>
+      <p class="collection-card__description">{{ description | truncate(200, True, '...')  }}</p>
 
       <div class="collection-card__footer">
         <div class="collection-card__formats">
