@@ -2,9 +2,24 @@
   <div class="usa-alert usa-alert--info usa-alert--slim">
     <div class="usa-alert__body">
       <p class="usa-alert__text">
-        This site is currently in beta, and your <a href="#" id="beta-feedback-btn">feedback</a> is helping shape its ongoing development.
+        This site is currently in beta, and your
+        <a href="#" id="beta-feedback-btn">feedback</a>
+        is helping shape its ongoing development.
       </p>
     </div>
   </div>
 </section>
-<script src="https://touchpoints.app.cloud.gov/touchpoints/5927cf15.js" async></script>
+
+<script nonce="{{ csp_nonce() }}">
+  document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('beta-feedback-btn');
+    if (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (typeof zE !== 'undefined') {
+          zE('webWidget', 'open');
+        }
+      });
+    }
+  });
+</script>

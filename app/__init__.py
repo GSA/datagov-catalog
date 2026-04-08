@@ -135,6 +135,7 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "https://static.zdassets.com",  # zendesk
                 "https://ekr.zdassets.com",  # zendesk
                 "https://gsa-solutionshelp.zendesk.com",  # zendesk
+                "https://*.ingest.de.sentry.io",  # sentry
             ]
         ),
         "frame-src": "https://www.googletagmanager.com",
@@ -155,9 +156,8 @@ def create_app(config_name: str = "local") -> APIFlask:
             [
                 "'self'",  # local styles.css
                 "https://cdnjs.cloudflare.com",  # font-awesome
-                "https://unpkg.com",  # Swagger
-                "'sha256-faU7yAF8NxuMTNEwVmBz+VcYeIoBQ2EMHW3WaVxCvnk='",  # htms.min.js
-                "'sha256-qo7STIM1L/OgU9y0De47mqod1UZFLJfTn36bRC42rfA='",  # buttons.js
+                "https://unpkg.com",  # swagger
+                "'unsafe-inline'",  # required for zendesk widget (injects dynamic inline styles)
             ]
         ),
     }
