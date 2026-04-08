@@ -95,11 +95,15 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "'self'",
                 "https://*.googletagmanager.com",
                 "https://buttons.github.io",  # github button
-                "https://touchpoints.app.cloud.gov",
                 "https://unpkg.com",  # swagger
                 "'unsafe-hashes'",
                 "'sha256-osjxnKEPL/pQJbFk1dKsF7PYFmTyMWGmVSiL9inhxJY='",  # form autosubmit
                 "'sha256-A1KDZ6CTgI16YJ4cUNyyCFExM5+Sv4ApvahuZIQRXPA='",  # return to top
+                "https://static.zdassets.com",  # zendesk
+                "https://ekr.zdassets.com",  # zendesk
+                "'sha256-Ff1SFMp5PHyy62W49sHzg1RI9yL6Y9xoqXeGrJP8TUI='",
+                "https://gsa-solutionshelp.zendesk.com",  # zendesk
+                "'nonce-RgDplMTo1jIsP_9Vr4lErzJtec9zO4Z3'",
             ]
         ),
         "font-src": " ".join(
@@ -128,6 +132,9 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "https://*.google-analytics.com",
                 "https://*.analytics.google.com",
                 "https://*.googletagmanager.com",
+                "https://static.zdassets.com",  # zendesk
+                "https://ekr.zdassets.com",  # zendesk
+                "https://gsa-solutionshelp.zendesk.com",  # zendesk
             ]
         ),
         "frame-src": "https://www.googletagmanager.com",
@@ -151,7 +158,6 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "https://unpkg.com",  # Swagger
                 "'sha256-faU7yAF8NxuMTNEwVmBz+VcYeIoBQ2EMHW3WaVxCvnk='",  # htms.min.js
                 "'sha256-qo7STIM1L/OgU9y0De47mqod1UZFLJfTn36bRC42rfA='",  # buttons.js
-                "'sha256-d0LwTCBHt5DXTdSVbRSm0wQ/W4m5yoyMcrge+KrScUc='",  # touchpoints
             ]
         ),
     }
