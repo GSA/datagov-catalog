@@ -33,7 +33,7 @@ from .api_schemas import (
     SearchResults,
     StatsResult,
 )
-from .database import DEFAULT_PER_PAGE, CatalogDBInterface
+from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -42,8 +42,6 @@ from .sitemap_s3 import (
 from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_required
 
 logger = logging.getLogger(__name__)
-
-SEARCH_API_MAX_PER_PAGE = 9999
 
 main = Blueprint("main", __name__)
 api = APIBlueprint("api", __name__)
