@@ -2207,6 +2207,7 @@ def test_dataset_detail_tag_links_point_to_keyword_search(
 
     assert found_keywords == expected_keywords
 
+
 class TestBetaBanner:
     """
     Simple test to see the banner's feedback button is present.
