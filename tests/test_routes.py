@@ -2206,3 +2206,18 @@ def test_dataset_detail_tag_links_point_to_keyword_search(
         found_keywords.add(qs["keyword"][0])
 
     assert found_keywords == expected_keywords
+
+class TestBetaBanner:
+    """
+    Simple test to see the banner's feedback button is present.
+    TODO: Add playwright tests for feedback button functionality.
+    """
+
+    def test_beta_banner_feedback_button_present(self, db_client):
+        """The feedback anchor with id='beta-feedback-btn' is rendered in the banner."""
+        response = db_client.get("/")
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+        btn = soup.find("a", id="beta-feedback-btn")
+        assert btn is not None
+        assert btn.text.strip() == "feedback"
