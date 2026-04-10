@@ -33,7 +33,7 @@ from .api_schemas import (
     SearchResults,
     StatsResult,
 )
-from .database import DEFAULT_PER_PAGE, CatalogDBInterface
+from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -422,6 +422,18 @@ def search(**kwargs):
     # missing query parameter searches for everything
     query = request.args.get("q", "")
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    if per_page is None or not 1 <= per_page <= SEARCH_API_MAX_PER_PAGE:
+        return (
+            jsonify(
+                {
+                    "error": "Search failed",
+                    "message": (
+                        f"per_page must be between 1 and {SEARCH_API_MAX_PER_PAGE}"
+                    ),
+                }
+            ),
+            400,
+        )
     results_hint = request.args.get("results", 0, type=int)
     from_hint = request.args.get("from_hint")
     org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
