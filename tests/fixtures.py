@@ -71,6 +71,39 @@ def fixture_data():
                     "title": "Health Food Access Statistics",
                 },
             ),
+            dict(
+                id="parent_harvest_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/parent/example.shp.iso.xml",
+                source_raw='{"title": "Parent Harvest Record": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_transform={
+                    "title": "Parent Harvest Record",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+            ),
+            dict(
+                id="child_harvest_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/child/example.shp.iso.xml",
+                source_raw='{"title": "Child Harvest Record": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_transform={
+                    "title": "Child Harvest Record",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+            ),
+            dict(
+                id="child_no_parent_harvest_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/child_no_parent/example.shp.iso.xml",
+                source_raw='{"title": "Child With No Parent Harvest Record": "isPartOf": "https://subdomain.domain/missing_parent/example.shp.iso.xml"}',
+                source_transform={
+                    "title": "Child Harvest Record",
+                    "isPartOf": "https://subdomain.domain/missing_parent/example.shp.iso.xml",
+                },
+            ),
         ],
         "dataset": [
             dict(
@@ -212,6 +245,77 @@ def fixture_data():
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
                 popularity=125,
+            ),
+            dict(
+                id="parent1234567",
+                slug="parent-harvest-record",
+                dcat={
+                    "title": "Parent Harvest Record",
+                    "description": "National statistics on access to health food resources",
+                    "keyword": ["health", "food"]
+                    * 25,  # the tag/keyword section is collapsible in dataset_detail.html (max 8 tags)
+                    "distribution": [
+                        {
+                            "title": "Health Food Data",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/health-food.csv",
+                        }
+                    ],
+                    "identifier": "https://subdomain.domain/parent/example.shp.iso.xml",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                harvest_record_id="parent_harvest_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+                popularity=125,
+                translated_spatial={
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [-125.0, 24.0],
+                            [-67.0, 24.0],
+                            [-67.0, 50.0],
+                            [-125.0, 50.0],
+                            [-125.0, 24.0],
+                        ]
+                    ],
+                },
+            ),
+            dict(
+                id="child1234567",
+                slug="child-harvest-record",
+                dcat={
+                    "title": "Child Harvest Record",
+                    "description": "National statistics on access to health food resources",
+                    "keyword": ["health", "food"],
+                    "distribution": [
+                        {
+                            "title": "Health Food Data",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/health-food.csv",
+                        }
+                    ],
+                    "identifier": "https://subdomain.domain/child/example.shp.iso.xml",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                harvest_record_id="child_harvest_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+                popularity=125,
+                translated_spatial={
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [-125.0, 24.0],
+                            [-67.0, 24.0],
+                            [-67.0, 50.0],
+                            [-125.0, 50.0],
+                            [-125.0, 24.0],
+                        ]
+                    ],
+                },
             ),
         ],
         "locations": [

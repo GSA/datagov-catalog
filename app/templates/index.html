@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "components/filter_sidebar.html" import render_filter_sidebar %}
 {% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
+{% from "components/collection_card.html" import collection_card %}
 
 {% set page_title = "Catalog - Data.gov" %}
 {% block title %}{{ page_title }}{% endblock %}
@@ -26,14 +27,27 @@
 
 {% block content %}
 
+{% set collection = collection_data["name"] %}
+{% set collection_count = collection_data["count"] - 1 %}
+{% set parent = collection_data["parent"] %}
+
 <div class="grid-row grid-gap-lg">
     <!-- Main search and results area -->
     <div class="tablet:grid-col-12 desktop:grid-col-9">
-        <form method="GET" action="{{ url_for('main.index') }}" class="usa-form" id="main-search-form">
+        <form method="GET" action="{{ url_for('main.index', collection=collection) }}" class="usa-form" id="main-search-form">
 
-            <label class="usa-label" for="search-query"><b>Search datasets</b></label>
+            <label class="usa-label" for="search-query">
+                {% if collection %}
+                    <b>Search datasets in collection</b>
+                {% else %}
+                    <b>Search datasets</b>
+                {% endif %}
+            </label>
             <div class="grid-row grid-gap-1 flex-align-end margin-top-neg-1px">
                 <div class="grid-col-fill">
+                    {% if collection %}
+                        <input type="hidden" name="collection" value="{{ collection }}">
+                    {% endif %}
                     <input class="usa-input margin-0" id="search-query" name="q" type="text"
                         placeholder="Search Data.gov..." autofocus value="{{ query }}">
                     {% for org_type in org_types %}
@@ -60,7 +74,14 @@
         </form>
 
         <!-- Results Section -->
-        <div id="search-results" class="margin-top-3">
+        <div id="search-results" class="margin-top-3">      
+            {% set total = total -1 if collection and total > 1 else total %}      
+            {% if collection and parent %}
+                {{ collection_card(
+                    parent,
+                    dataset_count=collection_count
+                ) }}
+            {% endif %}
             {% if datasets %}
             <div class="usa-prose">
               {% if query or org_types or keywords or org_slug or spatial_filter or spatial_geometry %}
@@ -88,11 +109,18 @@
                     </div>
                 {% endif %}
               {% else %}
-                <p class="text-base-dark">
-                <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
-                datasets available on Data.gov.
-                These are the most popular:
-                </p>
+                {% if not collection %}
+                    <p class="text-base-dark">
+                    <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
+                    datasets available on Data.gov.
+                    These are the most popular:
+                    </p>
+                {% else %} 
+                    <p class="text-base-dark">
+                    <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
+                    dataset {{s if total > 1 }} in this collection
+                    </p>
+                {% endif %}
               {% endif %}
             </div>
 
@@ -134,7 +162,8 @@
             selected_organization=selected_organization,
             suggested_organizations=suggested_organizations,
             contextual_keyword_counts=contextual_keyword_counts,
-            contextual_org_counts=contextual_org_counts
+            contextual_org_counts=contextual_org_counts,
+            collection=collection
         ) }}
     </aside>
 </div>
