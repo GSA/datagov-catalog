@@ -72,3 +72,13 @@ def hint_from_dict(args_dict):
 
 def normalize_site_url(site_url: str) -> str:
     return site_url.strip("https://")
+
+
+def pop_doc_by_identifier(os_docs: list, identifier: str) -> dict | None:
+    """
+    get the parent dataset from the collection by popping it from the list. this
+    changes the input list in place by removing parent doc
+    """
+    for idx, doc in enumerate(os_docs):
+        if doc.get("identifier") == identifier:
+            return os_docs.pop(idx)

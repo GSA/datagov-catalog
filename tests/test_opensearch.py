@@ -11,7 +11,6 @@ from app.models import Dataset
 
 
 class TestOpenSearch:
-
     def test_bad_host_arguments(self):
         with pytest.raises(ValueError):
             # no hostnames
@@ -87,6 +86,15 @@ class TestOpenSearch:
             "", spatial_geometry=polygon, spatial_within=False
         )
         assert len(result_obj.results) > 0
+
+    def test_search_collection(self, interface_with_dataset, opensearch_client):
+        dataset_iterator = interface_with_dataset.db.query(Dataset)
+        opensearch_client.index_datasets(dataset_iterator)
+
+        result_obj = opensearch_client.search(
+            "", collection="https://subdomain.domain/parent/example.shp.iso.xml"
+        )
+        assert len(result_obj.results) == 2
 
 
 class TestDcatDateNormalization:

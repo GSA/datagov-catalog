@@ -33,13 +33,19 @@ from .api_schemas import (
     SearchResults,
     StatsResult,
 )
-from .database import DEFAULT_PER_PAGE, CatalogDBInterface
+from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
     get_sitemap_s3_config,
 )
-from .utils import dict_from_hint, hint_from_dict, json_not_found, valid_id_required
+from .utils import (
+    dict_from_hint,
+    hint_from_dict,
+    json_not_found,
+    pop_doc_by_identifier,
+    valid_id_required,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -192,6 +198,8 @@ def index():
     spatial_geometry = request.args.get("spatial_geometry", type=str)
     spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = request.args.get("sort", "relevance") or "relevance"
+    collection = request.args.get("collection", None, type=str)
+
     # there's a limit on how many results can be requested
     num_results = min(num_results, 9999)
 
@@ -240,6 +248,7 @@ def index():
         or org_filter_id
         or spatial_filter
         or spatial_geometry
+        or collection
     )
 
     try:
@@ -256,6 +265,7 @@ def index():
             include_aggregations=True,
             keyword_size=100,
             org_size=100,
+            collection=collection,
         )
 
         # For homepage without filters, get accurate total count
@@ -343,6 +353,27 @@ def index():
     search_result_geometries = (
         _collect_spatial_shapes(datasets) if spatial_geometry is not None else []
     )
+
+    # when the user is in the collection "page"
+    collection_data = {"parent": None, "name": collection, "count": 0}
+    if collection:
+        # always remove the parent from the datasets list
+        pop_doc_by_identifier(datasets, collection)
+
+        # get the collection count (regardless of the existing query)
+        collection_data["count"] = len(
+            interface.search_datasets(collection=collection).results
+        )
+
+        # need to get the parent by exact match so using 'slug' because it's a 'keyword'
+        parent_db = interface.get_dataset_by_dcat_identifier(collection)
+        if parent_db:
+            parent_results = list(
+                interface.search_datasets(parent_db.slug, collection=collection).results
+            )
+            if parent_results:
+                collection_data["parent"] = parent_results[0]
+
     return render_template(
         "index.html",
         query=query,
@@ -368,6 +399,7 @@ def index():
         selected_organization=selected_organization,
         contextual_keyword_counts=contextual_keyword_counts,
         contextual_org_counts=contextual_org_counts,
+        collection_data=collection_data,
     )
 
 
@@ -390,6 +422,18 @@ def search(**kwargs):
     # missing query parameter searches for everything
     query = request.args.get("q", "")
     per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    if per_page is None or not 1 <= per_page <= SEARCH_API_MAX_PER_PAGE:
+        return (
+            jsonify(
+                {
+                    "error": "Search failed",
+                    "message": (
+                        f"per_page must be between 1 and {SEARCH_API_MAX_PER_PAGE}"
+                    ),
+                }
+            ),
+            400,
+        )
     results_hint = request.args.get("results", 0, type=int)
     from_hint = request.args.get("from_hint")
     org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
@@ -726,6 +770,13 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
             code=301,
         )
 
+    # collections
+    collection_data = {"name": None, "count": 0}
+    if "isPartOf" in dataset.dcat:
+        result = interface.search_datasets(collection=dataset.dcat["isPartOf"])
+        collection_data["name"] = dataset.dcat["isPartOf"]
+        collection_data["count"] = result.total
+
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
 
@@ -738,6 +789,7 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         dataset=dataset,
         organization=org,
         from_dict=from_dict,
+        collection_data=collection_data,
     )
 
 
