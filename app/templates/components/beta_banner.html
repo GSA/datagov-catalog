@@ -16,9 +16,8 @@
     if (btn) {
       btn.addEventListener('click', function (e) {
         e.preventDefault();
-        // zE is a javascript API object injected by zendesk
-        // in order to have the banner link open the feedback form
-        // we need to add the listener and also ensure the api is loaded.
+        // Opens the Zendesk widget via the zE API object
+        // injected by the base template.
         if (typeof zE !== 'undefined') {
           zE('webWidget', 'open');
         }
