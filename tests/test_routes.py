@@ -1,4 +1,5 @@
 import json
+import re
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, quote, urlparse
 from uuid import uuid4
@@ -713,7 +714,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 54"
+    assert datasets_text == "Datasets: 56"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -762,7 +763,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 54"
+    assert overview_items[1].text.strip() == "Total datasets: 56"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -2074,8 +2075,122 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
     assert tip_text is not None
 
 
-class TestContextualKeywordSuggestions:
+def test_index_collection(interface_with_dataset, db_client):
+    """
+    focuses primarily on the general look of things (e.g. the collection card, search title,
+    children, counts )
+    """
 
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
+        )
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # check to see that we're in a collection
+    collection_label = soup.select_one("label.usa-label b")
+    assert collection_label is not None
+    assert collection_label.text == "Search datasets in collection"
+
+    # assertions on the collection card itself
+    collection_card = soup.select_one("div.collection-card")
+    assert collection_card is not None
+
+    collection_card_view_badge = collection_card.select_one(
+        "span.collection-card__badge"
+    )
+    assert collection_card_view_badge is not None
+    assert (
+        collection_card_view_badge.select_one("a")["href"]
+        == "/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
+    )
+    assert (
+        collection_card_view_badge.select_one("button.collection-card__collection-link")
+        is not None
+    )
+
+    collection_card_title = collection_card.select_one("h2.collection-card__title")
+    assert collection_card_title is not None
+    assert collection_card_title.text == "Parent Harvest Record"
+
+    collection_card_view_metadata = collection_card.select_one(
+        "a.collection-card__metadata-link"
+    )
+    assert collection_card_view_metadata is not None
+    assert collection_card_view_metadata["href"] == "/dataset/parent-harvest-record"
+
+    collection_card_desc = collection_card.select_one("p.collection-card__description")
+    assert collection_card_desc is not None
+    assert (
+        collection_card_desc.text
+        == "National statistics on access to health food resources"
+    )
+
+    collection_card_footer = collection_card.select_one("div.collection-card__footer")
+    assert collection_card_footer is not None
+
+    # both formats and collection count elements are there
+    collection_card_footer_elms = collection_card_footer.find_all(recursive=False)
+    assert len(collection_card_footer_elms) == 2
+
+    # collection counts
+    assert collection_card_footer_elms[1].text.strip() == "1 dataset in this collection"
+
+    # metrics (e.g. search relevance, view count, published on)
+    collection_card_metrics = collection_card.select_one("div.collection-card__metrics")
+    assert collection_card_metrics is not None
+
+    # search relevance is not deterministic so just checking the beginning of the str
+    assert (
+        collection_card_metrics.select_one("small.text-base-dark")
+        .text.strip()
+        .startswith("Search relevance")
+    )
+
+    # collection count without query
+    collection_count = soup.select_one("div.usa-prose p.text-base-dark")
+    assert collection_count is not None
+
+    # the number "1" and the text are in different elements so there's
+    # an awkward space between them
+    assert (
+        re.sub(r"[\r\n]+", "", collection_count.text.strip())
+        == "1                    dataset  in this collection"
+    )
+
+    collection_datasets = soup.select("li.organization-datasets__item")
+    assert collection_datasets is not None
+    assert len(collection_datasets) == 1
+
+
+def test_index_collection_query(interface_with_dataset, db_client):
+    # includes collection, tags/keywords, sort, orgs, spatial filter, and spatial within
+    url = (
+        "/?collection=https%3A%2F%2Fsubdomain.domain%2Fparent%2Fexample.shp.iso.xml"
+        "&q=&sort=relevance&spatial_filter="
+        "&spatial_geometry=%7B%22type%22%3A%22Polygon%22%2C%22coordinates%22%3A%5B%5B%5B-124.6393521791929%2C28.252679027131766%5D%2C%5B-69.87119275377944%2C28.252679027131766%5D%2C%5B-69.87119275377944%2C51.14446353815073%5D%2C%5B-124.6393521791929%2C51.14446353815073%5D%2C%5B-124.6393521791929%2C28.252679027131766%5D%5D%5D%7D"
+        "&spatial_within=false&org_slug=test-org"
+    )
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(url)
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # collection card is visible
+    collection_card = soup.select_one("div.collection-card")
+    assert collection_card is not None
+
+    # children are present
+    collection_datasets = soup.select("li.organization-datasets__item")
+    assert collection_datasets is not None
+    assert len(collection_datasets) == 1
+
+
+class TestContextualKeywordSuggestions:
     def _make_mock_interface(
         self,
         contextual_keywords=None,
@@ -2186,7 +2301,7 @@ def test_dataset_detail_tag_links_point_to_keyword_search(
     assert response.status_code == 200
 
     soup = BeautifulSoup(response.text, "html.parser")
-    tags_section = soup.find(class_="tags-section")
+    tags_section = soup.select_one("section.usa-section div.tablet\:grid-col-6")
     assert tags_section is not None
 
     tag_links = tags_section.find_all("a", class_="tag-link")
