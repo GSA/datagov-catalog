@@ -1,14 +1,11 @@
-{% macro dataset_card(dataset, from_hint='', result_number=None, sort_value=None, allow_distance=false) -%}
+{% from "components/dataset_metrics.html" import dataset_metrics %}
+
+{% macro dataset_card(dataset, from_hint='', result_number=None, sort_value=None, allow_distance=false, is_parent=false) -%}
 {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
 {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
 {% set dataset_slug = dataset.get('slug') %}
 {% set updated_display = dataset_meta.get('modified') %}
 {% set view_count = dataset.get('popularity') %}
-{% set published_on = dataset.get('last_harvested_date') %}
-{% set published_on_text = none %}
-{% if published_on is not none %}
-  {% set published_on_text = '%s' % published_on %}
-{% endif %}
 {% set sort_values = dataset.get('_sort') %}
 {% set distance_km = none %}
 {% if allow_distance %}
@@ -21,16 +18,25 @@
 
 {% autoescape true %}
 
-<li class="usa-collection__item organization-datasets__item margin-0">
+<li class="usa-collection__item organization-datasets__item margin-0 {{ 'parent-collection-dataset' if is_parent else '' }}">
   <div class="organization-datasets__body">
-    <div class="dataset-org-banner organization-datasets__body--{{ dataset.organization.organization_type | format_gov_type }}">
-      {% if result_number is not none %}
-      <span class="dataset-org-banner__rank">#{{ result_number }}</span>
-      {% endif %}
-      <span class="dataset-org-banner__type">{{ dataset.organization.organization_type | format_gov_type(lower=false) }}</span>
-    </div>
+    {% if not is_parent %}
+      <div class="dataset-org-banner organization-datasets__body--{{ dataset.organization.organization_type | format_gov_type }}">
+        {% if result_number is not none %}
+        <span class="dataset-org-banner__rank">#{{ result_number }}</span>
+        {% endif %}
+        <span class="dataset-org-banner__type">{{ dataset.organization.organization_type | format_gov_type(lower=false) }}</span>
+      </div>
+    {% endif %}
       <div class="dataset-content">
           <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">
+              {% if is_parent %}
+                <div class="margin-bottom-1 usa-tag bg-base collection-tag">
+                  <i class="collection-icon"></i>
+                  <span>Collection</span>
+                </div>
+              {% endif %}
+
               <h3 class="usa-collection__heading margin-0">
                   <a
                       class="usa-link"
@@ -87,31 +93,9 @@
               {% endif %}
           </ul>
           {% endif %}
-          {% set search_score = dataset.get('_score') %}
-          {% set metric_parts = [] %}
-          {% if search_score is not none %}
-            {% if view_count is not none %}
-              {% set _ = metric_parts.append("Search relevance: %.2f | Views last month: %s" % (search_score, view_count)) %}
-            {% else %}
-              {% set _ = metric_parts.append("Search relevance: %.2f" % search_score) %}
-            {% endif %}
-          {% elif view_count is not none %}
-            {% set _ = metric_parts.append("Views last month: %s" % view_count) %}
-          {% endif %}
-          {% if published_on_text is not none %}
-            {% set _ = metric_parts.append("Published on: %s" % published_on_text[:10]) %}
-          {% endif %}
-          {% if distance_km is not none %}
-            {% set distance_mi = distance_km * 0.621371 %}
-            {% set _ = metric_parts.append("Distance: %.1f mi" % distance_mi) %}
-          {% endif %}
-          {% if metric_parts %}
-          <div class="margin-top-1">
-              <small class="text-base-dark">
-                  {{ metric_parts | join(' | ') }}
-              </small>
-          </div>
-          {% endif %}
+
+          {{ dataset_metrics(dataset, allow_distance) }}
+
       </div>
   </div>
 </li>

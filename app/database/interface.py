@@ -78,6 +78,7 @@ class CatalogDBInterface:
         include_aggregations: bool = False,
         keyword_size: int = 100,
         org_size: int = 100,
+        collection: str = None,
         *args,
         **kwargs,
     ):
@@ -116,6 +117,7 @@ class CatalogDBInterface:
             include_aggregations=include_aggregations,
             keyword_size=keyword_size,
             org_size=org_size,
+            collection=collection,
         )
 
     def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
@@ -477,6 +479,13 @@ class CatalogDBInterface:
         Get dataset by its guid. If the ID is not found, return None.
         """
         return self.db.query(Dataset).filter_by(id=dataset_id).first()
+
+    def get_dataset_by_dcat_identifier(self, identifier: str) -> Dataset | None:
+        return (
+            self.db.query(Dataset)
+            .filter(Dataset.dcat["identifier"].astext == identifier)
+            .first()
+        )
 
     def count_all_datasets_in_search(self) -> int:
         """
