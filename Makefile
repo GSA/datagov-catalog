@@ -21,10 +21,15 @@ update-dependencies: ## Updates requirements.txt and requirements_dev.txt from p
 	poetry export --without-hashes --without=dev --format=requirements.txt > requirements.txt
 	poetry export --without-hashes --only=dev --format=requirements.txt > requirements-dev.txt
 
-test-ci: up test
+test-ci: up test-unit test-browser
 
-test:
-	poetry run pytest
+test-: test-unit test-browser
+
+test-unit:
+	poetry run pytest tests/unit/
+
+test-browser:
+	poetry run pytest tests/browser/
 
 test-pa11y: ## Runs accessibility tests with pa11y-ci (requires running app)
 	npm run test:pa11y

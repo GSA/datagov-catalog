@@ -1,0 +1,32 @@
+import os
+from urllib.parse import urlparse
+
+import pytest
+from dotenv import load_dotenv
+from flask import Flask
+from flask.sessions import SecureCookieSessionInterface
+from playwright.sync_api import sync_playwright
+
+@pytest.fixture(scope="session")
+def base_url():
+    return "http://localhost:8080/"
+
+
+@pytest.fixture(scope="session")
+def browser():
+    # Start Playwright
+    playwright = sync_playwright().start()
+    # Launch a browser (e.g., Chromium)
+    browser = playwright.chromium.launch(headless=True, channel="chrome")
+    yield browser
+    # Close the browser after tests are done
+    browser.close()
+
+
+@pytest.fixture()
+def page(browser, base_url):
+    context = browser.new_context(base_url=base_url)
+    page = context.new_page()
+    page.set_default_timeout(2500)
+    yield page
+    context.close()
