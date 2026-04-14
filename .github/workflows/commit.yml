@@ -67,7 +67,7 @@ jobs:
   test-browser:
     environment: development
     runs-on: ubuntu-latest
-    name: Pytests
+    name: Playwright tests
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
