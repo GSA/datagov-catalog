@@ -36,7 +36,7 @@ load-test-data: ## Loads test fixture data into the database
 test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests with test data loaded
 
 test-browser:
-	poetry run pytest --browser chromium --browser firefox tests/browser/
+	poetry run pytest --browser chromium --browser firefox --browser webkit tests/browser/
 
 up: ## Sets up local flask  docker environment.
 	docker compose up -d --wait
