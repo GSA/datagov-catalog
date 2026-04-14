@@ -21,15 +21,10 @@ update-dependencies: ## Updates requirements.txt and requirements_dev.txt from p
 	poetry export --without-hashes --without=dev --format=requirements.txt > requirements.txt
 	poetry export --without-hashes --only=dev --format=requirements.txt > requirements-dev.txt
 
-test-ci: up test-unit test-browser
+test-ci: up test
 
-test-: test-unit test-browser
-
-test-unit:
+test:
 	poetry run pytest tests/unit/
-
-test-browser:
-	poetry run pytest tests/browser/
 
 test-pa11y: ## Runs accessibility tests with pa11y-ci (requires running app)
 	npm run test:pa11y
@@ -39,6 +34,9 @@ load-test-data: ## Loads test fixture data into the database
 	docker compose exec app flask search sync
 
 test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests with test data loaded
+
+test-browser:
+	poetry run pytest --browser chromium --browser firefox tests/browser/
 
 up: ## Sets up local flask  docker environment.
 	docker compose up -d --wait
