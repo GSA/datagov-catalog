@@ -249,6 +249,7 @@ def test_get_organizations_api_returns_data(db_client):
             "dataset_count": 5,
             "organization_type": "Federal Government",
             "aliases": ["Org 1"],
+            "source_count": 1,
         },
         {
             "id": "org-2",
@@ -257,6 +258,7 @@ def test_get_organizations_api_returns_data(db_client):
             "dataset_count": 0,
             "organization_type": "City Government",
             "aliases": [],
+            "source_count": 0,
         },
     ]
 
@@ -268,6 +270,11 @@ def test_get_organizations_api_returns_data(db_client):
     assert len(data["organizations"]) == 2
     assert data["organizations"][0]["id"] == "org-1"
     assert data["organizations"][0]["aliases"] == ["Org 1"]
+
+    # harvest source count checks
+    assert data["organizations"][0]["source_count"] == 1
+    assert data["organizations"][1]["source_count"] == 0
+
     mock_interface.get_organizations.assert_called_once_with()
 
 
