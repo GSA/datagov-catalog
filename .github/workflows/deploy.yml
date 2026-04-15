@@ -55,6 +55,6 @@ jobs:
           poetry-version: ${{ env.POETRY_VERSION }}
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
-          smoke-url: https://catalog-beta.data.gov/
+          smoke-url: https://catalog.data.gov/
           smoke-path: /
           # basic auth on prod is turned off
