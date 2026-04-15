@@ -8,4 +8,5 @@ instances: 4
 proxy_instances: 2
 basic_auth_enabled: off # nginx terminology 'on' 'off'. cf will interpret these as 'true' 'false'
 route_external: catalog.data.gov
+route_beta: catalog-beta.data.gov  
 route_internal: datagov-catalog-prod.apps.internal
