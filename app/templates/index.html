@@ -9,7 +9,7 @@
 {% block head_extra %}
 {% set meta_description = "The Home of the U.S. Government's Open Data" %}
 {% set social_image = config.get('SOCIAL_IMAGE_URL') %}
-{% set canonical_url = "https://catalog-beta.data.gov/" %}
+{% set canonical_url = "https://catalog.data.gov/" %}
 <meta name="description" content="{{ meta_description }}">
 <meta name="robots" content="index,follow">
 <meta property="og:site_name" content="Data.gov">
@@ -74,8 +74,8 @@
         </form>
 
         <!-- Results Section -->
-        <div id="search-results" class="margin-top-3">      
-            {% set total = total -1 if collection and total > 1 else total %}      
+        <div id="search-results" class="margin-top-3">
+            {% set total = total -1 if collection and total > 1 else total %}
             {% if collection and parent %}
                 {{ collection_card(
                     parent,
@@ -115,7 +115,7 @@
                     datasets available on Data.gov.
                     These are the most popular:
                     </p>
-                {% else %} 
+                {% else %}
                     <p class="text-base-dark">
                     <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
                     dataset {{s if total > 1 }} in this collection
