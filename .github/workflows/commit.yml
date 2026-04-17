@@ -130,7 +130,7 @@ jobs:
           poetry-version: ${{ env.POETRY_VERSION }}
           cf_username: ${{ secrets.CF_SERVICE_USER }}
           cf_password: ${{ secrets.CF_SERVICE_AUTH }}
-          smoke-url: https://datagov-catalog-dev.app.cloud.gov/
+          smoke-url: https://catalog-dev.data.gov/
           smoke-path: /
           basic_auth_user: ${{ secrets.BASIC_AUTH_USER }}
           basic_auth_password: ${{ secrets.BASIC_AUTH_PASSWORD }}
