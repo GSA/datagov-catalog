@@ -362,6 +362,7 @@ class CatalogDBInterface:
                     "organization_type": org.organization_type,
                     "dataset_count": dataset_count,
                     "aliases": org.aliases or [],
+                    "source_count": org.source_count,
                 }
             )
 
