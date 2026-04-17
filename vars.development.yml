@@ -8,4 +8,5 @@ instances: 1
 proxy_instances: 1
 basic_auth_enabled: on # nginx terminology 'on' 'off'. cf will interpret these as 'true' 'false'
 route_external: datagov-catalog-dev.app.cloud.gov
+route_beta: catalog-beta-dev.app.cloud.gov # an invalid url because there's no 'beta' equivalent
 route_internal: datagov-catalog-dev.apps.internal
