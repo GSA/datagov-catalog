@@ -1,3 +1,5 @@
+import csv
+import json
 from datetime import datetime
 from unittest.mock import Mock, patch
 
@@ -718,3 +720,151 @@ class TestCompareCommand:
         assert reindexed_ids == {"current", "also-current"}
         os_client.client.delete.assert_not_called()
         os_client._refresh.assert_called_once()
+
+
+def _fake_datasets(n: int, title_prefix: str = "Dataset") -> list:
+    """Return a minimal list of raw data.json-style dataset dicts."""
+    return [
+        {
+            "title": f"{title_prefix} {i}",
+            "description": f"Description {i}",
+            "keyword": ["health", "data"],
+            "modified": f"2024-0{(i % 9) + 1}-01",
+            "distribution": [
+                {
+                    "title": "CSV file",
+                    "format": "CSV",
+                    "downloadURL": f"https://example.com/{i}.csv",
+                }
+            ],
+        }
+        for i in range(1, n + 1)
+    ]
+
+
+class TestGenerateFixtureCsv:
+    """Test integration with the load data command."""
+
+    # Two minimal fake agencies — keeps tests fast and deterministic.
+    _FAKE_SOURCES = [
+        ("Agency One", "agency-one", "https://one.gov/data.json"),
+        ("Agency Two", "agency-two", "https://two.gov/data.json"),
+    ]
+
+    def _invoke(self, cli_runner, tmp_path, extra_args=None):
+        """Invoke the command with _fetch_catalog patched and output in tmp_path."""
+        args = [
+            "testdata",
+            "generate_fixture_csv",
+            "--out-dir",
+            str(tmp_path),
+        ] + (extra_args or [])
+
+        with (
+            patch("app.commands._AGENCY_SOURCES", self._FAKE_SOURCES),
+            patch("app.commands._fetch_catalog") as mock_fetch,
+        ):
+            mock_fetch.side_effect = lambda url: _fake_datasets(5)
+            result = cli_runner.invoke(args=args)
+
+        return result, mock_fetch
+
+    def test_writes_extra_orgs_csv(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        assert (tmp_path / "extra_orgs.csv").exists()
+
+    def test_writes_extra_datasets_csv(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        assert (tmp_path / "extra_datasets.csv").exists()
+
+    def test_orgs_csv_has_correct_fieldnames(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        with open(tmp_path / "extra_orgs.csv", newline="") as f:
+            reader = csv.DictReader(f)
+            assert reader.fieldnames == ["id", "name", "slug", "organization_type"]
+
+    def test_datasets_csv_has_correct_fieldnames(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        with open(tmp_path / "extra_datasets.csv", newline="") as f:
+            reader = csv.DictReader(f)
+            assert reader.fieldnames == [
+                "slug",
+                "dcat",
+                "organization_id",
+                "harvest_source_id",
+                "harvest_record_id",
+                "popularity",
+                "last_harvested_date",
+                "id",
+            ]
+
+    def test_orgs_csv_row_count_matches_agency_sources(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        with open(tmp_path / "extra_orgs.csv", newline="") as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == len(self._FAKE_SOURCES)
+
+    def test_orgs_csv_contains_correct_names_and_slugs(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        with open(tmp_path / "extra_orgs.csv", newline="") as f:
+            rows = {r["slug"]: r for r in csv.DictReader(f)}
+        assert "agency-one" in rows
+        assert rows["agency-one"]["name"] == "Agency One"
+        assert "agency-two" in rows
+        assert rows["agency-two"]["name"] == "Agency Two"
+
+    def test_datasets_are_namespaced_by_org_slug(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        with open(tmp_path / "extra_datasets.csv", newline="") as f:
+            slugs = [r["slug"] for r in csv.DictReader(f)]
+        one_slugs = [s for s in slugs if s.startswith("agency-one-")]
+        two_slugs = [s for s in slugs if s.startswith("agency-two-")]
+        assert len(one_slugs) > 0, "Expected datasets prefixed with 'agency-one-'"
+        assert len(two_slugs) > 0, "Expected datasets prefixed with 'agency-two-'"
+
+    def test_datasets_per_org_limit_is_respected(self, cli_runner, tmp_path):
+        limit = 3
+        args = [
+            "testdata",
+            "generate_fixture_csv",
+            "--out-dir",
+            str(tmp_path),
+            "--datasets-per-org",
+            str(limit),
+        ]
+        with (
+            patch("app.commands._AGENCY_SOURCES", self._FAKE_SOURCES),
+            patch("app.commands._fetch_catalog") as mock_fetch,
+        ):
+            # Return more datasets than the limit to verify truncation.
+            mock_fetch.side_effect = lambda url: _fake_datasets(10)
+            cli_runner.invoke(args=args)
+
+        with open(tmp_path / "extra_datasets.csv", newline="") as f:
+            rows = list(csv.DictReader(f))
+        # 2 agencies × limit rows each
+        assert len(rows) == len(self._FAKE_SOURCES) * limit
+
+    def test_all_dataset_slugs_are_unique(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        with open(tmp_path / "extra_datasets.csv", newline="") as f:
+            slugs = [r["slug"] for r in csv.DictReader(f)]
+        assert len(slugs) == len(
+            set(slugs)
+        ), "Duplicate slugs found in extra_datasets.csv"
+
+    def test_dcat_column_is_valid_json(self, cli_runner, tmp_path):
+        self._invoke(cli_runner, tmp_path)
+        with open(tmp_path / "extra_datasets.csv", newline="") as f:
+            for row in csv.DictReader(f):
+                parsed = json.loads(row["dcat"])  # raises if invalid
+                assert isinstance(parsed, dict)
+
+    def test_output_echoes_written_file_paths(self, cli_runner, tmp_path):
+        result, _ = self._invoke(cli_runner, tmp_path)
+        assert "extra_orgs.csv" in result.output
+        assert "extra_datasets.csv" in result.output
+
+    def test_each_agency_is_fetched_exactly_once(self, cli_runner, tmp_path):
+        _, mock_fetch = self._invoke(cli_runner, tmp_path)
+        assert mock_fetch.call_count == len(self._FAKE_SOURCES)

@@ -1,8 +1,14 @@
+import csv
+import json
 import os
 import posixpath
+import re
 import time
+import urllib.request
+import uuid
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import Iterable, Optional
 from urllib.parse import urlparse
 
@@ -83,6 +89,212 @@ def load_test_data(clear):
         interface.db.rollback()
         click.echo(f"Error loading test data: {e}")
         raise
+
+
+# Each tuple: (display name, org slug, data.json URL)
+_AGENCY_SOURCES = [
+    ("AmeriCorps", "americorps", "https://data.americorps.gov/data.json"),
+    (
+        "General Services Administration",
+        "gsa",
+        "https://open.gsa.gov/data.json",
+    ),
+    (
+        "Office of Personnel Management",
+        "opm",
+        "https://www.opm.gov/data.json",
+    ),
+    (
+        "Department of Transportation",
+        "department-of-transportation",
+        "https://data.transportation.gov/data.json",
+    ),
+    (
+        "Department of Energy",
+        "department-of-energy",
+        "https://www.energy.gov/data.json",
+    ),
+]
+
+_DATASETS_PER_ORG = 20
+
+_ORG_CSV_FIELDNAMES = ["id", "name", "slug", "organization_type"]
+_DATASET_CSV_FIELDNAMES = [
+    "slug",
+    "dcat",
+    "organization_id",
+    "harvest_source_id",
+    "harvest_record_id",
+    "popularity",
+    "last_harvested_date",
+    "id",
+]
+
+
+def _slugify(text: str) -> str:
+    """Convert text to a URL-safe slug."""
+    text = text.lower().strip()
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_]+", "-", text)
+    text = re.sub(r"-{2,}", "-", text)
+    return text[:100]
+
+
+def _parse_modified(dataset: dict) -> str:
+    """Extract an ISO date string from modified/issued, or return empty string."""
+    raw = dataset.get("modified") or dataset.get("issued") or ""
+    match = re.search(r"\d{4}-\d{2}-\d{2}", str(raw))
+    return match.group(0) if match else ""
+
+
+def _build_dcat(dataset: dict) -> dict:
+    """Extract DCAT-relevant fields from a raw data.json dataset entry."""
+    keep = [
+        "title",
+        "description",
+        "keyword",
+        "modified",
+        "issued",
+        "publisher",
+        "contactPoint",
+        "distribution",
+        "spatial",
+        "temporal",
+        "identifier",
+        "theme",
+        "license",
+        "rights",
+        "accrualPeriodicity",
+        "language",
+        "landingPage",
+        "isPartOf",
+    ]
+    dcat = {
+        key: value
+        for key, value in dataset.items()
+        if key in keep and value is not None
+    }
+    keywords = dcat.get("keyword", [])
+    dcat["keyword"] = [
+        str(keyword_item)
+        for keyword_item in (keywords if isinstance(keywords, list) else [keywords])
+    ]
+    distribution = dcat.get("distribution", [])
+    dcat["distribution"] = (
+        distribution if isinstance(distribution, list) else [distribution]
+    )
+    return dcat
+
+
+def _fetch_catalog(url: str) -> list:
+    """Fetch a data.json URL and return the dataset list (empty list on failure)."""
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "datagov-fixture-gen/1.0"}
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+            return json.loads(resp.read()).get("dataset", [])
+    except Exception as exc:
+        click.echo(f"  Warning: could not fetch {url}: {exc}")
+        return []
+
+
+@testdata.cli.command("generate_fixture_csv")
+@click.option(
+    "--datasets-per-org",
+    default=_DATASETS_PER_ORG,
+    show_default=True,
+    type=int,
+    help="Max datasets to include per agency.",
+)
+@click.option(
+    "--out-dir",
+    default="tests/data",
+    show_default=True,
+    help="Directory to write extra_orgs.csv and extra_datasets.csv.",
+)
+def generate_fixture_csv(datasets_per_org: int, out_dir: str):
+    """
+    Fetch datasets from several government agencies and write fixture CSVs.
+
+    creats the following csv's
+    extra_orgs.csv     – one row per agency (5 orgs)
+    extra_datasets.csv – up to DATASETS_PER_ORG rows per agency
+
+    default agencies fetched:
+      AmeriCorps
+      General Services Administration
+      Office of Personnel Management
+      Department of Transportation
+      Department of Energy
+    """
+    out_path = Path(out_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+
+    orgs_path = out_path / "extra_orgs.csv"
+    datasets_path = out_path / "extra_datasets.csv"
+
+    org_rows = []
+    dataset_rows = []
+    seen_slugs: set[str] = set()
+
+    for source_index, (org_name, org_slug, url) in enumerate(_AGENCY_SOURCES):
+        org_id = str(uuid.uuid4())
+        org_rows.append(
+            {
+                "id": org_id,
+                "name": org_name,
+                "slug": org_slug,
+                "organization_type": "Federal Government",
+            }
+        )
+
+        click.echo(
+            f"[{source_index + 1}/{len(_AGENCY_SOURCES)}] Fetching {org_name} ({url}) ..."
+        )
+        raw_datasets = _fetch_catalog(url)
+        click.echo(
+            f"  Found {len(raw_datasets)} datasets; taking up to {datasets_per_org}."
+        )
+
+        for dataset_index, dataset in enumerate(raw_datasets[:datasets_per_org]):
+            title = dataset.get("title") or f"{org_slug}-dataset-{dataset_index}"
+            # Prefix with org slug so dataset slugs are namespaced and cannot
+            # collide with americorps_datasets.csv or other existing fixtures.
+            base_slug = f"{org_slug}-{_slugify(title)}"
+            slug = base_slug
+            suffix = 1
+            while slug in seen_slugs:
+                slug = f"{base_slug}-{suffix}"
+                suffix += 1
+            seen_slugs.add(slug)
+
+            dataset_rows.append(
+                {
+                    "slug": slug,
+                    "dcat": json.dumps(_build_dcat(dataset), ensure_ascii=False),
+                    "organization_id": org_id,
+                    "harvest_source_id": "",
+                    "harvest_record_id": str(uuid.uuid4()),
+                    "popularity": max(1, 500 - dataset_index * 10),
+                    "last_harvested_date": _parse_modified(dataset),
+                    "id": str(uuid.uuid4()),
+                }
+            )
+
+    # write orgs
+    with orgs_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=_ORG_CSV_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(org_rows)
+    click.echo(f"\nWrote {len(org_rows)} orgs → {orgs_path}")
+
+    # write datasets
+    with datasets_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=_DATASET_CSV_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(dataset_rows)
+    click.echo(f"Wrote {len(dataset_rows)} datasets → {datasets_path}")
 
 
 @search.cli.command("sync")

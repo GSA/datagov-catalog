@@ -338,8 +338,15 @@ def fixture_data():
     harvest_source_id = fixture_dict["harvest_source"]["id"]
     harvest_job_id = fixture_dict["harvest_job"]["id"]
 
+    # Track every slug loaded so far to prevent UniqueViolation on load.
+    seen_slugs: set[str] = {d["slug"] for d in fixture_dict["dataset"]}
+
     for row in datasets[1:]:
         slug = row[0]
+        if slug in seen_slugs:
+            continue
+        seen_slugs.add(slug)
+
         dcat = json.loads(row[1])
         harvest_record_id = row[4]
         popularity = int(row[5])
@@ -369,4 +376,55 @@ def fixture_data():
             last_harvested_date = DEFAULT_LAST_HARVESTED_DATE
         row[6] = last_harvested_date
         fixture_dict["dataset"].append(dict(zip(fields, row)))
+
+    # Load generated agency orgs + datasets produced by
+    generated_orgs_csv = TEST_DIR / "data" / "extra_orgs.csv"
+    generated_datasets_csv = TEST_DIR / "data" / "extra_datasets.csv"
+
+    if generated_orgs_csv.exists():
+        org_rows = read_csv(generated_orgs_csv)
+        org_fields = org_rows[0]
+        for row in org_rows[1:]:
+            fixture_dict["organization"].append(dict(zip(org_fields, row)))
+
+    if generated_datasets_csv.exists():
+        gen_datasets = read_csv(generated_datasets_csv)
+        gen_fields = gen_datasets[0]
+        for row in gen_datasets[1:]:
+            slug = row[0]
+            # Skip any slug already loaded from inline fixtures or AmeriCorps CSV.
+            if slug in seen_slugs:
+                continue
+            seen_slugs.add(slug)
+
+            dcat = json.loads(row[1])
+            # row[2] is organization_id — already set per-agency, do not overwrite.
+            harvest_record_id = row[4]
+            popularity = int(row[5])
+
+            fixture_dict["harvest_record"].append(
+                dict(
+                    id=harvest_record_id,
+                    harvest_source_id=harvest_source_id,
+                    harvest_job_id=harvest_job_id,
+                    identifier=slug,
+                    source_raw=json.dumps(dcat),
+                    source_transform=dcat,
+                )
+            )
+
+            row[1] = dcat
+            row[3] = harvest_source_id
+            row[5] = popularity
+            last_harvested_raw = row[6].strip() if len(row) > 6 and row[6] else ""
+            if last_harvested_raw:
+                try:
+                    last_harvested_date = datetime.fromisoformat(last_harvested_raw)
+                except ValueError:
+                    last_harvested_date = DEFAULT_LAST_HARVESTED_DATE
+            else:
+                last_harvested_date = DEFAULT_LAST_HARVESTED_DATE
+            row[6] = last_harvested_date
+            fixture_dict["dataset"].append(dict(zip(gen_fields, row)))
+
     return fixture_dict

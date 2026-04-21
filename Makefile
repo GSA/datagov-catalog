@@ -29,9 +29,16 @@ test:
 test-pa11y: ## Runs accessibility tests with pa11y-ci (requires running app)
 	npm run test:pa11y
 
+generate-new-data: ## creates a new set of csv files for local testing
+	docker compose exec app flask testdata generate_fixture_csv
+
 load-test-data: ## Loads test fixture data into the database
 	docker compose exec app flask testdata load_test_data --clear
 	docker compose exec app flask search sync
+
+load-test-data-reindex: ## Loads test fixture and recreate index
+	docker compose exec app flask testdata load_test_data --clear
+	docker compose exec app flask search sync --recreate-index
 
 test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests with test data loaded
 
