@@ -33,9 +33,7 @@ def test_get_organizations_db_fallback_includes_zero_dataset_orgs(
     # Assert both core fixture orgs are present regardless of any extra orgs
     # loaded from generated CSV fixtures (extra_orgs.csv).
     assert "test-org" in by_slug, "Expected 'test-org' in organizations"
-    assert (
-        "test-org-filtered" in by_slug
-    )
+    assert "test-org-filtered" in by_slug
 
     assert by_slug["test-org"]["dataset_count"] > 0
     assert by_slug["test-org-filtered"]["dataset_count"] == 0
