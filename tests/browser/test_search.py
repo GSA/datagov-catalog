@@ -24,21 +24,29 @@ def test_search_empty(page):
         re.compile(r"^\s*No datasets found. ")
     )
 
+
 def test_return_to_search_results(page):
     page.goto("/")
     page.get_by_role("textbox", name="Search datasets").fill("payments")
     page.get_by_role("button", name="Search").click()
     # now click on the first result
-    page.get_by_role("link", name="Segal AmeriCorps Education Award Payments by State").click()
+    page.get_by_role(
+        "link", name="Segal AmeriCorps Education Award Payments by State"
+    ).click()
     # has a "Return to search results" link
-    expect(page.get_by_role("heading", level=1)).to_have_text("Segal AmeriCorps Education Award Payments by State")
-    expect(page.get_by_role("link", name="\uf060 Return to search results")).to_be_visible()
+    expect(page.get_by_role("heading", level=1)).to_have_text(
+        "Segal AmeriCorps Education Award Payments by State"
+    )
+    expect(
+        page.get_by_role("link", name="\uf060 Return to search results")
+    ).to_be_visible()
 
     page.get_by_role("link", name="\uf060 Return to search results").click()
     # back on the search page with same number of results
     expect(page.locator("#search-results div.usa-prose p:first-child")).to_contain_text(
         "Found 8 datasets matching "
     )
+
 
 def test_filter_geospatial_click(page):
     """Searching for geospatial datasets filter is auto-applied."""
