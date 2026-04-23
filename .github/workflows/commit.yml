@@ -100,7 +100,11 @@ jobs:
         run: sleep 10
 
       - name: Run Playwright tests
-        run: make test-browser
+        run: make test-browser-with-data
+
+      - name: Tear down services
+        if: always()
+        run: make down
 
   accessibility:
     runs-on: ubuntu-latest

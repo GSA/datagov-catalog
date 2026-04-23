@@ -38,6 +38,8 @@ test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests wi
 test-browser:
 	poetry run pytest --browser chromium --browser firefox --browser webkit tests/browser/
 
+test-browser-with-data: up load-test-data test-browser ## Runs accessibility tests with test data loaded
+
 up: ## Sets up local flask  docker environment.
 	docker compose up -d --wait
 
