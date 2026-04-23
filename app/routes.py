@@ -508,6 +508,8 @@ def search(**kwargs):
                 selected_sort=sort_by,
                 organization=selected_organization,
                 organization_slug_or_id=selected_organization.slug,
+                keywords=keywords,
+                spatial_filter=spatial_filter,
                 spatial_geometry=spatial_geometry,
                 spatial_within=spatial_within,
             )
