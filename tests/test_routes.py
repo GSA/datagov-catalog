@@ -1946,6 +1946,72 @@ def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_clien
     assert set(params.get("org_type", [])) == {"Federal Government", "State Government"}
 
 
+def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
+    interface_with_dataset, db_client
+):
+    """
+    HTMX 'Show more' on /organization page must carry keywords
+    and spatial_filter forward in the button URLs.
+    """
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(25):
+        dataset_dict["id"] = str(i)
+        dataset_dict["slug"] = f"org-test-{i}"
+        dataset_dict["dcat"] = {
+            "title": f"org-test-{i}",
+            "keyword": ["health", "education"],
+            "spatial": "-90.155,27.155,-90.26,27.255",
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+
+    interface_with_dataset.db.commit()
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search",
+            query_string={
+                "org_slug": "test-org",
+                "per_page": "10",
+                "keyword": ["health", "education"],
+                "spatial_filter": "geospatial",
+                "sort": "popularity",
+            },
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    load_more_button = soup.find(
+        "button", string=lambda s: s and "Show more results" in s
+    )
+    # load more button should be present
+    assert load_more_button is not None
+
+    hx_get_url = load_more_button.get("hx-get")
+    assert hx_get_url is not None
+    params = parse_qs(urlparse(hx_get_url).query)
+
+    # keywords must be forwarded, not dropped or set to empty string
+    assert set(params.get("keyword", [])) == {
+        "health",
+        "education",
+    }
+    assert "" not in params.get("keyword", []), "Empty string keyword must not appear"
+
+    # spatial_filter must be forwarded
+    assert params.get("spatial_filter") == ["geospatial"]
+
+    # hx-push-url should also carry keywords correctly
+    hx_push_url = load_more_button.get("hx-push-url")
+    assert hx_push_url is not None
+    push_params = parse_qs(urlparse(hx_push_url).query)
+    assert set(push_params.get("keyword", [])) == {"health", "education"}
+
+
 def test_index_search_message_with_query_only(interface_with_dataset, db_client):
     """Test that search message displays query only when no filters are applied."""
     with patch("app.routes.interface", interface_with_dataset):
