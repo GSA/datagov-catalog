@@ -2010,6 +2010,7 @@ def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
     assert hx_push_url is not None
     push_params = parse_qs(urlparse(hx_push_url).query)
     assert set(push_params.get("keyword", [])) == {"health", "education"}
+    assert push_params.get("spatial_filter") == ["geospatial"]
 
 
 def test_index_search_message_with_query_only(interface_with_dataset, db_client):
