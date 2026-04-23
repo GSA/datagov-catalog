@@ -329,3 +329,33 @@ class TestDatasetDetail:
             "a", href="/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
         )
         assert collection_link is not None
+
+    def test_check_jsonld(self, interface_with_dataset, db_client):
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        jsonld = json.loads(
+            soup.find_all("script", {"type": "application/ld+json"})[0].contents[0]
+        )
+
+        expected = {
+            "@type": "dcat:Dataset",
+            "description": "this is the test description",
+            "distribution": [
+                {
+                    "description": "Sample CSV resource",
+                    "downloadURL": "https://example.com/test.csv",
+                    "format": "CSV",
+                    "mediaType": "text/csv",
+                    "title": "Test CSV",
+                }
+            ],
+            "keyword": ["health", "education", "Health"],
+            "title": "test",
+        }
+
+        assert jsonld == expected

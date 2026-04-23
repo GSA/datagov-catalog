@@ -15,6 +15,7 @@ applications:
       - route: ((route_external))
     env:
       EXTERNAL_ROUTE: ((route_external))
+      BETA_ROUTE: ((route_beta))
       INTERNAL_ROUTE: ((route_internal))
       BASIC_AUTH_ENABLED: ((basic_auth_enabled))
   - name: ((app_name))

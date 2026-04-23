@@ -508,6 +508,8 @@ def search(**kwargs):
                 selected_sort=sort_by,
                 organization=selected_organization,
                 organization_slug_or_id=selected_organization.slug,
+                keywords=keywords,
+                spatial_filter=spatial_filter,
                 spatial_geometry=spatial_geometry,
                 spatial_within=spatial_within,
             )
@@ -783,6 +785,9 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # Use from_hint to construct an arguments dict
     from_hint = request.args.get("from_hint")
     from_dict = dict_from_hint(from_hint)
+
+    # set the type for google search json-ld
+    dataset.dcat["@type"] = "dcat:Dataset"
 
     return render_template(
         "dataset_detail.html",
