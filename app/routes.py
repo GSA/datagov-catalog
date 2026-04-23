@@ -786,6 +786,9 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     from_hint = request.args.get("from_hint")
     from_dict = dict_from_hint(from_hint)
 
+    # set the type for google search json-ld
+    dataset.dcat["@type"] = "dcat:Dataset"
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
