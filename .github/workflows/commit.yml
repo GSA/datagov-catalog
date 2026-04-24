@@ -147,8 +147,8 @@ jobs:
       - name: Assert thresholds
         run: |
           output=$(lhci assert --config=lighthouserc.yml 2>&1) || {
-            echo "$output" | grep -E "url:|category:|actual:|expected:" | while IFS= read -r line; do
-              echo "::error::$line"
+            echo "$output" | while IFS= read -r line; do
+              [[ -n "$line" ]] && echo "::error::$line"
             done
             exit 1
           }
