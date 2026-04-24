@@ -114,6 +114,40 @@ jobs:
         if: always()
         run: make down
 
+  lighthouse:
+    runs-on: ubuntu-latest
+    name: Lighthouse CI Audit
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli
+
+      - name: Run Lighthouse CI
+        run: |
+          lhci autorun \
+            --collect.url="https://catalog.data.gov" \
+            --collect.url="https://catalog.data.gov/organization" \
+            --collect.url="https://catalog.data.gov/organization/gsa" \
+            --collect.url="https://catalog.data.gov/dataset/gsa-enterprise-data-inventory-edi" \
+            --collect.numberOfRuns=1 \
+            --upload.target=filesystem \
+            --upload.outputDir=./lighthouse-results
+
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-results
+          path: ./lighthouse-results/**/*.html
+          retention-days: 30
+
   deploy-development:
     name: deploy to development space
     if: github.ref == 'refs/heads/develop'
