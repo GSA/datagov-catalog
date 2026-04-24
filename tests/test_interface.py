@@ -42,7 +42,9 @@ def test_get_top_publishers_returns_top_100(interface_with_dataset, monkeypatch)
         nonlocal captured_size
         captured_size = size
         return [
+            {"name": "Agency Delta", "count": 3},
             {"name": "Agency Beta", "count": 1},
+            {"name": "Agency Gamma", "count": 2},
             {"name": "Agency Alpha", "count": 1},
         ]
 
@@ -56,6 +58,8 @@ def test_get_top_publishers_returns_top_100(interface_with_dataset, monkeypatch)
 
     assert captured_size == 100
     assert publishers == [
+        {"name": "Agency Delta", "count": 3},
+        {"name": "Agency Gamma", "count": 2},
         {"name": "Agency Alpha", "count": 1},
         {"name": "Agency Beta", "count": 1},
     ]
