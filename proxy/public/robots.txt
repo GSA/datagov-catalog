@@ -3,4 +3,4 @@ User-agent: *
 Crawl-Delay: 10
 
 # sitemap url should get replaced by proxy .profile
-Sitemap: https://catalog-beta.data.gov/sitemap.xml
+Sitemap: https://catalog.data.gov/sitemap.xml

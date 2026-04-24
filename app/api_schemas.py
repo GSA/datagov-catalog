@@ -17,6 +17,7 @@ from apiflask.fields import (
 )
 from apiflask.validators import Length, Range
 
+from app.database.constants import SEARCH_API_MAX_PER_PAGE
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
 ORGANIZATION_TYPE_ENUM = PyEnum(
@@ -84,7 +85,15 @@ class SearchResults(Schema):
 class SearchQuery(Schema):
     q = String()
     sort = Enum(SORT_BY_ENUM)
-    per_page = Integer(validate=Range(min=1))
+    per_page = Integer(
+        validate=Range(min=1, max=SEARCH_API_MAX_PER_PAGE),
+        metadata={
+            "description": (
+                f"Number of results per page. Must be between 1 and "
+                f"{SEARCH_API_MAX_PER_PAGE}."
+            )
+        },
+    )
     org_slug = String()
     org_type = Enum(ORGANIZATION_TYPE_ENUM)
     keyword = List(String())

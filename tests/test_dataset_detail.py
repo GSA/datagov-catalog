@@ -1,6 +1,7 @@
 import json
 from unittest.mock import patch
 
+import pytest
 from bs4 import BeautifulSoup
 
 from app.utils import hint_from_dict
@@ -283,3 +284,78 @@ class TestDatasetDetail:
         assert soup.select_one('link[href*="leaflet.css"]') is None
         assert soup.select_one('script[src*="leaflet.js"]') is None
         assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
+
+    @pytest.mark.parametrize(
+        "dataset_detail_url",
+        [("/dataset/child-harvest-record"), ("/dataset/parent-harvest-record")],
+    )
+    def test_dataset_detail_collections(
+        self, dataset_detail_url, interface_with_dataset, db_client
+    ):
+        """
+        test child and parent dataset detail view
+        """
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get(dataset_detail_url)
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        related_datasets_section = soup.select_one("section.usa-section")
+        related_datasets_options = related_datasets_section.find_all(
+            "div", class_="tablet:grid-col-6"
+        )
+
+        # both the tags and collection options are there
+        assert len(related_datasets_options) == 2
+
+        # tag content (the subset of tags and the button to show more)
+        tags = related_datasets_options[0]
+        assert tags.select_one("div.tag-list") is not None
+
+        # not a fan of adding a condition like this but breaking out
+        # this test into 2 would introduce a lot of redundancy
+        if dataset_detail_url == "/dataset/parent-harvest-record":
+            assert tags.select_one("button.usa-button") is not None
+
+        # collection content
+        collection = related_datasets_options[1]
+        collection_count = soup.select_one("div.text-base-dark")
+
+        assert collection_count.text.strip() == "Includes 1 related dataset"
+
+        collection_link = collection.find(
+            "a", href="/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
+        )
+        assert collection_link is not None
+
+    def test_check_jsonld(self, interface_with_dataset, db_client):
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        jsonld = json.loads(
+            soup.find_all("script", {"type": "application/ld+json"})[0].contents[0]
+        )
+
+        expected = {
+            "@type": "dcat:Dataset",
+            "description": "this is the test description",
+            "distribution": [
+                {
+                    "description": "Sample CSV resource",
+                    "downloadURL": "https://example.com/test.csv",
+                    "format": "CSV",
+                    "mediaType": "text/csv",
+                    "title": "Test CSV",
+                }
+            ],
+            "keyword": ["health", "education", "Health"],
+            "title": "test",
+        }
+
+        assert jsonld == expected

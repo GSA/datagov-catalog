@@ -93,13 +93,17 @@ def create_app(config_name: str = "local") -> APIFlask:
         "script-src": " ".join(
             [
                 "'self'",
-                "https://www.googletagmanager.com",
+                "https://*.googletagmanager.com",
                 "https://buttons.github.io",  # github button
-                "https://touchpoints.app.cloud.gov",
                 "https://unpkg.com",  # swagger
                 "'unsafe-hashes'",
                 "'sha256-osjxnKEPL/pQJbFk1dKsF7PYFmTyMWGmVSiL9inhxJY='",  # form autosubmit
                 "'sha256-A1KDZ6CTgI16YJ4cUNyyCFExM5+Sv4ApvahuZIQRXPA='",  # return to top
+                "https://static.zdassets.com",  # zendesk
+                "https://ekr.zdassets.com",  # zendesk
+                "'sha256-Ff1SFMp5PHyy62W49sHzg1RI9yL6Y9xoqXeGrJP8TUI='",
+                "https://gsa-solutionshelp.zendesk.com",  # zendesk
+                "'nonce-RgDplMTo1jIsP_9Vr4lErzJtec9zO4Z3'",
             ]
         ),
         "font-src": " ".join(
@@ -116,6 +120,8 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "data:",  # leaflet
                 "https://cg-1b082c1b-3db7-477f-9ca5-bd51a786b41e.s3-us-gov-west-1.amazonaws.com",  # touchpoints
                 "https://touchpoints.app.cloud.gov",  # touchpoints
+                "https://*.google-analytics.com",
+                "https://*.googletagmanager.com",
             ]
         ),
         "connect-src": " ".join(
@@ -123,6 +129,13 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "'self'",
                 "https://api.github.com",
                 "https://touchpoints.app.cloud.gov",
+                "https://*.google-analytics.com",
+                "https://*.analytics.google.com",
+                "https://*.googletagmanager.com",
+                "https://static.zdassets.com",  # zendesk
+                "https://ekr.zdassets.com",  # zendesk
+                "https://gsa-solutionshelp.zendesk.com",  # zendesk
+                "https://*.ingest.de.sentry.io",  # sentry
             ]
         ),
         "frame-src": "https://www.googletagmanager.com",
@@ -143,10 +156,8 @@ def create_app(config_name: str = "local") -> APIFlask:
             [
                 "'self'",  # local styles.css
                 "https://cdnjs.cloudflare.com",  # font-awesome
-                "https://unpkg.com",  # Swagger
-                "'sha256-faU7yAF8NxuMTNEwVmBz+VcYeIoBQ2EMHW3WaVxCvnk='",  # htms.min.js
-                "'sha256-qo7STIM1L/OgU9y0De47mqod1UZFLJfTn36bRC42rfA='",  # buttons.js
-                "'sha256-d0LwTCBHt5DXTdSVbRSm0wQ/W4m5yoyMcrge+KrScUc='",  # touchpoints
+                "https://unpkg.com",  # swagger
+                "'unsafe-inline'",  # required for zendesk widget (injects dynamic inline styles)
             ]
         ),
     }

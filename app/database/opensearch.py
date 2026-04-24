@@ -190,6 +190,7 @@ class OpenSearchInterface:
                 "properties": {
                     "modified": {"type": "keyword"},  # Ensure modified is always text
                     "issued": {"type": "keyword"},  # Also ensure issued is text
+                    "isPartOf": {"type": "keyword"},
                 },
             },
             "description": {
@@ -917,6 +918,7 @@ class OpenSearchInterface:
         keyword_size: int = 100,
         org_size: int = 100,
         publisher_size: int = 100,
+        collection: str = None,
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -1061,6 +1063,16 @@ class OpenSearchInterface:
                             "shape": spatial_geometry,
                             "relation": "WITHIN" if spatial_within else "INTERSECTS",
                         }
+                    }
+                }
+            )
+
+        if collection:
+            filters.append(
+                {
+                    "nested": {
+                        "path": "dcat",
+                        "query": {"term": {"dcat.isPartOf": collection}},
                     }
                 }
             )

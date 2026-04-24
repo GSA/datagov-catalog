@@ -26,10 +26,14 @@
     suggested_organizations=None,
     contextual_keyword_counts=None,
     contextual_org_counts=None,
-    contextual_publisher_counts=None
+    contextual_publisher_counts=None,
+    collection=None
 ) %}
 <p class="font-body-2xs text-light">Filter selections are applied on each click</p>
 <form class="usa-form margin-top-neg-2" method="get" action="{{ form_action }}" id="{{ form_id }}">
+    {% if collection %}
+    <input type="hidden" name="collection" value="{{ collection }}">
+    {% endif %}
     <input type="hidden" name="q" value="{{ query_value }}">
     {% if org_slug %}
     <input type="hidden" name="org_slug" value="{{ org_slug }}">
