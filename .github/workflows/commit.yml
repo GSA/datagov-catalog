@@ -129,17 +129,23 @@ jobs:
       - name: Install Lighthouse CI
         run: npm install -g @lhci/cli
 
-      - name: Run Lighthouse CI
+      - name: Collect Lighthouse results
         run: |
-          lhci autorun \
-            --config=lighthouserc.yml \
-            --collect.url="https://catalog.data.gov" \
-            --collect.url="https://catalog.data.gov/organization" \
-            --collect.url="https://catalog.data.gov/organization/gsa" \
-            --collect.url="https://catalog.data.gov/dataset/gsa-enterprise-data-inventory-edi" \
-            --collect.numberOfRuns=1 \
-            --upload.target=filesystem \
-            --upload.outputDir=./lighthouse-results
+          lhci collect \
+            --url="https://catalog.data.gov" \
+            --url="https://catalog.data.gov/organization" \
+            --url="https://catalog.data.gov/organization/gsa" \
+            --url="https://catalog.data.gov/dataset/gsa-enterprise-data-inventory-edi" \
+            --numberOfRuns=1
+
+      - name: Upload to filesystem
+        run: |
+          lhci upload \
+            --target=filesystem \
+            --outputDir=./lighthouse-results
+
+      - name: Assert thresholds
+        run: lhci assert --config=lighthouserc.yml
 
       - name: Upload Lighthouse results
         uses: actions/upload-artifact@v4
