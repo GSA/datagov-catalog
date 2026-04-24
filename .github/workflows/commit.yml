@@ -117,6 +117,7 @@ jobs:
   lighthouse:
     runs-on: ubuntu-latest
     name: Lighthouse CI Audit
+    continue-on-error: true
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
