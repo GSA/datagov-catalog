@@ -57,7 +57,7 @@ class SearchResult:
 
         When the search body included aggregation "clauses", the parsed
         `aggregations` dict will be populated on the returned instance with
-        `keywords` and `organizations` lists.
+        `keywords`, `organizations`, and `publishers` lists.
         """
 
         total = result_dict["hits"]["total"]["value"]
@@ -97,6 +97,7 @@ class SearchResult:
             org_buckets = (
                 raw_aggs.get("organizations", {}).get("by_slug", {}).get("buckets", [])
             )
+            publisher_buckets = raw_aggs.get("unique_publishers", {}).get("buckets", [])
             aggregations = {
                 "keywords": [
                     {"keyword": b["key"], "count": b["doc_count"]}
@@ -104,6 +105,10 @@ class SearchResult:
                 ],
                 "organizations": [
                     {"slug": b["key"], "count": b["doc_count"]} for b in org_buckets
+                ],
+                "publishers": [
+                    {"name": b["key"], "count": b["doc_count"]}
+                    for b in publisher_buckets
                 ],
             }
 
@@ -197,6 +202,13 @@ class OpenSearchInterface:
                 "type": "text",
                 "analyzer": TEXT_ANALYZER,
                 "search_analyzer": TEXT_ANALYZER,
+                "fields": {
+                    "raw": {"type": "keyword"},
+                    "normalized": {
+                        "type": "keyword",
+                        "normalizer": KEYWORD_NORMALIZER,
+                    },
+                },
             },
             "keyword": {
                 "type": "text",
@@ -896,6 +908,7 @@ class OpenSearchInterface:
         org_id=None,
         search_after: list = None,
         org_types=None,
+        publisher: str | None = None,
         spatial_filter=None,
         spatial_geometry=None,
         spatial_within=True,
@@ -904,6 +917,7 @@ class OpenSearchInterface:
         include_aggregations: bool = False,
         keyword_size: int = 100,
         org_size: int = 100,
+        publisher_size: int = 100,
         collection: str = None,
     ) -> SearchResult:
         """Search our index for a query string.
@@ -1031,6 +1045,9 @@ class OpenSearchInterface:
                 }
             )
 
+        if publisher:
+            filters.append({"term": {"publisher.normalized": publisher.lower()}})
+
         # Add spatial filter
         if spatial_filter == "geospatial":
             filters.append({"term": {"has_spatial": True}})
@@ -1074,7 +1091,7 @@ class OpenSearchInterface:
         if search_after is not None:
             search_body["search_after"] = search_after
 
-        # `keyword` and `organization` aggregations for the chips
+        # `keyword`, `organization`, and `publisher` aggregations for the chips
         if include_aggregations:
             search_body["aggs"] = {
                 "unique_keywords": {
@@ -1097,6 +1114,14 @@ class OpenSearchInterface:
                             }
                         }
                     },
+                },
+                "unique_publishers": {
+                    "terms": {
+                        "field": "publisher.raw",
+                        "size": publisher_size,
+                        "min_doc_count": 1,
+                        "order": {"_count": "desc"},
+                    }
                 },
             }
 
@@ -1187,6 +1212,41 @@ class OpenSearchInterface:
             {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]
 
+    def get_publisher_counts(
+        self, size=100, min_doc_count=1, as_dict=False
+    ) -> list[dict] | dict[str, int]:
+        """Aggregate datasets by publisher name to get counts."""
+        agg_body = {
+            "size": 0,
+            "aggs": {
+                "unique_publishers": {
+                    "terms": {
+                        "field": "publisher.raw",
+                        "size": size,
+                        "min_doc_count": min_doc_count,
+                        "order": {"_count": "desc"},
+                    }
+                }
+            },
+        }
+
+        result = self.client.search(index=self.INDEX_NAME, body=agg_body)
+        buckets = (
+            result.get("aggregations", {})
+            .get("unique_publishers", {})
+            .get("buckets", [])
+        )
+
+        if as_dict:
+            output = {}
+            for bucket in buckets:
+                output[bucket["key"]] = bucket["doc_count"]
+            return output
+
+        return [
+            {"name": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
+        ]
+
     def get_last_harvested_stats(self) -> dict[str, Any]:
         """Get dataset age-bin counts."""
 
@@ -1246,185 +1306,3 @@ class OpenSearchInterface:
         except Exception as e:
             logger.error(f"Error counting datasets in OpenSearch: {e}")
             return 0
-
-    def get_contextual_aggregations(
-        self,
-        query: str = "",
-        org_id=None,
-        org_types=None,
-        keywords: list[str] = None,
-        spatial_filter=None,
-        spatial_geometry=None,
-        spatial_within=True,
-        keyword_size=100,
-        org_size=100,
-    ) -> dict:
-        """
-        Get keyword and organization aggregations based on current search context.
-
-        This method returns counts for keywords and organizations that reflect
-        the current search query and filters, allowing for contextual filter counts.
-        This helps provide a more dynamic count of the keyword and orgs tags.
-        """
-        # Build the base query
-        parsed_query = self._parse_search_query(query) if query else None
-
-        if parsed_query:
-            if parsed_query["has_or"]:
-                base_query: dict[str, Any] = {
-                    "bool": {
-                        "should": [
-                            self._build_query_for_parsed_term(term)
-                            for term in parsed_query["terms"]
-                        ],
-                        "minimum_should_match": 1,
-                    }
-                }
-            else:
-                if len(parsed_query["terms"]) == 1:
-                    base_query = self._build_query_for_parsed_term(
-                        parsed_query["terms"][0]
-                    )
-                else:
-                    base_query = {"match_all": {}}
-        elif query and query.strip():
-            base_query: dict[str, Any] = self._build_multi_match_query(query)
-        else:
-            base_query = {"match_all": {}}
-
-        # Build filters list (same as in search method)
-        filters = []
-
-        # Add keyword filter - INCLUDE selected keywords in aggregations
-        # This ensures counts reflect the current search context including selected keywords
-        if keywords:
-            for keyword in keywords:
-                filters.append({"term": {"keyword.raw": keyword}})
-
-        if org_id is not None:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "organization",
-                        "query": {
-                            "term": {"organization.id": org_id},
-                        },
-                    },
-                }
-            )
-
-        if org_types is not None and len(org_types) > 0:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "organization",
-                        "query": {
-                            "terms": {"organization.organization_type": org_types},
-                        },
-                    },
-                }
-            )
-
-        if spatial_filter == "geospatial":
-            filters.append({"term": {"has_spatial": True}})
-        elif spatial_filter == "non-geospatial":
-            filters.append({"term": {"has_spatial": False}})
-
-        if spatial_geometry is not None:
-            filters.append(
-                {
-                    "geo_shape": {
-                        "spatial_shape": {
-                            "shape": spatial_geometry,
-                            "relation": "WITHIN" if spatial_within else "INTERSECTS",
-                        }
-                    }
-                }
-            )
-
-        # Build query with filters for keyword aggregations (includes ALL filters)
-        # We want keyword counts in the context of all current filters, including selected keywords
-        if filters:
-            keyword_query = {
-                "bool": {
-                    "filter": filters,
-                    "must": [base_query],
-                }
-            }
-        else:
-            keyword_query = base_query
-
-        # Get keyword aggregations
-        keyword_agg_body = {
-            "size": 0,
-            "query": keyword_query,
-            "aggs": {
-                "unique_keywords": {
-                    "terms": {
-                        "field": "keyword.raw",
-                        "size": keyword_size,
-                        "min_doc_count": 1,
-                        "order": {"_count": "desc"},
-                    }
-                }
-            },
-        }
-
-        keyword_result = self.client.search(
-            index=self.INDEX_NAME, body=keyword_agg_body
-        )
-        keyword_buckets = (
-            keyword_result.get("aggregations", {})
-            .get("unique_keywords", {})
-            .get("buckets", [])
-        )
-
-        # Get organization aggregations (includes all filters)
-        if filters:
-            org_query = {
-                "bool": {
-                    "filter": filters,
-                    "must": [base_query],
-                }
-            }
-        else:
-            org_query = base_query
-
-        org_agg_body = {
-            "size": 0,
-            "query": org_query,
-            "aggs": {
-                "organizations": {
-                    "nested": {"path": "organization"},
-                    "aggs": {
-                        "by_slug": {
-                            "terms": {
-                                "field": "organization.slug",
-                                "size": org_size,
-                                "min_doc_count": 1,
-                                "order": {"_count": "desc"},
-                            }
-                        }
-                    },
-                }
-            },
-        }
-
-        org_result = self.client.search(index=self.INDEX_NAME, body=org_agg_body)
-        org_buckets = (
-            org_result.get("aggregations", {})
-            .get("organizations", {})
-            .get("by_slug", {})
-            .get("buckets", [])
-        )
-
-        return {
-            "keywords": [
-                {"keyword": bucket["key"], "count": bucket["doc_count"]}
-                for bucket in keyword_buckets
-            ],
-            "organizations": [
-                {"slug": bucket["key"], "count": bucket["doc_count"]}
-                for bucket in org_buckets
-            ],
-        }
