@@ -132,6 +132,7 @@ jobs:
       - name: Run Lighthouse CI
         run: |
           lhci autorun \
+            --config=lighthouserc.yml \
             --collect.url="https://catalog.data.gov" \
             --collect.url="https://catalog.data.gov/organization" \
             --collect.url="https://catalog.data.gov/organization/gsa" \
