@@ -286,7 +286,9 @@
                                 <tr>
                                     <th scope="row">{{ key }}</th>
                                     <td>
-                                        {% if rendered_value | is_json %}
+                                        {% if key == 'landingPage' %}
+                                        <a href="{{ value }}" target="_blank" rel="noopener">{{ value }}</a>
+                                        {% elif rendered_value | is_json %}
                                         <pre class="json">
                                             {{ value | json_to_semantic_html | safe }}
                                         </pre>
