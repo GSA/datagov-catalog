@@ -432,10 +432,10 @@ class CatalogDBInterface:
         publishers = self.opensearch.get_publisher_counts(size=100)
 
         return sorted(
-            [item for item in publishers if item.get("name")],
+            publishers,
             key=lambda item: (
-                -int(item.get("count", 0)),
-                (item.get("name") or "").lower(),
+                -item["count"],
+                item["name"].lower(),
             ),
         )
 
