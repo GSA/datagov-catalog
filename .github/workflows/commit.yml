@@ -145,7 +145,13 @@ jobs:
             --outputDir=./lighthouse-results
 
       - name: Assert thresholds
-        run: lhci assert --config=lighthouserc.yml
+        run: |
+          output=$(lhci assert --config=lighthouserc.yml 2>&1) || {
+            echo "$output" | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+            exit 1
+          }
 
       - name: Upload Lighthouse results
         uses: actions/upload-artifact@v4
