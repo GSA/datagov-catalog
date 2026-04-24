@@ -135,47 +135,6 @@ class CatalogDBInterface:
             size=size, min_doc_count=min_doc_count
         )
 
-    def get_contextual_aggregations(
-        self,
-        query: str = "",
-        org_id=None,
-        org_types=None,
-        keywords: list[str] = None,
-        publisher: str | None = None,
-        spatial_filter=None,
-        spatial_geometry=None,
-        spatial_within=True,
-        keyword_size=100,
-        org_size=100,
-        publisher_size=100,
-    ) -> dict:
-        """
-        Get keyword and organization aggregations based on current search context.
-
-        Returns aggregations that reflect the current search query and filters,
-        allowing for contextual filter counts.
-        """
-        result = self.search_datasets(
-            query,
-            keywords=keywords or [],
-            per_page=0,
-            org_id=org_id,
-            org_types=org_types,
-            publisher=publisher,
-            spatial_filter=spatial_filter,
-            spatial_geometry=spatial_geometry,
-            spatial_within=spatial_within,
-            include_aggregations=True,
-            keyword_size=keyword_size,
-            org_size=org_size,
-            publisher_size=publisher_size,
-        )
-        return result.aggregations or {
-            "keywords": [],
-            "organizations": [],
-            "publishers": [],
-        }
-
     def search_locations(self, query, size=100):
         """
         Get locations from the database. These are in type_order with first
