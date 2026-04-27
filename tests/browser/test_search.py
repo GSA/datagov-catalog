@@ -64,3 +64,26 @@ def test_filter_geospatial_click(page):
     expect(page.locator("#search-results div.usa-prose p:first-child")).to_have_text(
         re.compile(r"^Found 10 datasets matching filters\.")
     )
+
+def test_geography_suggestions_z_index(page):
+    """
+    The geography suggestions box should have a higher z-index than
+    the Leaflet control buttons so it renders on top.
+    """
+    page.goto("/")
+
+    page.locator("#geography-input").fill("Washington")
+    expect(page.locator("#geography-suggestions")).to_be_visible()
+
+    z_indices = page.evaluate(
+        """() => ({
+        suggestions: parseInt(window.getComputedStyle(
+            document.getElementById("geography-suggestions")
+        ).zIndex) || 0,
+        leaflet: parseInt(window.getComputedStyle(
+            document.querySelector(".leaflet-top.leaflet-left")
+        ).zIndex) || 0,
+    })"""
+    )
+
+    assert z_indices["suggestions"] > z_indices["leaflet"]
