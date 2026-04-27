@@ -18,7 +18,7 @@ from app.models import (
     db,
 )
 
-from .fixtures import fixture_data
+from ..fixtures import fixture_data
 
 fixture_data = pytest.fixture(fixture_data)
 

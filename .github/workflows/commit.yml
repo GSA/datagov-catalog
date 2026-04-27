@@ -64,6 +64,48 @@ jobs:
       - name: Run Pytest
         run: make test-ci
 
+  test-browser:
+    environment: development
+    runs-on: ubuntu-latest
+    name: Playwright tests
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Set up Python ${{ env.PY_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VERSION }}
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+          poetry-plugins: "poetry-plugin-export"
+
+      - name: Install Dependencies
+        run: |
+          poetry env use ${{ env.PY_VERSION }}
+          poetry install
+
+      - name: Install playwright
+        run: |
+          poetry run playwright install --with-deps chromium firefox webkit
+
+      - name: Start Docker Services
+        run: make up
+
+      - name: Wait for services to be ready
+        run: sleep 10
+
+      - name: Run Playwright tests
+        run: make test-browser-with-data
+
+      - name: Tear down services
+        if: always()
+        run: make down
+
   accessibility:
     runs-on: ubuntu-latest
     name: Accessibility Tests
