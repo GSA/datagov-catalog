@@ -8,7 +8,7 @@ from playwright.sync_api import expect
 def test_search(page):
     page.goto("/")
     page.get_by_role("textbox", name="Search datasets").fill("payments")
-    page.get_by_role("button", name="Search").click()
+    page.get_by_role("button", name="Search", exact=True).click()
     expect(page.locator("#search-results div.usa-prose p:first-child")).to_contain_text(
         "Found 8 datasets matching "
     )
@@ -19,7 +19,7 @@ def test_search_empty(page):
     page.get_by_role("textbox", name="Search datasets").fill(
         "this search phrase has no results in the test data"
     )
-    page.get_by_role("button", name="Search").click()
+    page.get_by_role("button", name="Search", exact=True).click()
     expect(page.locator("#search-results div.usa-alert div p")).to_have_text(
         re.compile(r"^\s*No datasets found. ")
     )
@@ -28,7 +28,7 @@ def test_search_empty(page):
 def test_return_to_search_results(page):
     page.goto("/")
     page.get_by_role("textbox", name="Search datasets").fill("payments")
-    page.get_by_role("button", name="Search").click()
+    page.get_by_role("button", name="Search", exact=True).click()
     # now click on the first result
     page.get_by_role(
         "link", name="Segal AmeriCorps Education Award Payments by State"
