@@ -58,3 +58,52 @@ jobs:
           smoke-url: https://catalog.data.gov/
           smoke-path: /
           # basic auth on prod is turned off
+
+  lighthouse:
+    name: Lighthouse CI Audit
+    needs: deploy-prod
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli
+
+      - name: Collect Lighthouse results
+        run: |
+          lhci collect \
+            --url="https://catalog.data.gov" \
+            --url="https://catalog.data.gov/organization" \
+            --url="https://catalog.data.gov/organization/gsa" \
+            --url="https://catalog.data.gov/dataset/gsa-enterprise-data-inventory-edi" \
+            --numberOfRuns=1
+
+      - name: Upload to filesystem
+        run: |
+          lhci upload \
+            --target=filesystem \
+            --outputDir=./lighthouse-results
+
+      - name: Assert thresholds
+        run: |
+          output=$(lhci assert --config=lighthouserc.yml 2>&1) || {
+            echo "$output" | while IFS= read -r line; do
+              [[ -n "$line" ]] && echo "::error::$line"
+            done
+            exit 1
+          }
+
+      - name: Upload Lighthouse results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-results
+          path: ./lighthouse-results/**/*.html
+          retention-days: 7

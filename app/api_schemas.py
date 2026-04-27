@@ -97,6 +97,7 @@ class SearchQuery(Schema):
     org_slug = String()
     org_type = Enum(ORGANIZATION_TYPE_ENUM)
     keyword = List(String())
+    publisher = String()
     after = String()
     spatial_filter = Enum(SPATIAL_FILTER_ENUM)
     spatial_feature = GeoJson()
@@ -131,6 +132,16 @@ class OrganizationResponse(Schema):
 
 class OrganizationsResults(Schema):
     organizations = List(Nested(OrganizationResponse))
+    total = Integer()
+
+
+class PublisherResponse(Schema):
+    name = String()
+    count = Integer()
+
+
+class PublishersResults(Schema):
+    publishers = List(Nested(PublisherResponse))
     total = Integer()
 
 
