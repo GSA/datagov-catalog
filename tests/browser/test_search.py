@@ -65,6 +65,7 @@ def test_filter_geospatial_click(page):
         re.compile(r"^Found 10 datasets matching filters\.")
     )
 
+
 def test_geography_suggestions_z_index(page):
     """
     The geography suggestions box should have a higher z-index than
@@ -75,15 +76,13 @@ def test_geography_suggestions_z_index(page):
     page.locator("#geography-input").fill("Washington")
     expect(page.locator("#geography-suggestions")).to_be_visible()
 
-    z_indices = page.evaluate(
-        """() => ({
+    z_indices = page.evaluate("""() => ({
         suggestions: parseInt(window.getComputedStyle(
             document.getElementById("geography-suggestions")
         ).zIndex) || 0,
         leaflet: parseInt(window.getComputedStyle(
             document.querySelector(".leaflet-top.leaflet-left")
         ).zIndex) || 0,
-    })"""
-    )
+    })""")
 
     assert z_indices["suggestions"] > z_indices["leaflet"]
