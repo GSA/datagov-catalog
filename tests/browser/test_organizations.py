@@ -25,6 +25,6 @@ def test_organization_detail_keyword_click(page):
     # click a keyword bubble
     page.get_by_role("button", name="americorps (41)", exact=True).click()
 
-    expect(page.get_by_role("paragraph").filter(has_text="datasets matching")).to_have_text(
-        re.compile(r"^\s*Found 41 datasets matching\s+filters\.")
-    )
+    expect(
+        page.get_by_role("paragraph").filter(has_text="datasets matching")
+    ).to_have_text(re.compile(r"^\s*Found 41 datasets matching\s+filters\."))
