@@ -102,6 +102,14 @@ jobs:
       - name: Run Playwright tests
         run: make test-browser-with-data
 
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: screenshots/
+          if-no-files-found: ignore
+
       - name: Tear down services
         if: always()
         run: make down
