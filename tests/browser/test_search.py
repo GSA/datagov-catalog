@@ -76,13 +76,32 @@ def test_geography_suggestions_z_index(page):
     page.locator("#geography-input").fill("Washington")
     expect(page.locator("#geography-suggestions")).to_be_visible()
 
-    z_indices = page.evaluate("""() => ({
-        suggestions: parseInt(window.getComputedStyle(
-            document.getElementById("geography-suggestions")
-        ).zIndex) || 0,
-        leaflet: parseInt(window.getComputedStyle(
-            document.querySelector(".leaflet-top.leaflet-left")
-        ).zIndex) || 0,
-    })""")
+    z_indices = page.evaluate(
+        """() => {
+        function effectiveZIndex(el) {
+            while (el && el !== document.body) {
+                const style = window.getComputedStyle(el);
+                const z = style.zIndex;
+                if (style.position !== "static" && z !== "auto") {
+                    return parseInt(z, 10);
+                }
+                el = el.parentElement;
+            }
+            return 0;
+        }
+ 
+        return {
+            suggestions: effectiveZIndex(
+                document.getElementById("geography-suggestions")
+            ),
+            leaflet: effectiveZIndex(
+                document.querySelector(".leaflet-top.leaflet-left")
+            ),
+        };
+    }"""
+    )
 
-    assert z_indices["suggestions"] > z_indices["leaflet"]
+    assert z_indices["suggestions"] > z_indices["leaflet"], (
+        f"#geography-suggestions effective z-index ({z_indices['suggestions']}) "
+        f"should be greater than .leaflet-top.leaflet-left ({z_indices['leaflet']})"
+    )
