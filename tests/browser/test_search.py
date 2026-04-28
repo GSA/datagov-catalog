@@ -72,9 +72,10 @@ def test_geography_suggestions_z_index(page):
     the Leaflet control buttons so it renders on top.
     """
     page.goto("/")
-
     page.locator("#geography-input").fill("Washington")
     expect(page.locator("#geography-suggestions")).to_be_visible()
+    first_suggestion = page.locator("#geography-suggestions .keyword-suggestion").first
+    first_suggestion.focus()
 
     z_indices = page.evaluate("""() => {
         function effectiveZIndex(el) {
