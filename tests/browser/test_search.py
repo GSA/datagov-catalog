@@ -76,8 +76,7 @@ def test_geography_suggestions_z_index(page):
     page.locator("#geography-input").fill("Washington")
     expect(page.locator("#geography-suggestions")).to_be_visible()
 
-    z_indices = page.evaluate(
-        """() => {
+    z_indices = page.evaluate("""() => {
         function effectiveZIndex(el) {
             while (el && el !== document.body) {
                 const style = window.getComputedStyle(el);
@@ -98,8 +97,7 @@ def test_geography_suggestions_z_index(page):
                 document.querySelector(".leaflet-top.leaflet-left")
             ),
         };
-    }"""
-    )
+    }""")
 
     assert z_indices["suggestions"] > z_indices["leaflet"], (
         f"#geography-suggestions effective z-index ({z_indices['suggestions']}) "
