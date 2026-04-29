@@ -64,3 +64,45 @@ def test_filter_geospatial_click(page):
     expect(page.locator("#search-results div.usa-prose p:first-child")).to_have_text(
         re.compile(r"^Found 10 datasets matching filters\.")
     )
+
+
+def test_geography_suggestions_z_index(page):
+    """
+    The geography suggestions box should have a higher z-index than
+    the Leaflet control buttons so it renders on top.
+    """
+    page.goto("/")
+    page.locator("#geography-input").click()
+    page.locator("#geography-input").press_sequentially("Washington", delay=1000)
+    expect(page.locator("#geography-suggestions")).to_be_visible()
+
+    first_suggestion = page.locator("#geography-suggestions .keyword-suggestion").first
+    expect(first_suggestion).to_be_visible(timeout=1000)
+    first_suggestion.scroll_into_view_if_needed()
+    z_indices = page.evaluate("""() => {
+        function effectiveZIndex(el) {
+            while (el && el !== document.body) {
+                const style = window.getComputedStyle(el);
+                const z = style.zIndex;
+                if (style.position !== "static" && z !== "auto") {
+                    return parseInt(z, 10);
+                }
+                el = el.parentElement;
+            }
+            return 0;
+        }
+ 
+        return {
+            suggestions: effectiveZIndex(
+                document.getElementById("geography-suggestions")
+            ),
+            leaflet: effectiveZIndex(
+                document.querySelector(".leaflet-top.leaflet-left")
+            ),
+        };
+    }""")
+
+    assert z_indices["suggestions"] > z_indices["leaflet"], (
+        f"#geography-suggestions effective z-index ({z_indices['suggestions']}) "
+        f"should be greater than .leaflet-top.leaflet-left ({z_indices['leaflet']})"
+    )
