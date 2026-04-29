@@ -79,7 +79,6 @@ def test_geography_suggestions_z_index(page):
     first_suggestion = page.locator("#geography-suggestions .keyword-suggestion").first
     expect(first_suggestion).to_be_visible(timeout=1000)
     first_suggestion.scroll_into_view_if_needed()
-    page.screenshot(path="screenshots/geography_suggestions_before_click.png")
     z_indices = page.evaluate("""() => {
         function effectiveZIndex(el) {
             while (el && el !== document.body) {
