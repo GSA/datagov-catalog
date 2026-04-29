@@ -80,8 +80,7 @@ def test_geography_suggestions_z_index(page):
     expect(first_suggestion).to_be_visible(timeout=1000)
     first_suggestion.scroll_into_view_if_needed()
     page.screenshot(path="screenshots/geography_suggestions_before_click.png")
-    z_indices = page.evaluate(
-        """() => {
+    z_indices = page.evaluate("""() => {
         function effectiveZIndex(el) {
             while (el && el !== document.body) {
                 const style = window.getComputedStyle(el);
@@ -102,8 +101,7 @@ def test_geography_suggestions_z_index(page):
                 document.querySelector(".leaflet-top.leaflet-left")
             ),
         };
-    }"""
-    )
+    }""")
 
     assert z_indices["suggestions"] > z_indices["leaflet"], (
         f"#geography-suggestions effective z-index ({z_indices['suggestions']}) "
