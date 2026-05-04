@@ -99,9 +99,9 @@ class TestDatasetDetail:
             for item in dataset_info_box.select(".sidebar-section__item")
         }
         assert "Dataset Issued" in dataset_info_items
-        assert dataset_info_items["Dataset Issued"] == "2021-03-15"
+        assert dataset_info_items["Dataset Issued"] == "March 15, 2021"
         assert "Dataset Last Modified" in dataset_info_items
-        assert dataset_info_items["Dataset Last Modified"] == "2023-06-01"
+        assert dataset_info_items["Dataset Last Modified"] == "June 01, 2023"
         assert "Accrual Periodicity" in dataset_info_items
         assert dataset_info_items["Accrual Periodicity"] == "R/P1Y"
 
@@ -393,3 +393,38 @@ class TestDatasetDetail:
         }
 
         assert jsonld == expected
+
+    @pytest.mark.parametrize(
+        "modified_value, expected_display",
+        [
+            ("2023-06-01", "June 01, 2023"),
+            ("2023-06-01T00:00:00", "June 01, 2023"),
+            ("2023-06-01T12:34:56Z", "June 01, 2023"),
+            ("2023-06-01T12:34:56+00:00", "June 01, 2023"),
+        ],
+    )
+    def test_title_meta_dataset_last_modified_iso_formats(
+        self,
+        modified_value,
+        expected_display,
+        interface_with_dataset,
+        db_client,
+    ):
+        """
+        parse_datetime handles the full range of ISO 8601 strings that may
+        appear in the DCAT 'modified' field; all should produce the same
+        human-readable date in the .dataset-meta bar.
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {**ds.dcat, "modified": modified_value}
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        meta_bar = soup.select_one(".dataset-meta")
+        assert meta_bar is not None
+        assert expected_display in meta_bar.get_text(" ", strip=True)

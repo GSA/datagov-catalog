@@ -1491,7 +1491,7 @@ def test_index_search_result_includes_published_on_in_metrics_line(db_client):
     metadata_line = first_item.find("small", class_="text-base-dark")
     assert metadata_line is not None
     assert (
-        "Search relevance: 1.00 | Views last month: 0 | Published on: 2024-01-15"
+        "Search relevance: 1.00 | Views last month: 0 | Metadata Last Checked: 2024-01-15"
         in metadata_line.get_text(" ", strip=True)
     )
 

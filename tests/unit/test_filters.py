@@ -1,4 +1,10 @@
-from app.filters import remove_html_tags, simplify_resource_type
+import pytest
+
+from app.filters import (
+    parse_datetime,
+    remove_html_tags,
+    simplify_resource_type,
+)
 
 
 def test_remove_html_tags(html_tags_within_text):
@@ -32,3 +38,23 @@ class TestSimplifyResourceType:
 
     def test_none_returns_none(self):
         assert simplify_resource_type(None) is None
+
+
+class TestParseDatetime:
+    """
+    Tests for the `parse_datetime` filter.
+    """
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "2026-05-01",
+            "2026-05-01T00:00:00",
+            "2026-05-01T00:00:00Z",
+            "2026-05-01T00:00:00+00:00",
+        ],
+    )
+    def test_common_dcat_formats_parse_to_may_01(self, value):
+        result = parse_datetime(value)
+        assert result is not None
+        assert (result.year, result.month, result.day) == (2026, 5, 1)

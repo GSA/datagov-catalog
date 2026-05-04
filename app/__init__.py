@@ -9,6 +9,7 @@ from flask_talisman import Talisman
 from .filters import (
     fa_icon_from_extension,
     format_contact_point_email,
+    format_dcat_date,
     format_dcat_value,
     format_gov_type,
     geometry_to_mapping,
@@ -16,6 +17,7 @@ from .filters import (
     is_geometry_mapping,
     is_json,
     json_to_semantic_html,
+    parse_datetime,
     remove_html_tags,
     simplify_resource_type,
     usa_icon,
@@ -85,6 +87,8 @@ def create_app(config_name: str = "local") -> APIFlask:
     app.add_template_filter(simplify_resource_type)
     app.add_template_filter(json_to_semantic_html)
     app.add_template_filter(is_json)
+    app.add_template_filter(parse_datetime)
+    app.add_template_filter(format_dcat_date)
 
     # Content-Security-Policy headers
     # single quotes need to appear in some of the strings

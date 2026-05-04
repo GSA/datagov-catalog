@@ -99,8 +99,9 @@
                     {% if dataset.last_harvested_date %}
                     | Metadata Last Checked: <strong>{{ dataset.last_harvested_date.strftime('%B %d, %Y') }}</strong>
                     {% endif %}
-                    {% if dataset.dcat.get('modified') %}
-                    | Last Modified: <strong>{{ dataset.dcat.modified }}</strong>
+                    {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
+                    {% if modified_dt %}
+                    | Dataset Last Modified: <strong>{{ modified_dt.strftime('%B %d, %Y') }}</strong>
                     {% endif %}
                 </div>
 
@@ -182,16 +183,16 @@
                     </ul>
                 </div>
                 {% endif %}
-                
+
                 <h2 class="text-primary-darker margin-bottom-1">Find Related Datasets</h2>
                 <section class="usa-section bg-base-lightest radius-lg padding-3 margin-top-4">
 
                     <div class="grid-row grid-gap-lg">
-                        
+
                         {% if dataset.dcat.get('keyword') %}
                         <div class="tablet:grid-col-6">
                         <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
-                            
+
                             <h4 class="margin-top-0 display-flex flex-align-center">
                             Search by Tags
                             </h4>
@@ -235,8 +236,8 @@
 
                         </div>
                         </div>
-                        {% endif %} 
-                        
+                        {% endif %}
+
                         {% set collection_total = collection_data.get('count') - 1 %}
                         {% if collection_total > 0 %}
                         <div class="tablet:grid-col-6 collection-tooltip">
@@ -268,11 +269,11 @@
                             </div>
                         </div>
                         </div>
-                        {% endif %} 
+                        {% endif %}
 
                     </div>
                 </section>
-                
+
                 <details class="margin-bottom-3 margin-top-3">
                     <summary>
                         <h2 class="complete-metadata-heading">Complete Metadata</h2>
@@ -356,20 +357,22 @@
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Dataset Information</h3>
 
-                    {% if dataset.dcat.get('issued') %}
+                    {% set issued_dt = dataset.dcat.get('issued') | parse_datetime %}
+                    {% if issued_dt %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Dataset Issued</div>
                         <div class="sidebar-section__value">
-                            {{ dataset.dcat.get('issued') }}
+                            {{ issued_dt | format_dcat_date }}
                         </div>
                     </div>
                     {% endif %}
 
-                    {% if dataset.dcat.get('modified') %}
+                    {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
+                    {% if modified_dt %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Dataset Last Modified</div>
                         <div class="sidebar-section__value">
-                            {{ dataset.dcat.get('modified') }}
+                            {{ modified_dt | format_dcat_date }}
                         </div>
                     </div>
                     {% endif %}
