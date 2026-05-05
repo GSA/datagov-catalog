@@ -97,11 +97,11 @@
                         }}</a>
                     {% endif %}
                     {% if dataset.last_harvested_date %}
-                    | Metadata Last Checked: <strong>{{ dataset.last_harvested_date.strftime('%B %d, %Y') }}</strong>
+                    | Metadata Last Checked: <strong>{{ dataset.last_harvested_date | format_dcat_date }}</strong>
                     {% endif %}
                     {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
                     {% if modified_dt %}
-                    | Dataset Last Modified: <strong>{{ modified_dt.strftime('%B %d, %Y') }}</strong>
+                    | Dataset Last Modified: <strong>{{ modified_dt | format_dcat_date }}</strong>
                     {% endif %}
                 </div>
 
@@ -406,7 +406,7 @@
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Metadata Last Checked</div>
                         <div class="sidebar-section__value">
-                            {{ dataset.last_harvested_date.strftime('%B %d, %Y at %I:%M %p') }}
+                            {{ dataset.last_harvested_date | format_dcat_date }}
                         </div>
                     </div>
                     {% endif %}

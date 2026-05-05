@@ -3,7 +3,7 @@
 {% set search_score = dataset.get('_score') %}
 {% set metric_parts = [] %}
 {% set view_count = dataset.get('popularity') %}
-{% set last_harvested = dataset.get('last_harvested_date') %}
+{% set last_harvested = dataset.get('last_harvested_date') | parse_datetime | format_dcat_date %}
 {% set last_harvested_text = none %}
 {% if last_harvested is not none %}
   {% set last_harvested_text = '%s' % last_harvested %}
@@ -29,7 +29,7 @@
   {% set _ = metric_parts.append("Views last month: %s" % view_count) %}
 {% endif %}
 {% if last_harvested_text is not none %}
-  {% set _ = metric_parts.append("Metadata Last Checked: %s" % last_harvested_text[:10]) %}
+  {% set _ = metric_parts.append("Metadata Last Checked: %s" % last_harvested_text) %}
 {% endif %}
 {% if distance_km is not none %}
   {% set distance_mi = distance_km * 0.621371 %}

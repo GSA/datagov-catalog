@@ -233,35 +233,35 @@ def is_json(value):
         return False
 
 
-def parse_datetime(date_str: str) -> datetime | None:
+def parse_datetime(date_str: str) -> datetime | date | None:
     """
-    Parse a date/datetime string into a datetime object.
+    Parse a date/datetime string into a datetime or date object.
     """
     if not isinstance(date_str, str):
         return None
     date_str = date_str.strip()
     if not date_str:
         return None
-    normalized = date_str.replace("Z", "+00:00")
+    if "T" in date_str:
+        normalized = date_str.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
     try:
-        return datetime.fromisoformat(normalized)
-    except ValueError:
-        pass
-    try:
-        date_info = date.fromisoformat(date_str[:10])
-        return datetime(date_info.year, date_info.month, date_info.day)
+        return date.fromisoformat(date_str[:10])
     except ValueError:
         return None
 
 
-def format_dcat_date(value: datetime | None) -> str | None:
-    if value is None or not isinstance(value, datetime):
+def format_dcat_date(value: datetime | date | None) -> str | None:
+    if value is None:
         return None
-
-    has_time = value.hour != 0 or value.minute != 0 or value.second != 0
-    if has_time:
+    if isinstance(value, datetime):
         return value.strftime("%B %d, %Y at %I:%M %p")
-    return value.strftime("%B %d, %Y")
+    if isinstance(value, date):
+        return value.strftime("%B %d, %Y")
+    return None
 
 
 __all__ = [
