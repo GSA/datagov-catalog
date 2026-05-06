@@ -233,6 +233,42 @@ def is_json(value):
         return False
 
 
+def dcatus_to_schema_org_jsonld(dcatus: dict):
+    """
+    converts dcatus into schema.org jsonld for google search compatibility
+
+    all inputs are valid dcatus
+    """
+
+    return {
+        "@context": "https://schema.org/",
+        "@type": "Dataset",
+        "name": dcatus.get("title"),  # required
+        "description": dcatus.get("description"),  # required
+        "url": dcatus.get("landingPage", None),
+        "identifier": dcatus.get("identifier"),  # required
+        "keywords": dcatus.get("keyword"),  # required
+        "license": dcatus.get("license", None),
+        "datePublished": dcatus.get("issued", None),
+        "dateModified": dcatus.get("modified"),  # required
+        "publisher": {
+            "@type": "Organization",
+            "name": dcatus.get("publisher").get("name"),  # required
+        },
+        "distribution": [
+            {
+                "@type": "DataDownload",
+                "encodingFormat": dist.get(
+                    "mediaType"
+                ),  # required when downloadURL is present
+                "contentUrl": dist.get("downloadURL"),
+            }
+            for dist in dcatus.get("distribution", [])
+            if dist.get("downloadURL")
+        ],
+    }
+
+
 __all__ = [
     "usa_icon",
     "format_dcat_value",
@@ -246,4 +282,5 @@ __all__ = [
     "simplify_resource_type",
     "json_to_semantic_html",
     "is_json",
+    "dcatus_to_schema_org_jsonld",
 ]

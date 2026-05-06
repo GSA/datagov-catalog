@@ -37,7 +37,7 @@
 
 {% block gsearchdata %}
 <script type="application/ld+json">
-    {{ dataset.dcat | tojson }}
+    {{ dataset.dcat | dcatus_to_schema_org_jsonld | tojson }}
 </script>
 {% endblock %}
 
