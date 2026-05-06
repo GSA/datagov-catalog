@@ -93,9 +93,9 @@ class TestDatasetDetail:
         assert dataset_info_box is not None
 
         dataset_info_items = {
-            item.select_one(".sidebar-section__label")
-            .get_text(strip=True): item.select_one(".sidebar-section__value")
-            .get_text(strip=True)
+            item.select_one(".sidebar-section__label").get_text(
+                strip=True
+            ): item.select_one(".sidebar-section__value").get_text(strip=True)
             for item in dataset_info_box.select(".sidebar-section__item")
         }
         assert "Dataset Issued" in dataset_info_items
@@ -109,9 +109,9 @@ class TestDatasetDetail:
         assert metadata_info_box is not None
 
         metadata_items = {
-            item.select_one(".sidebar-section__label")
-            .get_text(strip=True): item.select_one(".sidebar-section__value")
-            .get_text(strip=True)
+            item.select_one(".sidebar-section__label").get_text(
+                strip=True
+            ): item.select_one(".sidebar-section__value").get_text(strip=True)
             for item in metadata_info_box.select(".sidebar-section__item")
         }
         expected_harvested = DEFAULT_LAST_HARVESTED_DATE.strftime(
@@ -377,19 +377,24 @@ class TestDatasetDetail:
         )
 
         expected = {
-            "@type": "dcat:Dataset",
+            "@context": "https://schema.org/",
+            "@type": "Dataset",
+            "dateModified": "2026-03-04",
+            "datePublished": None,
             "description": "this is the test description",
             "distribution": [
                 {
-                    "description": "Sample CSV resource",
-                    "downloadURL": "https://example.com/test.csv",
-                    "format": "CSV",
-                    "mediaType": "text/csv",
-                    "title": "Test CSV",
+                    "@type": "DataDownload",
+                    "contentUrl": "https://example.com/test.csv",
+                    "encodingFormat": "text/csv",
                 }
             ],
-            "keyword": ["health", "education", "Health"],
-            "title": "test",
+            "identifier": "test identifier",
+            "keywords": ["health", "education", "Health"],
+            "license": None,
+            "name": "test",
+            "publisher": {"@type": "Organization", "name": "test publisher"},
+            "url": None,
         }
 
         assert jsonld == expected

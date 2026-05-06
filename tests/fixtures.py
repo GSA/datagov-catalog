@@ -112,7 +112,10 @@ def fixture_data():
                 dcat={
                     "title": "test",
                     "description": "this is the test description",
+                    "identifier": "test identifier",
                     "keyword": ["health", "education", "Health"],
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test publisher"},
                     "distribution": [
                         {
                             "title": "Test CSV",
