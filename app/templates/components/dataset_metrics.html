@@ -29,7 +29,7 @@
   {% set _ = metric_parts.append("Views last month: %s" % view_count) %}
 {% endif %}
 {% if last_harvested_text is not none %}
-  {% set _ = metric_parts.append("Metadata Last Checked: %s" % last_harvested_text) %}
+  {% set _ = metric_parts.append("Catalog Last Checked: %s" % last_harvested_text) %}
 {% endif %}
 {% if distance_km is not none %}
   {% set distance_mi = distance_km * 0.621371 %}
