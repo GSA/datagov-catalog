@@ -377,19 +377,24 @@ class TestDatasetDetail:
         )
 
         expected = {
-            "@type": "dcat:Dataset",
+            "@context": "https://schema.org/",
+            "@type": "Dataset",
+            "dateModified": "2026-03-04",
+            "datePublished": None,
             "description": "this is the test description",
             "distribution": [
                 {
-                    "description": "Sample CSV resource",
-                    "downloadURL": "https://example.com/test.csv",
-                    "format": "CSV",
-                    "mediaType": "text/csv",
-                    "title": "Test CSV",
+                    "@type": "DataDownload",
+                    "contentUrl": "https://example.com/test.csv",
+                    "encodingFormat": "text/csv",
                 }
             ],
-            "keyword": ["health", "education", "Health"],
-            "title": "test",
+            "identifier": "test identifier",
+            "keywords": ["health", "education", "Health"],
+            "license": None,
+            "name": "test",
+            "publisher": {"@type": "Organization", "name": "test publisher"},
+            "url": None,
         }
 
         assert jsonld == expected

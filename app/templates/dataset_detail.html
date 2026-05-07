@@ -37,11 +37,10 @@
 
 {% block gsearchdata %}
 <script type="application/ld+json">
-    {{ dataset.dcat | tojson }}
+    {{ dataset.dcat | dcatus_to_schema_org_jsonld | tojson }}
 </script>
 {% endblock %}
 
-<script src="{{ url_for('static', filename='js/dataset_tags.js') }}"></script>
 
 {% block head_extra %}
 {% set description_value = dataset.dcat.get('description') %}
@@ -446,6 +445,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dataset_tags.js') }}"></script>
 {% if dataset.translated_spatial %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}" />
 <script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
