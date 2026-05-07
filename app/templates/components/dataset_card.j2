@@ -4,7 +4,7 @@
 {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
 {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
 {% set dataset_slug = dataset.get('slug') %}
-{% set updated_display = dataset_meta.get('modified') %}
+{% set updated_display = dataset_meta.get('modified') | parse_datetime %}
 {% set view_count = dataset.get('popularity') %}
 {% set sort_values = dataset.get('_sort') %}
 {% set distance_km = none %}
@@ -65,7 +65,7 @@
               </li>
               {% if updated_display %}
               <li class="usa-collection__meta-item">
-                  <strong>Updated:</strong> {{ updated_display or 'Not available' }}
+                  <strong>Dataset Last Updated:</strong> {{ updated_display | format_dcat_date or 'Not available' }}
               </li>
               {% endif %}
           </ul>
