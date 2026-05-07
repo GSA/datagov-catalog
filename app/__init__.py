@@ -6,20 +6,6 @@ from dotenv import load_dotenv
 from flask_htmx import HTMX
 from flask_talisman import Talisman
 
-from .filters import (
-    fa_icon_from_extension,
-    format_contact_point_email,
-    format_dcat_value,
-    format_gov_type,
-    geometry_to_mapping,
-    is_bbox_string,
-    is_geometry_mapping,
-    is_json,
-    json_to_semantic_html,
-    remove_html_tags,
-    simplify_resource_type,
-    usa_icon,
-)
 from .models import db
 from .utils import normalize_site_url
 
@@ -29,6 +15,13 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 htmx = None
+
+
+def register_template_filters(app):
+    import app.filters as filters
+
+    for name in filters.__all__:
+        app.add_template_filter(getattr(filters, name))
 
 
 def create_app(config_name: str = "local") -> APIFlask:
@@ -73,18 +66,7 @@ def create_app(config_name: str = "local") -> APIFlask:
 
     register_commands(app)
 
-    app.add_template_filter(usa_icon)
-    app.add_template_filter(format_dcat_value)
-    app.add_template_filter(format_gov_type)
-    app.add_template_filter(fa_icon_from_extension)
-    app.add_template_filter(format_contact_point_email)
-    app.add_template_filter(is_bbox_string)
-    app.add_template_filter(is_geometry_mapping)
-    app.add_template_filter(geometry_to_mapping)
-    app.add_template_filter(remove_html_tags)
-    app.add_template_filter(simplify_resource_type)
-    app.add_template_filter(json_to_semantic_html)
-    app.add_template_filter(is_json)
+    register_template_filters(app)
 
     # Content-Security-Policy headers
     # single quotes need to appear in some of the strings

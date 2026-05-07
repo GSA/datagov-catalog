@@ -113,6 +113,9 @@ def fixture_data():
                     "title": "test",
                     "description": "this is the test description",
                     "keyword": ["health", "education", "Health"],
+                    "identifier": "test identifier",
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test publisher"},
                     "distribution": [
                         {
                             "title": "Test CSV",
@@ -169,6 +172,9 @@ def fixture_data():
                     "description": "Environmental monitoring and climate science datasets",
                     "keyword": ["environment", "science", "climate", "Environment"],
                     "spatial": "-122.4194,37.7749,-122.4094,37.7849",
+                    "identifier": "test climate environment",
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test publisher"},
                     "distribution": [
                         {
                             "title": "Climate Measurements",
@@ -254,6 +260,8 @@ def fixture_data():
                     "description": "National statistics on access to health food resources",
                     "keyword": ["health", "food"]
                     * 25,  # the tag/keyword section is collapsible in dataset_detail.html (max 8 tags)
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test parent publisher"},
                     "distribution": [
                         {
                             "title": "Health Food Data",
@@ -289,6 +297,8 @@ def fixture_data():
                     "title": "Child Harvest Record",
                     "description": "National statistics on access to health food resources",
                     "keyword": ["health", "food"],
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test child publisher"},
                     "distribution": [
                         {
                             "title": "Health Food Data",
