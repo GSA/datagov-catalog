@@ -233,6 +233,37 @@ def is_json(value):
         return False
 
 
+def parse_datetime(date_str: str) -> datetime | date | None:
+    """
+    Parse a date/datetime string into a datetime or date object.
+    """
+    if not isinstance(date_str, str):
+        return None
+    date_str = date_str.strip()
+    if not date_str:
+        return None
+    if "T" in date_str:
+        normalized = date_str.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
+    try:
+        return date.fromisoformat(date_str[:10])
+    except ValueError:
+        return None
+
+
+def format_dcat_date(value: datetime | date | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.strftime("%B %d, %Y at %I:%M %p")
+    if isinstance(value, date):
+        return value.strftime("%B %d, %Y")
+    return None
+
+
 def dcatus_to_schema_org_jsonld(dcatus: dict):
     """
     converts dcatus into schema.org jsonld for google search compatibility
@@ -282,5 +313,7 @@ __all__ = [
     "simplify_resource_type",
     "json_to_semantic_html",
     "is_json",
+    "parse_datetime",
+    "format_dcat_date",
     "dcatus_to_schema_org_jsonld",
 ]
