@@ -98,10 +98,10 @@ class TestDatasetDetail:
             ): item.select_one(".sidebar-section__value").get_text(strip=True)
             for item in dataset_info_box.select(".sidebar-section__item")
         }
-        assert "Dataset Issued" in dataset_info_items
-        assert dataset_info_items["Dataset Issued"] == "March 15, 2021"
-        assert "Dataset Last Modified" in dataset_info_items
-        assert dataset_info_items["Dataset Last Modified"] == "June 01, 2023"
+        assert "Dataset First Published" in dataset_info_items
+        assert dataset_info_items["Dataset First Published"] == "March 15, 2021"
+        assert "Dataset Last Updated" in dataset_info_items
+        assert dataset_info_items["Dataset Last Updated"] == "June 01, 2023"
         assert "Accrual Periodicity" in dataset_info_items
         assert dataset_info_items["Accrual Periodicity"] == "R/P1Y"
 
@@ -117,8 +117,8 @@ class TestDatasetDetail:
         expected_harvested = DEFAULT_LAST_HARVESTED_DATE.strftime(
             "%B %d, %Y at %I:%M %p"
         )
-        assert "Metadata Last Checked" in metadata_items
-        assert metadata_items["Metadata Last Checked"] == expected_harvested
+        assert "Catalog Last Checked" in metadata_items
+        assert metadata_items["Catalog Last Checked"] == expected_harvested
 
         harvest_record_item = metadata_items.get("Harvest Record")
         assert harvest_record_item is not None

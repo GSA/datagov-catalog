@@ -96,11 +96,11 @@
                         }}</a>
                     {% endif %}
                     {% if dataset.last_harvested_date %}
-                    | Metadata Last Checked: <strong>{{ dataset.last_harvested_date | format_dcat_date }}</strong>
+                    | Catalog Last Checked: <strong>{{ dataset.last_harvested_date | format_dcat_date }}</strong>
                     {% endif %}
                     {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
                     {% if modified_dt %}
-                    | Dataset Last Modified: <strong>{{ modified_dt | format_dcat_date }}</strong>
+                    | Dataset Last Updated: <strong>{{ modified_dt | format_dcat_date }}</strong>
                     {% endif %}
                 </div>
 
@@ -359,7 +359,7 @@
                     {% set issued_dt = dataset.dcat.get('issued') | parse_datetime %}
                     {% if issued_dt %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Dataset Issued</div>
+                        <div class="sidebar-section__label">Dataset First Published</div>
                         <div class="sidebar-section__value">
                             {{ issued_dt | format_dcat_date }}
                         </div>
@@ -369,7 +369,7 @@
                     {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
                     {% if modified_dt %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Dataset Last Modified</div>
+                        <div class="sidebar-section__label">Dataset Last Updated</div>
                         <div class="sidebar-section__value">
                             {{ modified_dt | format_dcat_date }}
                         </div>
@@ -403,7 +403,7 @@
 
                     {% if dataset.last_harvested_date %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Metadata Last Checked</div>
+                        <div class="sidebar-section__label">Catalog Last Checked</div>
                         <div class="sidebar-section__value">
                             {{ dataset.last_harvested_date | format_dcat_date }}
                         </div>
