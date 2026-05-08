@@ -709,6 +709,12 @@ def organization_detail(slug: str):
     spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = request.args.get("sort", default="relevance")
 
+    from_hint = None
+    if request.args:
+        hint_args = dict(request.args)
+        hint_args["slug"] = request.path.split("/")[2]  # get the org slug
+        from_hint = hint_from_dict(hint_args)
+
     if spatial_geometry is not None:
         try:
             spatial_geometry = json.loads(unquote(spatial_geometry))
@@ -804,6 +810,7 @@ def organization_detail(slug: str):
         suggested_publishers=suggested_publishers,
         contextual_keyword_counts=contextual_keyword_counts,
         contextual_publisher_counts=contextual_publisher_counts,
+        from_hint=from_hint,
     )
 
 
