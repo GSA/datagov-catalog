@@ -1195,7 +1195,7 @@ def test_organization_detail_displays_searched_dataset_no_pagination(
     title_link = item.select_one(".usa-collection__heading a")
     assert title_link is not None
     assert (
-        title_link.get("href")
+        title_link.get("href").split("?")[0]
         == "/dataset/2016-americorps-mes-americorps-member-exit-survey"
     )
     assert (
