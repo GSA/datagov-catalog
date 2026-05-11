@@ -271,10 +271,12 @@ def jsonld_distributions(dcatus: dict):
     """
     output = []
 
-    if not dcatus["distribution"]:
+    distributions = dcatus.get("distribution", [])
+
+    if not distributions:
         return output
 
-    for dist in dcatus["distribution"]:
+    for dist in distributions:
         if dist.get("downloadURL"):
             output.append(
                 {
