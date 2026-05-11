@@ -69,6 +69,11 @@ def test_dcatus_to_schema_org_jsonld(dcatus_dataset):
         }
     ]
 
+    # distribution is optional so we want to make sure conversion works if its not there
+    del dcatus_dataset["distribution"]
+
+    assert dcatus_to_schema_org_jsonld(dcatus_dataset)["distribution"] == []
+
 
 class TestSimplifyResourceType:
     """
