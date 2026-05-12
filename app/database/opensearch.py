@@ -1138,7 +1138,7 @@ class OpenSearchInterface:
                     item["_distance_km"] = distance_km
         return result
 
-    def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
+    def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
 
@@ -1147,16 +1147,22 @@ class OpenSearchInterface:
         as a single bucket. The returned ``keyword`` value is the lowercased
         canonical form.
         """
+        terms_clause = {
+            "field": "keyword.normalized",
+            "size": size,
+            "min_doc_count": min_doc_count,
+            "order": {"_count": "desc"},
+        }
+
+        if search:
+            escaped = re.escape(search.lower())
+            terms_clause["include"] = f".*{escaped}.*"
+
         agg_body = {
             "size": 0,  # Don't return documents, just aggregations
             "aggs": {
                 "unique_keywords": {
-                    "terms": {
-                        "field": "keyword.normalized",
-                        "size": size,
-                        "min_doc_count": min_doc_count,
-                        "order": {"_count": "desc"},
-                    }
+                    "terms": terms_clause,
                 }
             },
         }

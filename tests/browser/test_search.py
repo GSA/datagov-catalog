@@ -66,6 +66,48 @@ def test_filter_geospatial_click(page):
     )
 
 
+def test_keyword_autocomplete_finds_earth(page):
+    """Typing a single-word keyword finds a matching suggestion and filters results."""
+    page.goto("/")
+    page.locator("#keyword-input").fill("earth")
+    suggestion = page.locator(
+        '#keyword-suggestions .keyword-suggestion[data-keyword="earth"]'
+    )
+    expect(suggestion).to_be_visible()
+    suggestion.click()
+    expect(page.locator("#search-results div.usa-prose p:first-child")).to_contain_text(
+        "matching filters"
+    )
+
+
+def test_keyword_autocomplete_finds_earth_science(page):
+    """Typing a multi-word keyword finds a matching suggestion and filters results."""
+    page.goto("/")
+    page.locator("#keyword-input").fill("earth science")
+    suggestion = page.locator(
+        '#keyword-suggestions .keyword-suggestion[data-keyword="earth science"]'
+    )
+    expect(suggestion).to_be_visible()
+    suggestion.click()
+    expect(page.locator("#search-results div.usa-prose p:first-child")).to_contain_text(
+        "matching filters"
+    )
+
+
+def test_keyword_autocomplete_finds_earth_science_trees(page):
+    """Typing a keyword containing '>' finds a matching suggestion and filters results."""
+    page.goto("/")
+    page.locator("#keyword-input").fill("earth science > trees")
+    suggestion = page.locator(
+        '#keyword-suggestions .keyword-suggestion[data-keyword="earth science > trees"]'
+    )
+    expect(suggestion).to_be_visible()
+    suggestion.click()
+    expect(page.locator("#search-results div.usa-prose p:first-child")).to_contain_text(
+        "matching filters"
+    )
+
+
 def test_geography_suggestions_z_index(page):
     """
     The geography suggestions box should have a higher z-index than
