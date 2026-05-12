@@ -488,6 +488,12 @@ class CatalogDBInterface:
         """
         return self.opensearch.count_all_datasets()
 
+    def count_datasets_with_ispartof_in_search(self) -> int:
+        """
+        Get the total number of indexed datasets with a DCAT isPartOf value.
+        """
+        return self.opensearch.count_datasets_with_ispartof()
+
     @staticmethod
     def _normalize_metric_count(number: int) -> float:
         """feed the data the way 11ty chart wants it (log-scaled)"""
@@ -509,6 +515,7 @@ class CatalogDBInterface:
         work is performed only when `/api/stats` is called.
         """
         total_datasets = self.count_all_datasets_in_search()
+        datasets_with_ispartof = self.count_datasets_with_ispartof_in_search()
         harvest_stats = self.opensearch.get_last_harvested_stats()
         counts_by_slug = self.get_opensearch_org_dataset_counts(as_dict=True)
         harvest_sources_by_org_id = dict(
@@ -561,6 +568,7 @@ class CatalogDBInterface:
         return {
             "results": {
                 "datasets": total_datasets,
+                "datasetsWithIsPartOf": datasets_with_ispartof,
             },
             "metrics": {
                 "orgBarMetric": self._encode_metric_payload(org_metric_rows),
