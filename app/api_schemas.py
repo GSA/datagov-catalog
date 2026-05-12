@@ -185,6 +185,7 @@ class StatsMetrics(Schema):
 
 class StatsResults(Schema):
     datasets = Integer()
+    datasetsWithIsPartOf = Integer()
 
 
 class StatsResult(Schema):
