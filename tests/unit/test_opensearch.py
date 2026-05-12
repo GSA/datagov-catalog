@@ -450,14 +450,17 @@ class TestOpenSearchMappings:
         assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
 
 
-def test_count_datasets_with_ispartof_uses_nested_exists_query(mock_opensearch_client):
-    mock_opensearch_client.client.count.return_value = {"count": 7}
+def test_count_datasets_with_ispartof_uses_nested_exists_query():
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    client.INDEX_NAME = "datasets"
+    client.client = Mock()
+    client.client.count.return_value = {"count": 7}
 
-    count = mock_opensearch_client.count_datasets_with_ispartof()
+    count = client.count_datasets_with_ispartof()
 
     assert count == 7
-    mock_opensearch_client.client.count.assert_called_once_with(
-        index=mock_opensearch_client.INDEX_NAME,
+    client.client.count.assert_called_once_with(
+        index=client.INDEX_NAME,
         body={
             "query": {
                 "nested": {
