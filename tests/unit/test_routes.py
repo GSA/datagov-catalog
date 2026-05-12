@@ -721,7 +721,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 56"
+    assert datasets_text == "Datasets: 59"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -770,7 +770,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 56"
+    assert overview_items[1].text.strip() == "Total datasets: 59"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -1195,7 +1195,7 @@ def test_organization_detail_displays_searched_dataset_no_pagination(
     title_link = item.select_one(".usa-collection__heading a")
     assert title_link is not None
     assert (
-        title_link.get("href")
+        title_link.get("href").split("?")[0]
         == "/dataset/2016-americorps-mes-americorps-member-exit-survey"
     )
     assert (
@@ -2453,3 +2453,45 @@ def test_dataset_detail_tag_links_point_to_keyword_search(
         found_keywords.add(qs["keyword"][0])
 
     assert found_keywords == expected_keywords
+
+
+def test_keywords_api_returns_all_when_no_search(db_client):
+    """GET /api/keywords with no search param returns keywords unfiltered."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = [
+        {"keyword": "earth science", "count": 5},
+        {"keyword": "ocean", "count": 3},
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?size=10")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    keyword_values = [item["keyword"] for item in data["keywords"]]
+    assert "earth science" in keyword_values
+    assert "ocean" in keyword_values
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10, min_doc_count=1, search=None
+    )
+
+
+def test_keywords_api_passes_search_param_to_interface(db_client):
+    """GET /api/keywords?search=... forwards the search value to the interface."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = [
+        {"keyword": "earth science", "count": 5},
+        {"keyword": "earth science > trees", "count": 2},
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?search=earth+science&size=10")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    keyword_values = [item["keyword"] for item in data["keywords"]]
+    assert "earth science" in keyword_values
+    assert "earth science > trees" in keyword_values
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10, min_doc_count=1, search="earth science"
+    )

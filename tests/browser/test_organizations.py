@@ -28,3 +28,26 @@ def test_organization_detail_keyword_click(page):
     expect(
         page.get_by_role("paragraph").filter(has_text="datasets matching")
     ).to_have_text(re.compile(r"^\s*Found 41 datasets matching\s+filters\."))
+
+
+def test_organization_detail_return_to_search_results(page):
+    page.goto("/organization/test-org")
+
+    # submit query
+    page.locator("#search-query").fill("2020")
+    page.locator(".usa-button").nth(1).click()
+
+    # navigate to the first dataset
+    page.goto(page.locator(".usa-link").nth(0).get_attribute("href"))
+
+    # ensure returning back to search results is present
+    back_results = page.locator(".return-link")
+    expect(back_results).to_contain_text("Return to search results")
+
+    # navigate back to the org search results
+    page.goto(back_results.get_attribute("href"))
+
+    # finally, check i navigated back to what i initially queried
+    expect(page).to_have_url(
+        "http://localhost:8080/organization/test-org?q=2020&sort=relevance"
+    )

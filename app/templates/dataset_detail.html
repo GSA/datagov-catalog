@@ -71,9 +71,10 @@
 <div class="usa-section">
     <div class="grid-container-widescreen">
 
-        <!-- Return to search link -->
+        <!-- Return to search link (compatible with org or main search) -->
         {% if from_dict %}
-        <a href="{{ url_for('main.index', **from_dict) }}" class="return-link">
+        {% set endpoint = 'main.organization_detail' if 'slug' in from_dict else 'main.index' %}
+        <a href="{{ url_for(endpoint, **from_dict) }}" class="return-link">
             <i class="fa-solid fa-arrow-left"></i>
             Return to search results
         </a>

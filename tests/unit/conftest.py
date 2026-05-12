@@ -311,3 +311,50 @@ def sample_top_organizations():
             "aliases": [],
         },
     ]
+
+
+@pytest.fixture
+def dcatus_dataset():
+    return {
+        "@type": "dcat:Dataset",
+        "theme": None,
+        "title": "Social Security Number Verification Service (SSNVS) - Data Exchange",
+        "issued": None,
+        "rights": "The data contained in this data exchange is restricted due to sensitivity and/or privacy issues.  If you would like more information on a data exchange with SSA please visit the following web site https://www.ssa.gov/dataexchange/.",
+        "keyword": [
+            "BSO",
+            "Business Services Online",
+            "EVS",
+            "NOVU",
+            "Numident Online Verification Utility",
+            "OSES",
+            "SSNVS",
+        ],
+        "license": "https://www.ssa.gov/data/Restricted-Public-Licensing-Information.html",
+        "spatial": "United States",
+        "isPartOf": None,
+        "language": None,
+        "modified": "2016-03-15",
+        "temporal": None,
+        "publisher": {"name": "Social Security Administration"},
+        "bureauCode": ["016:00"],
+        "conformsTo": None,
+        "identifier": "US-GOV-SSA-620",
+        "references": None,
+        "accessLevel": "restricted public",
+        "dataQuality": None,
+        "describedBy": None,
+        "description": "SSNVS is a service offered by SSA's Business Services Online (BSO). It is used by employers and certain third-party submitters to verify the accuracy of the names and SSNs of their employees for wage reporting purposes. With SSNVS users may verify up to 10 names and SSNs online for immediate results or upload batch files for overnight processing. SSNVS uses the Numident Online Verification Utility (NOVU) for the online requests and EVS for the batch requests. SSNVS is maintained by OSES and both NOVU and EVS are maintained in OEEAS DIVES Verification System Branch.",
+        "landingPage": None,
+        "programCode": ["016:000"],
+        "contactPoint": {
+            "fn": "Open Data",
+            "@type": "vcard:Contact",
+            "hasEmail": "mailto:Open.Data@ssa.gov",
+        },
+        "distribution": None,
+        "describedByType": None,
+        "systemOfRecords": None,
+        "accrualPeriodicity": "R/P1D",
+        "primaryITInvestmentUII": None,
+    }

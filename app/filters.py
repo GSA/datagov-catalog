@@ -264,6 +264,33 @@ def format_dcat_date(value: datetime | date | None) -> str | None:
     return None
 
 
+def jsonld_distributions(dcatus: dict):
+    """
+    processes schema.org json-ld distributions. schema.org distributions
+    only supports type 'DataDownload' so accessURL is skipped.
+    """
+    output = []
+
+    distributions = dcatus.get("distribution", [])
+
+    if not distributions:
+        return output
+
+    for dist in distributions:
+        if dist.get("downloadURL"):
+            output.append(
+                {
+                    "@type": "DataDownload",
+                    "encodingFormat": dist.get(
+                        "mediaType"
+                    ),  # required when downloadURL is present
+                    "contentUrl": dist.get("downloadURL"),
+                }
+            )
+
+    return output
+
+
 def dcatus_to_schema_org_jsonld(dcatus: dict):
     """
     converts dcatus into schema.org jsonld for google search compatibility
@@ -286,17 +313,7 @@ def dcatus_to_schema_org_jsonld(dcatus: dict):
             "@type": "Organization",
             "name": dcatus.get("publisher").get("name"),  # required
         },
-        "distribution": [
-            {
-                "@type": "DataDownload",
-                "encodingFormat": dist.get(
-                    "mediaType"
-                ),  # required when downloadURL is present
-                "contentUrl": dist.get("downloadURL"),
-            }
-            for dist in dcatus.get("distribution", [])
-            if dist.get("downloadURL")
-        ],
+        "distribution": jsonld_distributions(dcatus),
     }
 
 

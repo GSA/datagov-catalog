@@ -292,6 +292,48 @@ def fixture_data():
                 },
             ),
             dict(
+                id="earth-keyword-dataset",
+                slug="earth-keyword-dataset",
+                dcat={
+                    "title": "Earth Observation Dataset",
+                    "description": "Dataset tagged with the keyword earth",
+                    "keyword": ["earth"],
+                    "publisher": {"name": "test publisher"},
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="earth-science-keyword-dataset",
+                slug="earth-science-keyword-dataset",
+                dcat={
+                    "title": "Earth Science Dataset",
+                    "description": "Dataset tagged with the keyword earth science",
+                    "keyword": ["earth science"],
+                    "publisher": {"name": "test publisher"},
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="earth-science-trees-keyword-dataset",
+                slug="earth-science-trees-keyword-dataset",
+                dcat={
+                    "title": "Earth Science Trees Dataset",
+                    "description": "Dataset tagged with the keyword earth science > trees",
+                    "keyword": ["earth science > trees"],
+                    "publisher": {"name": "test publisher"},
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
                 id="child1234567",
                 slug="child-harvest-record",
                 dcat={
