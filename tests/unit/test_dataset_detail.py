@@ -93,9 +93,9 @@ class TestDatasetDetail:
         assert dataset_info_box is not None
 
         dataset_info_items = {
-            item.select_one(".sidebar-section__label").get_text(
-                strip=True
-            ): item.select_one(".sidebar-section__value").get_text(strip=True)
+            item.select_one(".sidebar-section__label")
+            .get_text(strip=True): item.select_one(".sidebar-section__value")
+            .get_text(strip=True)
             for item in dataset_info_box.select(".sidebar-section__item")
         }
         assert "Dataset First Published" in dataset_info_items
@@ -109,9 +109,9 @@ class TestDatasetDetail:
         assert metadata_info_box is not None
 
         metadata_items = {
-            item.select_one(".sidebar-section__label").get_text(
-                strip=True
-            ): item.select_one(".sidebar-section__value").get_text(strip=True)
+            item.select_one(".sidebar-section__label")
+            .get_text(strip=True): item.select_one(".sidebar-section__value")
+            .get_text(strip=True)
             for item in metadata_info_box.select(".sidebar-section__item")
         }
         expected_harvested = DEFAULT_LAST_HARVESTED_DATE.strftime(
