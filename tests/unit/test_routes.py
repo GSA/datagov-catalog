@@ -770,7 +770,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total Datasets: 59"
+    assert overview_items[1].text.strip() == "Total datasets: 59"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
