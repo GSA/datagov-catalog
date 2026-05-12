@@ -114,7 +114,6 @@ def fixture_data():
                     "description": "this is the test description",
                     "identifier": "test identifier",
                     "keyword": ["health", "education", "Health"],
-                    "identifier": "test identifier",
                     "modified": "2026-03-04",
                     "publisher": {"name": "test publisher"},
                     "distribution": [
