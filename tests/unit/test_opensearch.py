@@ -450,6 +450,29 @@ class TestOpenSearchMappings:
         assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
 
 
+def test_count_datasets_with_ispartof_passes_filtered_count_query():
+    """OpenSearch count returns the number of docs matching the supplied query."""
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    client.INDEX_NAME = "datasets"
+    client.client = Mock()
+    client.client.count.return_value = {"count": 7}
+
+    count = client.count_datasets_with_ispartof()
+
+    assert count == 7
+    client.client.count.assert_called_once_with(
+        index=client.INDEX_NAME,
+        body={
+            "query": {
+                "nested": {
+                    "path": "dcat",
+                    "query": {"exists": {"field": "dcat.isPartOf"}},
+                }
+            }
+        },
+    )
+
+
 class TestCaseInsensitiveKeywords:
     """
     Tests for case-insensitive keyword filtering and aggregation.

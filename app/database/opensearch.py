@@ -1306,3 +1306,24 @@ class OpenSearchInterface:
         except Exception as e:
             logger.error(f"Error counting datasets in OpenSearch: {e}")
             return 0
+
+    def count_datasets_with_ispartof(self) -> int:
+        """
+        Get the total count of datasets whose DCAT payload includes isPartOf.
+        """
+        try:
+            result = self.client.count(
+                index=self.INDEX_NAME,
+                body={
+                    "query": {
+                        "nested": {
+                            "path": "dcat",
+                            "query": {"exists": {"field": "dcat.isPartOf"}},
+                        }
+                    }
+                },
+            )
+            return result.get("count", 0)
+        except Exception as e:
+            logger.error(f"Error counting datasets with isPartOf in OpenSearch: {e}")
+            return 0
