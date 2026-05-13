@@ -16,6 +16,40 @@
         return true;
     }
 
+    function showResultsLoadingOverlay() {
+        const searchResults = document.getElementById('search-results');
+        if (!searchResults) {
+            return;
+        }
+
+        // The overlay is positioned absolutely inside the results container,
+        // so the container needs a non-static position as an anchor.
+        if (window.getComputedStyle(searchResults).position === 'static') {
+            searchResults.style.position = 'relative';
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'search-results-loading-overlay';
+        overlay.style.cssText = [
+            'position: absolute',
+            'inset: 0',
+            'display: flex',
+            'align-items: center',
+            'justify-content: center',
+            'background: rgba(255, 255, 255, 0.75)',
+            'z-index: 10',
+        ].join('; ');
+
+        const spinner = document.createElement('i');
+        spinner.className = 'fa fa-spinner fa-spin';
+        spinner.setAttribute('aria-label', 'Loading');
+        spinner.setAttribute('role', 'img');
+        spinner.style.cssText = 'font-size: 2rem; color: #005ea2;';
+
+        overlay.appendChild(spinner);
+        searchResults.appendChild(overlay);
+    }
+
     const autoSubmit = {
         form: null,
         init(form) {
@@ -79,12 +113,16 @@
                 return;
             }
             this.captureMapPanelState();
+            showResultsLoadingOverlay();
 
-            if (typeof this.form.requestSubmit === 'function') {
-                this.form.requestSubmit();
-            } else {
-                this.form.submit();
-            }
+            const form = this.form;
+            requestAnimationFrame(() => {
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            });
         },
     };
 
