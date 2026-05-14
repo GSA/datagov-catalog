@@ -867,12 +867,14 @@ def get_keywords_api(**kwargs):
     Query parameters:
         size: Maximum number of keywords to return (default 100, max 1000)
         min_count: Minimum document count for keywords (default 1)
+        search: Substring to perofrm lookup for specific keyword (default: None)
 
     Returns:
         JSON with list of keywords and their counts
     """
     size = request.args.get("size", 100, type=int)
     min_count = request.args.get("min_count", 1, type=int)
+    search = request.args.get("search", None)
 
     # Validate parameters
     # Between 1 and 1000
@@ -881,7 +883,9 @@ def get_keywords_api(**kwargs):
     min_count = max(min_count, 1)
 
     try:
-        keywords = interface.get_unique_keywords(size=size, min_doc_count=min_count)
+        keywords = interface.get_unique_keywords(
+            size=size, min_doc_count=min_count, search=search
+        )
 
         return jsonify(
             {

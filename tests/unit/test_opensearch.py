@@ -605,6 +605,58 @@ class TestCaseInsensitiveKeywords:
         assert len(env_buckets) == 1
         assert env_buckets[0]["count"] == 2
 
+    def test_get_unique_keywords_search_filters_by_substring(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """
+        Passing search="earth science" should return only keyword buckets whose
+        normalized value contains that substring, ordered by doc count descending.
+        Unrelated keywords must not appear in the results.
+        """
+        self._recreate_index(opensearch_client)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+
+            datasets = [
+                self._make_mock_dataset(
+                    doc_id="kw-search-1",
+                    slug="kw-search-1",
+                    keywords=["earth"],
+                    mock_organization=mock_organization,
+                ),
+                self._make_mock_dataset(
+                    doc_id="kw-search-2",
+                    slug="kw-search-2",
+                    keywords=["earth science"],
+                    mock_organization=mock_organization,
+                ),
+                self._make_mock_dataset(
+                    doc_id="kw-search-3",
+                    slug="kw-search-3",
+                    keywords=["earth science > trees"],
+                    mock_organization=mock_organization,
+                ),
+                self._make_mock_dataset(
+                    doc_id="kw-search-4",
+                    slug="kw-search-4",
+                    keywords=["ocean"],
+                    mock_organization=mock_organization,
+                ),
+            ]
+            opensearch_client.index_datasets(datasets)
+
+        keywords = opensearch_client.get_unique_keywords(search="earth science")
+        keyword_values = [item["keyword"] for item in keywords]
+
+        assert "earth science" in keyword_values
+        assert "earth science > trees" in keyword_values
+        # "earth" does not contain the substring "earth science"
+        assert "earth" not in keyword_values
+        # Completely unrelated keywords must be excluded
+        assert "ocean" not in keyword_values
+
 
 def test_relevance_sort_uses_popularity_tie_breaker():
     client = OpenSearchInterface.__new__(OpenSearchInterface)
