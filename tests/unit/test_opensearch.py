@@ -394,7 +394,7 @@ def test_geometry_centroid_skips_out_of_range_longitude():
         "coordinates": [185.34570208999997, 45.0],
     }
     centroid = OpenSearchInterface._geometry_centroid(geometry)
-    # The single point is invalid, so no valid points remain, 
+    # The single point is invalid, so no valid points remain,
     # so it should return none
     assert centroid is None
 
@@ -421,10 +421,10 @@ def test_geometry_centroid_uses_valid_points_when_some_are_out_of_range():
     geometry = {
         "type": "MultiPoint",
         "coordinates": [
-            [10.0, 20.0],   # valid
+            [10.0, 20.0],  # valid
             [185.0, 45.0],  # invalid lon
             [30.0, -91.0],  # invalid lat
-            [50.0, 60.0],   # valid
+            [50.0, 60.0],  # valid
         ],
     }
     centroid = OpenSearchInterface._geometry_centroid(geometry)
