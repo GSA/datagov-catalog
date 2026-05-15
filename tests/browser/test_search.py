@@ -108,6 +108,50 @@ def test_keyword_autocomplete_finds_earth_science_trees(page):
     )
 
 
+def test_clear_all_filters_not_shown_for_query_without_filters(page):
+    """
+    A bare query with no active filters must not show "(clear all filters)"
+    since there is nothing to clear.
+    """
+    page.goto("/")
+    page.get_by_role("textbox", name="Search datasets").fill("payments")
+    page.get_by_role("button", name="Search", exact=True).click()
+
+    results_paragraph = page.locator("#search-results div.usa-prose p:first-child")
+    expect(results_paragraph).to_contain_text('matching "payments"')
+    expect(
+        results_paragraph.get_by_role("link", name="(clear all filters)")
+    ).not_to_be_visible()
+
+
+def test_clear_all_filters_and_preserves_query(page):
+    """
+    When filters are active alongside a search query, clicking '(clear all
+    filters)' strips the filters but keeps the original query in the results.
+    """
+    page.goto("/")
+    page.get_by_role("textbox", name="Search datasets").fill("payments")
+    page.get_by_role("button", name="Search", exact=True).click()
+
+    # Apply an org type filter on top of the query.
+    federal_radio = page.locator('input[name="org_type"][value="Federal Government"]')
+    federal_radio.scroll_into_view_if_needed()
+    federal_radio.dispatch_event("click")
+
+    results_paragraph = page.locator("#search-results div.usa-prose p:first-child")
+    expect(results_paragraph).to_contain_text('"payments" and filters.')
+    clear_link = results_paragraph.get_by_role("link", name="(clear all filters)")
+    expect(clear_link).to_be_visible()
+
+    clear_link.click()
+
+    # Query is preserved; filters are gone.
+    expect(results_paragraph).to_contain_text('matching "payments"')
+    expect(
+        results_paragraph.get_by_role("link", name="(clear all filters)")
+    ).not_to_be_visible()
+
+
 def test_geography_suggestions_z_index(page):
     """
     The geography suggestions box should have a higher z-index than
