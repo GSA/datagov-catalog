@@ -110,7 +110,7 @@ def test_keyword_autocomplete_finds_earth_science_trees(page):
 
 def test_clear_all_filters_not_shown_for_query_without_filters(page):
     """
-    A bare query with no active filters must not show '(clear all filters)'
+    A bare query with no active filters must not show "(clear all filters)"
     since there is nothing to clear.
     """
     page.goto("/")
