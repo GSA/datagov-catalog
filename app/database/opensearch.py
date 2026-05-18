@@ -473,6 +473,9 @@ class OpenSearchInterface:
             lon, lat = value[0], value[1]
             if not isinstance(lon, (int, float)) or not isinstance(lat, (int, float)):
                 return False
+            # Skip coordinates outside the valid geo_point range.
+            if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
+                return False
             points.append((float(lon), float(lat)))
             return True
 
