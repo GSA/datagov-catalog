@@ -483,7 +483,7 @@ ul.dataset-resources {
     padding: 1.5rem;
     border-radius: 0.5rem;
     margin-bottom: 2rem;
-    display: flex; 
+    display: flex;
     justify-content: space-evenly;
 }
 
@@ -1069,6 +1069,29 @@ details {
     }
 }
 
+// announcement banner left aligned
+.announcement-banner,
+.announcement-banner .usa-alert {
+  background-color: #faf3d1;
+}
+
+.announcement-banner .usa-alert {
+  border-left-color: #ffbe2e;
+}
+
+.announcement-banner .usa-alert .usa-alert__body {
+  max-width: var(--site-max-width);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--site-padding);
+  padding-right: var(--site-padding);
+}
+
+.announcement-banner .usa-alert .usa-alert__body::before {
+  background-color: #ffbe2e;
+  left: calc(var(--site-padding) - 0.1667rem);
+}
+
 // navigation
 :root {
   --site-max-width: 1400px;
@@ -1445,4 +1468,3 @@ li.usa-collection__item.organization-datasets__item.margin-0.parent-collection-d
 div.usa-tag.collection-tag {
   margin-right: 10px !important;
 }
-
