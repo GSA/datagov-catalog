@@ -124,15 +124,16 @@ class CatalogDBInterface:
             collection=collection,
         )
 
-    def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
+    def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
 
         size: Maximum number of unique keywords to return (default 100)
         min_doc_count: Minimum number of documents a keyword must appear in (default 1)
+        search: Optional substring to filter returned keywords by
         """
         return self.opensearch.get_unique_keywords(
-            size=size, min_doc_count=min_doc_count
+            size=size, min_doc_count=min_doc_count, search=search
         )
 
     def search_locations(self, query, size=100):
@@ -487,6 +488,12 @@ class CatalogDBInterface:
         """
         return self.opensearch.count_all_datasets()
 
+    def count_datasets_with_ispartof_in_search(self) -> int:
+        """
+        Get the total number of indexed datasets with a DCAT isPartOf value.
+        """
+        return self.opensearch.count_datasets_with_ispartof()
+
     @staticmethod
     def _normalize_metric_count(number: int) -> float:
         """feed the data the way 11ty chart wants it (log-scaled)"""
@@ -508,6 +515,7 @@ class CatalogDBInterface:
         work is performed only when `/api/stats` is called.
         """
         total_datasets = self.count_all_datasets_in_search()
+        datasets_with_ispartof = self.count_datasets_with_ispartof_in_search()
         harvest_stats = self.opensearch.get_last_harvested_stats()
         counts_by_slug = self.get_opensearch_org_dataset_counts(as_dict=True)
         harvest_sources_by_org_id = dict(
@@ -560,6 +568,7 @@ class CatalogDBInterface:
         return {
             "results": {
                 "datasets": total_datasets,
+                "datasetsWithIsPartOf": datasets_with_ispartof,
             },
             "metrics": {
                 "orgBarMetric": self._encode_metric_payload(org_metric_rows),

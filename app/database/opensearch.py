@@ -473,6 +473,9 @@ class OpenSearchInterface:
             lon, lat = value[0], value[1]
             if not isinstance(lon, (int, float)) or not isinstance(lat, (int, float)):
                 return False
+            # Skip coordinates outside the valid geo_point range.
+            if not (-90.0 <= lat <= 90.0) or not (-180.0 <= lon <= 180.0):
+                return False
             points.append((float(lon), float(lat)))
             return True
 
@@ -1138,7 +1141,7 @@ class OpenSearchInterface:
                     item["_distance_km"] = distance_km
         return result
 
-    def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
+    def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
 
@@ -1147,16 +1150,22 @@ class OpenSearchInterface:
         as a single bucket. The returned ``keyword`` value is the lowercased
         canonical form.
         """
+        terms_clause = {
+            "field": "keyword.normalized",
+            "size": size,
+            "min_doc_count": min_doc_count,
+            "order": {"_count": "desc"},
+        }
+
+        if search:
+            escaped = re.escape(search.lower())
+            terms_clause["include"] = f".*{escaped}.*"
+
         agg_body = {
             "size": 0,  # Don't return documents, just aggregations
             "aggs": {
                 "unique_keywords": {
-                    "terms": {
-                        "field": "keyword.normalized",
-                        "size": size,
-                        "min_doc_count": min_doc_count,
-                        "order": {"_count": "desc"},
-                    }
+                    "terms": terms_clause,
                 }
             },
         }
@@ -1305,4 +1314,25 @@ class OpenSearchInterface:
             return result.get("count", 0)
         except Exception as e:
             logger.error(f"Error counting datasets in OpenSearch: {e}")
+            return 0
+
+    def count_datasets_with_ispartof(self) -> int:
+        """
+        Get the total count of datasets whose DCAT payload includes isPartOf.
+        """
+        try:
+            result = self.client.count(
+                index=self.INDEX_NAME,
+                body={
+                    "query": {
+                        "nested": {
+                            "path": "dcat",
+                            "query": {"exists": {"field": "dcat.isPartOf"}},
+                        }
+                    }
+                },
+            )
+            return result.get("count", 0)
+        except Exception as e:
+            logger.error(f"Error counting datasets with isPartOf in OpenSearch: {e}")
             return 0

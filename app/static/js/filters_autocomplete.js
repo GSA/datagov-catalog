@@ -35,7 +35,7 @@ class KeywordAutocomplete {
         this.form = document.getElementById(this.formId);
         this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
         this.selectedKeywords = new Set();
-        this.allKeywords = [];
+        this.fetchController = null;
         this.debounceTimer = null;
         this.currentFocusIndex = -1;
         this.contextualCounts = {};
@@ -59,8 +59,6 @@ class KeywordAutocomplete {
     }
 
     init() {
-        // Load all keywords from API, then apply contextual counts
-        this.loadKeywords();
         // Load any existing keywords from URL parameters
         this.loadExistingKeywords();
         // Initialize suggested keywords click handlers
@@ -85,14 +83,43 @@ class KeywordAutocomplete {
             });
         }
     }
-    async loadKeywords() {
+    async fetchSuggestions(query) {
+        // Cancel any in-flight request before starting a new one.
+        if (this.fetchController) {
+            this.fetchController.abort();
+        }
+        this.fetchController = new AbortController();
+
         try {
-            const response = await fetch(`${this.apiEndpoint}?size=500`);
+            const params = new URLSearchParams({ search: query, size: 10 });
+            const response = await fetch(`${this.apiEndpoint}?${params}`, {
+                signal: this.fetchController.signal,
+            });
             const data = await response.json();
-            this.allKeywords = data.keywords || [];
+            return data.keywords || [];
         } catch (error) {
-            console.error('Error loading keywords:', error);
-            this.allKeywords = [];
+            if (error.name === 'AbortError') {
+                return null; // Request was superseded — caller should do nothing.
+            }
+            console.error('Error fetching keyword suggestions:', error);
+            return [];
+        }
+    }
+    async filterAndShowSuggestions(query) {
+        const keywords = await this.fetchSuggestions(query);
+        if (keywords === null) {
+            return; // Aborted by a newer keystroke.
+        }
+
+        const filtered = keywords.filter(
+            item => !this.selectedKeywords.has(item.keyword)
+        );
+
+        if (filtered.length > 0) {
+            this.renderSuggestions(filtered);
+            this.showSuggestions();
+        } else {
+            this.hideSuggestions();
         }
     }
     loadExistingKeywords() {
@@ -174,31 +201,6 @@ class KeywordAutocomplete {
             }
         });
     }
-    filterAndShowSuggestions(query) {
-        // Filter keywords that match the query and aren't already selected
-        const filtered = this.allKeywords.filter(item => {
-            const keyword = item.keyword.toLowerCase();
-            const matchesQuery = keyword.includes(query);
-            const notSelected = !this.selectedKeywords.has(item.keyword);
-
-            // If we have contextual counts, only show keywords with count > 0
-            const hasContextualCount = Object.keys(this.contextualCounts).length > 0;
-            const hasCount = !hasContextualCount || (this.contextualCounts[item.keyword] > 0);
-
-            return matchesQuery && notSelected && hasCount;
-        });
-
-        // Limit to top 10 results
-        const topResults = filtered.slice(0, 10);
-
-        if (topResults.length > 0) {
-            this.renderSuggestions(topResults);
-            this.showSuggestions();
-        } else {
-            this.hideSuggestions();
-        }
-    }
-
     renderSuggestions(keywords) {
         this.suggestionsContainer.innerHTML = '';
         this.currentFocusIndex = -1;

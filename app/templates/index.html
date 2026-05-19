@@ -100,6 +100,9 @@
                 {%- elif query %} "{{ query }}".
                 {%- else %} filters.
                 {%- endif -%}
+                {%- if org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
+                <a href="/?q={{ query }}&sort=relevance" class="usa-link">(clear all filters)</a>
+                {%- endif %}
                 </p>
                 {% if total >= 10000 %}
                     <div class="advanced-search-tip">

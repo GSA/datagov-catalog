@@ -107,6 +107,7 @@ class SearchQuery(Schema):
 class KeywordsQuery(Schema):
     size = Integer()
     min_count = Integer()
+    search = String()
 
 
 class KeywordAndCount(Schema):
@@ -185,6 +186,7 @@ class StatsMetrics(Schema):
 
 class StatsResults(Schema):
     datasets = Integer()
+    datasetsWithIsPartOf = Integer()
 
 
 class StatsResult(Schema):
