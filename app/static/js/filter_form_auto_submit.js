@@ -16,6 +16,47 @@
         return true;
     }
 
+    function showResultsLoadingOverlay() {
+        const overlay = document.createElement('div');
+        overlay.id = 'search-results-loading-overlay';
+        overlay.style.cssText = [
+            'position: fixed',
+            'inset: 0',
+            'display: flex',
+            'align-items: center',
+            'justify-content: center',
+            'background: rgba(0, 0, 0, 0.4)',
+            'z-index: 9999',
+        ].join('; ');
+
+        const badge = document.createElement('div');
+        badge.style.cssText = [
+            'background: white',
+            'border-radius: 8px',
+            'padding: 1.5rem 2.5rem',
+            'display: flex',
+            'flex-direction: column',
+            'align-items: center',
+            'gap: 0.75rem',
+            'box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25)',
+        ].join('; ');
+
+        const spinner = document.createElement('i');
+        spinner.className = 'fa fa-spinner fa-spin';
+        spinner.setAttribute('aria-label', 'Loading');
+        spinner.setAttribute('role', 'img');
+        spinner.style.cssText = 'font-size: 2.5rem; color: #005ea2;';
+
+        const label = document.createElement('span');
+        label.textContent = 'Loading results…';
+        label.style.cssText = 'font-size: 1rem; color: #1b1b1b;';
+
+        badge.appendChild(spinner);
+        badge.appendChild(label);
+        overlay.appendChild(badge);
+        document.body.appendChild(overlay);
+    }
+
     const autoSubmit = {
         form: null,
         init(form) {
@@ -79,12 +120,16 @@
                 return;
             }
             this.captureMapPanelState();
+            showResultsLoadingOverlay();
 
-            if (typeof this.form.requestSubmit === 'function') {
-                this.form.requestSubmit();
-            } else {
-                this.form.submit();
-            }
+            const form = this.form;
+            requestAnimationFrame(() => {
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            });
         },
     };
 
