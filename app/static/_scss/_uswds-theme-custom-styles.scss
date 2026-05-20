@@ -1070,15 +1070,6 @@ details {
 }
 
 // announcement banner left aligned
-.announcement-banner,
-.announcement-banner .usa-alert {
-  background-color: #faf3d1;
-}
-
-.announcement-banner .usa-alert {
-  border-left-color: #ffbe2e;
-}
-
 .announcement-banner .usa-alert .usa-alert__body {
   max-width: var(--site-max-width);
   margin-left: auto;
@@ -1088,7 +1079,6 @@ details {
 }
 
 .announcement-banner .usa-alert .usa-alert__body::before {
-  background-color: #ffbe2e;
   left: calc(var(--site-padding) - 0.1667rem);
 }
 
