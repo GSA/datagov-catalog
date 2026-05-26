@@ -116,10 +116,15 @@
           </ul>
         </div>
         {% else %}
-        <div class="usa-alert usa-alert--info margin-top-3">
-          <div class="usa-alert__body">
-            <p class="usa-alert__text">
-              No datasets found{% if dataset_search_query %} matching "{{ dataset_search_query }}"{% endif %}. Try adjusting your search terms or filters.
+        <div class="usa-prose margin-top-3">
+          <p class="text-base-dark">
+            Found <strong>0</strong> datasets.
+          </p>
+          <div class="advanced-search-tip">
+            <div class="advanced-search-tip__title">💡 Search Tips</div>
+            <p class="advanced-search-tip__text">
+              Try adjusting your search terms or filters. For example, remove quotation marks,
+              add <strong>OR</strong>, or clear some filters.
             </p>
           </div>
         </div>
