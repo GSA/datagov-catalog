@@ -1050,6 +1050,37 @@ def openapi_docs():
     return render_template("swagger.html")
 
 
+def style_guide_icons():
+    samples = [
+        {"format": "CSV", "label": "Sample data export"},
+        {"format": "application/json", "label": "DCAT-US metadata"},
+        {"format": "application/xml", "label": "FGDC metadata record"},
+        {"format": "application/rdf+xml", "label": "Linked-data manifest"},
+        {"format": "PDF", "label": "Codebook"},
+        {"format": "ZIP", "label": "Bulk archive"},
+        {"format": "XLSX", "label": "Quarterly workbook"},
+        {"format": "DOCX", "label": "Methodology document"},
+        {"format": "HTML", "label": "Project landing page"},
+        {"format": "TXT", "label": "Readme"},
+        {"format": "application/geo+json", "label": "Boundaries (GeoJSON)"},
+        {"format": "PNG", "label": "Map preview"},
+        {"format": "API", "label": "REST endpoint"},
+        {"format": "KML", "label": "Aerial overlay (KML)"},
+        {"format": "WMS", "label": "Web Map Service"},
+        {"format": "WFS", "label": "Web Feature Service"},
+        {"format": "GML", "label": "Geography Markup"},
+        {"format": "SHP", "label": "Shapefile (no icon)"},
+    ]
+    return render_template("style_guide_icons.html", samples=samples)
+
+
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
+
+    if app.config.get("CONFIG_NAME") == "local":
+        app.add_url_rule(
+            "/style-guide/icons",
+            view_func=style_guide_icons,
+            methods=["GET"],
+        )
