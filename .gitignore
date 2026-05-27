@@ -17,6 +17,7 @@ app/static/assets/*
 
 # node
 node_modules/
+.nvmrc
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
