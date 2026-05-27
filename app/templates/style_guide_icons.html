@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Style Guide — File Icons{% endblock %}
+
+{% block container_class %}grid-container-widescreen{% endblock %}
+
+{% block content %}
+<section class="usa-section">
+    <h1 class="text-primary-darker">File-Type Icon Style Guide</h1>
+    <p class="font-sans-md text-base-darker">
+        One example resource card per supported format. Icons with a dedicated
+        SVG render the SVG; unrecognized formats fall back to the default file
+        icon with an uppercase badge overlay.
+    </p>
+
+    <div class="style-guide-grid">
+        {% for sample in samples %}
+        {% set overlay_label = sample.format|format_overlay_label %}
+        <ul class="resources-list resources-list--main style-guide-grid__item">
+            <li class="resources-list__item resources-list__item--main">
+                <div class="resources-list__info">
+                    <div class="resources-list__icon{% if overlay_label %} resources-list__icon--badged{% endif %}">
+                        <span class="file-icon {{ sample.format|format_icon_class }}" aria-hidden="true"></span>
+                        {% if overlay_label %}
+                        <span class="resources-list__icon-badge">{{ overlay_label }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="resources-list__details">
+                        <p class="resources-list__name">{{ sample.label }}</p>
+                        <div class="resources-list__format">{{ sample.format }}</div>
+                    </div>
+                </div>
+            </li>
+        </ul>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
