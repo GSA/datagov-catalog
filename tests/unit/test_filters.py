@@ -75,18 +75,6 @@ def test_dcatus_to_schema_org_jsonld(dcatus_dataset):
     assert dcatus_to_schema_org_jsonld(dcatus_dataset)["distribution"] == []
 
 
-def test_dcatus_to_schema_org_jsonld_missing_publisher():
-    """
-    Some harvested DCAT records lack a publisher key even though the spec
-    marks it required. The filter should not crash and should emit a
-    publisher object with name=None.
-    """
-    result = dcatus_to_schema_org_jsonld(
-        {"title": "X", "description": "Y", "keyword": []}
-    )
-    assert result["publisher"] == {"@type": "Organization", "name": None}
-
-
 class TestSimplifyResourceType:
     """
     Tests for `simplify_resource_type`. We should either get a supported

@@ -202,6 +202,7 @@ def fixture_data():
                     "title": "Education and School Performance Data",
                     "description": "School statistics and educational outcomes",
                     "keyword": [],
+                    "publisher": {"name": "Department of Education"},
                     "distribution": [
                         {
                             "title": "School Data",
@@ -223,6 +224,7 @@ def fixture_data():
                     "title": "Technology and Data Science Resources",
                     "description": "Technology trends and data science methodologies",
                     "keyword": ["technology", "data", "science"],
+                    "publisher": {"name": "test publisher"},
                     "distribution": [
                         {
                             "title": "Tech Trends",
@@ -244,6 +246,7 @@ def fixture_data():
                     "title": "Health Food Access Statistics",
                     "description": "National statistics on access to health food resources",
                     "keyword": ["health", "food"],
+                    "publisher": {"name": "test publisher"},
                     "distribution": [
                         {
                             "title": "Health Food Data",

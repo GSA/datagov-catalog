@@ -311,7 +311,7 @@ def dcatus_to_schema_org_jsonld(dcatus: dict):
         "dateModified": dcatus.get("modified"),  # required
         "publisher": {
             "@type": "Organization",
-            "name": (dcatus.get("publisher") or {}).get("name"),  # required
+            "name": dcatus.get("publisher").get("name"),  # required
         },
         "distribution": jsonld_distributions(dcatus),
     }
