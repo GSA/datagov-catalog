@@ -85,6 +85,7 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "https://ekr.zdassets.com",  # zendesk
                 "'sha256-Ff1SFMp5PHyy62W49sHzg1RI9yL6Y9xoqXeGrJP8TUI='",
                 "https://gsa-solutionshelp.zendesk.com",  # zendesk
+                "https://touchpoints.app.cloud.gov",  # touchpoints
                 "'nonce-RgDplMTo1jIsP_9Vr4lErzJtec9zO4Z3'",
             ]
         ),
