@@ -213,9 +213,7 @@ class TestDatasetDetail:
         assert response.is_json
         assert response.get_json() == {"message": "Not Found", "detail": {}}
 
-    def test_dataset_detail_contact_section(
-        self, interface_with_dataset, db_client
-    ):
+    def test_dataset_detail_contact_section(self, interface_with_dataset, db_client):
         """
         The Contact sidebar should render the contactPoint's name and email.
         contactPoint is required by DCAT-US and enforced upstream by the
