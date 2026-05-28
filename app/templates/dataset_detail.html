@@ -312,36 +312,23 @@
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Contact</h3>
                     <p class="dataset-feedback">
-                        Have questions or suggestions about this dataset? Reach out to the data publisher.
+                        Have questions or suggestions about this dataset? Reach out to the contact below.
                     </p>
 
-                    {% if dataset.dcat.get('contactPoint') %}
-                        {% if dataset.dcat.contactPoint.get('fn') %}
-                        <div class="sidebar-section__item">
-                            <div class="sidebar-section__label">Name</div>
-                            <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
-                        </div>
-                        {% endif %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Name</div>
+                        <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
+                    </div>
 
-                        {% if dataset.dcat.contactPoint.get('hasEmail') %}
-                        {% set email = dataset.dcat.contactPoint.get('hasEmail') | format_contact_point_email %}
-                        <div class="sidebar-section__item">
-                            <div class="sidebar-section__label">Email</div>
-                            <div class="sidebar-section__value">
-                                <a href="mailto:{{ email }}">
-                                    {{ email }}
-                                </a>
-                            </div>
+                    {% set email = dataset.dcat.contactPoint.hasEmail | format_contact_point_email %}
+                    <div class="sidebar-section__item">
+                        <div class="sidebar-section__label">Email</div>
+                        <div class="sidebar-section__value">
+                            <a href="mailto:{{ email }}">
+                                {{ email }}
+                            </a>
                         </div>
-                        {% endif %}
-                    {% else %}
-                        <div class="sidebar-section__item">
-                            <div class="sidebar-section__value">
-                                No publisher contact is listed for this dataset.
-                                For general questions, <a href="https://data.gov/contact/">contact data.gov</a>.
-                            </div>
-                        </div>
-                    {% endif %}
+                    </div>
                 </div>
 
                 <!-- Access and Use Information -->

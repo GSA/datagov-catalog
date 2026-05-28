@@ -213,23 +213,14 @@ class TestDatasetDetail:
         assert response.is_json
         assert response.get_json() == {"message": "Not Found", "detail": {}}
 
-    def test_dataset_detail_contact_section_with_contact_point(
+    def test_dataset_detail_contact_section(
         self, interface_with_dataset, db_client
     ):
         """
-        Test that the Contact sidebar renders the publisher's name and email
-        when the dataset has a contactPoint.
+        The Contact sidebar should render the contactPoint's name and email.
+        contactPoint is required by DCAT-US and enforced upstream by the
+        harvester, so it is always present on dataset records.
         """
-        ds = interface_with_dataset.get_dataset_by_slug("test")
-        ds.dcat = {
-            **ds.dcat,
-            "contactPoint": {
-                "fn": "Dr. Jane Smith",
-                "hasEmail": "mailto:jane.smith@example.gov",
-            },
-        }
-        interface_with_dataset.db.commit()
-
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/dataset/test")
 
@@ -245,42 +236,11 @@ class TestDatasetDetail:
             None,
         )
         assert contact_box is not None
-        assert "Dr. Jane Smith" in contact_box.get_text()
+        assert "Test Contact" in contact_box.get_text()
 
         email_link = contact_box.select_one('a[href^="mailto:"]')
         assert email_link is not None
-        assert email_link.get("href") == "mailto:jane.smith@example.gov"
-
-    def test_dataset_detail_contact_section_fallback(
-        self, interface_with_dataset, db_client
-    ):
-        """
-        Test that the Contact sidebar shows the data.gov fallback link when
-        the dataset has no contactPoint.
-        """
-        ds = interface_with_dataset.get_dataset_by_slug("test")
-        ds.dcat = {k: v for k, v in ds.dcat.items() if k != "contactPoint"}
-        interface_with_dataset.db.commit()
-
-        with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get("/dataset/test")
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        contact_box = next(
-            (
-                h.find_parent("div", class_="sidebar-section")
-                for h in soup.select(".sidebar-section__heading")
-                if h.get_text(strip=True) == "Contact"
-            ),
-            None,
-        )
-        assert contact_box is not None
-        assert "No publisher contact is listed" in contact_box.get_text()
-
-        fallback_link = contact_box.select_one('a[href="https://data.gov/contact/"]')
-        assert fallback_link is not None
+        assert email_link.get("href") == "mailto:test.contact@example.gov"
 
     def test_dataset_detail_return_to_search(self, interface_with_dataset, db_client):
         with patch("app.routes.interface", interface_with_dataset):
