@@ -309,30 +309,40 @@
             <aside class="desktop:grid-col-4">
 
                 <!-- Contact Information -->
-                {% if dataset.dcat.get('contactPoint') %}
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Contact</h3>
+                    <p class="dataset-feedback">
+                        Have questions or suggestions about this dataset? Reach out to the data publisher.
+                    </p>
 
-                    {% if dataset.dcat.contactPoint.get('fn') %}
-                    <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Name</div>
-                        <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if dataset.dcat.contactPoint.get('hasEmail') %}
-                    {% set email = dataset.dcat.contactPoint.get('hasEmail') | format_contact_point_email%}
-                    <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Email</div>
-                        <div class="sidebar-section__value">
-                            <a href="mailto:{{ email }}">
-                                {{ email}}
-                            </a>
+                    {% if dataset.dcat.get('contactPoint') %}
+                        {% if dataset.dcat.contactPoint.get('fn') %}
+                        <div class="sidebar-section__item">
+                            <div class="sidebar-section__label">Name</div>
+                            <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
                         </div>
-                    </div>
+                        {% endif %}
+
+                        {% if dataset.dcat.contactPoint.get('hasEmail') %}
+                        {% set email = dataset.dcat.contactPoint.get('hasEmail') | format_contact_point_email %}
+                        <div class="sidebar-section__item">
+                            <div class="sidebar-section__label">Email</div>
+                            <div class="sidebar-section__value">
+                                <a href="mailto:{{ email }}">
+                                    {{ email }}
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="sidebar-section__item">
+                            <div class="sidebar-section__value">
+                                No publisher contact is listed for this dataset.
+                                For general questions, <a href="https://data.gov/contact/">contact data.gov</a>.
+                            </div>
+                        </div>
                     {% endif %}
                 </div>
-                {% endif %}
 
                 <!-- Access and Use Information -->
                 <div class="sidebar-section">
@@ -423,20 +433,6 @@
                     {% endif %}
                 </div>
 
-                <!-- Feedback -->
-                <div class="sidebar-section">
-                    <h3 class="sidebar-section__heading">Provide Feedback</h3>
-                    <p class="dataset-feedback">
-                        Have questions or suggestions about this dataset?
-                    </p>
-                    <button class="usa-button width-full" type="button" id="contact-btn"
-                        data-dataset-identifier="{{ dataset_slug }}" data-dataset-title="{{ dataset_title }}"
-                        aria-label="Provide feedback on {{ dataset_title }}">
-                        <i class="fa-solid fa-comment-dots margin-right-05"></i>
-                        Send Feedback
-                    </button>
-                </div>
-
             </aside>
         </div>
     </div>
@@ -445,7 +441,6 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dataset_tags.js') }}"></script>
 {% if dataset.translated_spatial %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}" />

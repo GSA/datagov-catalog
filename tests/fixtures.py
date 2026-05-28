@@ -150,6 +150,11 @@ def fixture_data():
                     "title": "Health and Medical Research Data",
                     "description": "Comprehensive health statistics and medical research findings",
                     "keyword": ["health", "medical", "research"],
+                    "publisher": {"name": "Department of Health Research"},
+                    "contactPoint": {
+                        "fn": "Dr. Jane Smith",
+                        "hasEmail": "mailto:jane.smith@example.gov",
+                    },
                     "distribution": [
                         {
                             "title": "Health Statistics",
@@ -175,6 +180,7 @@ def fixture_data():
                     "identifier": "test climate environment",
                     "modified": "2026-03-04",
                     "publisher": {"name": "test publisher"},
+                    "contactPoint": {"fn": "Climate Data Office"},
                     "distribution": [
                         {
                             "title": "Climate Measurements",
