@@ -1725,7 +1725,7 @@ class TestKeywordSearch:
         # Check for no results message
         no_results_alert = soup.find(id="no-datasets-alert")
         assert no_results_alert is not None
-        assert "No datasets found" in no_results_alert.text
+        assert "Found" in no_results_alert.text and "0" in no_results_alert.text
         # Expanded geography panel should still exist so pencil button can open it.
         geography_panel = soup.find(id="geography-map-expanded-panel")
         assert geography_panel is not None

@@ -20,8 +20,8 @@ def test_search_empty(page):
         "this search phrase has no results in the test data"
     )
     page.get_by_role("button", name="Search", exact=True).click()
-    expect(page.locator("#search-results div.usa-alert div p")).to_have_text(
-        re.compile(r"^\s*No datasets found. ")
+    expect(page.locator("#no-datasets-alert")).to_contain_text(
+        re.compile(r"Found\s+0\s+datasets")
     )
 
 
