@@ -1,0 +1,61 @@
+# Snyk (https://snyk.io) policy file.
+#
+# ----------------------------------------------------------------------------
+# Why these are ignored
+# ----------------------------------------------------------------------------
+# All of the ignores below are perl/perl-base CVEs reported by Snyk's container
+# scan against the base OS layer of our `python:3.12-slim` image (see Dockerfile).
+#
+# These are NOT a concern for us because:
+#
+#   1. perl-base is a transitive part of the Debian base image. We do not
+#      install, invoke, or expose perl anywhere in the application — there is no
+#      perl in our Python codebase, our Poetry dependencies, or our runtime
+#      entrypoint (`flask db upgrade && flask run`). The vulnerable code path is
+#      never reached.
+#
+#   2. The Dockerfile in this repo is primarily our local development image. The
+#      production deployment runs on cloud.gov (Cloud Foundry), which builds and
+#      runs the app via its own platform buildpacks/stack — not this image — so
+#      these base-layer packages are not what ships to prod.
+#
+#   3. None of these CVEs have a known exploit (Snyk "exploit maturity: No known
+#      exploit"), and none are reachable given (1).
+#
+# Why we don't just upgrade Python to fix the base image:
+#
+#   The fixed perl-base versions track Debian 13 ("trixie"). Pulling those in
+#   would mean jumping our base image well ahead of where we are today
+#   (e.g. python:3.15-* / trixie). cloud.gov's supported Python runtimes lag
+#   well behind 3.15, so aligning local dev to a much newer Python than prod
+#   supports would create a dev/prod skew that's riskier than these unreachable
+#   base-image CVEs. We intentionally keep the local image close to the runtime
+#   cloud.gov actually supports.
+#
+# Revisit these ignores when the cloud.gov supported Python runtime advances and
+# we bump the base image accordingly.
+# ----------------------------------------------------------------------------
+version: v1.5.0
+ignore:
+  SNYK-DEBIAN13-PERL-17037434:
+    - '*':
+        reason: >-
+          CVE-2026-42496 in perl-base. perl is unused/unreachable in this app;
+          base-image-only finding in a local dev image (prod runs on cloud.gov).
+          Fix tracks Debian 13 / Python far newer than cloud.gov supports.
+        expires: 2027-05-29T00:00:00.000Z
+  SNYK-DEBIAN13-PERL-17037371:
+    - '*':
+        reason: >-
+          CVE-2026-42497 in perl-base. perl is unused/unreachable in this app;
+          base-image-only finding in a local dev image (prod runs on cloud.gov).
+          Fix tracks Debian 13 / Python far newer than cloud.gov supports.
+        expires: 2027-05-29T00:00:00.000Z
+  SNYK-DEBIAN13-PERL-17037374:
+    - '*':
+        reason: >-
+          CVE-2026-9538 in perl-base. perl is unused/unreachable in this app;
+          base-image-only finding in a local dev image (prod runs on cloud.gov).
+          Fix tracks Debian 13 / Python far newer than cloud.gov supports.
+        expires: 2027-05-29T00:00:00.000Z
+patch: {}
