@@ -1045,6 +1045,30 @@ def get_location_by_id_api(location_id, **kwargs):
     )
 
 
+@api.get("/api/dataset/<slug_or_id>")
+@api.output(SearchResults)
+@api.doc(description="Get a single opensearch document based on slug name")
+def get_document_by_dataset_slug(slug_or_id: str):
+    """
+    gets a single document based on the dataset slug name or dataset id
+    """
+    try:
+        document = interface.get_document_by_slug(slug_or_id)
+        response = jsonify(document)
+
+        if document.total == 0:
+            response.status_code = 404
+
+    except Exception as e:
+        logger.exception("Failed to fetch document by slug")
+        response = jsonify(
+            {"error": "Failed to fetch document by slug", "message": str(e)}
+        )
+        response.status_code = 500
+
+    return response
+
+
 @main.route("/openapi/docs", methods=["GET"])
 def openapi_docs():
     return render_template("swagger.html")

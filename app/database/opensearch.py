@@ -140,7 +140,6 @@ T = TypeVar("T")
 
 
 class OpenSearchInterface:
-
     INDEX_NAME = "datasets"
     TEXT_ANALYZER = "datagov_text"
     STOP_FILTER = "datagov_stop"
@@ -1140,6 +1139,35 @@ class OpenSearchInterface:
                 if distance_km is not None:
                     item["_distance_km"] = distance_km
         return result
+
+    def get_document_by_slug(self, slug_or_id: str) -> list[dict]:
+        """
+        get document by slug name or dataset id. only gets the first matching document and omits
+        scoring.
+        """
+
+        query = {
+            "size": 1,
+            "query": {
+                "bool": {
+                    "filter": [
+                        {
+                            "bool": {
+                                "should": [
+                                    {"term": {"slug": slug_or_id}},
+                                    {"term": {"_id": slug_or_id}},
+                                ],
+                                "minimum_should_match": 1,
+                            }
+                        }
+                    ]
+                }
+            },
+        }
+
+        result_dict = self.client.search(index=self.INDEX_NAME, body=query)
+
+        return SearchResult.from_opensearch_result(result_dict, per_page_hint=1)
 
     def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
         """
