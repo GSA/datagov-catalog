@@ -1,7 +1,11 @@
-{% macro render_sort_filter(sort_value, allow_distance=false) %}
-<div class="margin-bottom-4">
-    <label class="usa-label" for="sort-select">Sort by</label>
-    <select class="usa-select" name="sort" id="sort-select">
+{# Standalone sort control for the results header. The <select> is associated
+   with the main search form (which already carries the full query + filter
+   state as hidden inputs), so changing the sort re-runs the search immediately
+   while preserving every active filter in the query string. #}
+{% macro render_sort_control(sort_value, allow_distance=false, form_id='main-search-form') %}
+<div class="results-sort">
+    <label class="results-sort__label" for="sort-select">Sort by</label>
+    <select class="usa-select results-sort__select" name="sort" id="sort-select" form="{{ form_id }}">
         <option value="relevance" {% if sort_value == 'relevance' %}selected{% endif %}>Relevance</option>
         <option value="popularity" {% if sort_value == 'popularity' %}selected{% endif %}>Popularity</option>
         <option value="last_harvested_date" {% if sort_value == 'last_harvested_date' %}selected{% endif %}>Last Published Date</option>

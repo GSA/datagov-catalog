@@ -234,7 +234,7 @@ def test_index_page_shows_top_organizations(db_client):
     container = soup.find(id="suggested-organizations")
     assert container is not None
     assert "Popular organizations" in container.get_text(" ", strip=True)
-    buttons = container.select("button[data-org-id]")
+    buttons = container.select("button[data-org-slug]")
     assert len(buttons) == 2
     assert "Org One" in buttons[0].get_text(" ", strip=True)
 
@@ -706,14 +706,18 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
 
     cards = soup.select(".organization-list .usa-card")
 
-    # "test org filtered" is removed because it has no datasets
-    # leaving only 1 organization present
-    assert len(cards) == 1
+    # Only organizations that have datasets are listed; "test org filtered"
+    # has none and must be absent.
+    headings = {c.select_one(".usa-card__heading").get_text(strip=True) for c in cards}
+    assert "test org" in headings
+    assert "test org filtered" not in headings
 
-    card = cards[0]
-    heading = card.select_one(".usa-card__heading").get_text(strip=True)
-    assert heading == "test org"
-
+    # Find the "test org" card and verify its type + count rendering.
+    card = next(
+        c
+        for c in cards
+        if c.select_one(".usa-card__heading").get_text(strip=True) == "test org"
+    )
     body_paragraphs = card.select(".usa-card__body p")
     assert len(body_paragraphs) >= 2
 
@@ -825,17 +829,25 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
     filter_form = soup.find("form", {"id": "filter-form"})
     assert filter_form is not None
 
-    sort_select = filter_form.find("select", {"id": "sort-select"})
+    # Sort now lives in the results header (associated with the main search
+    # form), not inside the filter form.
+    sort_select = soup.find("select", {"id": "sort-select"})
     assert sort_select is not None
+    assert sort_select.get("form") == "main-search-form"
 
-    keyword_section = soup.find("div", {"id": "filter-keywords"})
-    assert keyword_section is not None
+    # Each filter is a dropdown facet under the search bar.
+    keyword_panel = soup.find("div", {"id": "filter-panel-keywords"})
+    assert keyword_panel is not None
+    assert keyword_panel.find("input", {"id": "keyword-input"}) is not None
 
-    publisher_section = soup.find("div", {"id": "filter-publishers"})
-    assert publisher_section is not None
+    publisher_panel = soup.find("div", {"id": "filter-panel-publisher"})
+    assert publisher_panel is not None
+    # Publisher is now a USWDS combo box backed by a native <select>.
+    assert publisher_panel.find("select", {"id": "publisher-select"}) is not None
 
-    geography_section = soup.find("div", {"id": "filter-geography"})
-    assert geography_section is not None
+    geography_panel = soup.find("div", {"id": "filter-panel-geography"})
+    assert geography_panel is not None
+    assert geography_panel.find("input", {"id": "geography-input"}) is not None
     assert soup.find("div", {"id": "geography-map-expanded-panel"}) is not None
     assert soup.find("button", {"id": "geography-modal-draw-toggle"}) is not None
     assert soup.find("button", {"id": "geography-modal-apply"}) is not None
@@ -854,12 +866,12 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
         is not None
     )
 
-    spatial_section = soup.find("div", {"id": "filter-spatial"})
-    assert spatial_section is not None
+    spatial_panel = soup.find("div", {"id": "filter-panel-spatial"})
+    assert spatial_panel is not None
 
     # Organization filters and type filters should not render on this page
-    assert soup.find("div", {"id": "filter-organization"}) is None
-    assert soup.find("div", {"id": "filter-organization-autocomplete"}) is None
+    assert soup.find("div", {"id": "filter-panel-org_type"}) is None
+    assert soup.find("div", {"id": "filter-panel-organization"}) is None
 
 
 def test_index_page_renders(db_client):
@@ -1281,8 +1293,8 @@ def test_index_page_has_filters_sidebar(db_client):
     filter_form = soup.find("form", {"id": "filter-form"})
     assert filter_form is not None
 
-    publisher_input = soup.find("input", {"id": "publisher-input"})
-    assert publisher_input is not None
+    publisher_select = soup.find("select", {"id": "publisher-select"})
+    assert publisher_select is not None
 
     # Check for specific organization type checkboxes
     federal_checkbox = soup.find(
@@ -1300,6 +1312,160 @@ def test_index_page_has_filters_sidebar(db_client):
         "input", {"id": "filter-state", "value": "State Government"}
     )
     assert state_checkbox is not None
+
+
+def test_filter_bar_facets_render_with_aria(db_client):
+    """Each filter facet renders an accessible toggle button + labelled panel."""
+    response = db_client.get("/")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    for key in (
+        "keywords",
+        "organization",
+        "org_type",
+        "publisher",
+        "geography",
+        "spatial",
+    ):
+        button = soup.find("button", {"id": f"filter-button-{key}"})
+        assert button is not None, f"missing toggle button for {key}"
+        assert button.get("aria-expanded") == "false"
+        assert button.get("aria-controls") == f"filter-panel-{key}"
+
+        panel = soup.find("div", {"id": f"filter-panel-{key}"})
+        assert panel is not None, f"missing panel for {key}"
+        # Panel starts collapsed and is associated back to its button.
+        assert panel.has_attr("hidden")
+        assert panel.get("aria-labelledby") == f"filter-button-{key}"
+
+
+def test_filter_bar_apply_footer_only_on_multiselect_facets(db_client):
+    """Multi-select facets stage-then-Apply; single-select facets auto-apply."""
+    response = db_client.get("/")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # Multi-select facets have an Apply button (stage then commit).
+    for key in ("keywords", "org_type"):
+        panel = soup.find("div", {"id": f"filter-panel-{key}"})
+        assert panel.find("button", {"data-filter-apply": key}) is not None
+
+    # Single-select facets apply immediately, so they have no Apply/Clear footer.
+    for key in ("organization", "publisher", "geography"):
+        panel = soup.find("div", {"id": f"filter-panel-{key}"})
+        assert panel.find("button", {"data-filter-apply": key}) is None
+        assert panel.find("button", {"data-filter-clear": key}) is None
+
+
+def test_filter_bar_badges_reflect_active_filters(db_client):
+    """Active filters render a visible count badge; inactive ones stay hidden."""
+    # Two keywords + one org type selected.
+    response = db_client.get(
+        "/?keyword=health&keyword=food&org_type=Federal+Government"
+    )
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    keyword_badge = soup.find("span", {"data-filter-badge": "keywords"})
+    assert keyword_badge is not None
+    assert not keyword_badge.has_attr("hidden")
+    assert keyword_badge.get_text(strip=True) == "2"
+
+    org_type_badge = soup.find("span", {"data-filter-badge": "org_type"})
+    assert org_type_badge is not None
+    assert not org_type_badge.has_attr("hidden")
+    assert org_type_badge.get_text(strip=True) == "1"
+
+    # A filter that was not set stays hidden.
+    publisher_badge = soup.find("span", {"data-filter-badge": "publisher"})
+    assert publisher_badge is not None
+    assert publisher_badge.has_attr("hidden")
+
+
+def test_seed_data_covers_all_org_types(db_client, interface_with_dataset):
+    """The seed data should exercise every organization type filter."""
+    from shared.constants import ORGANIZATION_TYPE_VALUES
+
+    with patch("app.routes.interface", interface_with_dataset):
+        for org_type in ORGANIZATION_TYPE_VALUES:
+            response = db_client.get(f"/?org_type={org_type}")
+            assert response.status_code == 200
+            soup = BeautifulSoup(response.text, "html.parser")
+            summary = soup.select_one("#search-results p.text-base-dark")
+            assert summary is not None, f"no results summary for {org_type}"
+            # Each org type should match at least one seeded dataset.
+            assert "Found 0" not in summary.get_text(
+                strip=True
+            ), f"org type {org_type} returned no datasets"
+
+
+def test_seed_data_has_multiple_publishers(db_client, interface_with_dataset):
+    """The publisher autocomplete should have several distinct publishers."""
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/publishers")
+    assert response.status_code == 200
+    publishers = response.get_json()["publishers"]
+    names = {p["name"] if isinstance(p, dict) else p for p in publishers}
+    # A healthy spread for exercising the publisher filter.
+    assert len(names) >= 8
+
+
+def test_filter_bar_facets_prefilled_from_query_string(db_client):
+    """Filter controls are pre-filled from the query string so state persists."""
+    response = db_client.get("/?org_type=Federal+Government&spatial_filter=geospatial")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    federal_checkbox = soup.find("input", {"id": "filter-federal"})
+    assert federal_checkbox is not None
+    assert "checked" in federal_checkbox.attrs
+
+    geo_radio = soup.find("input", {"id": "filter-spatial-geo"})
+    assert geo_radio is not None
+    assert "checked" in geo_radio.attrs
+
+    # The filter form carries the query + sort so a submit round-trips them.
+    filter_form = soup.find("form", {"id": "filter-form"})
+    assert filter_form.find("input", {"name": "sort", "type": "hidden"}) is not None
+
+
+def test_zero_results_shows_clear_all_filters_when_filtered(db_client):
+    """A no-results search WITH filters offers a (clear all filters) link."""
+    response = db_client.get("/?q=zzzznomatchatall&spatial_filter=geospatial")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    alert = soup.find("p", {"id": "no-datasets-alert"})
+    assert alert is not None
+    clear_link = alert.find("a", string=lambda s: s and "clear all filters" in s)
+    assert clear_link is not None
+
+
+def test_zero_results_hides_clear_all_filters_without_filters(db_client):
+    """A no-results search with only a query has nothing to clear."""
+    response = db_client.get("/?q=zzzznomatchatall")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    alert = soup.find("p", {"id": "no-datasets-alert"})
+    assert alert is not None
+    assert alert.find("a", string=lambda s: s and "clear all filters" in s) is None
+
+
+def test_sort_control_lives_in_results_header_not_filter_form(db_client):
+    """Sort moved to the results header, associated with the main search form."""
+    response = db_client.get("/")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    sort_select = soup.find("select", {"id": "sort-select"})
+    assert sort_select is not None
+    assert sort_select.get("form") == "main-search-form"
+
+    # It must not be nested inside the filter form.
+    filter_form = soup.find("form", {"id": "filter-form"})
+    assert filter_form.find("select", {"id": "sort-select"}) is None
 
 
 def test_index_page_query_parameter_preserved_in_form(db_client):
@@ -1408,8 +1574,9 @@ def test_index_search_with_query_shows_result_count(interface_with_dataset, db_c
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Check for results count message
-    results_text = soup.find("p", class_="text-base-dark")
+    # Check for results count message (scope to results; filter dropdowns also
+    # contain `text-base-dark` paragraphs earlier in the DOM).
+    results_text = soup.select_one("#search-results p.text-base-dark")
     assert results_text is not None
     assert "Found" in results_text.text
     assert "dataset" in results_text.text
@@ -2080,7 +2247,9 @@ def test_index_search_message_with_query_only(interface_with_dataset, db_client)
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
 
-    results_text = soup.find("p", class_="text-base-dark")
+    # Scope to the results summary; the filter dropdowns also contain
+    # `text-base-dark` paragraphs ("Popular keywords:") earlier in the DOM.
+    results_text = soup.select_one("#search-results p.text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
 
@@ -2114,7 +2283,9 @@ def test_index_search_message_with_query_and_filters(interface_with_dataset, db_
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
 
-    results_text = soup.find("p", class_="text-base-dark")
+    # Scope to the results summary; the filter dropdowns also contain
+    # `text-base-dark` paragraphs ("Popular keywords:") earlier in the DOM.
+    results_text = soup.select_one("#search-results p.text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
 
@@ -2147,7 +2318,9 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
 
-    results_text = soup.find("p", class_="text-base-dark")
+    # Scope to the results summary; the filter dropdowns also contain
+    # `text-base-dark` paragraphs ("Popular keywords:") earlier in the DOM.
+    results_text = soup.select_one("#search-results p.text-base-dark")
     assert results_text is not None
     text = results_text.get_text(strip=True)
 

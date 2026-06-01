@@ -1057,7 +1057,23 @@ class GeographyAutocomplete {
             e.preventDefault();
             this.currentFocusIndex = Math.max(this.currentFocusIndex - 1, 0);
             this.updateSuggestionFocus(suggestions);
-        } else if (e.key === 'Enter' || e.key === 'Tab') {
+        } else if (e.key === 'Enter') {
+            // Enter applies the focused (or first) suggestion. Always prevent the
+            // default so a bare Enter never triggers an unintended native submit.
+            e.preventDefault();
+            let node = null;
+            if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
+                node = suggestions[this.currentFocusIndex];
+            } else if (suggestions.length > 0) {
+                node = suggestions[0];
+            }
+            if (node && node.location_data) {
+                // selectGeography submits immediately (geography is not deferred).
+                this.selectGeography(node.location_data);
+                this.input.value = '';
+                this.hideSuggestions();
+            }
+        } else if (e.key === 'Tab') {
             if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
                 e.preventDefault();
                 const loc = suggestions[this.currentFocusIndex].location_data;

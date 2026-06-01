@@ -1,0 +1,135 @@
+{% from "components/filters/keyword_filter.html" import render_keyword_filter %}
+{% from "components/filters/publisher_filter.html" import render_publisher_filter %}
+{% from "components/filters/organization_autocomplete_filter.html" import render_organization_autocomplete_filter %}
+{% from "components/filters/organization_type_filter.html" import render_organization_type_filter %}
+{% from "components/filters/geography_filter.html" import render_geography_filter %}
+{% from "components/filters/spatial_filter.html" import render_spatial_filter %}
+
+{# Renders a single filter facet: a button (with active-count badge) that toggles
+   a dropdown panel. The panel body comes from the {% call %} block and is followed
+   by a Clear / Apply footer. `defer` controls whether selections wait for Apply
+   (true) or take effect immediately (false, used for the geography map). #}
+{% macro _facet(key, label, count, defer=True) %}
+<div class="filter-facet" data-filter-key="{{ key }}" data-filter-defer="{{ 'true' if defer else 'false' }}">
+    <button
+        type="button"
+        class="filter-facet__button{% if count %} filter-facet__button--active{% endif %}"
+        id="filter-button-{{ key }}"
+        aria-expanded="false"
+        aria-controls="filter-panel-{{ key }}"
+    >
+        <span class="filter-facet__label">{{ label }}</span>
+        <span class="filter-facet__badge" data-filter-badge="{{ key }}"{% if not count %} hidden{% endif %}>{{ count }}</span>
+        <i class="fa-solid fa-chevron-down filter-facet__chevron" aria-hidden="true"></i>
+    </button>
+    <div
+        class="filter-facet__panel"
+        id="filter-panel-{{ key }}"
+        role="group"
+        aria-labelledby="filter-button-{{ key }}"
+        hidden
+    >
+        <div class="filter-facet__panel-header">
+            <span class="filter-facet__panel-title">{{ label }}</span>
+            <button
+                type="button"
+                class="filter-facet__panel-close"
+                data-filter-close="{{ key }}"
+                aria-label="Close {{ label }} filter"
+            >
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="filter-facet__panel-body">
+            {{ caller() }}
+        </div>
+        {% if defer %}
+        <div class="filter-facet__panel-footer">
+            <button type="button" class="usa-button usa-button--unstyled filter-facet__clear" data-filter-clear="{{ key }}">
+                Clear
+            </button>
+            <button type="button" class="usa-button filter-facet__apply" data-filter-apply="{{ key }}">
+                Apply
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_filter_bar(
+    form_action,
+    query_value,
+    sort_value,
+    keywords,
+    suggested_keywords,
+    spatial_filter,
+    publisher=None,
+    suggested_publishers=None,
+    search_result_geometries=None,
+    spatial_geometry=None,
+    form_id='filter-form',
+    org_slug=None,
+    show_org_autocomplete=False,
+    show_org_type_filters=False,
+    org_types=None,
+    selected_organization=None,
+    suggested_organizations=None,
+    contextual_keyword_counts=None,
+    contextual_org_counts=None,
+    contextual_publisher_counts=None,
+    all_organizations=None,
+    all_publishers=None,
+    collection=None
+) %}
+{% set org_active = 1 if (org_slug or selected_organization) else 0 %}
+{% set org_type_count = (org_types | length) if org_types else 0 %}
+{% set publisher_active = 1 if publisher else 0 %}
+{% set spatial_active = 1 if spatial_filter else 0 %}
+{% set geography_active = 1 if spatial_geometry else 0 %}
+<form class="usa-form filter-bar-form" method="get" action="{{ form_action }}" id="{{ form_id }}">
+    {% if collection %}
+    <input type="hidden" name="collection" value="{{ collection }}">
+    {% endif %}
+    <input type="hidden" name="q" value="{{ query_value }}">
+    <input type="hidden" name="sort" value="{{ sort_value }}">
+    {% if org_slug and not show_org_autocomplete %}
+    {# org_detail has no org combo box, so carry the org context as a hidden field. #}
+    <input type="hidden" name="org_slug" value="{{ org_slug }}">
+    {% endif %}
+
+    <div class="filter-bar" role="group" aria-label="Filter datasets">
+        {% call _facet('keywords', 'Keywords', keywords | length) %}
+            {{ render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts) }}
+        {% endcall %}
+
+        {% if show_org_autocomplete %}
+        {# Single-select: applies immediately on selection, like Geographic Area. #}
+        {% call _facet('organization', 'Organization', org_active, defer=False) %}
+            {{ render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations,
+            contextual_org_counts, all_organizations) }}
+        {% endcall %}
+        {% endif %}
+
+        {% if show_org_type_filters %}
+        {% call _facet('org_type', 'Organization Type', org_type_count) %}
+            {{ render_organization_type_filter(org_types) }}
+        {% endcall %}
+        {% endif %}
+
+        {# Single-select: applies immediately on selection, like Geographic Area. #}
+        {% call _facet('publisher', 'Publisher', publisher_active, defer=False) %}
+            {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts, all_publishers) }}
+        {% endcall %}
+
+        {% call _facet('geography', 'Geographic Area', geography_active, defer=False) %}
+            {{ render_geography_filter(search_result_geometries) }}
+        {% endcall %}
+
+        {% call _facet('spatial', 'Spatial Data', spatial_active) %}
+            {{ render_spatial_filter(spatial_filter) }}
+        {% endcall %}
+    </div>
+</form>
+<div class="filter-drawer-backdrop" data-filter-backdrop hidden></div>
+{% endmacro %}

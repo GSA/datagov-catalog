@@ -126,6 +126,21 @@ def _normalize_sort(sort_value: str | None, spatial_geometry: dict | None) -> st
     return sort_key
 
 
+def _all_publisher_names() -> list[str]:
+    """Full publisher list backing the combo box <select>, sorted by name.
+
+    Returns an empty list (and logs) on failure so the page still renders.
+    """
+    try:
+        return sorted(
+            (p["name"] for p in interface.get_top_publishers() if p.get("name")),
+            key=lambda name: name.lower(),
+        )
+    except Exception:
+        logger.exception("Failed to fetch publishers")
+        return []
+
+
 def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
     """Return up to `limit` GeoJSON geometries from search results."""
     shapes: list[dict] = []
@@ -324,8 +339,9 @@ def index():
     except Exception:
         logger.exception("Failed to fetch suggested keywords")
 
-    # Always compute suggested organizations from contextual aggregations,
-    # excluding the currently-selected organization.
+    # The full organization list backs the combo box <select>; suggested
+    # organizations are the popular quick-pick subset.
+    all_organizations: list[dict] = []
     try:
         org_suggestions = interface.get_organizations()
         # Tests and stubs may leave this as a Mock or another non-list value.
@@ -340,21 +356,27 @@ def index():
             if org_slug:
                 org["dataset_count"] = contextual_org_counts.get(org_slug, 0)
 
-        # Filter to only orgs with counts > 0 and sort by count
+        # The combo box lists every organization, sorted by name for easy lookup.
+        all_organizations = sorted(
+            org_suggestions, key=lambda x: (x.get("name") or "").lower()
+        )
+
+        # Suggested (popular) organizations: those with results, by count,
+        # excluding any already-selected organization.
         org_suggestions = [
             org for org in org_suggestions if org.get("dataset_count", 0) > 0
         ]
-
-        # Exclude the already-selected organization from suggestions
         if org_slug_param:
             org_suggestions = [
                 org for org in org_suggestions if org.get("slug") != org_slug_param
             ]
-
         org_suggestions.sort(key=lambda x: x.get("dataset_count", 0), reverse=True)
         suggested_organizations = org_suggestions[:10]
     except Exception:
         logger.exception("Failed to fetch suggested organizations")
+
+    # The full publisher list backs the combo box <select>.
+    all_publishers = _all_publisher_names()
 
     suggested_publishers = [
         item["name"]
@@ -411,6 +433,8 @@ def index():
         suggested_keywords=suggested_keywords,
         suggested_organizations=suggested_organizations,
         suggested_publishers=suggested_publishers,
+        all_organizations=all_organizations,
+        all_publishers=all_publishers,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
         search_result_geometries=search_result_geometries,
@@ -780,6 +804,9 @@ def organization_detail(slug: str):
         if item["name"] != publisher
     ][:10]
 
+    # The full publisher list backs the combo box <select>.
+    all_publishers = _all_publisher_names()
+
     slug_or_id = organization.slug or slug
 
     # reassign organization dataset count from opensearch
@@ -808,6 +835,7 @@ def organization_detail(slug: str):
         search_result_geometries=search_result_geometries,
         suggested_keywords=suggested_keywords,
         suggested_publishers=suggested_publishers,
+        all_publishers=all_publishers,
         contextual_keyword_counts=contextual_keyword_counts,
         contextual_publisher_counts=contextual_publisher_counts,
         from_hint=from_hint,
@@ -1050,6 +1078,36 @@ def openapi_docs():
     return render_template("swagger.html")
 
 
+# Map tiles are served from a same-origin /maptiles path so the CSP stays
+# locked down and the CDN can cache them. In production this path is proxied to
+# OpenStreetMap by nginx (see proxy/nginx-common.conf). The local Flask dev
+# server has no nginx in front of it, so we provide an equivalent proxy here.
+def _register_dev_maptiles_proxy(app):
+    import requests
+
+    @app.route("/maptiles/<int:z>/<int:x>/<int:y>.png")
+    def dev_maptiles(z, x, y):
+        try:
+            upstream = requests.get(
+                f"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                headers={"User-Agent": "datagov-catalog-local-dev"},
+                timeout=10,
+            )
+        except requests.RequestException as exc:
+            logger.warning("Failed to fetch map tile", extra={"error": str(exc)})
+            return Response(status=502)
+
+        return Response(
+            upstream.content,
+            status=upstream.status_code,
+            content_type=upstream.headers.get("Content-Type", "image/png"),
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
+
+    if app.config.get("IS_LOCAL"):
+        _register_dev_maptiles_proxy(app)

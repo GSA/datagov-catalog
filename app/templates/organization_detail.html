@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filter_bar.html" import render_filter_bar %}
+{% from "components/filters/sort_control.html" import render_sort_control %}
 {% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
 
 {% block title %}{{ organization.name }} - Organization - Data.gov{% endblock %}
@@ -62,8 +63,8 @@
 
 
   <section class="organization-datasets">
-    <div class="grid-row grid-gap-lg margin-top-2">
-      <div class="desktop:grid-col-9 tablet:grid-col">
+    <div class="catalog-search margin-top-2">
+      <div class="catalog-search__main">
         <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form" id="main-search-form">
             <div class="grid-row grid-gap-1 flex-align-end">
                 <div class="grid-col-fill">
@@ -79,7 +80,12 @@
                     {% if spatial_filter %}
                     <input type="hidden" name="spatial_filter" value="{{ spatial_filter }}">
                     {% endif %}
+                    {# Sort lives in the #sort-select control in the results header (form="main-search-form").
+                       That control is only rendered when there are results, so on a zero-results page carry
+                       the active sort here instead — otherwise submitting the search box reverts it. #}
+                    {% if not datasets %}
                     <input type="hidden" name="sort" value="{{ selected_sort }}">
+                    {% endif %}
                 </div>
                 <div class="grid-col-auto">
                     <button type="submit" class="usa-button margin-0">
@@ -89,10 +95,28 @@
                 </div>
             </div>
         </form>
+
+        {{ render_filter_bar(
+            form_action=url_for('main.organization_detail', slug=organization_slug_or_id),
+            query_value=dataset_search_query,
+            sort_value=selected_sort,
+            keywords=keywords,
+            suggested_keywords=suggested_keywords,
+            publisher=publisher,
+            suggested_publishers=suggested_publishers,
+            spatial_filter=spatial_filter,
+            search_result_geometries=search_result_geometries,
+            spatial_geometry=spatial_geometry,
+            contextual_keyword_counts=contextual_keyword_counts,
+            contextual_publisher_counts=contextual_publisher_counts,
+            all_publishers=all_publishers
+        ) }}
+
         {{ render_geography_expanded_panel() }}
 
         {% if datasets %}
-        <div class="usa-prose">
+        <div class="results-header">
+          <div class="usa-prose results-header__summary">
           {% if dataset_search_query or keywords or publisher or spatial_filter or spatial_geometry %}
           <p class="text-base-dark">
             {% if num_matches < 2 %}
@@ -106,10 +130,15 @@
             {% elif dataset_search_query %} "{{ dataset_search_query }}".
             {% else %} filters.
             {% endif %}
+            {%- if keywords or publisher or spatial_filter or spatial_geometry %}
+            <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}?q={{ dataset_search_query | urlencode }}&sort=relevance" class="usa-link">(clear all filters)</a>
+            {%- endif %}
           </p>
           {% endif %}
+          </div>
+          {{ render_sort_control(selected_sort, spatial_geometry is not none) }}
         </div>
-        
+
         <div class="margin-top-3">
           <ul class="usa-collection organization-datasets__list">
             {% include 'components/dataset_results_organization.html' %}
@@ -119,6 +148,9 @@
         <div class="usa-prose margin-top-3">
           <p class="text-base-dark">
             Found <strong>0</strong> datasets.
+            {%- if keywords or publisher or spatial_filter or spatial_geometry %}
+            <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}?q={{ dataset_search_query | urlencode }}&sort=relevance" class="usa-link">(clear all filters)</a>
+            {%- endif %}
           </p>
           <div class="advanced-search-tip">
             <div class="advanced-search-tip__title">💡 Search Tips</div>
@@ -131,23 +163,6 @@
         {% endif %}
 
       </div>
-
-      <aside class="desktop:grid-col-3 tablet:grid-col margin-top-3">
-        {{ render_filter_sidebar(
-            form_action=url_for('main.organization_detail', slug=organization_slug_or_id),
-            query_value=dataset_search_query,
-            sort_value=selected_sort,
-            keywords=keywords,
-            suggested_keywords=suggested_keywords,
-            publisher=publisher,
-            suggested_publishers=suggested_publishers,
-            spatial_filter=spatial_filter,
-            search_result_geometries=search_result_geometries,
-            spatial_geometry=spatial_geometry,
-            contextual_keyword_counts=contextual_keyword_counts,
-            contextual_publisher_counts=contextual_publisher_counts
-        ) }}
-      </aside>
     </div>
   </section>
 </section>
@@ -156,6 +171,7 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
+<script src="{{ url_for('static', filename='js/filter_dropdowns.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>
 <script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}"/>

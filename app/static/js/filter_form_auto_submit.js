@@ -59,6 +59,10 @@
 
     const autoSubmit = {
         form: null,
+        // When true, per-change submits are suppressed; the filter dropdowns
+        // submit explicitly via request({ force: true }) on Apply. The bar JS
+        // toggles this while a deferred panel is open.
+        deferred: false,
         init(form) {
             this.form = form || null;
             if (this.form) {
@@ -115,8 +119,14 @@
                 // Ignore storage errors (privacy mode, quota, disabled storage).
             }
         },
-        request() {
+        request(options) {
             if (!this.form) {
+                return;
+            }
+            const force = Boolean(options && options.force);
+            // While a deferred filter panel is open, hold off on submitting until
+            // the user presses Apply (which calls request({ force: true })).
+            if (this.deferred && !force) {
                 return;
             }
             this.captureMapPanelState();
@@ -148,9 +158,11 @@
         }
 
         autoSubmit.init(form);
+        // These still route through autoSubmit.request(), which suppresses the
+        // submit while a deferred filter panel is open. Sort now lives in the
+        // results header and is handled by filter_dropdowns.js.
         attachInputAutoSubmit(form, ['input[name="org_type"]']);
         attachInputAutoSubmit(form, ['input[name="spatial_filter"]']);
-        attachInputAutoSubmit(form, ['select[name="sort"]']);
     });
 
     window.dataGovFilterFormAutoSubmit = autoSubmit;

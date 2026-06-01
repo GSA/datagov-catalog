@@ -964,6 +964,22 @@ details {
     white-space: nowrap;
 }
 
+/* Chips inside a filter dropdown can hold long publisher/org names. Let them
+   wrap and break so they stay within the panel instead of overflowing. */
+.filter-facet__panel .keyword-chips .tag-link {
+    display: inline-flex;
+    align-items: flex-start;
+    max-width: 100%;
+}
+
+.filter-facet__panel .keyword-chips .keyword-chip__text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: clip;
+}
+
 .keyword-chip__remove {
     display: inline-flex;
     align-items: center;
@@ -1446,3 +1462,275 @@ div.usa-tag.collection-tag {
   margin-right: 10px !important;
 }
 
+
+/* =====================================================================
+   Catalog filter bar (dropdown facets under the search box)
+   ===================================================================== */
+
+.filter-bar-form {
+    margin-top: 1rem;
+    width: 100%;
+    max-width: none;
+}
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+
+/* A single facet: button + (positioned) panel */
+.filter-facet {
+    position: relative;
+}
+
+.filter-facet__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    background: white;
+    border: 2px solid #1b1b1b;
+    border-radius: 0.25rem;
+    color: #1b1b1b;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-facet__button:hover {
+    background: #f0f0f0;
+}
+
+.filter-facet__button:focus-visible {
+    outline: 0.25rem solid #2491ff;
+    outline-offset: 0;
+}
+
+.filter-facet__button--active {
+    border-color: #005ea2;
+    color: #005ea2;
+}
+
+.filter-facet__chevron {
+    font-size: 0.75rem;
+    transition: transform 0.15s ease;
+}
+
+.filter-facet--open .filter-facet__chevron {
+    transform: rotate(180deg);
+}
+
+/* Active-count badge */
+.filter-facet__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.375rem;
+    background: #005ea2;
+    color: white;
+    border-radius: 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.filter-facet__badge[hidden] {
+    display: none;
+}
+
+/* The dropdown panel */
+.filter-facet__panel {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    z-index: 1100;
+    width: 22rem;
+    max-width: calc(100vw - 1rem);
+    background: white;
+    border: 1px solid #565c65;
+    border-radius: 0.25rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-facet__panel[hidden] {
+    display: none;
+}
+
+.filter-facet__panel-header {
+    display: none; /* shown only in the mobile drawer */
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #dfe1e2;
+}
+
+.filter-facet__panel-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1b1b1b;
+}
+
+.filter-facet__panel-close {
+    border: none;
+    background: transparent;
+    font-size: 1.25rem;
+    color: #1b1b1b;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+}
+
+.filter-facet__panel-close:focus-visible {
+    outline: 0.25rem solid #2491ff;
+    outline-offset: 0;
+}
+
+.filter-facet__panel-body {
+    padding: 1rem;
+    /* Must stay visible so the autocomplete suggestions dropdown (absolutely
+       positioned inside) can overflow the panel instead of being clipped.
+       The suggestions list has its own internal max-height + scroll. */
+    overflow: visible;
+}
+
+.filter-facet__panel-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #dfe1e2;
+}
+
+.filter-facet__panel-footer .filter-facet__apply {
+    margin: 0;
+}
+
+.filter-facet__clear {
+    margin: 0;
+}
+
+/* Backdrop (mobile drawer only) */
+.filter-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1090;
+}
+
+.filter-drawer-backdrop[hidden] {
+    display: none;
+}
+
+/* Results header with sort control on the right */
+.results-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+}
+
+.results-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.results-sort__label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1b1b1b;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.results-sort__select {
+    width: auto;
+    min-width: 12rem;
+    margin: 0;
+}
+
+/* ---- Mobile: facet panels become a scrollable bottom drawer ---- */
+@media (max-width: 39.99em) {
+    .filter-bar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.25rem;
+    }
+
+    .filter-facet__button {
+        white-space: nowrap;
+    }
+
+    .filter-facet__panel {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: 100%;
+        max-height: 85vh;
+        border: none;
+        border-radius: 1rem 1rem 0 0;
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .filter-facet__panel-header {
+        display: flex;
+    }
+
+    .filter-facet__panel-body {
+        max-height: none;
+        flex: 1 1 auto;
+        /* The bottom drawer is tall and fixed, so let its body scroll for long
+           filter lists. The autocomplete suggestions scroll inline here. */
+        overflow-y: auto;
+    }
+
+    /* Give the drawer footer breathing room and keep Clear / Apply apart. */
+    .filter-facet__panel-footer {
+        gap: 1.5rem;
+        padding: 1rem;
+    }
+
+    .filter-facet__panel-footer .filter-facet__apply {
+        flex: 0 0 auto;
+    }
+
+    .filter-facet__clear {
+        flex: 0 0 auto;
+    }
+
+    .results-sort {
+        margin-left: 0;
+    }
+
+    .results-sort__select {
+        min-width: 0;
+    }
+
+    /* Lock background scrolling while the bottom drawer is open. */
+    body.filter-bar-open {
+        overflow: hidden;
+    }
+}
+
+/* Full-width catalog search layout (filters moved under the search bar) */
+.catalog-search {
+    width: 100%;
+}
+
+.catalog-search__main {
+    width: 100%;
+}

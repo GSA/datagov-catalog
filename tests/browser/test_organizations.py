@@ -7,7 +7,10 @@ from playwright.sync_api import expect
 
 def test_organization_list(page):
     page.goto("/organization")
-    expect(page.get_by_role("heading", level=2)).to_have_text("test org")
+    # The list now contains several seeded organizations; "test org" is one.
+    expect(
+        page.get_by_role("heading", level=2, name="test org", exact=True)
+    ).to_be_visible()
 
 
 def test_organization_detail(page):
@@ -22,8 +25,12 @@ def test_organization_detail(page):
 
 def test_organization_detail_keyword_click(page):
     page.goto("/organization/test-org")
-    # click a keyword bubble
+    # open the Keywords filter dropdown
+    page.locator("#filter-button-keywords").click()
+    # stage a keyword by clicking a popular-keyword bubble
     page.get_by_role("button", name="americorps (41)", exact=True).click()
+    # filters are deferred until Apply is pressed
+    page.locator('[data-filter-apply="keywords"]').click()
 
     expect(
         page.get_by_role("paragraph").filter(has_text="datasets matching")

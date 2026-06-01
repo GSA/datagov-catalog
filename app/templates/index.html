@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filter_bar.html" import render_filter_bar %}
+{% from "components/filters/sort_control.html" import render_sort_control %}
 {% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
 {% from "components/collection_card.html" import collection_card %}
 
@@ -31,9 +32,9 @@
 {% set collection_count = collection_data["count"] - 1 %}
 {% set parent = collection_data["parent"] %}
 
-<div class="grid-row grid-gap-lg">
-    <!-- Main search and results area -->
-    <div class="tablet:grid-col-12 desktop:grid-col-9">
+<div class="catalog-search">
+    <!-- Main search and results area (full width) -->
+    <div class="catalog-search__main">
         <form method="GET" action="{{ url_for('main.index', collection=collection) }}" class="usa-form" id="main-search-form">
 
             <label class="usa-label" for="search-query">
@@ -65,7 +66,12 @@
                     {% if spatial_filter %}
                     <input type="hidden" name="spatial_filter" value="{{ spatial_filter }}">
                     {% endif %}
+                    {# Sort lives in the #sort-select control in the results header (form="main-search-form").
+                       That control is only rendered when there are results, so on a zero-results page carry
+                       the active sort here instead — otherwise submitting the search box reverts it. #}
+                    {% if not datasets %}
                     <input type="hidden" name="sort" value="{{ sort_by }}">
+                    {% endif %}
                 </div>
                 <div class="grid-col-auto">
                     <button type="submit" class="usa-button margin-0">
@@ -75,6 +81,32 @@
                 </div>
             </div>
         </form>
+
+        <!-- Filters (under the search bar) -->
+        {{ render_filter_bar(
+            form_action=url_for('main.index'),
+            query_value=query,
+            sort_value=sort_by,
+            keywords=keywords,
+            suggested_keywords=suggested_keywords,
+            publisher=publisher,
+            suggested_publishers=suggested_publishers,
+            spatial_filter=spatial_filter,
+            search_result_geometries=search_result_geometries,
+            spatial_geometry=spatial_geometry,
+            org_slug=org_slug,
+            show_org_autocomplete=True,
+            show_org_type_filters=True,
+            org_types=org_types,
+            selected_organization=selected_organization,
+            suggested_organizations=suggested_organizations,
+            all_organizations=all_organizations,
+            all_publishers=all_publishers,
+            contextual_keyword_counts=contextual_keyword_counts,
+            contextual_org_counts=contextual_org_counts,
+            contextual_publisher_counts=contextual_publisher_counts,
+            collection=collection
+        ) }}
 
         <!-- Results Section -->
         <div id="search-results" class="margin-top-3">
@@ -86,7 +118,8 @@
                 ) }}
             {% endif %}
             {% if datasets %}
-            <div class="usa-prose">
+            <div class="results-header">
+              <div class="usa-prose results-header__summary">
               {% if query or org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
                 <p class="text-base-dark">
                 {%- if total < 2 -%}
@@ -128,6 +161,8 @@
                     </p>
                 {% endif %}
               {% endif %}
+              </div>
+              {{ render_sort_control(sort_by, spatial_geometry is not none) }}
             </div>
 
             {{ render_geography_expanded_panel() }}
@@ -141,6 +176,9 @@
             <div class="usa-prose margin-top-3">
                 <p class="text-base-dark" id="no-datasets-alert">
                     Found <strong>0</strong> datasets.
+                    {%- if org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
+                    <a href="/?q={{ query | urlencode }}&sort=relevance" class="usa-link">(clear all filters)</a>
+                    {%- endif %}
                 </p>
                 <div class="advanced-search-tip">
                     <div class="advanced-search-tip__title">💡 Search Tips</div>
@@ -154,38 +192,13 @@
             {% endif %}
         </div>
     </div>
-
-    <!-- Sidebar for filters and sort -->
-    <aside class="tablet:grid-col-12 desktop:grid-col-3 margin-top-0">
-        {{ render_filter_sidebar(
-            form_action=url_for('main.index'),
-            query_value=query,
-            sort_value=sort_by,
-            keywords=keywords,
-            suggested_keywords=suggested_keywords,
-            publisher=publisher,
-            suggested_publishers=suggested_publishers,
-            spatial_filter=spatial_filter,
-            search_result_geometries=search_result_geometries,
-            spatial_geometry=spatial_geometry,
-            org_slug=org_slug,
-            show_org_autocomplete=True,
-            show_org_type_filters=True,
-            org_types=org_types,
-            selected_organization=selected_organization,
-            suggested_organizations=suggested_organizations,
-            contextual_keyword_counts=contextual_keyword_counts,
-            contextual_org_counts=contextual_org_counts,
-            contextual_publisher_counts=contextual_publisher_counts,
-            collection=collection
-        ) }}
-    </aside>
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
+<script src="{{ url_for('static', filename='js/filter_dropdowns.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>
 <script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}"/>
