@@ -131,7 +131,7 @@
             {% else %} filters.
             {% endif %}
             {%- if keywords or publisher or spatial_filter or spatial_geometry %}
-            <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}?q={{ dataset_search_query | urlencode }}&sort=relevance" class="usa-link">(clear all filters)</a>
+            <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}?q={{ dataset_search_query | urlencode }}&sort=relevance" class="usa-link results-summary__clear-all">(clear all filters)</a>
             {%- endif %}
           </p>
           {% endif %}
@@ -149,7 +149,7 @@
           <p class="text-base-dark">
             Found <strong>0</strong> datasets.
             {%- if keywords or publisher or spatial_filter or spatial_geometry %}
-            <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}?q={{ dataset_search_query | urlencode }}&sort=relevance" class="usa-link">(clear all filters)</a>
+            <a href="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}?q={{ dataset_search_query | urlencode }}&sort=relevance" class="usa-link results-summary__clear-all">(clear all filters)</a>
             {%- endif %}
           </p>
           <div class="advanced-search-tip">

@@ -1,8 +1,8 @@
 {% macro render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations,
 contextual_org_counts=None, all_organizations=None) %}
 {# Single-select organization filter backed by a USWDS combo box (native
-   <select> enhanced with typeahead). Selecting an option auto-applies via
-   filter_dropdowns.js. Popular organizations are offered as quick picks. #}
+   <select> enhanced with typeahead). Selecting an option stages it; the panel's
+   Apply button applies it. Popular organizations are offered as quick picks. #}
 {% set current_slug = (selected_organization.slug if selected_organization else org_slug) or '' %}
 <label class="usa-label margin-top-0" for="organization-select">
     Filter by organization <br>

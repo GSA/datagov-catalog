@@ -87,6 +87,7 @@
 {% set publisher_active = 1 if publisher else 0 %}
 {% set spatial_active = 1 if spatial_filter else 0 %}
 {% set geography_active = 1 if spatial_geometry else 0 %}
+{% set total_active = (keywords | length) + org_active + org_type_count + publisher_active + spatial_active + geography_active %}
 <form class="usa-form filter-bar-form" method="get" action="{{ form_action }}" id="{{ form_id }}">
     {% if collection %}
     <input type="hidden" name="collection" value="{{ collection }}">
@@ -98,14 +99,37 @@
     <input type="hidden" name="org_slug" value="{{ org_slug }}">
     {% endif %}
 
-    <div class="filter-bar" role="group" aria-label="Filter datasets">
+    {# Mobile-only toggle row: the filter bar is collapsed by default on small
+       screens and revealed by this button. The "Clear all filters" link sits to
+       its right (mobile only) since the inline one in the results count is
+       hidden there. The whole row is hidden on wider screens, where the facets
+       always wrap into view. #}
+    <div class="filter-bar-toggle-row">
+        <button
+            type="button"
+            class="filter-bar-toggle"
+            data-filter-bar-toggle
+            aria-expanded="false"
+            aria-controls="{{ form_id }}-bar"
+        >
+            <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+            <span class="filter-bar-toggle__label">Filters</span>
+            <span class="filter-facet__badge filter-bar-toggle__badge" data-filter-total-badge{% if not total_active %} hidden{% endif %}>{{ total_active }}</span>
+            <i class="fa-solid fa-chevron-down filter-bar-toggle__chevron" aria-hidden="true"></i>
+        </button>
+        {% if total_active %}
+        <a href="{{ form_action }}?q={{ query_value | urlencode }}&sort=relevance{% if collection %}&collection={{ collection | urlencode }}{% endif %}" class="usa-link filter-bar-clear-all">Clear all filters</a>
+        {% endif %}
+    </div>
+
+    <div class="filter-bar" id="{{ form_id }}-bar" role="group" aria-label="Filter datasets">
         {% call _facet('keywords', 'Keywords', keywords | length) %}
             {{ render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts) }}
         {% endcall %}
 
         {% if show_org_autocomplete %}
-        {# Single-select: applies immediately on selection, like Geographic Area. #}
-        {% call _facet('organization', 'Organization', org_active, defer=False) %}
+        {# Single-select, but deferred for a consistent Clear / Apply footer. #}
+        {% call _facet('organization', 'Organization', org_active) %}
             {{ render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations,
             contextual_org_counts, all_organizations) }}
         {% endcall %}
@@ -117,8 +141,8 @@
         {% endcall %}
         {% endif %}
 
-        {# Single-select: applies immediately on selection, like Geographic Area. #}
-        {% call _facet('publisher', 'Publisher', publisher_active, defer=False) %}
+        {# Single-select, but deferred for a consistent Clear / Apply footer. #}
+        {% call _facet('publisher', 'Publisher', publisher_active) %}
             {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts, all_publishers) }}
         {% endcall %}
 

@@ -134,7 +134,7 @@
                 {%- else %} filters.
                 {%- endif -%}
                 {%- if org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
-                <a href="/?q={{ query }}&sort=relevance" class="usa-link">(clear all filters)</a>
+                <a href="/?q={{ query }}&sort=relevance" class="usa-link results-summary__clear-all">(clear all filters)</a>
                 {%- endif %}
                 </p>
                 {% if total >= 10000 %}
@@ -177,7 +177,7 @@
                 <p class="text-base-dark" id="no-datasets-alert">
                     Found <strong>0</strong> datasets.
                     {%- if org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
-                    <a href="/?q={{ query | urlencode }}&sort=relevance" class="usa-link">(clear all filters)</a>
+                    <a href="/?q={{ query | urlencode }}&sort=relevance" class="usa-link results-summary__clear-all">(clear all filters)</a>
                     {%- endif %}
                 </p>
                 <div class="advanced-search-tip">

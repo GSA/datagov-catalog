@@ -1,8 +1,8 @@
 {% macro render_publisher_filter(selected_publisher=None, suggested_publishers=None, contextual_publisher_counts=None,
 all_publishers=None) %}
 {# Single-select publisher filter backed by a USWDS combo box (native <select>
-   enhanced with typeahead). Selecting an option auto-applies via
-   filter_dropdowns.js. Popular publishers are offered as quick picks. #}
+   enhanced with typeahead). Selecting an option stages it; the panel's Apply
+   button applies it. Popular publishers are offered as quick picks. #}
 {% set current_publisher = selected_publisher or '' %}
 <label class="usa-label margin-top-0" for="publisher-select">
     Filter by publisher <br>

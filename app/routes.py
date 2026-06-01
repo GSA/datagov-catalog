@@ -141,6 +141,73 @@ def _all_publisher_names() -> list[str]:
         return []
 
 
+def _suggested_publishers(contextual_aggs: dict, publisher: str | None) -> list[str]:
+    """Popular publisher quick-picks, excluding the currently selected one.
+
+    Normally drawn from the current-search aggregation so the picks reflect
+    what's actually in the results. But when a publisher filter is active the
+    results (and thus the aggregation) collapse to just that publisher, leaving
+    nothing to suggest once it's excluded. In that case fall back to the
+    globally most-popular publishers so quick-picks stay available and the user
+    can swap to a different publisher without clearing the filter first.
+    """
+    contextual = [
+        item["name"]
+        for item in sorted(
+            contextual_aggs.get("publishers", []),
+            key=lambda x: x["count"],
+            reverse=True,
+        )
+        if item["name"] != publisher
+    ][:10]
+    if contextual:
+        return contextual
+
+    try:
+        # get_top_publishers() is already ordered by descending count.
+        return [
+            p["name"]
+            for p in interface.get_top_publishers()
+            if p.get("name") and p["name"] != publisher
+        ][:10]
+    except Exception:
+        logger.exception("Failed to fetch fallback suggested publishers")
+        return []
+
+
+def _suggested_organizations(
+    organizations: list[dict],
+    contextual_org_counts: dict,
+    selected_slug: str | None,
+) -> list[dict]:
+    """Popular organization quick-picks, excluding the currently selected one.
+
+    Mirrors _suggested_publishers: prefer organizations present in the current
+    results (by contextual count), but fall back to the globally most-popular
+    organizations when an org filter collapses the results to a single org, so
+    quick-picks stay available and the user can swap orgs without clearing first.
+    `organizations` must be in global-popularity order (as returned by
+    interface.get_organizations()).
+    """
+
+    def keep(org: dict) -> bool:
+        return not selected_slug or org.get("slug") != selected_slug
+
+    contextual = [
+        org
+        for org in organizations
+        if contextual_org_counts.get(org.get("slug"), 0) > 0 and keep(org)
+    ]
+    contextual.sort(
+        key=lambda org: contextual_org_counts.get(org.get("slug"), 0), reverse=True
+    )
+    if contextual:
+        return contextual[:10]
+
+    # Fallback: `organizations` is already in global-popularity order.
+    return [org for org in organizations if keep(org)][:10]
+
+
 def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
     """Return up to `limit` GeoJSON geometries from search results."""
     shapes: list[dict] = []
@@ -362,31 +429,18 @@ def index():
         )
 
         # Suggested (popular) organizations: those with results, by count,
-        # excluding any already-selected organization.
-        org_suggestions = [
-            org for org in org_suggestions if org.get("dataset_count", 0) > 0
-        ]
-        if org_slug_param:
-            org_suggestions = [
-                org for org in org_suggestions if org.get("slug") != org_slug_param
-            ]
-        org_suggestions.sort(key=lambda x: x.get("dataset_count", 0), reverse=True)
-        suggested_organizations = org_suggestions[:10]
+        # falling back to the globally most-popular when an org filter collapses
+        # the results. `org_suggestions` is still in global-popularity order.
+        suggested_organizations = _suggested_organizations(
+            org_suggestions, contextual_org_counts, org_slug_param
+        )
     except Exception:
         logger.exception("Failed to fetch suggested organizations")
 
     # The full publisher list backs the combo box <select>.
     all_publishers = _all_publisher_names()
 
-    suggested_publishers = [
-        item["name"]
-        for item in sorted(
-            contextual_aggs.get("publishers", []),
-            key=lambda x: x["count"],
-            reverse=True,
-        )
-        if item["name"] != publisher
-    ][:10]
+    suggested_publishers = _suggested_publishers(contextual_aggs, publisher)
 
     # Only emit a return-to-search hint when there is actual search or filter state.
     from_hint = hint_from_dict(request.args) if request.args else None
@@ -794,15 +848,7 @@ def organization_detail(slug: str):
         )
         if item["keyword"] not in set(keywords)
     ][:10]
-    suggested_publishers = [
-        item["name"]
-        for item in sorted(
-            contextual_aggs.get("publishers", []),
-            key=lambda x: x["count"],
-            reverse=True,
-        )
-        if item["name"] != publisher
-    ][:10]
+    suggested_publishers = _suggested_publishers(contextual_aggs, publisher)
 
     # The full publisher list backs the combo box <select>.
     all_publishers = _all_publisher_names()

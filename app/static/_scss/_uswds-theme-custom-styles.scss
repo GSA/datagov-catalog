@@ -1480,6 +1480,54 @@ div.usa-tag.collection-tag {
     align-items: flex-start;
 }
 
+/* Mobile-only "Filters" toggle row (toggle button + "Clear all filters").
+   Hidden on wider screens, where the facets always wrap into view (the media
+   query below reveals it). */
+.filter-bar-toggle-row {
+    display: none;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.filter-bar-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    background: white;
+    border: 2px solid #1b1b1b;
+    border-radius: 0.25rem;
+    color: #1b1b1b;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.filter-bar-clear-all {
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.filter-bar-toggle:hover {
+    background: #f0f0f0;
+}
+
+.filter-bar-toggle:focus-visible {
+    outline: 0.25rem solid #2491ff;
+    outline-offset: 0;
+}
+
+.filter-bar-toggle__chevron {
+    font-size: 0.75rem;
+    transition: transform 0.15s ease;
+}
+
+.filter-bar-toggle[aria-expanded="true"] .filter-bar-toggle__chevron {
+    transform: rotate(180deg);
+}
+
 /* A single facet: button + (positioned) panel */
 .filter-facet {
     position: relative;
@@ -1609,11 +1657,11 @@ div.usa-tag.collection-tag {
     border-top: 1px solid #dfe1e2;
 }
 
-.filter-facet__panel-footer .filter-facet__apply {
-    margin: 0;
-}
-
-.filter-facet__clear {
+/* Scope both to the footer so they beat USWDS's `.usa-form .usa-button`
+   margin-top (equal specificity, ours wins by source order) — otherwise the
+   unstyled Clear link keeps a 1.5rem top margin and drops below Apply. */
+.filter-facet__panel-footer .filter-facet__apply,
+.filter-facet__panel-footer .filter-facet__clear {
     margin: 0;
 }
 
@@ -1659,17 +1707,37 @@ div.usa-tag.collection-tag {
     margin: 0;
 }
 
-/* ---- Mobile: facet panels become a scrollable bottom drawer ---- */
+/* ---- Mobile: facets wrap behind a "Filters" toggle; panels become a
+       scrollable bottom drawer ---- */
 @media (max-width: 39.99em) {
+    /* Reveal the toggle row and collapse the wrapped facet bar by default. */
+    .filter-bar-toggle-row {
+        display: flex;
+    }
+
+    /* The "Clear all filters" link moves next to the Filters button on mobile,
+       so hide the inline one in the results count to avoid duplication. */
+    .results-summary__clear-all {
+        display: none;
+    }
+
     .filter-bar {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 0.25rem;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-bar:not(.filter-bar--expanded) {
+        display: none;
+    }
+
+    /* Full-width stacked facet buttons read better than a wrapped grid here. */
+    .filter-facet {
+        width: 100%;
     }
 
     .filter-facet__button {
-        white-space: nowrap;
+        width: 100%;
+        justify-content: space-between;
     }
 
     .filter-facet__panel {
@@ -1684,6 +1752,13 @@ div.usa-tag.collection-tag {
         border: none;
         border-radius: 1rem 1rem 0 0;
         box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+        /* Sit above the third-party Touchpoints feedback floating button. */
+        z-index: 100000;
+    }
+
+    /* Keep the backdrop above the feedback button too, just below the panel. */
+    .filter-drawer-backdrop {
+        z-index: 99999;
     }
 
     .filter-facet__panel-header {
@@ -1698,10 +1773,27 @@ div.usa-tag.collection-tag {
         overflow-y: auto;
     }
 
-    /* Give the drawer footer breathing room and keep Clear / Apply apart. */
+    /* The combo-box panel body must keep scrolling (so the Clear / Apply footer
+       stays reachable when the popular list is long), but the drawer shrink-wraps
+       to its content — so for a short facet the body has no room below the input
+       and the absolutely-positioned typeahead list spills under the footer. Give
+       the combo body a min-height so the dropdown always has room to render. */
+    .filter-facet__panel:has(.usa-combo-box) .filter-facet__panel-body {
+        min-height: 22rem;
+    }
+
+    .filter-facet__panel .usa-combo-box__list {
+        position: absolute;
+        z-index: 10;
+    }
+
+    /* Give the drawer footer breathing room and keep Clear / Apply apart.
+       Sit it below the combo-box typeahead list so the list overlays it. */
     .filter-facet__panel-footer {
         gap: 1.5rem;
         padding: 1rem;
+        position: relative;
+        z-index: 1;
     }
 
     .filter-facet__panel-footer .filter-facet__apply {
