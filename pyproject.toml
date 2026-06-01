@@ -56,7 +56,7 @@ poetry-plugin-export = ">=1.10"
 
 [tool.isort]
 profile = "black"
-skip = [".poetry", "app/static/node_modules"]
+skip = [".poetry", "app/static/node_modules", ".venv"]
 
 [tool.black]
 target-version = ["py312"]
