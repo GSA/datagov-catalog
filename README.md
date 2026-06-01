@@ -70,7 +70,7 @@ make lint-fix
 
 ### Pre-commit hooks
 
-Optionally, install the Git pre-commit hooks to run `black`, `ruff`, and `isort` automatically before each commit (the same checks as `make lint-check`). Run once per clone:
+Optionally, install the Git pre-commit hooks to run `black`, `ruff`, and `isort` automatically before each commit. These run the same tools as `make lint-check`, but scoped to the files you're staging rather than the whole tree — CI still runs `make lint-check` across the full codebase. Run once per clone:
 ```
 pip install pre-commit
 pre-commit install
