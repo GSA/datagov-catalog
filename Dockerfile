@@ -1,12 +1,7 @@
-FROM python:3.12-slim
+FROM python:3.12-alpine3.22
 
-# Update PAM packages to fix CVE-2025-6020 SNYK-DEBIAN12-PAM-10378969
-RUN apt-get install -y --only-upgrade libpam-modules libpam0g libpam-runtime
-
-# increase security by removing unnecessary packages
-RUN apt-get upgrade -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Pull the latest patched packages from the base distro.
+RUN apk upgrade --no-cache
 
 WORKDIR /app
 
@@ -31,4 +26,4 @@ EXPOSE 8080
 ENV FLASK_APP=run.py
 
 # Run run.py when the container launches
-CMD ["/bin/bash", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=8080"]
+CMD ["/bin/sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=8080"]
