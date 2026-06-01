@@ -203,6 +203,13 @@ class TestDatasetDetail:
         assert return_link is not None
         assert return_link.get("href") == "/"
 
+        contact_link = soup.select_one(
+            ".not-found-page a.usa-button--outline"
+        )
+        assert contact_link is not None
+        assert contact_link.get("href") == "https://data.gov/contact/"
+        assert "Contact data.gov" in contact_link.get_text(strip=True)
+
     def test_api_404_returns_json(self, db_client):
         """
         Test that a 404 from an API path returns the JSON error shape rather
