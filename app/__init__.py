@@ -28,6 +28,7 @@ def register_template_filters(app):
 def create_app(config_name: str = "local") -> APIFlask:
     app = APIFlask(__name__, static_url_path="", static_folder="static", docs_path=None)
 
+    app.config["CONFIG_NAME"] = config_name
     app.config["INFO"] = {
         "title": "Datagov Catalog",
         "version": "0.1.0",

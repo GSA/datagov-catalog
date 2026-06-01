@@ -38,6 +38,11 @@ def test_organization_detail_return_to_search_results(page):
     with page.expect_navigation(url=re.compile(r"\?q=2020")):
         page.locator(".usa-button").nth(1).click()
 
+    # wait for the search results page to load before reading dataset links;
+    # otherwise we may grab a link from the pre-search page (which lacks the
+    # from_hint needed to render the "Return to search results" link)
+    page.wait_for_url(re.compile(r"[?&]q=2020"))
+
     # navigate to the first dataset
     page.goto(page.locator(".usa-link").nth(0).get_attribute("href"))
 

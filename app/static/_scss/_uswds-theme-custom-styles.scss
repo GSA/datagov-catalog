@@ -30,6 +30,8 @@ i.e.
 @import "components/header";
 @import "components/collection_card";
 @import "components/not_found";
+@import "components/file_icon";
+@import "components/style_guide";
 
 .default-gov-svg-org-item {
   width: 100%;
@@ -706,19 +708,34 @@ details {
 }
 
 .resources-list__icon {
+    position: relative;
     flex-shrink: 0;
     width: 32px;
     height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f0f0f0;
-    border-radius: 0.25rem;
     color: #71767a;
 }
 
-.resources-list__icon i {
-    font-size: 1rem;
+.resources-list__icon-badge {
+    position: absolute;
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
+    bottom: -2px;
+    right: -2px;
+    min-width: 16px;
+    height: 12px;
+    padding: 0 3px;
+    border-radius: 2px;
+    background: #e8f0fe;
+    color: #1a4480;
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 12px;
+    text-align: center;
+    letter-spacing: 0.02em;
 }
 
 .resources-list__details {
@@ -795,13 +812,20 @@ details {
 .resources-list--main .resources-list__icon {
     width: 52px;
     height: 52px;
-    border-radius: 0.5rem;
-    background: #e8f0fe;
     color: #1a4480;
     flex-shrink: 0;
 
-    i {
-        font-size: 1.5rem;
+    .resources-list__icon-badge {
+        bottom: 0;
+        right: 0;
+        min-width: 22px;
+        height: 14px;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 9px;
+        line-height: 14px;
+        background: #e8f0fe;
+        color: #1a4480;
     }
 }
 

@@ -147,8 +147,12 @@
 
                         <li class="resources-list__item resources-list__item--main">
                             <div class="resources-list__info">
-                                <div class="resources-list__icon">
-                                    <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                {% set overlay_label = resource_format|format_overlay_label %}
+                                <div class="resources-list__icon{% if overlay_label %} resources-list__icon--badged{% endif %}">
+                                    <span class="file-icon {{ resource_format|format_icon_class }}" aria-hidden="true"></span>
+                                    {% if overlay_label %}
+                                    <span class="resources-list__icon-badge">{{ overlay_label }}</span>
+                                    {% endif %}
                                 </div>
                                 <div class="resources-list__details">
                                     <p class="resources-list__name" title="{{ resource_title }}">

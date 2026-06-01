@@ -1,0 +1,22 @@
+.style-guide-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+@media (max-width: 880px) {
+    .style-guide-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .style-guide-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.style-guide-grid__item {
+    margin: 0;
+}
