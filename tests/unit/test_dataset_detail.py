@@ -203,9 +203,7 @@ class TestDatasetDetail:
         assert return_link is not None
         assert return_link.get("href") == "/"
 
-        contact_link = soup.select_one(
-            ".not-found-page a.usa-button--outline"
-        )
+        contact_link = soup.select_one(".not-found-page a.usa-button--outline")
         assert contact_link is not None
         assert contact_link.get("href") == "https://data.gov/contact/"
         assert "Contact data.gov" in contact_link.get_text(strip=True)
