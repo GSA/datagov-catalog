@@ -1045,11 +1045,66 @@ def get_location_by_id_api(location_id, **kwargs):
     )
 
 
+@api.get("/api/dataset/<slug_or_id>")
+@api.output(SearchResults)
+@api.doc(description="Get a single opensearch document based on slug name")
+def get_document_by_dataset_slug(slug_or_id: str):
+    """
+    gets a single document based on the dataset slug name or dataset id
+    """
+    try:
+        document = interface.get_document_by_slug(slug_or_id)
+        response = jsonify(document)
+
+        if document.total == 0:
+            response.status_code = 404
+
+    except Exception as e:
+        logger.exception("Failed to fetch document by slug")
+        response = jsonify(
+            {"error": "Failed to fetch document by slug", "message": str(e)}
+        )
+        response.status_code = 500
+
+    return response
+
+
 @main.route("/openapi/docs", methods=["GET"])
 def openapi_docs():
     return render_template("swagger.html")
 
 
+def style_guide_icons():
+    samples = [
+        {"format": "CSV", "label": "Sample data export"},
+        {"format": "application/json", "label": "DCAT-US metadata"},
+        {"format": "application/xml", "label": "FGDC metadata record"},
+        {"format": "application/rdf+xml", "label": "Linked-data manifest"},
+        {"format": "PDF", "label": "Codebook"},
+        {"format": "ZIP", "label": "Bulk archive"},
+        {"format": "XLSX", "label": "Quarterly workbook"},
+        {"format": "DOCX", "label": "Methodology document"},
+        {"format": "HTML", "label": "Project landing page"},
+        {"format": "TXT", "label": "Readme"},
+        {"format": "application/geo+json", "label": "Boundaries (GeoJSON)"},
+        {"format": "PNG", "label": "Map preview"},
+        {"format": "API", "label": "REST endpoint"},
+        {"format": "KML", "label": "Aerial overlay (KML)"},
+        {"format": "WMS", "label": "Web Map Service"},
+        {"format": "WFS", "label": "Web Feature Service"},
+        {"format": "GML", "label": "Geography Markup"},
+        {"format": "SHP", "label": "Shapefile (no icon)"},
+    ]
+    return render_template("style_guide_icons.html", samples=samples)
+
+
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
+
+    if app.config.get("CONFIG_NAME") == "local":
+        app.add_url_rule(
+            "/style-guide/icons",
+            view_func=style_guide_icons,
+            methods=["GET"],
+        )
