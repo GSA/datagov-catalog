@@ -11,6 +11,26 @@ from app.models import Dataset
 from tests.fixtures import HARVEST_RECORD_ID
 
 
+def test_dataset_slug_api_endpoint(db_client, interface_with_dataset):
+    # check an existing document by slug name and id
+    # "test-dataset-2" is the id
+    slug_and_id = ["test-health-data", "test-dataset-2"]
+
+    for data in slug_and_id:
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get(f"/api/dataset/{data}")
+
+        assert response.status_code == 200
+        assert len(response.json["results"]) == 1
+
+    # check a non-existent document
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/dataset/doesnt-exist")
+
+    assert response.status_code == 404
+    assert len(response.json["results"]) == 0
+
+
 def test_location_search_api_endpoint(interface_with_location, db_client):
     with patch("app.routes.interface", interface_with_location):
         response = db_client.get(
