@@ -198,6 +198,7 @@ def index():
     publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
+    geography_label = (request.args.get("geography_label", None, type=str) or "").strip() or None
     spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = request.args.get("sort", "relevance") or "relevance"
     collection = request.args.get("collection", None, type=str)
@@ -413,6 +414,7 @@ def index():
         suggested_publishers=suggested_publishers,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
+        geography_label=geography_label,
         search_result_geometries=search_result_geometries,
         spatial_within=spatial_within,
         from_hint=from_hint,
@@ -706,6 +708,7 @@ def organization_detail(slug: str):
     publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
+    geography_label = (request.args.get("geography_label", None, type=str) or "").strip() or None
     spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = request.args.get("sort", default="relevance")
 
@@ -804,6 +807,7 @@ def organization_detail(slug: str):
         publisher=publisher,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
+        geography_label=geography_label,
         spatial_within=spatial_within,
         search_result_geometries=search_result_geometries,
         suggested_keywords=suggested_keywords,
@@ -1101,6 +1105,10 @@ def style_guide_icons():
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
+
+    from app.dev_routes import register_dev_routes
+
+    register_dev_routes(app)
 
     if app.config.get("CONFIG_NAME") == "local":
         app.add_url_rule(

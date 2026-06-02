@@ -1,10 +1,25 @@
-{% from "components/filters/sort_filter.html" import render_sort_filter %}
 {% from "components/filters/keyword_filter.html" import render_keyword_filter %}
 {% from "components/filters/publisher_filter.html" import render_publisher_filter %}
 {% from "components/filters/organization_autocomplete_filter.html" import render_organization_autocomplete_filter %}
 {% from "components/filters/organization_type_filter.html" import render_organization_type_filter %}
 {% from "components/filters/geography_filter.html" import render_geography_filter %}
 {% from "components/filters/spatial_filter.html" import render_spatial_filter %}
+
+{% macro render_filter_mobile_trigger(filters_active=false) %}
+<button
+    type="button"
+    class="usa-button usa-button--outline filter-mobile-trigger"
+    id="filter-mobile-toggle"
+    aria-controls="filter-sidebar-panel"
+    aria-expanded="false"
+>
+    <i class="fa fa-filter" aria-hidden="true"></i>
+    <span class="filter-mobile-trigger__label">Show filters</span>
+    {% if filters_active %}
+    <span class="filter-mobile-trigger__badge" aria-label="Filters applied"></span>
+    {% endif %}
+</button>
+{% endmacro %}
 
 {% macro render_filter_sidebar(
     form_action,
@@ -17,6 +32,7 @@
     suggested_publishers=None,
     search_result_geometries=None,
     spatial_geometry=None,
+    geography_label=none,
     form_id='filter-form',
     org_slug=None,
     show_org_autocomplete=False,
@@ -27,20 +43,64 @@
     contextual_keyword_counts=None,
     contextual_org_counts=None,
     contextual_publisher_counts=None,
-    collection=None
+    collection=None,
+    clear_filters_url=none
 ) %}
-<p class="font-body-2xs text-light">Filter selections are applied on each click</p>
-<form class="usa-form margin-top-neg-2" method="get" action="{{ form_action }}" id="{{ form_id }}">
+{% set filters_active = (
+    (keywords|length > 0)
+    or ((org_types or [])|length > 0)
+    or publisher
+    or org_slug
+    or selected_organization
+    or spatial_filter
+    or spatial_geometry is not none
+) %}
+<div class="filter-sidebar">
+    <div class="filter-sidebar__chrome">
+        <div class="filter-sidebar__header">
+            <h2 class="filter-sidebar__heading font-body-lg margin-top-0 margin-bottom-0">Filters</h2>
+            <div class="filter-sidebar__actions">
+                <button
+                    type="button"
+                    class="usa-button usa-button--unstyled filter-sidebar__toggle-all filter-sidebar__toggle-all--header"
+                    data-filter-toggle-all
+                    aria-controls="filter-form"
+                    aria-label="Expand all filters"
+                    data-expanded="false"
+                >
+                    Expand all
+                </button>
+                {% if filters_active and clear_filters_url %}
+                <a href="{{ clear_filters_url }}" class="filter-sidebar__clear">Clear filters</a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="filter-sidebar__meta">
+            <p class="filter-sidebar__hint font-body-2xs text-light margin-top-0 margin-bottom-0">Filter selections are applied on each click</p>
+            <button
+                type="button"
+                class="usa-button usa-button--unstyled filter-sidebar__toggle-all filter-sidebar__toggle-all--meta"
+                id="filter-toggle-all"
+                data-filter-toggle-all
+                aria-controls="filter-form"
+                aria-label="Expand all filters"
+                data-expanded="false"
+            >
+                Expand all
+            </button>
+        </div>
+    </div>
+    <form class="usa-form margin-top-0" method="get" action="{{ form_action }}" id="{{ form_id }}">
     {% if collection %}
     <input type="hidden" name="collection" value="{{ collection }}">
     {% endif %}
     <input type="hidden" name="q" value="{{ query_value }}">
+    <input type="hidden" name="sort" value="{{ sort_value }}">
     {% if org_slug %}
     <input type="hidden" name="org_slug" value="{{ org_slug }}">
     {% endif %}
 
-    {{ render_sort_filter(sort_value, spatial_geometry is not none) }}
-    {{ render_geography_filter(search_result_geometries) }}
+    {{ render_geography_filter(search_result_geometries, spatial_geometry=spatial_geometry, geography_label=geography_label) }}
     {{ render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts) }}
 
     {% if show_org_autocomplete %}
@@ -55,5 +115,7 @@
     {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts) }}
 
     {{ render_spatial_filter(spatial_filter) }}
-</form>
+    </form>
+    <script src="{{ url_for('static', filename='js/filter_accordion.js') }}"></script>
+</div>
 {% endmacro %}

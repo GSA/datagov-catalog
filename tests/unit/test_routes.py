@@ -726,13 +726,18 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
 
     cards = soup.select(".organization-list .usa-card")
 
-    # "test org filtered" is removed because it has no datasets
-    # leaving only 1 organization present
-    assert len(cards) == 1
+    # Only organizations that have datasets are listed; "test org filtered"
+    # has none and must be absent.
+    headings = {c.select_one(".usa-card__heading").get_text(strip=True) for c in cards}
+    assert "test org" in headings
+    assert "test org filtered" not in headings
 
-    card = cards[0]
-    heading = card.select_one(".usa-card__heading").get_text(strip=True)
-    assert heading == "test org"
+    # Find the "test org" card and verify its type + count rendering.
+    card = next(
+        c
+        for c in cards
+        if c.select_one(".usa-card__heading").get_text(strip=True) == "test org"
+    )
 
     body_paragraphs = card.select(".usa-card__body p")
     assert len(body_paragraphs) >= 2
@@ -845,8 +850,12 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
     filter_form = soup.find("form", {"id": "filter-form"})
     assert filter_form is not None
 
-    sort_select = filter_form.find("select", {"id": "sort-select"})
+    hidden_sort = filter_form.find("input", {"name": "sort", "type": "hidden"})
+    assert hidden_sort is not None
+
+    sort_select = soup.find("select", {"id": "sort-select"})
     assert sort_select is not None
+    assert sort_select.get("form") == "filter-form"
 
     keyword_section = soup.find("div", {"id": "filter-keywords"})
     assert keyword_section is not None
@@ -1588,6 +1597,157 @@ def test_index_filter_checkboxes_checked_when_selected(db_client):
     city_checkbox = soup.find("input", {"id": "filter-city"})
     assert city_checkbox is not None
     assert "checked" not in city_checkbox.attrs
+
+    org_type_button = soup.find("button", {"aria-controls": "filter-organization"})
+    assert org_type_button is not None
+    assert org_type_button.get("aria-expanded") == "false"
+    assert org_type_button.find("span", class_="filter-accordion__active-indicator") is not None
+
+    keyword_button = soup.find("button", {"aria-controls": "filter-keywords"})
+    assert keyword_button is not None
+    assert keyword_button.get("aria-expanded") == "false"
+
+
+def test_index_filter_sidebar_heading_and_collapsed_defaults(db_client):
+    """Filter sidebar should be labeled and collapsed by default on mobile."""
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    heading = soup.find("h2", class_="filter-sidebar__heading")
+    assert heading is not None
+    assert heading.get_text(strip=True) == "Filters"
+
+    panel = soup.find("aside", {"id": "filter-sidebar-panel"})
+    assert panel is not None
+    assert panel.has_attr("hidden")
+
+    toggle_all = soup.find("button", {"id": "filter-toggle-all"})
+    assert toggle_all is not None
+    assert toggle_all.get_text(strip=True) == "Expand all"
+    assert toggle_all.get("aria-label") == "Expand all filters"
+
+    for section_id in (
+        "filter-keywords",
+        "filter-geography",
+        "filter-publishers",
+        "filter-spatial",
+        "filter-organization",
+        "filter-organization-autocomplete",
+    ):
+        section = soup.find("div", {"id": section_id})
+        assert section is not None
+        assert section.has_attr("hidden")
+
+        button = soup.find("button", {"aria-controls": section_id})
+        assert button is not None
+        assert button.get("aria-expanded") == "false"
+
+
+def test_index_filter_sidebar_active_indicator_when_keyword_selected(db_client):
+    """Active filters should show an applied-value summary while panels start collapsed."""
+    response = db_client.get("/?keyword=health")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    keyword_button = soup.find("button", {"aria-controls": "filter-keywords"})
+    assert keyword_button is not None
+    assert keyword_button.get("aria-expanded") == "false"
+    indicator = keyword_button.find("span", class_="filter-accordion__active-indicator")
+    assert indicator is not None
+    assert indicator.get_text(strip=True) == "health"
+
+    keyword_section = soup.find("div", {"id": "filter-keywords"})
+    assert keyword_section is not None
+    assert keyword_section.has_attr("hidden")
+
+
+def test_index_filter_sidebar_shows_clear_filters_when_active(db_client):
+    response = db_client.get("/?keyword=health")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    clear_link = soup.find("a", class_="filter-sidebar__clear")
+    assert clear_link is not None
+    assert "keyword" not in clear_link.get("href", "")
+
+
+def test_index_sort_control_in_results_not_sidebar(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    sort_select = soup.find("select", {"id": "sort-select"})
+    assert sort_select is not None
+    assert sort_select.get("form") == "filter-form"
+    assert sort_select.find_parent(class_="results-sort") is not None
+    assert sort_select.find_parent(class_="filter-sidebar") is None
+
+
+def test_index_active_organization_filter_collapsed_in_html(db_client):
+    """Active organization filters render collapsed; JS restores expansion client-side."""
+    response = db_client.get("/?org_slug=test-org")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    org_button = soup.find("button", {"aria-controls": "filter-organization-autocomplete"})
+    assert org_button is not None
+    assert org_button.get("aria-expanded") == "false"
+    org_section = soup.find("div", {"id": "filter-organization-autocomplete"})
+    assert org_section is not None
+    assert org_section.has_attr("hidden")
+
+
+def test_index_filter_accordion_script_included(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+    assert 'js/filter_accordion.js' in response.text
+
+
+def test_index_filter_mobile_trigger_and_toggle_script(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    toggle_button = soup.find("button", {"id": "filter-mobile-toggle"})
+    assert toggle_button is not None
+    assert toggle_button.get("aria-controls") == "filter-sidebar-panel"
+    assert "Show filters" in toggle_button.get_text()
+
+    panel = soup.find("aside", {"id": "filter-sidebar-panel"})
+    assert panel is not None
+    assert panel.find(class_="filter-sidebar") is not None
+    assert panel.has_attr("hidden")
+
+    assert 'js/filter_sidebar_toggle.js' in response.text
+    assert 'js/filter_sidebar_modal.js' not in response.text
+
+
+def test_index_filter_panel_collapsed_when_filters_active(db_client):
+    response = db_client.get("/?keyword=health")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    panel = soup.find("aside", {"id": "filter-sidebar-panel"})
+    assert panel is not None
+    assert panel.has_attr("hidden")
+
+    toggle_button = soup.find("button", {"id": "filter-mobile-toggle"})
+    assert toggle_button.get("aria-expanded") == "false"
+    assert "Show filters" in toggle_button.get_text()
+    assert toggle_button.find("span", class_="filter-mobile-trigger__badge") is not None
+
+
+def test_index_filter_mobile_trigger_shows_active_badge(db_client):
+    response = db_client.get("/?keyword=health")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    open_button = soup.find("button", {"id": "filter-mobile-toggle"})
+    assert open_button is not None
+    assert open_button.find("span", class_="filter-mobile-trigger__badge") is not None
 
 
 def test_index_apply_filters_button_absent(db_client):

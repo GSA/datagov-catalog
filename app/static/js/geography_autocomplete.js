@@ -40,6 +40,7 @@ class GeographyAutocomplete {
         this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
 
         this.selectedGeometry = null;
+        this.selectedGeographyLabel = null;
         this.geoLayer = null;
         this.allGeographies = [];
         this.debounceTimer = null;
@@ -288,6 +289,7 @@ class GeographyAutocomplete {
         // Load geography from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const existingGeometry = urlParams.get('spatial_geometry');
+        const existingLabel = urlParams.get('geography_label');
         this.spatialWithin = this.parseSpatialWithinParam(
           urlParams.get('spatial_within')
         );
@@ -295,6 +297,10 @@ class GeographyAutocomplete {
         if (existingGeometry) {
             // URL-encoded parameter is a string of a GeoJSON object
             this.selectedGeometry = JSON.parse(decodeURI(existingGeometry))
+            this.selectedGeographyLabel = existingLabel || 'Area selected';
+            if (existingLabel) {
+              this.input.value = existingLabel;
+            }
             this.displayGeometry(this.selectedGeometry);
             this.showClearButton();
         } else {
@@ -347,6 +353,8 @@ class GeographyAutocomplete {
     // handle the click of the clear button
     clearClicked() {
       this.selectedGeometry = null;
+      this.selectedGeographyLabel = null;
+      this.input.value = '';
       this.disableDrawMode();
       this.displayNoGeometry();
       if (this.map) this.map.removeLayer(this.geoLayer);
@@ -740,6 +748,8 @@ class GeographyAutocomplete {
     applyBoundsSelection(bounds) {
       const geometry = this.geometryFromBounds(bounds);
       this.selectedGeometry = geometry;
+      this.selectedGeographyLabel = 'Custom area';
+      this.input.value = 'Custom area';
       this.pendingGeometry = null;
       this.updateApplyButtonState();
       this.showClearButton();
@@ -1110,8 +1120,8 @@ class GeographyAutocomplete {
             `;
 
             div.addEventListener('click', () => {
+                this.input.value = item.display_name;
                 this.selectGeography(item);
-                this.input.value = '';
                 this.hideSuggestions();
             });
 
@@ -1138,6 +1148,7 @@ class GeographyAutocomplete {
         const data = await response.json();
         // data.geometry is a string of the GeoJSON geometry of that location
         this.selectedGeometry = JSON.parse(data.geometry);
+        this.selectedGeographyLabel = location_data.display_name || null;
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
         this.setMapPanelOpen(true, { discardPending: false });
@@ -1160,6 +1171,11 @@ class GeographyAutocomplete {
         );
         existingWithinInputs.forEach(input => input.remove());
 
+        const existingLabelInputs = form.querySelectorAll(
+          'input[name="geography_label"][type="hidden"]'
+        );
+        existingLabelInputs.forEach(input => input.remove());
+
         if (this.selectedGeometry) {
           const geometryInput = document.createElement('input');
           geometryInput.type = 'hidden';
@@ -1173,6 +1189,14 @@ class GeographyAutocomplete {
           withinInput.name = 'spatial_within';
           withinInput.value = this.spatialWithin ? 'true' : 'false';
           form.appendChild(withinInput);
+
+          if (this.selectedGeographyLabel) {
+            const labelInput = document.createElement('input');
+            labelInput.type = 'hidden';
+            labelInput.name = 'geography_label';
+            labelInput.value = this.selectedGeographyLabel;
+            form.appendChild(labelInput);
+          }
         }
     }
 

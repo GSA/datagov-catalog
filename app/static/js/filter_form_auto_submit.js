@@ -150,7 +150,11 @@
         autoSubmit.init(form);
         attachInputAutoSubmit(form, ['input[name="org_type"]']);
         attachInputAutoSubmit(form, ['input[name="spatial_filter"]']);
-        attachInputAutoSubmit(form, ['select[name="sort"]']);
+
+        const sortSelect = document.getElementById('sort-select');
+        if (sortSelect && sortSelect.form === form) {
+            sortSelect.addEventListener('change', () => autoSubmit.request());
+        }
     });
 
     window.dataGovFilterFormAutoSubmit = autoSubmit;

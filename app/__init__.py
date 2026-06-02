@@ -38,7 +38,9 @@ def create_app(config_name: str = "local") -> APIFlask:
 
     app.config["PREFERRED_URL_SCHEME"] = "https"
     # enable template hot template reloading in local
-    if config_name == "local" or app.config.get("FLASK_ENV") == "local":
+    is_local = config_name == "local" or app.config.get("FLASK_ENV") == "local"
+    app.config["IS_LOCAL"] = is_local
+    if is_local:
         # Enable template auto-reload
         app.config["TEMPLATES_AUTO_RELOAD"] = True
         app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
@@ -69,6 +71,18 @@ def create_app(config_name: str = "local") -> APIFlask:
     register_commands(app)
 
     register_template_filters(app)
+
+    from . import filter_helpers
+
+    for name in (
+        "keyword_active_summary",
+        "organization_active_summary",
+        "organization_type_active_summary",
+        "publisher_active_summary",
+        "geography_active_summary",
+        "spatial_data_active_summary",
+    ):
+        app.add_template_filter(getattr(filter_helpers, name))
 
     @app.errorhandler(404)
     def not_found(error):

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filter_sidebar.html" import render_filter_sidebar, render_filter_mobile_trigger %}
 {% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
+{% from "components/filters/sort_control.html" import render_sort_control %}
 
 {% block title %}{{ organization.name }} - Organization - Data.gov{% endblock %}
 
@@ -62,8 +63,15 @@
 
 
   <section class="organization-datasets">
-    <div class="grid-row grid-gap-lg margin-top-2">
-      <div class="desktop:grid-col-9 tablet:grid-col">
+    {% set filters_active = (
+        (keywords|length > 0)
+        or publisher
+        or spatial_filter
+        or spatial_geometry is not none
+    ) %}
+    <div class="catalog-layout margin-top-2">
+      <div class="catalog-layout__primary">
+      <div class="catalog-layout__search">
         <form method="get" action="{{ url_for('main.organization_detail', slug=organization_slug_or_id) }}" class="usa-form" id="main-search-form">
             <div class="grid-row grid-gap-1 flex-align-end">
                 <div class="grid-col-fill">
@@ -89,12 +97,20 @@
                 </div>
             </div>
         </form>
-        {{ render_geography_expanded_panel() }}
 
+        {{ render_filter_mobile_trigger(filters_active) }}
+      </div>
+
+      <div class="catalog-layout__geography">
+        {{ render_geography_expanded_panel() }}
+      </div>
+
+      <div class="catalog-layout__results">
         {% if datasets %}
-        <div class="usa-prose">
+        <div class="results-toolbar margin-top-2">
+          <div class="results-toolbar__summary usa-prose">
           {% if dataset_search_query or keywords or publisher or spatial_filter or spatial_geometry %}
-          <p class="text-base-dark">
+          <p class="text-base-dark margin-bottom-0">
             {% if num_matches < 2 %}
                 Found <strong>{{ num_matches }}</strong> dataset matching
             {% elif num_matches < 10000 %}
@@ -108,6 +124,8 @@
             {% endif %}
           </p>
           {% endif %}
+          </div>
+          {{ render_sort_control(selected_sort, spatial_geometry is not none) }}
         </div>
         
         <div class="margin-top-3">
@@ -116,10 +134,15 @@
           </ul>
         </div>
         {% else %}
-        <div class="usa-prose margin-top-3">
-          <p class="text-base-dark">
-            Found <strong>0</strong> datasets.
-          </p>
+        <div class="results-toolbar margin-top-2">
+          <div class="results-toolbar__summary usa-prose">
+            <p class="text-base-dark margin-bottom-0">
+              Found <strong>0</strong> datasets.
+            </p>
+          </div>
+          {{ render_sort_control(selected_sort, spatial_geometry is not none) }}
+        </div>
+        <div class="usa-prose margin-top-2">
           <div class="advanced-search-tip">
             <div class="advanced-search-tip__title">💡 Search Tips</div>
             <p class="advanced-search-tip__text">
@@ -129,10 +152,16 @@
           </div>
         </div>
         {% endif %}
-
+      </div>
       </div>
 
-      <aside class="desktop:grid-col-3 tablet:grid-col margin-top-3">
+      <aside
+          id="filter-sidebar-panel"
+          class="filter-sidebar-panel catalog-layout__filters"
+          aria-label="Filters"
+          hidden
+      >
+        {% set clear_filters_url = url_for('main.organization_detail', slug=organization_slug_or_id, q=dataset_search_query, sort=selected_sort) %}
         {{ render_filter_sidebar(
             form_action=url_for('main.organization_detail', slug=organization_slug_or_id),
             query_value=dataset_search_query,
@@ -144,8 +173,10 @@
             spatial_filter=spatial_filter,
             search_result_geometries=search_result_geometries,
             spatial_geometry=spatial_geometry,
+            geography_label=geography_label,
             contextual_keyword_counts=contextual_keyword_counts,
-            contextual_publisher_counts=contextual_publisher_counts
+            contextual_publisher_counts=contextual_publisher_counts,
+            clear_filters_url=clear_filters_url
         ) }}
       </aside>
     </div>
@@ -155,6 +186,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/filter_sidebar_toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>
 <script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>

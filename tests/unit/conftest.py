@@ -100,6 +100,8 @@ def interface_with_organization(interface, fixture_data):
 @pytest.fixture
 def interface_with_harvest_source(interface_with_organization, fixture_data):
     interface_with_organization.db.add(HarvestSource(**fixture_data["harvest_source"]))
+    for extra_source in fixture_data.get("extra_harvest_source", []):
+        interface_with_organization.db.add(HarvestSource(**extra_source))
     interface_with_organization.db.commit()
     yield interface_with_organization
 
