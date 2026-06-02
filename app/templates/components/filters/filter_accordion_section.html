@@ -17,15 +17,15 @@
         >
             <span class="filter-accordion__heading-text">
                 <span class="filter-accordion__title">{{ title }}</span>
+                {% if is_active and active_summary %}
                 <span class="filter-accordion__secondary">
-                    {% if is_active and active_summary %}
                     <span class="filter-accordion__active-indicator" aria-hidden="true">{{ active_summary }}</span>
-                    {% elif subtitle %}
-                    <span class="filter-accordion__subtitle">{{ subtitle }}</span>
-                    {% else %}
-                    <span class="filter-accordion__secondary-spacer" aria-hidden="true"></span>
-                    {% endif %}
                 </span>
+                {% elif subtitle %}
+                <span class="filter-accordion__secondary">
+                    <span class="filter-accordion__subtitle">{{ subtitle }}</span>
+                </span>
+                {% endif %}
             </span>
         </button>
     </h3>
