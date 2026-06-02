@@ -456,7 +456,6 @@ class GeographyAutocomplete {
       this.disableDrawMode();
       this.displayNoGeometry();
       this.syncSpatialWithinRadios();
-      if (this.map) this.map.removeLayer(this.geoLayer);
 
       // now remove the inline clear button
       const labelDiv = document.getElementById('geography-input-label');
