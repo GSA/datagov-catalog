@@ -2,20 +2,40 @@
 <div class="keyword-autocomplete">
     <label id="geography-input-label" class="usa-label margin-top-0" for="geography-input">
       Filter by Geography <br>
-        <span class="usa-hint">Start typing to see suggestions or use the pencil button to open a larger map</span>
+        <span class="usa-hint">Start typing to see suggestions, or use Show large map to draw a custom area</span>
     </label>
-    <input
-        type="text"
-        id="geography-input"
-        class="keyword-autocomplete__input usa-input"
-        placeholder="Type a place..."
-        autocomplete="off"
-        aria-autocomplete="list"
-        aria-controls="geography-suggestions"
-        aria-expanded="false"
-    >
+    <div class="geography-input-wrap">
+        <input
+            type="text"
+            id="geography-input"
+            class="keyword-autocomplete__input usa-input"
+            placeholder="Type a place..."
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-controls="geography-suggestions"
+            aria-expanded="false"
+        >
+        <button
+            type="button"
+            id="geography-input-clear"
+            class="geography-input__clear"
+            aria-label="Clear place name"
+        >
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+    </div>
     <div id="geography-suggestions" class="keyword-suggestions" role="listbox"></div>
 </div>
 <div id="geography-map"></div>
+<button
+    type="button"
+    id="geography-map-expanded-toggle"
+    class="usa-button usa-button--outline geography-map-toggle"
+    aria-expanded="false"
+    aria-controls="geography-map-expanded-panel"
+>
+    <i class="fa-solid fa-map geography-map-toggle__icon" aria-hidden="true"></i>
+    <span class="geography-map-toggle__label">Show large map</span>
+</button>
 <script id="geography-search-result-geometries" type="application/json">{{ (search_result_geometries or []) | tojson }}</script>
 {% endmacro %}

@@ -8,7 +8,7 @@ all_publishers=None) %}
     Filter by publisher <br>
     <span class="usa-hint">Type to search or pick from the list</span>
 </label>
-<div class="usa-combo-box" data-filter-combo="publisher"{% if current_publisher %} data-default-value="{{ current_publisher | e }}"{% endif %}>
+<div class="usa-combo-box" data-filter-combo="publisher" data-placeholder="Type a publisher..."{% if current_publisher %} data-default-value="{{ current_publisher | e }}"{% endif %}>
     <select class="usa-select" name="publisher" id="publisher-select">
         <option value="">- Select a publisher -</option>
         {% set publisher_options = all_publishers or [] %}

@@ -5,10 +5,6 @@ function requestFilterFormSubmit(form, options = {}) {
         return;
     }
 
-    if (controller && typeof controller.captureMapPanelState === 'function') {
-        controller.captureMapPanelState();
-    }
-
     if (!form) {
         return;
     }

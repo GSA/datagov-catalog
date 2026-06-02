@@ -8,7 +8,7 @@ contextual_org_counts=None, all_organizations=None) %}
     Filter by organization <br>
     <span class="usa-hint">Type to search or pick from the list</span>
 </label>
-<div class="usa-combo-box" data-filter-combo="organization"{% if current_slug %} data-default-value="{{ current_slug | e }}"{% endif %}>
+<div class="usa-combo-box" data-filter-combo="organization" data-placeholder="Type an organization..."{% if current_slug %} data-default-value="{{ current_slug | e }}"{% endif %}>
     <select class="usa-select" name="org_slug" id="organization-select">
         <option value="">- Select an organization -</option>
         {% for organization in (all_organizations or []) -%}

@@ -146,7 +146,7 @@
             {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts, all_publishers) }}
         {% endcall %}
 
-        {% call _facet('geography', 'Geographic Area', geography_active, defer=False) %}
+        {% call _facet('geography', 'Geographic Area', geography_active) %}
             {{ render_geography_filter(search_result_geometries) }}
         {% endcall %}
 

@@ -9,10 +9,6 @@ function requestFilterFormSubmit(form, options = {}) {
         return;
     }
 
-    if (controller && typeof controller.captureMapPanelState === 'function') {
-        controller.captureMapPanelState();
-    }
-
     if (!form) {
         return;
     }
@@ -35,11 +31,16 @@ class GeographyAutocomplete {
         this.debounceDelay = options.debounceDelay || 300;
 
         this.input = document.getElementById(this.inputId);
+        this.inputWrap = this.input
+          ? this.input.closest('.geography-input-wrap')
+          : null;
+        this.inputClearButton = document.getElementById('geography-input-clear');
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
         this.form = document.getElementById(this.formId);
         this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
 
         this.selectedGeometry = null;
+        this.spatialLabel = '';
         this.geoLayer = null;
         this.allGeographies = [];
         this.debounceTimer = null;
@@ -48,6 +49,7 @@ class GeographyAutocomplete {
         this.mapHandlersInitialized = false;
         this.drawControl = null;
         this.mapPanelCloseButton = null;
+        this.mapPanelToggleButton = null;
         this.mapPanelElement = null;
         this.mapPanelMapContainer = null;
         this.mapPanelMap = null;
@@ -94,18 +96,24 @@ class GeographyAutocomplete {
         this.input.addEventListener('input', (e) => this.handleInput(e));
         this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
         this.input.addEventListener('focus', () => this.showSuggestions());
+        this.initInputClearButton();
 
         // Close suggestions when clicking outside
         document.addEventListener('click', (e) => {
-            if (!this.input.contains(e.target) && !this.suggestionsContainer.contains(e.target)) {
+            const inInputArea =
+              (this.inputWrap && this.inputWrap.contains(e.target)) ||
+              this.input.contains(e.target);
+            if (!inInputArea && !this.suggestionsContainer.contains(e.target)) {
                 this.hideSuggestions();
             }
         });
 
-        // Sync selection to hidden inputs on form submit
+        // Sync selection to hidden inputs on form submit and persist the
+        // expanded map panel's open state so it can be restored after reload.
         if (this.form) {
             this.form.addEventListener('submit', () => {
                 this.syncHiddenInputs();
+                this.persistCurrentMapPanelStateForNextLoad();
             });
         }
 
@@ -156,6 +164,7 @@ class GeographyAutocomplete {
     initMapPanel() {
       this.mapPanelElement = document.getElementById('geography-map-expanded-panel');
       this.mapPanelCloseButton = document.getElementById('geography-map-expanded-close');
+      this.mapPanelToggleButton = document.getElementById('geography-map-expanded-toggle');
       this.mapPanelMapContainer = document.getElementById('geography-map-expanded-map');
       this.drawButton = document.getElementById('geography-modal-draw-toggle');
       this.mapPanelApplyButton = document.getElementById('geography-modal-apply');
@@ -192,11 +201,18 @@ class GeographyAutocomplete {
         });
       }
 
+      if (this.mapPanelToggleButton) {
+        this.mapPanelToggleButton.addEventListener('click', () => {
+          this.toggleMapPanel({ closeFacet: true });
+        });
+      }
+
       const nextMapPanelState = this.consumeMapPanelStateOnNextLoad();
       if (nextMapPanelState !== null) {
         const shouldOpen = !!(nextMapPanelState && this.hasOpenEligibleMapPanelState());
         this.setMapPanelOpen(shouldOpen, { discardPending: false });
       }
+      this.updateMapPanelToggleState();
     }
 
     isMapPanelOpen() {
@@ -252,6 +268,7 @@ class GeographyAutocomplete {
             this._scrollMapPanelIntoView();
           }
         }, 0);
+        this.updateMapPanelToggleState();
         return;
       }
 
@@ -265,6 +282,46 @@ class GeographyAutocomplete {
         this.updateApplyButtonState();
         this._syncMapPanelMap();
       }
+      this.updateMapPanelToggleState();
+    }
+
+    updateMapPanelToggleState() {
+      if (!this.mapPanelToggleButton) return;
+      const isOpen = this.isMapPanelOpen();
+      this.mapPanelToggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      const label = this.mapPanelToggleButton.querySelector('.geography-map-toggle__label');
+      const text = isOpen ? 'Hide large map' : 'Show large map';
+      if (label) {
+        label.textContent = text;
+      }
+      this.mapPanelToggleButton.setAttribute('aria-label', text);
+    }
+
+    toggleMapPanel(options = {}) {
+      const { closeFacet = false } = options;
+      if (this.isMapPanelOpen()) {
+        this.setMapPanelOpen(false);
+        return;
+      }
+      if (closeFacet) {
+        this._closeGeographyFacetPanel();
+      }
+      this.setMapPanelOpen(true, { discardPending: false, scrollIntoView: true });
+      this.disableDrawMode();
+    }
+
+    _closeGeographyFacetPanel() {
+      const bar = window.dataGovFilterDropdowns;
+      if (!bar || typeof bar.close !== 'function' || !bar.openFacet) {
+        return;
+      }
+      if (bar.openFacet.key === 'geography') {
+        bar.close({ skipDeferReset: true });
+      }
+    }
+
+    openMapPanel() {
+      this.toggleMapPanel({ closeFacet: true });
     }
 
     _scrollMapPanelIntoView() {
@@ -288,18 +345,55 @@ class GeographyAutocomplete {
         // Load geography from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const existingGeometry = urlParams.get('spatial_geometry');
+        const existingLabel = urlParams.get('spatial_label');
         this.spatialWithin = this.parseSpatialWithinParam(
           urlParams.get('spatial_within')
         );
         this.pendingSpatialWithin = null;
         if (existingGeometry) {
             // URL-encoded parameter is a string of a GeoJSON object
-            this.selectedGeometry = JSON.parse(decodeURI(existingGeometry))
-            this.displayGeometry(this.selectedGeometry);
+            this.selectedGeometry = JSON.parse(decodeURI(existingGeometry));
+            this.spatialLabel = existingLabel ? existingLabel.trim() : '';
+            if (this.spatialLabel) {
+              this.input.value = this.spatialLabel;
+            }
             this.showClearButton();
+            // Defer map render until the facet panel is visible (Leaflet needs
+            // a sized container for fitBounds to work).
         } else {
-          this.displayNoGeometry();
+          this.selectedGeometry = null;
+          this.spatialLabel = '';
         }
+        this.updateInputClearButtonVisibility();
+    }
+
+    initInputClearButton() {
+        if (!this.inputClearButton) return;
+        this.inputClearButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.clearInputText();
+        });
+        this.updateInputClearButtonVisibility();
+    }
+
+    updateInputClearButtonVisibility() {
+        if (!this.inputClearButton || !this.input) return;
+        const hasText = this.input.value.trim().length > 0;
+        this.inputClearButton.classList.toggle(
+          'geography-input__clear--visible',
+          hasText
+        );
+        this.inputClearButton.tabIndex = hasText ? 0 : -1;
+    }
+
+    // Clear only the typeahead text so the user can search again; geometry/map
+    // stay staged until Apply, Clear, or a new selection replaces them.
+    clearInputText() {
+        if (!this.input) return;
+        this.input.value = '';
+        this.updateInputClearButtonVisibility();
+        this.hideSuggestions();
+        this.input.focus({ preventScroll: true });
     }
 
     syncSpatialWithinRadios() {
@@ -344,21 +438,33 @@ class GeographyAutocomplete {
       labelDiv.appendChild(button);
     }
 
-    // handle the click of the clear button
+    // handle the click of the inline clear button. Geography is a deferred
+    // facet, so this only stages the empty state; the facet's Apply footer (or
+    // the footer Clear, via clearStagedSelection) submits it.
     clearClicked() {
+      this.clearStagedSelection();
+    }
+
+    // Reset the staged geography selection (geometry, pending box, relation)
+    // and the map, without submitting. Used by the inline clear button and the
+    // facet footer's Clear action (which submits once afterward itself).
+    clearStagedSelection() {
       this.selectedGeometry = null;
+      this.spatialLabel = '';
+      this.pendingSpatialWithin = null;
+      this.input.value = '';
+      this.updateInputClearButtonVisibility();
       this.disableDrawMode();
       this.displayNoGeometry();
+      this.syncSpatialWithinRadios();
       if (this.map) this.map.removeLayer(this.geoLayer);
 
-      // now remove the clear button
+      // now remove the inline clear button
       const labelDiv = document.getElementById('geography-input-label');
       if (!labelDiv) return;  // Can't find where it is
       const clearButton = labelDiv.querySelector('#geography-clear-button');
       if (!clearButton) return;
       labelDiv.removeChild(clearButton);
-
-      requestFilterFormSubmit(this.form);
     }
 
     _createMap() {
@@ -401,14 +507,14 @@ class GeographyAutocomplete {
           const container = L.DomUtil.create('div', 'leaflet-bar geography-draw-control');
           const button = L.DomUtil.create('a', 'geography-draw-button', container);
           button.href = '#';
-          button.title = 'Open map tools to draw a box';
+          button.title = 'Show or hide large map';
           button.setAttribute('role', 'button');
-          button.setAttribute('aria-label', 'Open map tools to draw a box');
+          button.setAttribute('aria-label', 'Show or hide large map');
           button.setAttribute('aria-controls', 'geography-map-expanded-panel');
           button.innerHTML = '<i class="fa-solid fa-pencil" aria-hidden="true"></i>';
           L.DomEvent.on(button, 'click', function (e) {
             L.DomEvent.stop(e);
-            self.openMapPanel();
+            self.toggleMapPanel({ closeFacet: true });
           });
           L.DomEvent.disableClickPropagation(container);
           L.DomEvent.disableScrollPropagation(container);
@@ -418,11 +524,6 @@ class GeographyAutocomplete {
 
       this.drawControl = new DrawControl({ position: 'topleft' });
       this.drawControl.addTo(this.map);
-    }
-
-    openMapPanel() {
-      this.setMapPanelOpen(true, { discardPending: false, scrollIntoView: true });
-      this.disableDrawMode();
     }
 
     _ensureMapPanelMap(options = {}) {
@@ -740,16 +841,23 @@ class GeographyAutocomplete {
     applyBoundsSelection(bounds) {
       const geometry = this.geometryFromBounds(bounds);
       this.selectedGeometry = geometry;
+      this.spatialLabel = '';
+      this.input.value = '';
+      this.updateInputClearButtonVisibility();
       this.pendingGeometry = null;
       this.updateApplyButtonState();
       this.showClearButton();
       this.displayGeometry(this.selectedGeometry);
-      requestFilterFormSubmit(this.form);
+      // Geography is a deferred facet: stage the selection and let the facet's
+      // Apply footer submit it.
     }
 
     setPendingBounds(bounds) {
       const geometry = this.geometryFromBounds(bounds);
       this.pendingGeometry = geometry;
+      this.spatialLabel = '';
+      this.input.value = '';
+      this.updateInputClearButtonVisibility();
       this.suppressResultLayerUntilReload = false;
       this.updateApplyButtonState();
       this._ensureMapPanelMap();
@@ -785,9 +893,38 @@ class GeographyAutocomplete {
         return;
       }
       this.geoLayer = this._renderGeometryOnMap(this.map, this.geoLayer, geometry);
+      this._scheduleInlineMapViewRefresh();
       if (this.mapPanelMap) {
         this._syncMapPanelMap();
       }
+    }
+
+    // Leaflet fitBounds is wrong when the map container was hidden or zero-sized
+    // at init time (e.g. inside a closed filter panel). Re-measure and re-fit.
+    refreshInlineMapView() {
+      if (!this.map) return;
+      this.map.invalidateSize();
+      if (this.geoLayer) {
+        this._fitMapToLayerBounds(this.map, this.geoLayer, { pad: 0.1, pointZoom: 8 });
+      }
+    }
+
+    _scheduleInlineMapViewRefresh() {
+      this.refreshInlineMapView();
+      window.requestAnimationFrame(() => {
+        this.refreshInlineMapView();
+      });
+    }
+
+    // Called when the geography facet panel opens so the inline map is created
+    // at full size and any staged geometry is visible/zoomed correctly.
+    onFacetOpened() {
+      if (this.selectedGeometry) {
+        this.displayGeometry(this.selectedGeometry);
+      } else {
+        this.displayNoGeometry();
+      }
+      this._scheduleInlineMapViewRefresh();
     }
 
     displayNoGeometry() {
@@ -1004,7 +1141,9 @@ class GeographyAutocomplete {
       if (hasPendingGeometry) {
         this.displayGeometry(this.selectedGeometry);
       }
-      requestFilterFormSubmit(this.form);
+      // The expanded draw panel has its own Apply, separate from the geography
+      // facet's footer. Force past the deferred facet so this Apply submits.
+      requestFilterFormSubmit(this.form, { force: true });
     }
 
     initSuggestedGeography() {
@@ -1034,6 +1173,7 @@ class GeographyAutocomplete {
     }
 
     handleInput(e) {
+        this.updateInputClearButtonVisibility();
         clearTimeout(this.debounceTimer);
         this.debounceTimer = setTimeout(() => {
             const query = e.target.value.trim().toLowerCase();
@@ -1058,8 +1198,9 @@ class GeographyAutocomplete {
             this.currentFocusIndex = Math.max(this.currentFocusIndex - 1, 0);
             this.updateSuggestionFocus(suggestions);
         } else if (e.key === 'Enter') {
-            // Enter applies the focused (or first) suggestion. Always prevent the
-            // default so a bare Enter never triggers an unintended native submit.
+            // Enter applies the filter: stage the focused (or first) suggestion,
+            // then submit even though geography is a deferred facet. Always
+            // prevent the default so a bare Enter never triggers a native submit.
             e.preventDefault();
             let node = null;
             if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
@@ -1068,17 +1209,17 @@ class GeographyAutocomplete {
                 node = suggestions[0];
             }
             if (node && node.location_data) {
-                // selectGeography submits immediately (geography is not deferred).
-                this.selectGeography(node.location_data);
-                this.input.value = '';
+                this.selectGeography(node.location_data).then(() => {
+                    requestFilterFormSubmit(this.form, { force: true });
+                });
                 this.hideSuggestions();
             }
         } else if (e.key === 'Tab') {
+            // Tab stages the focused suggestion without submitting.
             if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
                 e.preventDefault();
                 const loc = suggestions[this.currentFocusIndex].location_data;
                 this.selectGeography(loc);
-                this.input.value = '';
                 this.hideSuggestions();
             }
         } else if (e.key === 'Escape') {
@@ -1127,7 +1268,6 @@ class GeographyAutocomplete {
 
             div.addEventListener('click', () => {
                 this.selectGeography(item);
-                this.input.value = '';
                 this.hideSuggestions();
             });
 
@@ -1149,15 +1289,19 @@ class GeographyAutocomplete {
     async selectGeography(location_data) {
       // select this location, get the geometry and show it on the map
       var location_id = location_data.id;
+      const displayName = location_data.display_name || '';
       try {
         const response = await fetch(`${this.apiEndpoint}/${location_id}`);
         const data = await response.json();
         // data.geometry is a string of the GeoJSON geometry of that location
         this.selectedGeometry = JSON.parse(data.geometry);
+        this.spatialLabel = displayName;
+        this.input.value = displayName;
+        this.updateInputClearButtonVisibility();
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
-        this.setMapPanelOpen(true, { discardPending: false });
-        requestFilterFormSubmit(this.form);
+        // Geography is a deferred facet: stage the selection and let the
+        // facet's Apply footer submit it.
       } catch (error) {
         console.error('Error loading location data:', error);
       }
@@ -1176,6 +1320,11 @@ class GeographyAutocomplete {
         );
         existingWithinInputs.forEach(input => input.remove());
 
+        const existingLabelInputs = form.querySelectorAll(
+          'input[name="spatial_label"][type="hidden"]'
+        );
+        existingLabelInputs.forEach(input => input.remove());
+
         if (this.selectedGeometry) {
           const geometryInput = document.createElement('input');
           geometryInput.type = 'hidden';
@@ -1189,6 +1338,14 @@ class GeographyAutocomplete {
           withinInput.name = 'spatial_within';
           withinInput.value = this.spatialWithin ? 'true' : 'false';
           form.appendChild(withinInput);
+
+          if (this.spatialLabel) {
+            const labelInput = document.createElement('input');
+            labelInput.type = 'hidden';
+            labelInput.name = 'spatial_label';
+            labelInput.value = this.spatialLabel;
+            form.appendChild(labelInput);
+          }
         }
     }
 

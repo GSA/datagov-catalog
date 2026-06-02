@@ -1,0 +1,289 @@
+@use "sass:color";
+@use "uswds-core" as *;
+
+.geography-input-wrap {
+    position: relative;
+}
+
+#geography-input {
+    margin-bottom: 6px;
+    padding-right: 2.5rem;
+}
+
+.geography-input__clear {
+    position: absolute;
+    top: 1px;
+    bottom: 7px; /* leave room for input's 6px margin-bottom */
+    right: 0.25rem;
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0.125rem;
+    background: transparent;
+    color: color("base");
+    font-size: 0.875rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.geography-input__clear--visible {
+    display: inline-flex;
+}
+
+.geography-input__clear:hover,
+.geography-input__clear:focus {
+    color: color("ink");
+    background: color("base-lighter");
+}
+
+.geography-input__clear:focus-visible {
+    outline: 0.25rem solid color($theme-focus-color);
+    outline-offset: 0;
+}
+
+#geography-map,
+.map-container {
+    height: 220px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.geography-map-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.geography-map-toggle__icon {
+    font-size: 0.875rem;
+}
+
+.geography-map-expanded-panel {
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.875rem;
+    border-radius: 0.5rem;
+    border: 1px solid color.change(color("ink"), $alpha: 0.18);
+    background: color("base-lightest");
+    box-shadow: inset 0 0 0 1px color.change(color("white"), $alpha: 0.6);
+
+    .geography-map-expanded-panel__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.375rem;
+    }
+
+    .geography-map-expanded-panel__heading {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .geography-map-expanded-panel__close {
+        font-size: 0.9rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .geography-map-expanded-panel__description {
+        margin: 0 0 0.5rem;
+        color: color("base");
+        font-size: 0.9rem;
+        line-height: 1.35;
+    }
+
+    .geography-map-expanded-panel__term {
+        font-weight: 700;
+        color: color("primary-dark");
+    }
+
+    .geography-map-expanded-panel__inline-icon {
+        margin: 0 0.1rem;
+        color: color("primary-dark");
+        font-size: 0.9em;
+        vertical-align: -0.05em;
+    }
+
+    .geography-map-modal__relation {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin: 0;
+        font-size: 0.75rem;
+        color: color("ink");
+        position: absolute;
+        right: 0.5rem;
+        top: 4.4rem;
+        z-index: 500;
+        padding: 0;
+        border-radius: 999px;
+        overflow: hidden;
+        background: color.change(color("white"), $alpha: 0.9);
+        border: 1px solid color.change(color("ink"), $alpha: 0.18);
+        box-shadow: 0 8px 16px color.change(color("ink"), $alpha: 0.2);
+    }
+
+    .geography-map-modal__relation .usa-radio {
+        margin: 0;
+        position: relative;
+        background: transparent;
+    }
+
+    .geography-map-modal__relation .usa-radio__label {
+        margin-top: 0;
+        padding: 0.22rem 0.55rem;
+        border-radius: 999px;
+        font-weight: 600;
+        color: color("ink");
+        cursor: pointer;
+        font-size: 0.7rem;
+        line-height: 1.2;
+        background: transparent;
+        outline-offset: 0;
+        box-shadow: inset 0 0 0 1px color.change(color("ink"), $alpha: 0.18);
+    }
+
+    .geography-map-modal__relation .usa-radio__label::before,
+    .geography-map-modal__relation .usa-radio__label::after {
+        display: none;
+    }
+
+    .geography-map-modal__relation .usa-radio__input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .geography-map-modal__relation .usa-radio__input:checked + .usa-radio__label {
+        background: color("primary");
+        color: color("white");
+    }
+
+    .geography-map-modal__relation .usa-radio__input:focus + .usa-radio__label {
+        outline: 2px solid color("primary-dark");
+        outline-offset: -2px;
+    }
+
+    .geography-map-modal__relation .usa-radio__label:hover {
+        color: color("primary-dark");
+    }
+
+    .geography-map-modal__map {
+        position: relative;
+        width: 100%;
+        height: 30rem;
+        margin: 0;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        border: 1px solid color.change(color("ink"), $alpha: 0.18);
+        background: color("base-lightest");
+        box-shadow: inset 0 0 0 1px color.change(color("white"), $alpha: 0.6);
+    }
+
+    .geography-map-modal__controls {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        z-index: 500;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0.5rem 0.75rem;
+        background: color.change(color("white"), $alpha: 0.92);
+        border-radius: 0.75rem;
+        border: 1px solid color.change(color("ink"), $alpha: 0.18);
+        box-shadow: 0 10px 20px color.change(color("ink"), $alpha: 0.2);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+    }
+
+    .geography-map-modal__controls-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .geography-map-modal__control-button {
+        width: 2.5rem;
+        height: 2.5rem;
+        min-width: 2.5rem;
+        padding: 0;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+    }
+
+    .geography-map-modal__control-button.usa-button--outline {
+        background: color("white");
+        border-color: color.change(color("ink"), $alpha: 0.18);
+        color: color("ink");
+    }
+
+    .geography-map-modal__control-button.usa-button--outline:hover,
+    .geography-map-modal__control-button.usa-button--outline:focus {
+        border-color: color("primary");
+        color: color("primary-dark");
+    }
+
+    .geography-map-modal__control-button--apply {
+        background: color("success");
+        border-color: color("success");
+        color: color("white");
+    }
+
+    .geography-map-modal__control-button--apply:hover,
+    .geography-map-modal__control-button--apply:focus {
+        background: color("success-dark");
+        border-color: color("success-dark");
+        color: color("white");
+    }
+
+    .geography-map-modal__control-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    #geography-map-expanded-map {
+        width: 100%;
+        height: 100%;
+    }
+
+    #geography-map-expanded-map .leaflet-container {
+        width: 100%;
+        height: 100%;
+    }
+
+    .geography-map-result-rank-marker {
+        background: transparent;
+        border: 0;
+    }
+
+    .geography-map-result-rank-marker .geography-map-result-rank-label {
+        display: inline-block;
+        transform: none;
+        background: color.change(color("primary"), $alpha: 0.9);
+        border: 0;
+        border-radius: 0;
+        box-shadow: 0 2px 6px color.change(color("ink"), $alpha: 0.2);
+        color: color("white");
+        font-size: 0.72rem;
+        font-weight: 600;
+        line-height: 1;
+        padding: 0.2rem 0.4rem;
+        white-space: nowrap;
+        pointer-events: none;
+    }
+}

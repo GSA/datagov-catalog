@@ -21,6 +21,25 @@
         return window.matchMedia(MOBILE_QUERY).matches;
     }
 
+    // Placeholder copy for USWDS combo box facets. Set on the enhanced text
+    // input after USWDS init (data-placeholder on the wrapper is the primary
+    // source; this keeps placeholders working if the server-side markup is stale).
+    const COMBO_PLACEHOLDERS = {
+        organization: 'Type an organization...',
+        publisher: 'Type a publisher...',
+    };
+
+    function applyComboPlaceholder(comboEl, key) {
+        const placeholder = COMBO_PLACEHOLDERS[key];
+        if (!placeholder || !comboEl) {
+            return;
+        }
+        const input = comboEl.querySelector('.usa-combo-box__input');
+        if (input && !input.value) {
+            input.setAttribute('placeholder', placeholder);
+        }
+    }
+
     // The popular-quick-pick container id for a combo facet.
     function comboSuggestionGroup(key) {
         return key === 'organization' ? 'organizations' : 'publishers';
@@ -38,11 +57,21 @@
         const comboEl = select.closest('.usa-combo-box');
         const input = comboEl ? comboEl.querySelector('.usa-combo-box__input') : null;
         if (input) {
-            const option = Array.from(select.options).find((o) => o.value === value);
-            input.value = option ? option.text : '';
-            // USWDS marks a combo box "pristine" when the input matches the
-            // selected option; this is what reveals the clear ("×") button.
-            comboEl.classList.toggle('usa-combo-box--pristine', !!value);
+            if (value) {
+                const option = Array.from(select.options).find((o) => o.value === value);
+                input.value = option ? option.text : '';
+                // USWDS marks a combo box "pristine" when the input matches the
+                // selected option; this is what reveals the clear ("×") button.
+                comboEl.classList.add('usa-combo-box--pristine');
+            } else {
+                // Mirror USWDS clear behavior so the placeholder shows again.
+                input.value = '';
+                comboEl.classList.remove('usa-combo-box--pristine');
+                const key = comboEl.dataset.filterCombo;
+                if (key && COMBO_PLACEHOLDERS[key]) {
+                    input.setAttribute('placeholder', COMBO_PLACEHOLDERS[key]);
+                }
+            }
         }
 
         select.dispatchEvent(new Event('change', { bubbles: true }));
@@ -246,6 +275,10 @@
                 this.positionPanel(facet);
             }
 
+            if (facet.key === 'geography' && window.dataGovGeographyAutocomplete) {
+                window.dataGovGeographyAutocomplete.onFacetOpened();
+            }
+
             // Move focus to the first interactive element for keyboard users.
             const focusable = facet.panel.querySelector(
                 'input, select, textarea, button, [tabindex]:not([tabindex="-1"])'
@@ -323,6 +356,13 @@
             if (facet.key === 'keywords' && window.dataGovKeywordAutocomplete) {
                 window.dataGovKeywordAutocomplete.clearAll();
             }
+
+            // Geography selection lives in JS (selectedGeometry + the map), not
+            // native inputs, so clear it through its controller without
+            // submitting — the Clear handler submits once afterward.
+            if (facet.key === 'geography' && window.dataGovGeographyAutocomplete) {
+                window.dataGovGeographyAutocomplete.clearStagedSelection();
+            }
         },
 
         // Single-select combo box facets (organization, publisher). When the
@@ -336,6 +376,8 @@
             if (!select) {
                 return;
             }
+
+            applyComboPlaceholder(comboEl, facet.key);
 
             // The initial selection is seeded by USWDS from the wrapper's
             // data-default-value attribute (set server-side), which also makes

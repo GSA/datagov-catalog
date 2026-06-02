@@ -204,8 +204,9 @@ def test_geography_filter_returns_results(page):
     suggestion = page.locator("#geography-suggestions .keyword-suggestion").first
     expect(suggestion).to_be_visible()
     suggestion.click()
+    page.locator('[data-filter-apply="geography"]').click()
 
-    # Selecting a location applies immediately and narrows the results.
+    # Geography is deferred: stage the selection, then Apply.
     expect(page).to_have_url(re.compile(r"spatial_geometry="))
     expect(page.locator("#search-results p.text-base-dark").first).to_contain_text(
         "matching filters"
@@ -303,8 +304,8 @@ def test_chip_remove_auto_applies(page):
     expect(page.locator('[data-filter-badge="keywords"]')).to_be_hidden()
 
 
-def test_publisher_combo_clear_auto_applies(page):
-    """Clearing the publisher combo box (USWDS × button) applies immediately."""
+def test_publisher_combo_clear_applies_after_apply(page):
+    """Clearing the publisher combo box stages an empty value; Apply submits."""
     page.goto("/?publisher=AmeriCorps")
     expect(page).to_have_url(re.compile(r"publisher=AmeriCorps"))
 
@@ -313,6 +314,7 @@ def test_publisher_combo_clear_auto_applies(page):
     page.locator(
         '.usa-combo-box[data-filter-combo="publisher"] .usa-combo-box__clear-input'
     ).click()
+    page.locator('[data-filter-apply="publisher"]').click()
 
     expect(page).not_to_have_url(re.compile(r"publisher=AmeriCorps"))
 
@@ -360,6 +362,8 @@ def test_filters_open_as_bottom_drawer_on_mobile(page):
     page.set_viewport_size({"width": 375, "height": 667})
     page.goto("/")
 
+    # Facets are collapsed behind the mobile Filters toggle.
+    page.locator("[data-filter-bar-toggle]").click()
     page.locator("#filter-button-spatial").click()
     panel = page.locator("#filter-panel-spatial")
     expect(panel).to_be_visible()
@@ -419,31 +423,31 @@ def _combo_pick(page, facet, typed):
     option.click()
 
 
-def test_organization_select_auto_applies(page):
-    """Organization is single-select: choosing from the combo box auto-applies."""
+def test_organization_select_applies_after_apply(page):
+    """Organization is deferred: choosing from the combo stages, Apply submits."""
     page.goto("/")
     panel = page.locator("#filter-panel-organization")
-    # Single-select facets have no Apply/Clear footer.
-    expect(panel.locator('[data-filter-apply="organization"]')).to_have_count(0)
+    expect(panel.locator('[data-filter-apply="organization"]')).to_have_count(1)
 
     page.locator("#filter-button-organization").click()
     _combo_pick(page, "organization", "Portland")
+    page.locator('[data-filter-apply="organization"]').click()
 
-    # Applied without pressing Apply.
     expect(page).to_have_url(re.compile(r"org_slug=city-of-portland"))
     expect(page.locator("#search-results p.text-base-dark").first).to_contain_text(
         "matching filters"
     )
 
 
-def test_publisher_select_auto_applies(page):
-    """Publisher is single-select: choosing from the combo box auto-applies."""
+def test_publisher_select_applies_after_apply(page):
+    """Publisher is deferred: choosing from the combo stages, Apply submits."""
     page.goto("/")
     panel = page.locator("#filter-panel-publisher")
-    expect(panel.locator('[data-filter-apply="publisher"]')).to_have_count(0)
+    expect(panel.locator('[data-filter-apply="publisher"]')).to_have_count(1)
 
     page.locator("#filter-button-publisher").click()
     _combo_pick(page, "publisher", "americorps")
+    page.locator('[data-filter-apply="publisher"]').click()
 
     expect(page).to_have_url(re.compile(r"publisher="))
     expect(page.locator("#search-results p.text-base-dark").first).to_contain_text(

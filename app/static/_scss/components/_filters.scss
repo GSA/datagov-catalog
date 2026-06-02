@@ -1,0 +1,389 @@
+@use "sass:color";
+@use "uswds-core" as *;
+
+.filter-bar-form {
+    margin-top: 1rem;
+    width: 100%;
+    max-width: none;
+}
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-start;
+}
+
+/* Mobile-only "Filters" toggle row (toggle button + "Clear all filters").
+   Hidden on wider screens, where the facets always wrap into view (the media
+   query below reveals it). */
+.filter-bar-toggle-row {
+    display: none;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.filter-bar-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    background: color("white");
+    border: 1px solid color("base");
+    border-radius: 0.25rem;
+    color: color("ink");
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.filter-bar-clear-all {
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.filter-bar-toggle:hover {
+    background: color("base-lighter");
+}
+
+.filter-bar-toggle:focus-visible {
+    outline: 0.25rem solid color($theme-focus-color);
+    outline-offset: 0;
+}
+
+.filter-bar-toggle__chevron {
+    font-size: 0.75rem;
+    transition: transform 0.15s ease;
+}
+
+.filter-bar-toggle[aria-expanded="true"] .filter-bar-toggle__chevron {
+    transform: rotate(180deg);
+}
+
+/* A single facet: button + (positioned) panel */
+.filter-facet {
+    position: relative;
+}
+
+.filter-facet__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    background: color("white");
+    border: 1px solid color("base");
+    border-radius: 0.25rem;
+    color: color("ink");
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-facet__button:hover {
+    background: color("base-lighter");
+}
+
+.filter-facet__button:focus-visible {
+    outline: 0.25rem solid color($theme-focus-color);
+    outline-offset: 0;
+}
+
+.filter-facet__button--active {
+    border-color: color("primary");
+    color: color("primary");
+}
+
+.filter-facet__chevron {
+    font-size: 0.75rem;
+    transition: transform 0.15s ease;
+}
+
+.filter-facet--open .filter-facet__chevron {
+    transform: rotate(180deg);
+}
+
+/* Active-count badge */
+.filter-facet__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.375rem;
+    background: color("primary");
+    color: color("white");
+    border-radius: 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.filter-facet__badge[hidden] {
+    display: none;
+}
+
+/* The dropdown panel */
+.filter-facet__panel {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    z-index: 1100;
+    width: 22rem;
+    max-width: calc(100vw - 1rem);
+    background: color("white");
+    border: 1px solid color("base");
+    border-radius: 0.25rem;
+    box-shadow: 0 4px 12px color.change(color("ink"), $alpha: 0.18);
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-facet__panel[hidden] {
+    display: none;
+}
+
+.filter-facet__panel-header {
+    display: none; /* shown only in the mobile drawer */
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid color("base-light");
+}
+
+.filter-facet__panel-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: color("ink");
+}
+
+.filter-facet__panel-close {
+    border: none;
+    background: transparent;
+    font-size: 1.25rem;
+    color: color("ink");
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+}
+
+.filter-facet__panel-close:focus-visible {
+    outline: 0.25rem solid color($theme-focus-color);
+    outline-offset: 0;
+}
+
+/* Geography typeahead: gap below input before the inline map */
+.filter-facet__panel #geography-input {
+    margin-bottom: 6px;
+}
+
+.filter-facet__panel-body {
+    padding: 1rem;
+    /* Must stay visible so the autocomplete suggestions dropdown (absolutely
+       positioned inside) can overflow the panel instead of being clipped.
+       The suggestions list has its own internal max-height + scroll. */
+    overflow: visible;
+}
+
+/* Combo box placeholders are easy to miss without explicit styling. */
+.filter-facet__panel .usa-combo-box__input::placeholder {
+    color: color("gray-50");
+    opacity: 1;
+}
+
+.filter-facet__panel-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid color("base-light");
+}
+
+/* Scope both to the footer so they beat USWDS's `.usa-form .usa-button`
+   margin-top (equal specificity, ours wins by source order) — otherwise the
+   unstyled Clear link keeps a 1.5rem top margin and drops below Apply. */
+.filter-facet__panel-footer .filter-facet__apply,
+.filter-facet__panel-footer .filter-facet__clear {
+    margin: 0;
+}
+
+/* Chips inside a filter dropdown can hold long publisher/org names. Let them
+   wrap and break so they stay within the panel instead of overflowing. */
+.filter-facet__panel .keyword-chips .tag-link {
+    display: inline-flex;
+    align-items: flex-start;
+    max-width: 100%;
+}
+
+.filter-facet__panel .keyword-chips .keyword-chip__text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* Backdrop (mobile drawer only) */
+.filter-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: color.change(color("ink"), $alpha: 0.4);
+    z-index: 1090;
+}
+
+.filter-drawer-backdrop[hidden] {
+    display: none;
+}
+
+/* Results header with sort control on the right */
+.results-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+}
+
+.results-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.results-sort__label {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: color("ink");
+    white-space: nowrap;
+    margin: 0;
+}
+
+.results-sort__select {
+    width: auto;
+    min-width: 12rem;
+    margin: 0;
+}
+
+/* ---- Mobile: facets wrap behind a "Filters" toggle; panels become a
+       scrollable bottom drawer ---- */
+@media (max-width: 39.99em) {
+    /* Reveal the toggle row and collapse the wrapped facet bar by default. */
+    .filter-bar-toggle-row {
+        display: flex;
+    }
+
+    /* The "Clear all filters" link moves next to the Filters button on mobile,
+       so hide the inline one in the results count to avoid duplication. */
+    .results-summary__clear-all {
+        display: none;
+    }
+
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-bar:not(.filter-bar--expanded) {
+        display: none;
+    }
+
+    /* Full-width stacked facet buttons read better than a wrapped grid here. */
+    .filter-facet {
+        width: 100%;
+    }
+
+    .filter-facet__button {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .filter-facet__panel {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: 100%;
+        max-height: 85vh;
+        border: none;
+        border-radius: 1rem 1rem 0 0;
+        box-shadow: 0 -4px 16px color.change(color("ink"), $alpha: 0.25);
+        /* Sit above the third-party Touchpoints feedback floating button. */
+        z-index: 100000;
+    }
+
+    /* Keep the backdrop above the feedback button too, just below the panel. */
+    .filter-drawer-backdrop {
+        z-index: 99999;
+    }
+
+    .filter-facet__panel-header {
+        display: flex;
+    }
+
+    .filter-facet__panel-body {
+        max-height: none;
+        flex: 1 1 auto;
+        /* The bottom drawer is tall and fixed, so let its body scroll for long
+           filter lists. The autocomplete suggestions scroll inline here. */
+        overflow-y: auto;
+    }
+
+    /* The combo-box panel body must keep scrolling (so the Clear / Apply footer
+       stays reachable when the popular list is long), but the drawer shrink-wraps
+       to its content — so for a short facet the body has no room below the input
+       and the absolutely-positioned typeahead list spills under the footer. Give
+       the combo body a min-height so the dropdown always has room to render. */
+    .filter-facet__panel:has(.usa-combo-box) .filter-facet__panel-body {
+        min-height: 22rem;
+    }
+
+    .filter-facet__panel .usa-combo-box__list {
+        position: absolute;
+        z-index: 10;
+    }
+
+    /* Give the drawer footer breathing room and keep Clear / Apply apart.
+       Sit it below the combo-box typeahead list so the list overlays it. */
+    .filter-facet__panel-footer {
+        gap: 1.5rem;
+        padding: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .filter-facet__panel-footer .filter-facet__apply {
+        flex: 0 0 auto;
+    }
+
+    .filter-facet__clear {
+        flex: 0 0 auto;
+    }
+
+    .results-sort {
+        margin-left: 0;
+    }
+
+    .results-sort__select {
+        min-width: 0;
+    }
+
+    /* Lock background scrolling while the bottom drawer is open. */
+    body.filter-bar-open {
+        overflow: hidden;
+    }
+}
+
+/* Full-width catalog search layout (filters moved under the search bar) */
+.catalog-search {
+    width: 100%;
+}
+
+.catalog-search__main {
+    width: 100%;
+}
