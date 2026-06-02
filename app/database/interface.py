@@ -124,6 +124,12 @@ class CatalogDBInterface:
             collection=collection,
         )
 
+    def get_document_by_slug(self, slug_name: str) -> list[dict]:
+        """
+        get single document by slug name
+        """
+        return self.opensearch.get_document_by_slug(slug_name)
+
     def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.

@@ -5,6 +5,8 @@ import pytest
 from app.filters import (
     dcatus_to_schema_org_jsonld,
     format_dcat_date,
+    format_icon_class,
+    format_overlay_label,
     parse_datetime,
     remove_html_tags,
     simplify_resource_type,
@@ -130,3 +132,70 @@ class TestFormatDcatDate:
     )
     def test_round_trip_via_parse_datetime(self, raw, expected):
         assert format_dcat_date(parse_datetime(raw)) == expected
+
+
+class TestFormatIconClass:
+    @pytest.mark.parametrize(
+        "fmt, expected",
+        [
+            ("CSV", "file-icon--csv"),
+            ("csv", "file-icon--csv"),
+            ("text/csv", "file-icon--csv"),
+            ("application/json", "file-icon--json"),
+            ("application/xml", "file-icon--xml"),
+            ("application/rdf+xml", "file-icon--rdf"),
+            ("application/xhtml+xml", "file-icon--html"),
+            ("application/geo+json", "file-icon--geojson"),
+            ("application/vnd.google-earth.kml+xml", "file-icon--default"),
+            (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "file-icon--excel",
+            ),
+            (
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "file-icon--word",
+            ),
+            ("PDF", "file-icon--pdf"),
+            ("ZIP", "file-icon--zip"),
+            ("xlsx", "file-icon--excel"),
+            ("docx", "file-icon--word"),
+            ("HTML", "file-icon--html"),
+            ("TXT", "file-icon--text"),
+            ("API", "file-icon--api"),
+            ("PNG", "file-icon--image"),
+            ("KML", "file-icon--default"),
+            ("WMS", "file-icon--default"),
+            ("SHP", "file-icon--default"),
+            ("", "file-icon--default"),
+            (None, "file-icon--default"),
+        ],
+    )
+    def test_returns_expected_class(self, fmt, expected):
+        assert format_icon_class(fmt) == expected
+
+
+class TestFormatOverlayLabel:
+    @pytest.mark.parametrize(
+        "fmt, expected",
+        [
+            ("CSV", ""),
+            ("application/json", ""),
+            ("application/rdf+xml", ""),
+            ("application/geo+json", ""),
+            (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "",
+            ),
+            ("KML", "KML"),
+            ("kml", "KML"),
+            ("application/vnd.google-earth.kml+xml", "KML"),
+            ("WMS", "WMS"),
+            ("WFS", "WFS"),
+            ("GML", "GML"),
+            ("SHP", "SHP"),
+            ("", ""),
+            (None, ""),
+        ],
+    )
+    def test_returns_expected_badge(self, fmt, expected):
+        assert format_overlay_label(fmt) == expected

@@ -56,25 +56,93 @@ def format_gov_type(gov_type: str, lower=True) -> str:
     return "unknown"
 
 
-def fa_icon_from_extension(extension: str) -> str:
-    """Return a Font Awesome icon class based on file extension."""
-    extension = extension.lower() if extension else "default"
-    # if extension is a MIME type, extract the last part
-    # e.g. "application/json" -> "json"
-    if "/" in extension:
-        extension = extension.split("/")[-1]
-    if extension in ["csv"]:
-        return "fa-file-csv"
-    elif extension in ["xlsx", "xls", "ods"]:
-        return "fa-file-excel"
-    elif extension in ["pdf"]:
-        return "fa-file-pdf"
-    elif extension in ["html"]:
-        return "fa-arrow-up-right-from-square"
-    elif extension in ["api"]:
-        return "fa-plug"
-    else:
-        return "fa-file"
+_VENDOR_MIME_ALIASES = (
+    ("spreadsheetml", "xlsx"),
+    ("wordprocessingml", "docx"),
+    ("presentationml", "pptx"),
+    ("opendocument.spreadsheet", "ods"),
+    ("opendocument.text", "odt"),
+    ("opendocument.presentation", "odp"),
+    ("ms-excel", "xls"),
+    ("ms-word", "doc"),
+    ("ms-powerpoint", "ppt"),
+    ("google-earth.kmz", "kmz"),
+    ("google-earth.kml", "kml"),
+    ("ogc.wmts", "wmts"),
+    ("ogc.wms", "wms"),
+    ("ogc.wfs", "wfs"),
+    ("ogc.gml", "gml"),
+    ("shapefile", "shp"),
+)
+
+
+def _normalize_format(value: str) -> str:
+    value = value.lower() if value else "default"
+    if "/" in value:
+        value = value.split("/")[-1]
+    # Strip MIME suffix like "+xml" / "+json" before matching aliases so
+    # "vnd.google-earth.kml+xml" matches "google-earth.kml".
+    head = value.split("+", 1)[0]
+    if head.startswith("vnd."):
+        for needle, alias in _VENDOR_MIME_ALIASES:
+            if needle in head:
+                return alias
+    return value
+
+
+_FORMAT_ICON_MAP = {
+    "csv": "csv",
+    "json": "json",
+    "xml": "xml",
+    "rdf+xml": "rdf",
+    "rdf": "rdf",
+    "pdf": "pdf",
+    "html": "html",
+    "xhtml+xml": "html",
+    "api": "api",
+    "zip": "zip",
+    "gz": "zip",
+    "tar": "zip",
+    "7z": "zip",
+    "rar": "zip",
+    "doc": "word",
+    "docx": "word",
+    "rtf": "word",
+    "odt": "word",
+    "xls": "excel",
+    "xlsx": "excel",
+    "ods": "excel",
+    "txt": "text",
+    "plain": "text",
+    "geo+json": "geojson",
+    "geojson": "geojson",
+    "png": "image",
+    "jpg": "image",
+    "jpeg": "image",
+    "gif": "image",
+    "tiff": "image",
+    "webp": "image",
+    "svg+xml": "image",
+    "svg": "image",
+}
+
+
+def format_icon_class(extension: str) -> str:
+    """Return a CSS modifier class for the resource icon based on format."""
+    icon = _FORMAT_ICON_MAP.get(_normalize_format(extension), "default")
+    return f"file-icon--{icon}"
+
+
+def format_overlay_label(extension: str) -> str:
+    """Short badge text overlaid on the default file icon for formats we don't
+    have a dedicated icon for (e.g. KML, WMS, WFS, GML). Returns "" when a
+    dedicated icon is available."""
+    normalized = _normalize_format(extension)
+    if normalized in _FORMAT_ICON_MAP:
+        return ""
+    if normalized in ("default", "file", ""):
+        return ""
+    return normalized.upper()
 
 
 def format_contact_point_email(email: str) -> Union[str, None]:
@@ -324,7 +392,8 @@ __all__ = [
     "is_bbox_string",
     "is_geometry_mapping",
     "geometry_to_mapping",
-    "fa_icon_from_extension",
+    "format_icon_class",
+    "format_overlay_label",
     "format_contact_point_email",
     "remove_html_tags",
     "simplify_resource_type",
