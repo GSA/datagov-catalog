@@ -46,49 +46,37 @@
     collection=None,
     clear_filters_url=none
 ) %}
-{% set filters_active = (
-    (keywords|length > 0)
-    or ((org_types or [])|length > 0)
-    or publisher
-    or org_slug
-    or selected_organization
-    or spatial_filter
-    or spatial_geometry is not none
+{% set filters_active = has_active_filters(
+    keywords=keywords,
+    org_types=org_types,
+    publisher=publisher,
+    org_slug=org_slug,
+    selected_organization=selected_organization,
+    spatial_filter=spatial_filter,
+    spatial_geometry=spatial_geometry
 ) %}
 <div class="filter-sidebar">
     <div class="filter-sidebar__chrome">
         <div class="filter-sidebar__header">
             <h2 class="filter-sidebar__heading font-body-lg margin-top-0 margin-bottom-0">Filters</h2>
             <div class="filter-sidebar__actions">
-                <button
-                    type="button"
-                    class="usa-button usa-button--unstyled filter-sidebar__toggle-all filter-sidebar__toggle-all--header"
-                    data-filter-toggle-all
-                    aria-controls="filter-form"
-                    aria-label="Expand all filters"
-                    data-expanded="false"
-                >
-                    Expand all
-                </button>
                 {% if filters_active and clear_filters_url %}
                 <a href="{{ clear_filters_url }}" class="filter-sidebar__clear">Clear filters</a>
                 {% endif %}
+                <button
+                    type="button"
+                    class="usa-button usa-button--unstyled filter-sidebar__toggle-all"
+                    id="filter-toggle-all"
+                    data-filter-toggle-all
+                    aria-controls="filter-form"
+                    aria-label="Collapse all filters"
+                    data-expanded="true"
+                >
+                    Collapse all
+                </button>
             </div>
         </div>
-        <div class="filter-sidebar__meta">
-            <p class="filter-sidebar__hint font-body-2xs text-light margin-top-0 margin-bottom-0">Filter selections are applied on each click</p>
-            <button
-                type="button"
-                class="usa-button usa-button--unstyled filter-sidebar__toggle-all filter-sidebar__toggle-all--meta"
-                id="filter-toggle-all"
-                data-filter-toggle-all
-                aria-controls="filter-form"
-                aria-label="Expand all filters"
-                data-expanded="false"
-            >
-                Expand all
-            </button>
-        </div>
+        <p class="filter-sidebar__hint font-body-2xs text-light margin-top-0 margin-bottom-0">Filter selections are applied on each click</p>
     </div>
     <form class="usa-form margin-top-0" method="get" action="{{ form_action }}" id="{{ form_id }}">
     {% if collection %}
@@ -116,6 +104,5 @@
 
     {{ render_spatial_filter(spatial_filter) }}
     </form>
-    <script src="{{ url_for('static', filename='js/filter_accordion.js') }}"></script>
 </div>
 {% endmacro %}

@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+TEMPLATE_FILTERS = (
+    "selection_summary",
+    "organization_active_summary",
+    "publisher_active_summary",
+    "geography_active_summary",
+    "spatial_data_active_summary",
+)
+
 
 def truncate_summary(text: str | None, max_len: int = 48) -> str | None:
     if not text:
@@ -12,20 +20,19 @@ def truncate_summary(text: str | None, max_len: int = 48) -> str | None:
     return f"{text[: max_len - 1].rstrip()}…"
 
 
-def keyword_active_summary(keywords: list[str] | None) -> str | None:
-    keywords = keywords or []
-    if not keywords:
+def selection_summary(values: list[str] | None) -> str | None:
+    values = values or []
+    if not values:
         return None
-    if len(keywords) == 1:
-        return truncate_summary(keywords[0])
-    return f"{len(keywords)} selected"
+    if len(values) == 1:
+        return truncate_summary(values[0])
+    return f"{len(values)} selected"
 
 
-def organization_active_summary(args) -> str | None:
-    if isinstance(args, tuple):
-        selected_organization, org_slug = args
-    else:
-        selected_organization, org_slug = args, None
+def organization_active_summary(
+    selected_organization,
+    org_slug: str | None = None,
+) -> str | None:
     if selected_organization is not None:
         name = getattr(selected_organization, "name", None) or (
             selected_organization.get("name")
@@ -38,24 +45,14 @@ def organization_active_summary(args) -> str | None:
     return None
 
 
-def organization_type_active_summary(org_types: list[str] | None) -> str | None:
-    org_types = org_types or []
-    if not org_types:
-        return None
-    if len(org_types) == 1:
-        return truncate_summary(org_types[0])
-    return f"{len(org_types)} selected"
-
-
 def publisher_active_summary(publisher: str | None) -> str | None:
     return truncate_summary(publisher)
 
 
-def geography_active_summary(args) -> str | None:
-    if isinstance(args, tuple):
-        spatial_geometry, geography_label = args
-    else:
-        spatial_geometry, geography_label = args, None
+def geography_active_summary(
+    spatial_geometry,
+    geography_label: str | None = None,
+) -> str | None:
     if spatial_geometry is None:
         return None
     if geography_label:

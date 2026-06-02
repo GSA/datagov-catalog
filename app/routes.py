@@ -1110,7 +1110,7 @@ def register_routes(app):
 
     register_dev_routes(app)
 
-    if app.config.get("CONFIG_NAME") == "local":
+    if app.config.get("IS_LOCAL"):
         app.add_url_rule(
             "/style-guide/icons",
             view_func=style_guide_icons,

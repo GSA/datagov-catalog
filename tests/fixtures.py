@@ -260,7 +260,7 @@ def _add_filter_demo_data(fixture_dict):
         )
 
 
-def fixture_data():
+def fixture_data(*, include_filter_demos: bool = False):
     fixture_dict = {
         "organization": [
             dict(
@@ -670,8 +670,8 @@ def fixture_data():
         ],
     }
 
-    # Extra seed data so geography and other filters have variety to exercise locally.
-    _add_filter_demo_data(fixture_dict)
+    if include_filter_demos:
+        _add_filter_demo_data(fixture_dict)
 
     # add additional dataset records
     datasets = read_csv(TEST_DIR / "data" / "americorps_datasets.csv")

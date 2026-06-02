@@ -5,6 +5,8 @@ from playwright.sync_api import expect
 
 def test_home_page(page):
     page.goto("/")
-    expect(page.locator("#main-search-form label.usa-label")).to_contain_text(
+    expect(page.locator("#catalog-search-heading")).to_contain_text(
         "Search datasets"
     )
+    expect(page.get_by_role("heading", level=1)).to_contain_text("Search datasets")
+    expect(page.get_by_role("heading", level=2, name="Filters")).to_be_visible()

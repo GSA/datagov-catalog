@@ -20,9 +20,15 @@ htmx = None
 
 def register_template_filters(app):
     import app.filters as filters
+    from . import filter_helpers
 
     for name in filters.__all__:
         app.add_template_filter(getattr(filters, name))
+
+    for name in filter_helpers.TEMPLATE_FILTERS:
+        app.add_template_filter(getattr(filter_helpers, name))
+
+    app.add_template_global(filter_helpers.has_active_filters, "has_active_filters")
 
 
 def create_app(config_name: str = "local") -> APIFlask:
@@ -71,18 +77,6 @@ def create_app(config_name: str = "local") -> APIFlask:
     register_commands(app)
 
     register_template_filters(app)
-
-    from . import filter_helpers
-
-    for name in (
-        "keyword_active_summary",
-        "organization_active_summary",
-        "organization_type_active_summary",
-        "publisher_active_summary",
-        "geography_active_summary",
-        "spatial_data_active_summary",
-    ):
-        app.add_template_filter(getattr(filter_helpers, name))
 
     @app.errorhandler(404)
     def not_found(error):

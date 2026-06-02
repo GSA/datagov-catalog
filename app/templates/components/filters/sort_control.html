@@ -1,5 +1,14 @@
 {# Sort control for the results header. Associated with filter-form via the
    form attribute so changing sort re-runs the search while preserving filters. #}
+{% macro render_results_toolbar(sort_value, allow_distance=false, form_id='filter-form') %}
+<div class="results-toolbar margin-top-2">
+    <div class="results-toolbar__summary usa-prose">
+        {{ caller() }}
+    </div>
+    {{ render_sort_control(sort_value, allow_distance, form_id) }}
+</div>
+{% endmacro %}
+
 {% macro render_sort_control(sort_value, allow_distance=false, form_id='filter-form') %}
 <div class="results-sort">
     <label class="results-sort__label" for="sort-select">Sort by</label>

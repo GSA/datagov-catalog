@@ -6,7 +6,7 @@ contextual_org_counts=None) %}
     'filter-organization-autocomplete',
     'Organization',
     is_active=(selected_organization is not none or (org_slug is not none and org_slug != '')),
-    active_summary=(selected_organization, org_slug)|organization_active_summary,
+    active_summary=selected_organization|organization_active_summary(org_slug),
     subtitle='A specific publishing organization',
     extra_classes='margin-bottom-2'
 ) %}

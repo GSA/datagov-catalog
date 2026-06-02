@@ -5,7 +5,7 @@
     'filter-geography',
     'Geographic Area',
     is_active=(spatial_geometry is not none),
-    active_summary=(spatial_geometry, geography_label)|geography_active_summary,
+    active_summary=spatial_geometry|geography_active_summary(geography_label),
     extra_classes='margin-bottom-2'
 ) %}
         <div class="keyword-autocomplete">

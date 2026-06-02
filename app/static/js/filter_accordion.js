@@ -123,8 +123,10 @@
             } else if (savedExpanded === true) {
                 setExpanded(parts.button, parts.content, true);
             } else if (isActive) {
-                // No saved preference yet; default active filters to expanded.
                 setExpanded(parts.button, parts.content, true);
+            } else {
+                // Server renders all sections expanded for no-JS; collapse inactive by default.
+                setExpanded(parts.button, parts.content, false);
             }
 
             parts.button.addEventListener('click', () => {

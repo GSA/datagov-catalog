@@ -6,7 +6,7 @@
     'filter-organization',
     'Organization Type',
     is_active=(current_org_types|length > 0),
-    active_summary=current_org_types|organization_type_active_summary,
+    active_summary=current_org_types|selection_summary,
     subtitle='Federal, state, city, and other org categories',
     extra_classes='margin-bottom-2',
     button_id='organization-type-label'

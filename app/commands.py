@@ -56,7 +56,7 @@ def load_test_data(clear):
     """
     from tests.fixtures import fixture_data
 
-    fixture = fixture_data()
+    fixture = fixture_data(include_filter_demos=True)
     interface = CatalogDBInterface()
 
     if clear:

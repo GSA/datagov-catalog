@@ -5,7 +5,7 @@
     'filter-keywords',
     'Keywords',
     is_active=(keywords|length > 0),
-    active_summary=keywords|keyword_active_summary,
+    active_summary=keywords|selection_summary,
     extra_classes='margin-bottom-2'
 ) %}
         <div class="keyword-autocomplete">

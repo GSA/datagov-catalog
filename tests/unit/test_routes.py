@@ -1600,20 +1600,24 @@ def test_index_filter_checkboxes_checked_when_selected(db_client):
 
     org_type_button = soup.find("button", {"aria-controls": "filter-organization"})
     assert org_type_button is not None
-    assert org_type_button.get("aria-expanded") == "false"
+    assert org_type_button.get("aria-expanded") == "true"
     assert org_type_button.find("span", class_="filter-accordion__active-indicator") is not None
 
     keyword_button = soup.find("button", {"aria-controls": "filter-keywords"})
     assert keyword_button is not None
-    assert keyword_button.get("aria-expanded") == "false"
+    assert keyword_button.get("aria-expanded") == "true"
 
 
-def test_index_filter_sidebar_heading_and_collapsed_defaults(db_client):
-    """Filter sidebar should be labeled and collapsed by default on mobile."""
+def test_index_filter_sidebar_heading_and_expanded_defaults(db_client):
+    """Filter sidebar is labeled; accordion sections are expanded without JS."""
     response = db_client.get("/")
     assert response.status_code == 200
 
     soup = BeautifulSoup(response.text, "html.parser")
+
+    search_heading = soup.find("h1", id="catalog-search-heading")
+    assert search_heading is not None
+    assert search_heading.get_text(strip=True) == "Search datasets"
 
     heading = soup.find("h2", class_="filter-sidebar__heading")
     assert heading is not None
@@ -1625,8 +1629,7 @@ def test_index_filter_sidebar_heading_and_collapsed_defaults(db_client):
 
     toggle_all = soup.find("button", {"id": "filter-toggle-all"})
     assert toggle_all is not None
-    assert toggle_all.get_text(strip=True) == "Expand all"
-    assert toggle_all.get("aria-label") == "Expand all filters"
+    assert toggle_all.get("aria-label") == "Collapse all filters"
 
     for section_id in (
         "filter-keywords",
@@ -1638,15 +1641,15 @@ def test_index_filter_sidebar_heading_and_collapsed_defaults(db_client):
     ):
         section = soup.find("div", {"id": section_id})
         assert section is not None
-        assert section.has_attr("hidden")
+        assert not section.has_attr("hidden")
 
         button = soup.find("button", {"aria-controls": section_id})
         assert button is not None
-        assert button.get("aria-expanded") == "false"
+        assert button.get("aria-expanded") == "true"
 
 
 def test_index_filter_sidebar_active_indicator_when_keyword_selected(db_client):
-    """Active filters should show an applied-value summary while panels start collapsed."""
+    """Active filters show an applied-value summary and remain usable without JS."""
     response = db_client.get("/?keyword=health")
     assert response.status_code == 200
 
@@ -1654,14 +1657,14 @@ def test_index_filter_sidebar_active_indicator_when_keyword_selected(db_client):
 
     keyword_button = soup.find("button", {"aria-controls": "filter-keywords"})
     assert keyword_button is not None
-    assert keyword_button.get("aria-expanded") == "false"
+    assert keyword_button.get("aria-expanded") == "true"
     indicator = keyword_button.find("span", class_="filter-accordion__active-indicator")
     assert indicator is not None
     assert indicator.get_text(strip=True) == "health"
 
     keyword_section = soup.find("div", {"id": "filter-keywords"})
     assert keyword_section is not None
-    assert keyword_section.has_attr("hidden")
+    assert not keyword_section.has_attr("hidden")
 
 
 def test_index_filter_sidebar_shows_clear_filters_when_active(db_client):
@@ -1686,18 +1689,18 @@ def test_index_sort_control_in_results_not_sidebar(db_client):
     assert sort_select.find_parent(class_="filter-sidebar") is None
 
 
-def test_index_active_organization_filter_collapsed_in_html(db_client):
-    """Active organization filters render collapsed; JS restores expansion client-side."""
+def test_index_active_organization_filter_expanded_in_html(db_client):
+    """Active organization filters render expanded for no-JS access to controls."""
     response = db_client.get("/?org_slug=test-org")
     assert response.status_code == 200
 
     soup = BeautifulSoup(response.text, "html.parser")
     org_button = soup.find("button", {"aria-controls": "filter-organization-autocomplete"})
     assert org_button is not None
-    assert org_button.get("aria-expanded") == "false"
+    assert org_button.get("aria-expanded") == "true"
     org_section = soup.find("div", {"id": "filter-organization-autocomplete"})
     assert org_section is not None
-    assert org_section.has_attr("hidden")
+    assert not org_section.has_attr("hidden")
 
 
 def test_index_filter_accordion_script_included(db_client):
@@ -2403,9 +2406,9 @@ def test_index_collection(interface_with_dataset, db_client):
     soup = BeautifulSoup(response.text, "html.parser")
 
     # check to see that we're in a collection
-    collection_label = soup.select_one("label.usa-label b")
-    assert collection_label is not None
-    assert collection_label.text == "Search datasets in collection"
+    collection_heading = soup.select_one("#catalog-search-heading")
+    assert collection_heading is not None
+    assert collection_heading.text == "Search datasets in collection"
 
     # assertions on the collection card itself
     collection_card = soup.select_one("div.collection-card")

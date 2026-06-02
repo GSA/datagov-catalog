@@ -297,10 +297,8 @@ class GeographyAutocomplete {
         if (existingGeometry) {
             // URL-encoded parameter is a string of a GeoJSON object
             this.selectedGeometry = JSON.parse(decodeURI(existingGeometry))
-            this.selectedGeographyLabel = existingLabel || 'Area selected';
-            if (existingLabel) {
-              this.input.value = existingLabel;
-            }
+            this.selectedGeographyLabel = existingLabel || null;
+            this.input.value = existingLabel || 'Area selected';
             this.displayGeometry(this.selectedGeometry);
             this.showClearButton();
         } else {
