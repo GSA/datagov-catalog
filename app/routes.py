@@ -198,7 +198,9 @@ def index():
     publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
-    geography_label = (request.args.get("geography_label", None, type=str) or "").strip() or None
+    geography_label = (
+        request.args.get("geography_label", None, type=str) or ""
+    ).strip() or None
     spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = request.args.get("sort", "relevance") or "relevance"
     collection = request.args.get("collection", None, type=str)
@@ -708,7 +710,9 @@ def organization_detail(slug: str):
     publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
-    geography_label = (request.args.get("geography_label", None, type=str) or "").strip() or None
+    geography_label = (
+        request.args.get("geography_label", None, type=str) or ""
+    ).strip() or None
     spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = request.args.get("sort", default="relevance")
 

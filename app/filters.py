@@ -8,8 +8,8 @@ from datetime import date, datetime
 from typing import Any, Union
 
 from bs4 import BeautifulSoup
-from app.static_assets import static_url
 
+from app.static_assets import static_url
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
 
