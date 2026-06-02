@@ -1340,22 +1340,23 @@ def test_filter_bar_facets_render_with_aria(db_client):
         assert panel.get("aria-labelledby") == f"filter-button-{key}"
 
 
-def test_filter_bar_apply_footer_only_on_multiselect_facets(db_client):
-    """Multi-select facets stage-then-Apply; single-select facets auto-apply."""
+def test_filter_bar_apply_footer_on_deferred_facets(db_client):
+    """Deferred facets stage selections until Apply is clicked."""
     response = db_client.get("/")
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Multi-select facets have an Apply button (stage then commit).
-    for key in ("keywords", "org_type"):
+    for key in (
+        "keywords",
+        "organization",
+        "org_type",
+        "publisher",
+        "geography",
+        "spatial",
+    ):
         panel = soup.find("div", {"id": f"filter-panel-{key}"})
         assert panel.find("button", {"data-filter-apply": key}) is not None
-
-    # Single-select facets apply immediately, so they have no Apply/Clear footer.
-    for key in ("organization", "publisher", "geography"):
-        panel = soup.find("div", {"id": f"filter-panel-{key}"})
-        assert panel.find("button", {"data-filter-apply": key}) is None
-        assert panel.find("button", {"data-filter-clear": key}) is None
+        assert panel.find("button", {"data-filter-clear": key}) is not None
 
 
 def test_filter_bar_badges_reflect_active_filters(db_client):

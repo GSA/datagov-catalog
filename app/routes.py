@@ -20,7 +20,6 @@ from flask import (
 )
 
 from . import htmx
-from .filter_helpers import publisher_combo_select_names
 from .api_schemas import (
     KeywordsQuery,
     KeywordsResults,
@@ -36,6 +35,7 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
+from .filter_helpers import publisher_combo_select_names
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -130,7 +130,11 @@ def _normalize_sort(sort_value: str | None, spatial_geometry: dict | None) -> st
 def _fetch_top_publishers() -> list[dict]:
     """Top publishers by dataset count (see filter_helpers.TOP_PUBLISHER_COMBO_SIZE)."""
     try:
-        return interface.get_top_publishers()
+        publishers = interface.get_top_publishers()
+        # Tests and stubs may leave this as a Mock or another non-list value.
+        if not isinstance(publishers, list):
+            return []
+        return publishers
     except Exception:
         logger.exception("Failed to fetch publishers")
         return []
@@ -162,11 +166,11 @@ def _suggested_publishers(
     if contextual:
         return contextual
 
-    fallback_source = top_publishers if top_publishers is not None else _fetch_top_publishers()
+    fallback_source = (
+        top_publishers if top_publishers is not None else _fetch_top_publishers()
+    )
     return [
-        p["name"]
-        for p in fallback_source
-        if p.get("name") and p["name"] != publisher
+        p["name"] for p in fallback_source if p.get("name") and p["name"] != publisher
     ][:10]
 
 
