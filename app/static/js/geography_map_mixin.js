@@ -4,6 +4,30 @@
     (window.dataGovGeographyUtils && window.dataGovGeographyUtils.OSM_ATTRIBUTION) ||
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
+  function requestFilterFormSubmit(form, options = {}) {
+    const submit = window.dataGovFilterSubmit;
+    if (submit && typeof submit.request === 'function') {
+      submit.request(form, options);
+      return;
+    }
+
+    const controller = window.dataGovFilterFormAutoSubmit;
+    if (controller && typeof controller.request === 'function' && controller.form) {
+      controller.request(options);
+      return;
+    }
+
+    if (!form) {
+      return;
+    }
+
+    if (typeof form.requestSubmit === 'function') {
+      form.requestSubmit();
+    } else {
+      form.submit();
+    }
+  }
+
   window.dataGovGeographyMapMixin = {
     initMapPanel() {
       this.mapPanelElement = document.getElementById('geography-map-expanded-panel');

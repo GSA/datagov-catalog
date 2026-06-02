@@ -10,6 +10,8 @@ New pages load the full filter-bar script set, including `geography_utils.js` an
 
 Remove the fallback code once everyone is on fresh HTML. Until then, old layout + new JS would crash or leave org/publisher/geography filters broken without these shims.
 
+**Partial JS cache:** HTML and individual static files can cache independently on the CDN. A user may get new HTML (with `geography_map_mixin.js`) while sibling scripts (`filters_autocomplete.js`, `geography_autocomplete.js`) are still an older revision. Shims must live in the file that needs them, not only in scripts that load earlier — e.g. map Apply used to throw `requestFilterFormSubmit is not defined` when the mixin was new but autocomplete scripts were stale.
+
 ## When it is safe to remove
 
 Do **not** remove on deploy day. Wait until cached HTML has rolled off.
@@ -19,7 +21,7 @@ Do **not** remove on deploy day. Wait until cached HTML has rolled off.
    - `render_filter_bar` / `.filter-bar` markup (not `filter_sidebar` / `<aside class="desktop:grid-col-3">`)
    - `<script ... geography_utils.js">` and `<script ... geography_map_mixin.js">` before `geography_autocomplete.js`
 3. Optionally ask cloud.gov support to confirm CDN TTL has passed or that a cache invalidation completed.
-4. Watch client-side errors (New Relic, browser console on smoke checks) for `dataGovGeographyUtils` / `OrganizationAutocomplete` issues — none for a few days is a good signal.
+4. Watch client-side errors (New Relic, browser console on smoke checks) for `dataGovGeographyUtils`, `OrganizationAutocomplete`, or `requestFilterFormSubmit is not defined` issues — none for a few days is a good signal.
 
 If all of the above look good in **every environment you care about**, schedule cleanup.
 
@@ -44,7 +46,15 @@ After cleanup, `geography_autocomplete.js` should assume `geography_utils.js` an
 
 ### `app/static/js/geography_map_mixin.js`
 
-Revert the defensive `OSM_ATTRIBUTION` line to use `window.dataGovGeographyUtils.OSM_ATTRIBUTION` directly (utils always loaded first in templates).
+| Block | Purpose |
+|-------|---------|
+| Defensive `OSM_ATTRIBUTION` fallback | Stub when `geography_utils.js` missing from stale HTML |
+| Top-level `requestFilterFormSubmit` function | Submit helper when sibling scripts are stale and do not define the global; used by expanded map Apply (`applyPendingGeometry`) |
+
+After cleanup:
+
+- Revert `OSM_ATTRIBUTION` to use `window.dataGovGeographyUtils.OSM_ATTRIBUTION` directly (utils always loaded first in templates).
+- Remove the local `requestFilterFormSubmit` function and call `window.dataGovFilterSubmit.request(this.form, { force: true })` in `applyPendingGeometry` (`filter_submit.js` always loads before this file in templates).
 
 ### `app/static/js/filters_autocomplete.js`
 
@@ -73,11 +83,11 @@ These are part of the new filter bar, not legacy shims:
 
 - [ ] Verified new HTML in dev/stage/prod (page source, not cached tab)
 - [ ] No CDN/cache overlap concerns (or invalidation done)
-- [ ] Removed geography fallback blocks listed above
+- [ ] Removed geography fallback blocks listed above (including mixin submit helper and OSM stub)
 - [ ] Removed org/publisher legacy classes and init from `filters_autocomplete.js`
 - [ ] Keyword autocomplete uses `dataGovFilterSubmit` again
 - [ ] `tests/browser/test_search_sort_and_filters.py` passes
-- [ ] Manual smoke: geography deferred Apply, org/publisher combo boxes, keyword chips on search + org detail pages
+- [ ] Manual smoke: geography deferred Apply, **expanded map draw → Apply**, org/publisher combo boxes, keyword chips on search + org detail pages
 - [ ] Delete this doc in the same PR (or replace with a one-line note in the PR description that cleanup is complete)
 
 ## Related context
