@@ -79,7 +79,7 @@
     contextual_org_counts=None,
     contextual_publisher_counts=None,
     all_organizations=None,
-    all_publishers=None,
+    combo_publishers=None,
     collection=None
 ) %}
 {% set org_active = 1 if (org_slug or selected_organization) else 0 %}
@@ -143,7 +143,7 @@
 
         {# Single-select, but deferred for a consistent Clear / Apply footer. #}
         {% call _facet('publisher', 'Publisher', publisher_active) %}
-            {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts, all_publishers) }}
+            {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts, combo_publishers) }}
         {% endcall %}
 
         {% call _facet('geography', 'Geographic Area', geography_active) %}

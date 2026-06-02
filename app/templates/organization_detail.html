@@ -109,7 +109,7 @@
             spatial_geometry=spatial_geometry,
             contextual_keyword_counts=contextual_keyword_counts,
             contextual_publisher_counts=contextual_publisher_counts,
-            all_publishers=all_publishers
+            combo_publishers=combo_publishers
         ) }}
 
         {{ render_geography_expanded_panel() }}
@@ -170,9 +170,15 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/filter_submit.js') }}"></script>
+<script src="{{ url_for('static', filename='js/filter_controllers.js') }}"></script>
+<script src="{{ url_for('static', filename='js/third_party_launcher.js') }}"></script>
+<script src="{{ url_for('static', filename='js/uswds_combo_sync.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filter_dropdowns.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>
+<script src="{{ url_for('static', filename='js/geography_utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/geography_map_mixin.js') }}"></script>
 <script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}"/>
 <script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>

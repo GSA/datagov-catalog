@@ -1,31 +1,20 @@
 {% macro render_publisher_filter(selected_publisher=None, suggested_publishers=None, contextual_publisher_counts=None,
-all_publishers=None) %}
+combo_publishers=None) %}
 {# Single-select publisher filter backed by a USWDS combo box (native <select>
-   enhanced with typeahead). Selecting an option stages it; the panel's Apply
-   button applies it. Popular publishers are offered as quick picks. #}
+   enhanced with typeahead). Options are the top publishers by dataset count
+   (see filter_helpers.TOP_PUBLISHER_COMBO_SIZE), plus any popular quick-picks or
+   the active selection. Selecting an option stages it; the panel Apply applies. #}
 {% set current_publisher = selected_publisher or '' %}
 <label class="usa-label margin-top-0" for="publisher-select">
     Filter by publisher <br>
-    <span class="usa-hint">Type to search or pick from the list</span>
+    <span class="usa-hint">Type to search top publishers or pick from the list</span>
 </label>
 <div class="usa-combo-box" data-filter-combo="publisher" data-placeholder="Type a publisher..."{% if current_publisher %} data-default-value="{{ current_publisher | e }}"{% endif %}>
     <select class="usa-select" name="publisher" id="publisher-select">
         <option value="">- Select a publisher -</option>
-        {% set publisher_options = all_publishers or [] %}
-        {% for name in publisher_options -%}
+        {% for name in (combo_publishers or []) -%}
         <option value="{{ name | e }}">{{ name }}</option>
         {%- endfor %}
-        {# Popular publishers come from the current-search aggregation and may fall
-           outside the top-N `all_publishers` list. Their quick-pick buttons set the
-           <select> value directly, so each one needs a matching <option> or the
-           selection silently no-ops. #}
-        {% for name in (suggested_publishers or []) if name not in publisher_options -%}
-        <option value="{{ name | e }}">{{ name }}</option>
-        {%- endfor %}
-        {# Ensure the active publisher is selectable even if it is not in either list. #}
-        {% if current_publisher and current_publisher not in publisher_options and current_publisher not in (suggested_publishers or []) -%}
-        <option value="{{ current_publisher | e }}">{{ current_publisher }}</option>
-        {%- endif %}
     </select>
 </div>
 

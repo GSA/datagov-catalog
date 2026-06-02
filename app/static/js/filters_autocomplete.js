@@ -1,21 +1,3 @@
-function requestFilterFormSubmit(form, options = {}) {
-    const controller = window.dataGovFilterFormAutoSubmit;
-    if (controller && typeof controller.request === 'function' && controller.form) {
-        controller.request(options);
-        return;
-    }
-
-    if (!form) {
-        return;
-    }
-
-    if (typeof form.requestSubmit === 'function') {
-        form.requestSubmit();
-    } else {
-        form.submit();
-    }
-}
-
 class KeywordAutocomplete {
     constructor(options) {
         this.inputId = options.inputId;
@@ -29,7 +11,7 @@ class KeywordAutocomplete {
         this.chipsContainer = document.getElementById(this.chipsContainerId);
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
         this.form = document.getElementById(this.formId);
-        this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
+        this.mainSearchForm = document.getElementById(this.mainSearchFormId);
         this.selectedKeywords = new Set();
         this.fetchController = null;
         this.debounceTimer = null;
@@ -190,7 +172,7 @@ class KeywordAutocomplete {
             }
             this.input.value = '';
             this.hideSuggestions();
-            requestFilterFormSubmit(this.form, { force: true });
+            window.dataGovFilterSubmit.request(this.form, { force: true });
         } else if (e.key === 'Tab') {
             // Tab stages the focused suggestion without submitting.
             if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
@@ -277,7 +259,7 @@ class KeywordAutocomplete {
 
 
         if (!silent) {
-            requestFilterFormSubmit(this.form);
+            window.dataGovFilterSubmit.request(this.form);
         }
     }
 
@@ -296,7 +278,7 @@ class KeywordAutocomplete {
         }
 
         // Removing a chip applies immediately (force past the deferred panel).
-        requestFilterFormSubmit(this.form, { force: true });
+        window.dataGovFilterSubmit.request(this.form, { force: true });
     }
 
     // Remove every selected keyword without submitting. Used by the filter
@@ -380,17 +362,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const keywordChips = document.getElementById('keyword-chips');
     const keywordSuggestions = document.getElementById('keyword-suggestions');
     if (keywordInput && keywordChips && keywordSuggestions) {
-        window.dataGovKeywordAutocomplete = new KeywordAutocomplete({
+        const keywordAutocomplete = new KeywordAutocomplete({
             inputId: 'keyword-input',
             chipsContainerId: 'keyword-chips',
             suggestionsId: 'keyword-suggestions',
             formId: 'filter-form',
-            mainSearchFormId: 'main-search-form', // NEW: main search form ID
+            mainSearchFormId: 'main-search-form',
             apiEndpoint: '/api/keywords',
             debounceDelay: 300
         });
+        window.dataGovKeywordAutocomplete = keywordAutocomplete;
+        if (window.dataGovFilterControllers) {
+            window.dataGovFilterControllers.register('keywords', {
+                clearStaged: () => keywordAutocomplete.clearAll(),
+            });
+        }
     }
-
-    // Organization and Publisher are now USWDS combo boxes wired up in
-    // filter_dropdowns.js, not custom autocompletes.
 });

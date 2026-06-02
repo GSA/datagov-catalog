@@ -20,6 +20,7 @@ from flask import (
 )
 
 from . import htmx
+from .filter_helpers import publisher_combo_select_names
 from .api_schemas import (
     KeywordsQuery,
     KeywordsResults,
@@ -126,22 +127,20 @@ def _normalize_sort(sort_value: str | None, spatial_geometry: dict | None) -> st
     return sort_key
 
 
-def _all_publisher_names() -> list[str]:
-    """Full publisher list backing the combo box <select>, sorted by name.
-
-    Returns an empty list (and logs) on failure so the page still renders.
-    """
+def _fetch_top_publishers() -> list[dict]:
+    """Top publishers by dataset count (see filter_helpers.TOP_PUBLISHER_COMBO_SIZE)."""
     try:
-        return sorted(
-            (p["name"] for p in interface.get_top_publishers() if p.get("name")),
-            key=lambda name: name.lower(),
-        )
+        return interface.get_top_publishers()
     except Exception:
         logger.exception("Failed to fetch publishers")
         return []
 
 
-def _suggested_publishers(contextual_aggs: dict, publisher: str | None) -> list[str]:
+def _suggested_publishers(
+    contextual_aggs: dict,
+    publisher: str | None,
+    top_publishers: list[dict] | None = None,
+) -> list[str]:
     """Popular publisher quick-picks, excluding the currently selected one.
 
     Normally drawn from the current-search aggregation so the picks reflect
@@ -163,16 +162,12 @@ def _suggested_publishers(contextual_aggs: dict, publisher: str | None) -> list[
     if contextual:
         return contextual
 
-    try:
-        # get_top_publishers() is already ordered by descending count.
-        return [
-            p["name"]
-            for p in interface.get_top_publishers()
-            if p.get("name") and p["name"] != publisher
-        ][:10]
-    except Exception:
-        logger.exception("Failed to fetch fallback suggested publishers")
-        return []
+    fallback_source = top_publishers if top_publishers is not None else _fetch_top_publishers()
+    return [
+        p["name"]
+        for p in fallback_source
+        if p.get("name") and p["name"] != publisher
+    ][:10]
 
 
 def _suggested_organizations(
@@ -437,10 +432,13 @@ def index():
     except Exception:
         logger.exception("Failed to fetch suggested organizations")
 
-    # The full publisher list backs the combo box <select>.
-    all_publishers = _all_publisher_names()
-
-    suggested_publishers = _suggested_publishers(contextual_aggs, publisher)
+    top_publishers = _fetch_top_publishers()
+    suggested_publishers = _suggested_publishers(
+        contextual_aggs, publisher, top_publishers=top_publishers
+    )
+    combo_publishers = publisher_combo_select_names(
+        top_publishers, suggested_publishers, publisher
+    )
 
     # Only emit a return-to-search hint when there is actual search or filter state.
     from_hint = hint_from_dict(request.args) if request.args else None
@@ -488,7 +486,7 @@ def index():
         suggested_organizations=suggested_organizations,
         suggested_publishers=suggested_publishers,
         all_organizations=all_organizations,
-        all_publishers=all_publishers,
+        combo_publishers=combo_publishers,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
         search_result_geometries=search_result_geometries,
@@ -848,10 +846,13 @@ def organization_detail(slug: str):
         )
         if item["keyword"] not in set(keywords)
     ][:10]
-    suggested_publishers = _suggested_publishers(contextual_aggs, publisher)
-
-    # The full publisher list backs the combo box <select>.
-    all_publishers = _all_publisher_names()
+    top_publishers = _fetch_top_publishers()
+    suggested_publishers = _suggested_publishers(
+        contextual_aggs, publisher, top_publishers=top_publishers
+    )
+    combo_publishers = publisher_combo_select_names(
+        top_publishers, suggested_publishers, publisher
+    )
 
     slug_or_id = organization.slug or slug
 
@@ -881,7 +882,7 @@ def organization_detail(slug: str):
         search_result_geometries=search_result_geometries,
         suggested_keywords=suggested_keywords,
         suggested_publishers=suggested_publishers,
-        all_publishers=all_publishers,
+        combo_publishers=combo_publishers,
         contextual_keyword_counts=contextual_keyword_counts,
         contextual_publisher_counts=contextual_publisher_counts,
         from_hint=from_hint,
@@ -1124,36 +1125,10 @@ def openapi_docs():
     return render_template("swagger.html")
 
 
-# Map tiles are served from a same-origin /maptiles path so the CSP stays
-# locked down and the CDN can cache them. In production this path is proxied to
-# OpenStreetMap by nginx (see proxy/nginx-common.conf). The local Flask dev
-# server has no nginx in front of it, so we provide an equivalent proxy here.
-def _register_dev_maptiles_proxy(app):
-    import requests
-
-    @app.route("/maptiles/<int:z>/<int:x>/<int:y>.png")
-    def dev_maptiles(z, x, y):
-        try:
-            upstream = requests.get(
-                f"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                headers={"User-Agent": "datagov-catalog-local-dev"},
-                timeout=10,
-            )
-        except requests.RequestException as exc:
-            logger.warning("Failed to fetch map tile", extra={"error": str(exc)})
-            return Response(status=502)
-
-        return Response(
-            upstream.content,
-            status=upstream.status_code,
-            content_type=upstream.headers.get("Content-Type", "image/png"),
-            headers={"Cache-Control": "public, max-age=86400"},
-        )
-
-
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
 
-    if app.config.get("IS_LOCAL"):
-        _register_dev_maptiles_proxy(app)
+    from app.dev_routes import register_dev_routes
+
+    register_dev_routes(app)
