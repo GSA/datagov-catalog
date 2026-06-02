@@ -1,3 +1,27 @@
+function requestFilterFormSubmit(form, options = {}) {
+    const submit = window.dataGovFilterSubmit;
+    if (submit && typeof submit.request === 'function') {
+        submit.request(form, options);
+        return;
+    }
+
+    const controller = window.dataGovFilterFormAutoSubmit;
+    if (controller && typeof controller.request === 'function' && controller.form) {
+        controller.request(options);
+        return;
+    }
+
+    if (!form) {
+        return;
+    }
+
+    if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+    } else {
+        form.submit();
+    }
+}
+
 class KeywordAutocomplete {
     constructor(options) {
         this.inputId = options.inputId;
@@ -172,7 +196,7 @@ class KeywordAutocomplete {
             }
             this.input.value = '';
             this.hideSuggestions();
-            window.dataGovFilterSubmit.request(this.form, { force: true });
+            requestFilterFormSubmit(this.form, { force: true });
         } else if (e.key === 'Tab') {
             // Tab stages the focused suggestion without submitting.
             if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
@@ -259,7 +283,7 @@ class KeywordAutocomplete {
 
 
         if (!silent) {
-            window.dataGovFilterSubmit.request(this.form);
+            requestFilterFormSubmit(this.form);
         }
     }
 
@@ -278,7 +302,7 @@ class KeywordAutocomplete {
         }
 
         // Removing a chip applies immediately (force past the deferred panel).
-        window.dataGovFilterSubmit.request(this.form, { force: true });
+        requestFilterFormSubmit(this.form, { force: true });
     }
 
     // Remove every selected keyword without submitting. Used by the filter
@@ -356,6 +380,750 @@ class KeywordAutocomplete {
     }
 }
 
+class OrganizationAutocomplete {
+    constructor(options) {
+        this.inputId = options.inputId;
+        this.chipsContainerId = options.chipsContainerId;
+        this.suggestionsId = options.suggestionsId;
+        this.apiEndpoint = options.apiEndpoint || '/api/organizations';
+        this.formId = options.formId;
+        this.mainSearchFormId = options.mainSearchFormId;
+        this.debounceDelay = options.debounceDelay || 300;
+        this.suggestedContainerId = options.suggestedContainerId || 'suggested-organizations';
+
+        this.input = document.getElementById(this.inputId);
+        this.chipsContainer = document.getElementById(this.chipsContainerId);
+        this.suggestionsContainer = document.getElementById(this.suggestionsId);
+        this.form = document.getElementById(this.formId);
+        this.mainSearchForm = document.getElementById(this.mainSearchFormId);
+        this.suggestedContainer = null;
+
+        this.organizations = [];
+        this.selectedOrganization = null;
+        this.debounceTimer = null;
+        this.currentFocusIndex = -1;
+        this.numberFormatter = new Intl.NumberFormat();
+        this.initialSelection = options.initialSelection || this.getInitialSelection();
+        this.contextualCounts = {};
+
+        if (!this.input || !this.chipsContainer || !this.suggestionsContainer) {
+            console.error('OrganizationAutocomplete: Required elements not found');
+            return;
+        }
+
+        // Load contextual counts from data attribute
+        const countsData = this.chipsContainer.dataset.contextualCounts;
+        if (countsData) {
+            try {
+                this.contextualCounts = JSON.parse(countsData);
+            } catch (e) {
+                console.error('Failed to parse contextual counts:', e);
+            }
+        }
+
+        this.init();
+    }
+
+    init() {
+        this.loadOrganizations();
+        this.initSuggestedOrganizations();
+
+        if (this.initialSelection) {
+            this.setOrganization(this.initialSelection, { silent: true });
+            this.hideSuggestedOrganizations();
+        }
+
+        this.input.addEventListener('input', (e) => this.handleInput(e));
+        this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        this.input.addEventListener('focus', () => this.showSuggestions());
+
+        document.addEventListener('click', (e) => {
+            if (!this.input.contains(e.target) && !this.suggestionsContainer.contains(e.target)) {
+                this.hideSuggestions();
+            }
+        });
+
+        if (this.form) {
+            this.form.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+
+        if (this.mainSearchForm) {
+            this.mainSearchForm.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+    }
+
+    initSuggestedOrganizations() {
+        this.suggestedContainer = document.getElementById(this.suggestedContainerId);
+        if (!this.suggestedContainer) {
+            return;
+        }
+
+        const buttons = this.suggestedContainer.querySelectorAll('.tag-link--organization');
+        buttons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const orgId = button.dataset.orgId;
+                const orgName = button.dataset.orgName;
+                const orgSlug = button.dataset.orgSlug;
+                if (orgName) {
+                    this.setOrganization({ id: orgId, name: orgName, slug: orgSlug });
+                    this.input.value = '';
+                    this.hideSuggestedOrganizations();
+                }
+            });
+        });
+    }
+
+    getInitialSelection() {
+        if (!this.chipsContainer || !this.chipsContainer.dataset) {
+            return null;
+        }
+
+        const id = this.chipsContainer.dataset.initialOrgId;
+        const name = this.chipsContainer.dataset.initialOrgName;
+        const slug = this.chipsContainer.dataset.initialOrgSlug;
+
+        if ((id || slug) && name) {
+            return { id, name, slug };
+        }
+
+        return null;
+    }
+
+    async loadOrganizations() {
+        try {
+            const response = await fetch(this.apiEndpoint);
+            const data = await response.json();
+            const organizations = data.organizations || [];
+            this.organizations = organizations
+                .sort((a, b) => {
+                    const countA = Number.isFinite(a.dataset_count) ? a.dataset_count : 0;
+                    const countB = Number.isFinite(b.dataset_count) ? b.dataset_count : 0;
+                    return countB - countA;
+                })
+                .map((item) => ({
+                    ...item,
+                    aliases: Array.isArray(item.aliases) ? item.aliases : [],
+                    slug: item.slug || '',
+                }));
+        } catch (error) {
+            console.error('Error loading organizations:', error);
+            this.organizations = [];
+        }
+    }
+
+    handleInput(e) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+            const query = e.target.value.trim().toLowerCase();
+            if (query.length === 0) {
+                this.hideSuggestions();
+            } else {
+                this.filterAndShowSuggestions(query);
+            }
+        }, this.debounceDelay);
+    }
+
+    handleKeyDown(e) {
+        const suggestions = this.suggestionsContainer.querySelectorAll('.keyword-suggestion');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.currentFocusIndex = Math.min(this.currentFocusIndex + 1, suggestions.length - 1);
+            this.updateSuggestionFocus(suggestions);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.currentFocusIndex = Math.max(this.currentFocusIndex - 1, 0);
+            this.updateSuggestionFocus(suggestions);
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
+                e.preventDefault();
+                const orgId = suggestions[this.currentFocusIndex].dataset.orgId;
+                const orgSlug = suggestions[this.currentFocusIndex].dataset.orgSlug;
+                const organization = this.organizations.find((item) => {
+                    if (orgSlug) {
+                        return (item.slug || '').toString() === orgSlug;
+                    }
+                    return String(item.id) === String(orgId);
+                });
+                if (organization) {
+                    this.setOrganization({
+                        id: organization.id != null ? String(organization.id) : undefined,
+                        name: organization.name,
+                        slug: organization.slug,
+                    });
+                }
+                this.input.value = '';
+                this.hideSuggestions();
+            }
+        } else if (e.key === 'Escape') {
+            this.hideSuggestions();
+        }
+    }
+
+    updateSuggestionFocus(suggestions) {
+        suggestions.forEach((item, index) => {
+            if (index === this.currentFocusIndex) {
+                item.classList.add('keyword-suggestion--focused');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('keyword-suggestion--focused');
+            }
+        });
+    }
+
+    filterAndShowSuggestions(query) {
+        const filtered = this.organizations.filter((item) => {
+            const name = (item.name || '').toLowerCase();
+            const slug = (item.slug || '').toLowerCase();
+            const aliases = Array.isArray(item.aliases)
+                ? item.aliases.map((alias) => (alias || '').toLowerCase())
+                : [];
+
+            const currentKey = this.selectedOrganization
+                ? (this.selectedOrganization.slug || this.selectedOrganization.id || '')
+                    .toString()
+                    .toLowerCase()
+                : null;
+            const itemKey = (item.slug || item.id || '').toString().toLowerCase();
+            const alreadySelected = currentKey && currentKey === itemKey;
+
+            if (alreadySelected) {
+                return false;
+            }
+
+            const aliasMatch = aliases.some((alias) => alias.includes(query));
+            return (
+                name.includes(query) || slug.includes(query) || aliasMatch
+            );
+        });
+
+        const topResults = filtered.slice(0, 10);
+
+        if (topResults.length > 0) {
+            this.renderSuggestions(topResults);
+            this.showSuggestions();
+        } else {
+            this.hideSuggestions();
+        }
+    }
+
+    renderSuggestions(items) {
+        this.suggestionsContainer.innerHTML = '';
+        this.currentFocusIndex = -1;
+
+        items.forEach((item) => {
+            const div = document.createElement('div');
+            div.className = 'keyword-suggestion';
+            if (item.id !== undefined) {
+                div.dataset.orgId = String(item.id);
+            }
+            if (item.slug) {
+                div.dataset.orgSlug = item.slug;
+            }
+            const textSpan = document.createElement('span');
+            textSpan.className = 'keyword-suggestion__text';
+            textSpan.appendChild(this.highlightMatch(item.name, this.input.value));
+            const countSpan = document.createElement('span');
+            countSpan.className = 'keyword-suggestion__count';
+            countSpan.textContent = this.formatCount(item.dataset_count || 0);
+            div.appendChild(textSpan);
+            div.appendChild(countSpan);
+
+            div.addEventListener('click', () => {
+                this.setOrganization({
+                    id: item.id != null ? String(item.id) : undefined,
+                    name: item.name,
+                    slug: item.slug,
+                });
+                this.input.value = '';
+                this.hideSuggestions();
+            });
+
+            this.suggestionsContainer.appendChild(div);
+        });
+    }
+
+    setOrganization(organization, options = {}) {
+        const silent = Boolean(options.silent);
+        if (!organization) {
+            return;
+        }
+
+        const normalizedId = organization.id != null ? String(organization.id) : '';
+        const normalizedSlug = organization.slug || '';
+        this.selectedOrganization = {
+            id: normalizedId,
+            name: organization.name || '',
+            slug: normalizedSlug,
+        };
+        this.renderChip(this.selectedOrganization);
+        this.syncHiddenInputs();
+        this.hideSuggestedOrganizations();
+
+        if (!silent) {
+            requestFilterFormSubmit(this.form);
+        }
+    }
+
+    renderChip(organization) {
+        this.chipsContainer.innerHTML = '';
+
+        const chip = document.createElement('div');
+        chip.className = 'tag-link';
+        if (organization.id) {
+            chip.dataset.orgId = organization.id;
+        }
+        if (organization.slug) {
+            chip.dataset.orgSlug = organization.slug;
+        }
+
+        const count = organization.slug ? this.contextualCounts[organization.slug] : null;
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'keyword-chip__text';
+        textSpan.textContent = organization.name;
+        if (count) {
+            const countSpan = document.createElement('span');
+            countSpan.className = 'tag-link__count';
+            countSpan.textContent = `(${this.formatCount(count)})`;
+            textSpan.appendChild(countSpan);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'keyword-chip__remove';
+        removeBtn.setAttribute('aria-label', `Remove ${organization.name}`);
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-xmark';
+        removeBtn.appendChild(icon);
+
+        chip.appendChild(textSpan);
+        chip.appendChild(removeBtn);
+        removeBtn.addEventListener('click', () => {
+            this.clearSelection();
+        });
+
+        this.chipsContainer.appendChild(chip);
+    }
+
+    clearSelection() {
+        this.selectedOrganization = null;
+        this.chipsContainer.innerHTML = '';
+        this.syncHiddenInputs();
+        this.showSuggestedOrganizations();
+        requestFilterFormSubmit(this.form);
+    }
+
+    syncHiddenInputs() {
+        this.syncFormHiddenInputs(this.form);
+        this.syncFormHiddenInputs(this.mainSearchForm);
+    }
+
+    syncFormHiddenInputs(form) {
+        if (!form) {
+            return;
+        }
+
+        const existing = form.querySelectorAll('input[name="org_slug"][type="hidden"]');
+        existing.forEach((input) => input.remove());
+
+        if (this.selectedOrganization) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'org_slug';
+            input.value = this.selectedOrganization.slug || this.selectedOrganization.name;
+            form.appendChild(input);
+        }
+    }
+
+    highlightMatch(text, query) {
+        const fragment = document.createDocumentFragment();
+        if (!text) {
+            return fragment;
+        }
+
+        const normalizedText = text.toLowerCase();
+        const normalizedQuery = query.toLowerCase();
+        const index = normalizedText.indexOf(normalizedQuery);
+        if (index === -1 || !query) {
+            fragment.appendChild(document.createTextNode(text));
+            return fragment;
+        }
+
+        fragment.appendChild(document.createTextNode(text.substring(0, index)));
+        const strong = document.createElement('strong');
+        strong.textContent = text.substring(index, index + query.length);
+        fragment.appendChild(strong);
+        fragment.appendChild(document.createTextNode(text.substring(index + query.length)));
+        return fragment;
+    }
+
+    showSuggestions() {
+        this.suggestionsContainer.classList.add('keyword-suggestions--visible');
+        this.input.setAttribute('aria-expanded', 'true');
+    }
+
+    hideSuggestions() {
+        this.suggestionsContainer.classList.remove('keyword-suggestions--visible');
+        this.currentFocusIndex = -1;
+        this.input.setAttribute('aria-expanded', 'false');
+    }
+
+    formatCount(value) {
+        const count = Number.isFinite(value) ? value : 0;
+        return this.numberFormatter.format(count);
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    hideSuggestedOrganizations() {
+        if (this.suggestedContainer) {
+            this.suggestedContainer.style.display = 'none';
+        }
+    }
+
+    showSuggestedOrganizations() {
+        if (this.suggestedContainer && !this.selectedOrganization) {
+            this.suggestedContainer.style.display = 'block';
+        }
+    }
+}
+
+class PublisherAutocomplete {
+    constructor(options) {
+        this.inputId = options.inputId;
+        this.chipsContainerId = options.chipsContainerId;
+        this.suggestionsId = options.suggestionsId;
+        this.apiEndpoint = options.apiEndpoint || '/api/publishers';
+        this.formId = options.formId;
+        this.mainSearchFormId = options.mainSearchFormId;
+        this.debounceDelay = options.debounceDelay || 300;
+        this.suggestedContainerId = options.suggestedContainerId || 'suggested-publishers';
+
+        this.input = document.getElementById(this.inputId);
+        this.chipsContainer = document.getElementById(this.chipsContainerId);
+        this.suggestionsContainer = document.getElementById(this.suggestionsId);
+        this.form = document.getElementById(this.formId);
+        this.mainSearchForm = document.getElementById(this.mainSearchFormId);
+        this.suggestedContainer = null;
+
+        this.publishers = [];
+        this.selectedPublisher = null;
+        this.debounceTimer = null;
+        this.currentFocusIndex = -1;
+        this.numberFormatter = new Intl.NumberFormat();
+        this.contextualCounts = {};
+        this.initialSelection = options.initialSelection || this.getInitialSelection();
+
+        if (!this.input || !this.chipsContainer || !this.suggestionsContainer) {
+            console.error('PublisherAutocomplete: Required elements not found');
+            return;
+        }
+
+        const countsData = this.chipsContainer.dataset.contextualCounts;
+        if (countsData) {
+            try {
+                this.contextualCounts = JSON.parse(countsData);
+            } catch (e) {
+                console.error('Failed to parse publisher contextual counts:', e);
+            }
+        }
+
+        this.init();
+    }
+
+    init() {
+        this.loadPublishers();
+        this.initSuggestedPublishers();
+
+        if (this.initialSelection) {
+            this.setPublisher(this.initialSelection, { silent: true });
+            this.hideSuggestedPublishers();
+        }
+
+        this.input.addEventListener('input', (e) => this.handleInput(e));
+        this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        this.input.addEventListener('focus', () => this.showSuggestions());
+
+        document.addEventListener('click', (e) => {
+            if (!this.input.contains(e.target) && !this.suggestionsContainer.contains(e.target)) {
+                this.hideSuggestions();
+            }
+        });
+
+        if (this.form) {
+            this.form.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+
+        if (this.mainSearchForm) {
+            this.mainSearchForm.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+    }
+
+    getInitialSelection() {
+        if (!this.chipsContainer || !this.chipsContainer.dataset) {
+            return null;
+        }
+
+        return this.chipsContainer.dataset.initialPublisherName || null;
+    }
+
+    async loadPublishers() {
+        try {
+            const response = await fetch(this.apiEndpoint);
+            const data = await response.json();
+            this.publishers = (data.publishers || []).filter((item) => item.name);
+        } catch (error) {
+            console.error('Error loading publishers:', error);
+            this.publishers = [];
+        }
+    }
+
+    initSuggestedPublishers() {
+        this.suggestedContainer = document.getElementById(this.suggestedContainerId);
+        if (!this.suggestedContainer) {
+            return;
+        }
+
+        const buttons = this.suggestedContainer.querySelectorAll('.tag-link--publisher');
+        buttons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const publisherName = button.dataset.publisherName;
+                if (publisherName) {
+                    this.setPublisher(publisherName);
+                    this.input.value = '';
+                    this.hideSuggestedPublishers();
+                }
+            });
+        });
+    }
+
+    handleInput(e) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => {
+            const query = e.target.value.trim().toLowerCase();
+            if (query.length === 0) {
+                this.hideSuggestions();
+            } else {
+                this.filterAndShowSuggestions(query);
+            }
+        }, this.debounceDelay);
+    }
+
+    handleKeyDown(e) {
+        const suggestions = this.suggestionsContainer.querySelectorAll('.keyword-suggestion');
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.currentFocusIndex = Math.min(this.currentFocusIndex + 1, suggestions.length - 1);
+            this.updateSuggestionFocus(suggestions);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.currentFocusIndex = Math.max(this.currentFocusIndex - 1, 0);
+            this.updateSuggestionFocus(suggestions);
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+            if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
+                e.preventDefault();
+                const publisherName = suggestions[this.currentFocusIndex].dataset.publisherName;
+                if (publisherName) {
+                    this.setPublisher(publisherName);
+                }
+                this.input.value = '';
+                this.hideSuggestions();
+            }
+        } else if (e.key === 'Escape') {
+            this.hideSuggestions();
+        }
+    }
+
+    updateSuggestionFocus(suggestions) {
+        suggestions.forEach((item, index) => {
+            if (index === this.currentFocusIndex) {
+                item.classList.add('keyword-suggestion--focused');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('keyword-suggestion--focused');
+            }
+        });
+    }
+
+    filterAndShowSuggestions(query) {
+        const filtered = this.publishers.filter((item) => {
+            const name = (item.name || '').toLowerCase();
+            const alreadySelected = this.selectedPublisher
+                && this.selectedPublisher.toLowerCase() === name;
+            const hasContextualCount = Object.keys(this.contextualCounts).length > 0;
+            const count = this.contextualCounts[item.name];
+            const hasCount = !hasContextualCount || count > 0;
+
+            return name.includes(query) && !alreadySelected && hasCount;
+        });
+
+        const topResults = filtered.slice(0, 10);
+
+        if (topResults.length > 0) {
+            this.renderSuggestions(topResults);
+            this.showSuggestions();
+        } else {
+            this.hideSuggestions();
+        }
+    }
+
+    renderSuggestions(items) {
+        this.suggestionsContainer.innerHTML = '';
+        this.currentFocusIndex = -1;
+
+        items.forEach((item) => {
+            const div = document.createElement('div');
+            div.className = 'keyword-suggestion';
+            div.dataset.publisherName = item.name;
+
+            const displayCount = this.contextualCounts[item.name] !== undefined
+                ? this.contextualCounts[item.name]
+                : item.count;
+
+            div.innerHTML = `
+                <span class="keyword-suggestion__text">${this.highlightMatch(item.name, this.input.value)}</span>
+                <span class="keyword-suggestion__count">${this.formatCount(displayCount || 0)}</span>
+            `;
+
+            div.addEventListener('click', () => {
+                this.setPublisher(item.name);
+                this.input.value = '';
+                this.hideSuggestions();
+            });
+
+            this.suggestionsContainer.appendChild(div);
+        });
+    }
+
+    setPublisher(name, options = {}) {
+        const silent = Boolean(options.silent);
+        if (!name) {
+            return;
+        }
+
+        this.selectedPublisher = name;
+        this.renderChip(name);
+        this.syncHiddenInputs();
+        this.hideSuggestedPublishers();
+
+        if (!silent) {
+            requestFilterFormSubmit(this.form);
+        }
+    }
+
+    renderChip(name) {
+        this.chipsContainer.innerHTML = '';
+
+        const chip = document.createElement('div');
+        chip.className = 'tag-link';
+        chip.dataset.publisherName = name;
+        const count = this.contextualCounts[name];
+        const countHtml = count ? ` <span class="tag-link__count">(${this.formatCount(count)})</span>` : '';
+        chip.innerHTML = `
+            <span class="keyword-chip__text">${this.escapeHtml(name)}${countHtml}</span>
+            <button type="button" class="keyword-chip__remove" aria-label="Remove ${this.escapeHtml(name)}">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        `;
+
+        const removeBtn = chip.querySelector('.keyword-chip__remove');
+        removeBtn.addEventListener('click', () => {
+            this.clearSelection();
+        });
+
+        this.chipsContainer.appendChild(chip);
+    }
+
+    clearSelection() {
+        this.selectedPublisher = null;
+        this.chipsContainer.innerHTML = '';
+        this.syncHiddenInputs();
+        this.showSuggestedPublishers();
+        requestFilterFormSubmit(this.form);
+    }
+
+    syncHiddenInputs() {
+        this.syncFormHiddenInputs(this.form);
+        this.syncFormHiddenInputs(this.mainSearchForm);
+    }
+
+    syncFormHiddenInputs(form) {
+        if (!form) {
+            return;
+        }
+
+        const existing = form.querySelectorAll('input[name="publisher"][type="hidden"]');
+        existing.forEach((input) => input.remove());
+
+        if (this.selectedPublisher) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'publisher';
+            input.value = this.selectedPublisher;
+            form.appendChild(input);
+        }
+    }
+
+    highlightMatch(text, query) {
+        if (!text) {
+            return '';
+        }
+
+        const normalizedText = text.toLowerCase();
+        const normalizedQuery = query.toLowerCase();
+        const index = normalizedText.indexOf(normalizedQuery);
+        if (index === -1 || !query) {
+            return this.escapeHtml(text);
+        }
+
+        const before = this.escapeHtml(text.substring(0, index));
+        const match = this.escapeHtml(text.substring(index, index + query.length));
+        const after = this.escapeHtml(text.substring(index + query.length));
+
+        return `${before}<strong>${match}</strong>${after}`;
+    }
+
+    showSuggestions() {
+        this.suggestionsContainer.classList.add('keyword-suggestions--visible');
+        this.input.setAttribute('aria-expanded', 'true');
+    }
+
+    hideSuggestions() {
+        this.suggestionsContainer.classList.remove('keyword-suggestions--visible');
+        this.currentFocusIndex = -1;
+        this.input.setAttribute('aria-expanded', 'false');
+    }
+
+    formatCount(value) {
+        const count = Number.isFinite(value) ? value : 0;
+        return this.numberFormatter.format(count);
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    hideSuggestedPublishers() {
+        if (this.suggestedContainer) {
+            this.suggestedContainer.style.display = 'none';
+        }
+    }
+
+    showSuggestedPublishers() {
+        if (this.suggestedContainer && !this.selectedPublisher) {
+            this.suggestedContainer.style.display = 'block';
+        }
+    }
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     const keywordInput = document.getElementById('keyword-input');
@@ -377,5 +1145,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 clearStaged: () => keywordAutocomplete.clearAll(),
             });
         }
+    }
+
+    const organizationInput = document.getElementById('organization-input');
+    const organizationChips = document.getElementById('organization-chips');
+    const organizationSuggestions = document.getElementById('organization-suggestions');
+    if (organizationInput && organizationChips && organizationSuggestions) {
+        new OrganizationAutocomplete({
+            inputId: 'organization-input',
+            chipsContainerId: 'organization-chips',
+            suggestionsId: 'organization-suggestions',
+            formId: 'filter-form',
+            mainSearchFormId: 'main-search-form',
+            apiEndpoint: '/api/organizations',
+            debounceDelay: 300,
+            suggestedContainerId: 'suggested-organizations'
+        });
+    }
+
+    const publisherInput = document.getElementById('publisher-input');
+    const publisherChips = document.getElementById('publisher-chips');
+    const publisherSuggestions = document.getElementById('publisher-suggestions');
+    if (publisherInput && publisherChips && publisherSuggestions) {
+        new PublisherAutocomplete({
+            inputId: 'publisher-input',
+            chipsContainerId: 'publisher-chips',
+            suggestionsId: 'publisher-suggestions',
+            formId: 'filter-form',
+            mainSearchFormId: 'main-search-form',
+            apiEndpoint: '/api/publishers',
+            debounceDelay: 300,
+            suggestedContainerId: 'suggested-publishers'
+        });
     }
 });

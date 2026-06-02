@@ -1,6 +1,199 @@
 /* Geography filter typeahead; map UI lives in geography_map_mixin.js */
 /* global L */
 
+(function ensureDataGovGeographyUtils(window) {
+  if (window.dataGovGeographyUtils) {
+    return;
+  }
+
+  // Stub for stale HTML that omits geography_utils.js from the script list.
+  function normalizeGeometry(value) {
+    if (!value) return null;
+    let geometry = value;
+    if (typeof geometry === 'string') {
+      try {
+        geometry = JSON.parse(geometry);
+      } catch (_err) {
+        return null;
+      }
+    }
+    if (!geometry || typeof geometry !== 'object') return null;
+    if (typeof geometry.type !== 'string') return null;
+    return geometry;
+  }
+
+  function parseSpatialWithinParam(value) {
+    if (typeof value !== 'string') return true;
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'n', 'off'].includes(normalized)) return false;
+    return true;
+  }
+
+  function loadSearchResultGeometries(scriptId) {
+    const dataEl = document.getElementById(scriptId || 'geography-search-result-geometries');
+    if (!dataEl) return [];
+    try {
+      const parsed = JSON.parse(dataEl.textContent || '[]');
+      if (!Array.isArray(parsed)) return [];
+      const geometries = [];
+      parsed.forEach((entry) => {
+        const geometry = normalizeGeometry(entry);
+        if (geometry) {
+          geometries.push(geometry);
+        }
+      });
+      return geometries.slice(0, 20);
+    } catch (_err) {
+      return [];
+    }
+  }
+
+  window.dataGovGeographyUtils = {
+    OSM_ATTRIBUTION:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    normalizeGeometry,
+    parseSpatialWithinParam,
+    loadSearchResultGeometries,
+  };
+})(window);
+
+function requestFilterFormSubmit(form, options = {}) {
+  const submit = window.dataGovFilterSubmit;
+  if (submit && typeof submit.request === 'function') {
+    submit.request(form, options);
+    return;
+  }
+
+  const controller = window.dataGovFilterFormAutoSubmit;
+  if (controller && typeof controller.request === 'function' && controller.form) {
+    controller.request(options);
+    return;
+  }
+
+  if (!form) {
+    return;
+  }
+
+  if (typeof form.requestSubmit === 'function') {
+    form.requestSubmit();
+  } else {
+    form.submit();
+  }
+}
+
+function isLegacyGeographyFacet() {
+  return !document.querySelector('.filter-facet[data-filter-key="geography"]');
+}
+
+const geographySidebarFallback = {
+  initMapPanel() {},
+  persistCurrentMapPanelStateForNextLoad() {},
+  disableDrawMode() {},
+  updateApplyButtonState() {},
+
+  _createMap() {
+    if (this.map) return;
+    const el = document.getElementById('geography-map');
+    if (!el || typeof L === 'undefined') return;
+    const map = L.map(el, { zoomControl: true, attributionControl: true });
+    if (map.attributionControl && typeof map.attributionControl.setPrefix === 'function') {
+      map.attributionControl.setPrefix(false);
+    }
+    L.tileLayer('/maptiles/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: window.dataGovGeographyUtils.OSM_ATTRIBUTION,
+    }).addTo(map);
+    this.map = map;
+    this._initMapHandlers();
+  },
+
+  _initMapHandlers() {
+    if (!this.map || this.mapHandlersInitialized) return;
+    this.mapHandlersInitialized = true;
+    this.map.on('boxzoomend', (e) => {
+      const bounds = e && e.boxZoomBounds ? e.boxZoomBounds : null;
+      if (!bounds || !bounds.isValid()) return;
+      this.applyBoundsSelection(bounds);
+    });
+  },
+
+  displayGeometry(geometry) {
+    this._createMap();
+    if (!this.map) {
+      console.error('Could not construct map');
+      return;
+    }
+    this.geoLayer = this._renderGeometryOnMap(this.map, this.geoLayer, geometry);
+  },
+
+  displayNoGeometry() {
+    this._createMap();
+    if (!this.map) {
+      console.error('Could not construct map');
+      return;
+    }
+    if (this.geoLayer) {
+      this.map.removeLayer(this.geoLayer);
+      this.geoLayer = null;
+    }
+    this._setDefaultView(this.map);
+  },
+
+  _renderGeometryOnMap(map, existingLayer, geometry) {
+    if (!map || typeof L === 'undefined') return existingLayer;
+    if (existingLayer) {
+      map.removeLayer(existingLayer);
+    }
+    const layer = L.geoJSON(geometry, {
+      style() {
+        return { color: '#005ea2', weight: 2, fillOpacity: 0.05 };
+      },
+      pointToLayer(_feature, latlng) {
+        return L.marker(latlng);
+      },
+    }).addTo(map);
+    const geoBounds = layer.getBounds();
+    if (geoBounds.isValid()) {
+      if (geoBounds.getSouthWest().equals(geoBounds.getNorthEast())) {
+        map.setView(geoBounds.getSouthWest(), 8);
+      } else {
+        map.fitBounds(geoBounds.pad(0.1));
+      }
+    }
+    return layer;
+  },
+
+  _setDefaultView(map) {
+    if (!map) return;
+    map.setView([44.967243, -103.77155], 2);
+  },
+
+  geometryFromBounds(bounds) {
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    return {
+      type: 'Polygon',
+      coordinates: [[
+        [sw.lng, sw.lat],
+        [ne.lng, sw.lat],
+        [ne.lng, ne.lat],
+        [sw.lng, ne.lat],
+        [sw.lng, sw.lat],
+      ]],
+    };
+  },
+
+  applyBoundsSelection(bounds) {
+    this.selectedGeometry = this.geometryFromBounds(bounds);
+    this.pendingGeometry = null;
+    this.showClearButton();
+    this.displayGeometry(this.selectedGeometry);
+    this.syncHiddenInputs();
+    requestFilterFormSubmit(this.form);
+  },
+};
+
 class GeographyAutocomplete {
     constructor(options) {
         this.mapPanelNextStateStorageKey = 'datagov.geographyMapExpanded.nextState';
@@ -94,18 +287,28 @@ class GeographyAutocomplete {
         if (this.form) {
             this.form.addEventListener('submit', () => {
                 this.syncHiddenInputs();
-                this.persistCurrentMapPanelStateForNextLoad();
+                if (typeof this.persistCurrentMapPanelStateForNextLoad === 'function') {
+                    this.persistCurrentMapPanelStateForNextLoad();
+                }
             });
         }
 
         if (this.mainSearchForm) {
             this.mainSearchForm.addEventListener('submit', () => {
                 this.syncHiddenInputsToMainSearch();
-                this.persistCurrentMapPanelStateForNextLoad();
+                if (typeof this.persistCurrentMapPanelStateForNextLoad === 'function') {
+                    this.persistCurrentMapPanelStateForNextLoad();
+                }
             });
         }
 
-        this.initMapPanel();
+        if (typeof this.initMapPanel === 'function') {
+            this.initMapPanel();
+        }
+
+        if (isLegacyGeographyFacet() && this.selectedGeometry && typeof this.displayGeometry === 'function') {
+            this.displayGeometry(this.selectedGeometry);
+        }
     }
 
     loadExistingGeography() {
@@ -209,6 +412,35 @@ class GeographyAutocomplete {
     // facet, so this only stages the empty state; the facet's Apply footer (or
     // the footer Clear, via clearStagedSelection) submits it.
     clearClicked() {
+      if (isLegacyGeographyFacet()) {
+        this.selectedGeometry = null;
+        this.spatialLabel = '';
+        this.input.value = '';
+        this.updateInputClearButtonVisibility();
+        if (typeof this.disableDrawMode === 'function') {
+          this.disableDrawMode();
+        }
+        if (typeof this.displayNoGeometry === 'function') {
+          this.displayNoGeometry();
+        }
+        if (this.map && this.geoLayer) {
+          this.map.removeLayer(this.geoLayer);
+          this.geoLayer = null;
+        }
+
+        const labelDiv = document.getElementById('geography-input-label');
+        if (labelDiv) {
+          const clearButton = labelDiv.querySelector('#geography-clear-button');
+          if (clearButton) {
+            labelDiv.removeChild(clearButton);
+          }
+        }
+
+        this.syncHiddenInputs();
+        requestFilterFormSubmit(this.form);
+        return;
+      }
+
       this.clearStagedSelection();
     }
 
@@ -297,7 +529,13 @@ class GeographyAutocomplete {
             }
             if (node && node.location_data) {
                 this.selectGeography(node.location_data).then(() => {
-                    window.dataGovFilterSubmit.request(this.form, { force: true });
+                    if (isLegacyGeographyFacet()) {
+                        requestFilterFormSubmit(this.form);
+                        return;
+                    }
+                    if (window.dataGovFilterSubmit && typeof window.dataGovFilterSubmit.request === 'function') {
+                        window.dataGovFilterSubmit.request(this.form, { force: true });
+                    }
                 });
                 this.hideSuggestions();
             }
@@ -387,8 +625,10 @@ class GeographyAutocomplete {
         this.updateInputClearButtonVisibility();
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
-        // Geography is a deferred facet: stage the selection and let the
-        // facet's Apply footer submit it.
+        if (isLegacyGeographyFacet()) {
+          this.syncHiddenInputs();
+          requestFilterFormSubmit(this.form);
+        }
       } catch (error) {
         console.error('Error loading location data:', error);
       }
@@ -453,7 +693,11 @@ class GeographyAutocomplete {
     }
 }
 
-Object.assign(GeographyAutocomplete.prototype, window.dataGovGeographyMapMixin);
+const geographyMixin = window.dataGovGeographyMapMixin
+  || (isLegacyGeographyFacet() ? geographySidebarFallback : null);
+if (geographyMixin) {
+  Object.assign(GeographyAutocomplete.prototype, geographyMixin);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const geographyAutocomplete = new GeographyAutocomplete({

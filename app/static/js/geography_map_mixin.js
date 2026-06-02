@@ -1,6 +1,8 @@
 /* global L */
 (function (window) {
-  const OSM_ATTRIBUTION = window.dataGovGeographyUtils.OSM_ATTRIBUTION;
+  const OSM_ATTRIBUTION =
+    (window.dataGovGeographyUtils && window.dataGovGeographyUtils.OSM_ATTRIBUTION) ||
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
   window.dataGovGeographyMapMixin = {
     initMapPanel() {
