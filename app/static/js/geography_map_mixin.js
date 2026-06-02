@@ -612,7 +612,6 @@
       this.updateInputClearButtonVisibility();
       this.pendingGeometry = null;
       this.updateApplyButtonState();
-      this.showClearButton();
       this.displayGeometry(this.selectedGeometry);
       // Geography is a deferred facet: stage the selection and let the facet's
       // Apply footer submit it.
@@ -916,7 +915,6 @@
       this.pendingGeometry = null;
       this.pendingSpatialWithin = null;
       this.updateApplyButtonState();
-      this.showClearButton();
       if (hasPendingGeometry) {
         this.displayGeometry(this.selectedGeometry);
       }

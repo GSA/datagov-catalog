@@ -187,7 +187,6 @@ const geographySidebarFallback = {
   applyBoundsSelection(bounds) {
     this.selectedGeometry = this.geometryFromBounds(bounds);
     this.pendingGeometry = null;
-    this.showClearButton();
     this.displayGeometry(this.selectedGeometry);
     this.syncHiddenInputs();
     requestFilterFormSubmit(this.form);
@@ -327,7 +326,6 @@ class GeographyAutocomplete {
             if (this.spatialLabel) {
               this.input.value = this.spatialLabel;
             }
-            this.showClearButton();
             // Defer map render until the facet panel is visible (Leaflet needs
             // a sized container for fitBounds to work).
         } else {
@@ -390,63 +388,9 @@ class GeographyAutocomplete {
       return this.spatialWithin;
     }
 
-    showClearButton() {
-      // show a clear button to stop filtering
-      const clearButton = document.getElementById('geography-clear-button');
-      // button already exists
-      if (clearButton) return;
-      // make the button
-      const labelDiv = document.getElementById('geography-input-label');
-      if (!labelDiv) return;  // Can't find where to put it
-      const button = document.createElement('button');
-      button.id = 'geography-clear-button';
-      button.className = 'tag-link tag-link--suggested';
-      button.innerHTML = 'Clear';
-      button.addEventListener('click', () => {
-          this.clearClicked();
-      });
-      labelDiv.appendChild(button);
-    }
-
-    // handle the click of the inline clear button. Geography is a deferred
-    // facet, so this only stages the empty state; the facet's Apply footer (or
-    // the footer Clear, via clearStagedSelection) submits it.
-    clearClicked() {
-      if (isLegacyGeographyFacet()) {
-        this.selectedGeometry = null;
-        this.spatialLabel = '';
-        this.input.value = '';
-        this.updateInputClearButtonVisibility();
-        if (typeof this.disableDrawMode === 'function') {
-          this.disableDrawMode();
-        }
-        if (typeof this.displayNoGeometry === 'function') {
-          this.displayNoGeometry();
-        }
-        if (this.map && this.geoLayer) {
-          this.map.removeLayer(this.geoLayer);
-          this.geoLayer = null;
-        }
-
-        const labelDiv = document.getElementById('geography-input-label');
-        if (labelDiv) {
-          const clearButton = labelDiv.querySelector('#geography-clear-button');
-          if (clearButton) {
-            labelDiv.removeChild(clearButton);
-          }
-        }
-
-        this.syncHiddenInputs();
-        requestFilterFormSubmit(this.form);
-        return;
-      }
-
-      this.clearStagedSelection();
-    }
-
     // Reset the staged geography selection (geometry, pending box, relation)
-    // and the map, without submitting. Used by the inline clear button and the
-    // facet footer's Clear action (which submits once afterward itself).
+    // and the map, without submitting. Used by the facet footer's Clear action
+    // (which submits once afterward itself).
     clearStagedSelection() {
       this.selectedGeometry = null;
       this.spatialLabel = '';
@@ -456,13 +400,6 @@ class GeographyAutocomplete {
       this.disableDrawMode();
       this.displayNoGeometry();
       this.syncSpatialWithinRadios();
-
-      // now remove the inline clear button
-      const labelDiv = document.getElementById('geography-input-label');
-      if (!labelDiv) return;  // Can't find where it is
-      const clearButton = labelDiv.querySelector('#geography-clear-button');
-      if (!clearButton) return;
-      labelDiv.removeChild(clearButton);
     }
     initSuggestedGeography() {
         // Add click handlers to suggested keyword buttons
@@ -622,7 +559,6 @@ class GeographyAutocomplete {
         this.spatialLabel = displayName;
         this.input.value = displayName;
         this.updateInputClearButtonVisibility();
-        this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
         if (isLegacyGeographyFacet()) {
           this.syncHiddenInputs();
