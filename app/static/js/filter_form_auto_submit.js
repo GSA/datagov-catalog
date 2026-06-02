@@ -153,7 +153,13 @@
 
         const sortSelect = document.getElementById('sort-select');
         if (sortSelect && sortSelect.form === form) {
-            sortSelect.addEventListener('change', () => autoSubmit.request());
+            sortSelect.addEventListener('change', () => {
+                const hiddenSort = form.querySelector('input[name="sort"][type="hidden"]');
+                if (hiddenSort) {
+                    hiddenSort.value = sortSelect.value;
+                }
+                autoSubmit.request();
+            });
         }
     });
 

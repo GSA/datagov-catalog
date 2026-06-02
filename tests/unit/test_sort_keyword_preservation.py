@@ -17,6 +17,7 @@ def test_sort_change_does_not_drop_keyword_filters():
         auto_submit_js,
     )
     assert "sortSelect.form === form" in auto_submit_js
+    assert "hiddenSort.value = sortSelect.value" in auto_submit_js
 
     assert re.search(
         r"this\.form\.addEventListener\(\s*['\"]submit['\"]\s*,\s*\(\)\s*=>\s*this\.syncHiddenInputs\(\)\s*\)",

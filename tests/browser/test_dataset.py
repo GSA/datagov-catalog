@@ -19,10 +19,8 @@ def test_dataset_tags_expand_button(page):
     extra_tags = page.locator(".extra-tags")
     hidden_tag_links = extra_tags.locator(".tag-link")
 
-    initial_text = button.inner_text()
-    expected_count = int(re.search(r"\d+", initial_text).group())
-
-    assert expected_count == 42
+    expect(button).to_have_text(re.compile(r"\+\s+(\d+)\s+more"))
+    expected_count = 42
 
     expect(button).to_be_visible()
     expect(button).to_have_text(f"+ {expected_count} more")

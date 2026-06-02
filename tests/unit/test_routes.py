@@ -7,7 +7,7 @@ from uuid import uuid4
 from bs4 import BeautifulSoup
 
 from app.database.opensearch import SearchResult
-from app.models import Dataset
+from app.models import Dataset, Organization
 from tests.fixtures import HARVEST_RECORD_ID
 
 
@@ -1940,6 +1940,73 @@ class TestPublisherSearch:
 
         assert any("Alpha Publisher Dataset" in title for title in titles)
         assert not any("Beta Publisher Dataset" in title for title in titles)
+
+
+class TestOrganizationTypeSearch:
+    """Test organization type filter functionality on index page."""
+
+    def test_org_type_filter_shows_matching_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        interface_with_dataset.db.add(
+            Organization(
+                id="org-city-test",
+                name="City Test Org",
+                slug="city-test-org",
+                organization_type="City Government",
+            )
+        )
+        interface_with_dataset.db.add(
+            Organization(
+                id="org-state-test",
+                name="State Test Org",
+                slug="state-test-org",
+                organization_type="State Government",
+            )
+        )
+
+        dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+
+        dataset_dict["id"] = "city-type-dataset"
+        dataset_dict["slug"] = "city-type-dataset"
+        dataset_dict["organization_id"] = "org-city-test"
+        dataset_dict["dcat"] = {
+            "title": "City Type Dataset",
+            "description": "Dataset from a city government organization",
+            "publisher": {"name": "City Agency"},
+            "distribution": [],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+
+        dataset_dict["id"] = "state-type-dataset"
+        dataset_dict["slug"] = "state-type-dataset"
+        dataset_dict["organization_id"] = "org-state-test"
+        dataset_dict["dcat"] = {
+            "title": "State Type Dataset",
+            "description": "Dataset from a state government organization",
+            "publisher": {"name": "State Agency"},
+            "distribution": [],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        interface_with_dataset.db.commit()
+
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?org_type=City+Government")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        titles = [
+            item.get_text(" ", strip=True)
+            for item in soup.select(".usa-collection__heading")
+        ]
+
+        assert any("City Type Dataset" in title for title in titles)
+        assert not any("State Type Dataset" in title for title in titles)
 
 
 class TestGeospatialSearch:
