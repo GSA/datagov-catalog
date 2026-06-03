@@ -3,6 +3,7 @@ import os
 
 from apiflask import APIFlask
 from dotenv import load_dotenv
+from flask import render_template, request
 from flask_htmx import HTMX
 from flask_talisman import Talisman
 
@@ -69,6 +70,12 @@ def create_app(config_name: str = "local") -> APIFlask:
 
     register_template_filters(app)
 
+    @app.errorhandler(404)
+    def not_found(error):
+        if request.blueprint == "api" or request.path.startswith("/api/"):
+            return {"message": "Not Found", "detail": {}}, 404
+        return render_template("404.html"), 404
+
     # Content-Security-Policy headers
     # single quotes need to appear in some of the strings
     csp = {
@@ -101,8 +108,6 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "https://s3-us-gov-west-1.amazonaws.com",  # logos
                 "https://raw.githubusercontent.com",  # github logos repo
                 "data:",  # leaflet
-                "https://cg-1b082c1b-3db7-477f-9ca5-bd51a786b41e.s3-us-gov-west-1.amazonaws.com",  # touchpoints
-                "https://touchpoints.app.cloud.gov",  # touchpoints
                 "https://*.google-analytics.com",
                 "https://*.googletagmanager.com",
             ]
@@ -111,7 +116,6 @@ def create_app(config_name: str = "local") -> APIFlask:
             [
                 "'self'",
                 "https://api.github.com",
-                "https://touchpoints.app.cloud.gov",
                 "https://*.google-analytics.com",
                 "https://*.analytics.google.com",
                 "https://*.googletagmanager.com",

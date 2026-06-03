@@ -1,4 +1,5 @@
 .DS_Store
+.worktrees/
 __pycache__/
 venv/
 credentials.py
@@ -229,4 +230,4 @@ __marimo__/
 
 # Accessibility testing
 node_modules/
-package-lock.json
+

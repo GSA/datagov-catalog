@@ -33,9 +33,10 @@ def test_organization_detail_keyword_click(page):
 def test_organization_detail_return_to_search_results(page):
     page.goto("/organization/test-org")
 
-    # submit query
+    # submit query and wait for the results navigation to complete
     page.locator("#search-query").fill("2020")
-    page.locator(".usa-button").nth(1).click()
+    with page.expect_navigation(url=re.compile(r"\?q=2020")):
+        page.locator(".usa-button").nth(1).click()
 
     # wait for the search results page to load before reading dataset links;
     # otherwise we may grab a link from the pre-search page (which lacks the

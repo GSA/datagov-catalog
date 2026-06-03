@@ -53,11 +53,6 @@ class TestDatasetDetail:
         description = soup.select_one(".dataset-description").get_text(strip=True)
         assert description == "this is the test description"
 
-        feedback_button = soup.find("button", id="contact-btn")
-        assert feedback_button is not None
-        assert feedback_button.get("data-dataset-identifier") == "test"
-        assert "Feedback" in feedback_button.get_text(" ", strip=True)
-
         resources_details = soup.select_one("div.resources-section")
         assert resources_details is not None
 
@@ -193,11 +188,62 @@ class TestDatasetDetail:
 
     def test_dataset_detail_404(self, db_client):
         """
-        Test that accessing a non-existent dataset by slug or ID returns a 404 error.
+        Test that accessing a non-existent dataset by slug or ID returns a 404 error
+        with the HTML not-found page (rather than a JSON blob).
         """
         response = db_client.get("/dataset/does-not-exist")
-        # check response fails with 404
         assert response.status_code == 404
+        assert response.mimetype == "text/html"
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        assert soup.select_one(".not-found-page") is not None
+        assert "Page not found" in soup.get_text()
+
+        return_link = soup.select_one(".not-found-page a.usa-button")
+        assert return_link is not None
+        assert return_link.get("href") == "/"
+
+        contact_link = soup.select_one(".not-found-page a.usa-button--outline")
+        assert contact_link is not None
+        assert contact_link.get("href") == "https://data.gov/contact/"
+        assert "Contact data.gov" in contact_link.get_text(strip=True)
+
+    def test_api_404_returns_json(self, db_client):
+        """
+        Test that a 404 from an API path returns the JSON error shape rather
+        than the HTML not-found page.
+        """
+        response = db_client.get("/api/does-not-exist")
+        assert response.status_code == 404
+        assert response.is_json
+        assert response.get_json() == {"message": "Not Found", "detail": {}}
+
+    def test_dataset_detail_contact_section(self, interface_with_dataset, db_client):
+        """
+        The Contact sidebar should render the contactPoint's name and email.
+        contactPoint is required by DCAT-US and enforced upstream by the
+        harvester, so it is always present on dataset records.
+        """
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        contact_box = next(
+            (
+                h.find_parent("div", class_="sidebar-section")
+                for h in soup.select(".sidebar-section__heading")
+                if h.get_text(strip=True) == "Contact"
+            ),
+            None,
+        )
+        assert contact_box is not None
+        assert "Test Contact" in contact_box.get_text()
+
+        email_link = contact_box.select_one('a[href^="mailto:"]')
+        assert email_link is not None
+        assert email_link.get("href") == "mailto:test.contact@example.gov"
 
     def test_dataset_detail_return_to_search(self, interface_with_dataset, db_client):
         with patch("app.routes.interface", interface_with_dataset):
