@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filter_sidebar.html" import render_filter_sidebar, render_filter_mobile_trigger %}
 {% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
 {% from "components/filters/sort_control.html" import render_results_toolbar %}
 
@@ -63,6 +63,12 @@
 
 
   <section class="organization-datasets">
+    {% set filters_active = has_active_filters(
+        keywords=keywords,
+        publisher=publisher,
+        spatial_filter=spatial_filter,
+        spatial_geometry=spatial_geometry
+    ) %}
     <div class="catalog-layout margin-top-2">
       <div class="catalog-layout__primary">
       <div class="catalog-layout__search">
@@ -91,6 +97,8 @@
                 </div>
             </div>
         </form>
+
+        {{ render_filter_mobile_trigger(filters_active) }}
       </div>
 
       <div class="catalog-layout__geography">
@@ -145,6 +153,7 @@
           id="filter-sidebar-panel"
           class="filter-sidebar-panel catalog-layout__filters"
           aria-label="Filters"
+          hidden
       >
         {% set clear_filters_url = url_for('main.organization_detail', slug=organization_slug_or_id, q=dataset_search_query, sort=selected_sort) %}
         {{ render_filter_sidebar(
@@ -171,6 +180,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/filter_sidebar_toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filter_accordion.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>

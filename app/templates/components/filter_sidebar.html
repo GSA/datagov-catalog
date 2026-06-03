@@ -5,6 +5,22 @@
 {% from "components/filters/geography_filter.html" import render_geography_filter %}
 {% from "components/filters/spatial_filter.html" import render_spatial_filter %}
 
+{% macro render_filter_mobile_trigger(filters_active=false) %}
+<button
+    type="button"
+    class="usa-button usa-button--outline filter-mobile-trigger"
+    id="filter-mobile-toggle"
+    aria-controls="filter-sidebar-panel"
+    aria-expanded="false"
+>
+    <i class="fa fa-filter" aria-hidden="true"></i>
+    <span class="filter-mobile-trigger__label">Show filters</span>
+    {% if filters_active %}
+    <span class="filter-mobile-trigger__badge" aria-label="Filters applied"></span>
+    {% endif %}
+</button>
+{% endmacro %}
+
 {% macro render_filter_sidebar(
     form_action,
     query_value,

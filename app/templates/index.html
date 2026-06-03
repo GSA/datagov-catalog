@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filter_sidebar.html" import render_filter_sidebar, render_filter_mobile_trigger %}
 {% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
 {% from "components/filters/sort_control.html" import render_results_toolbar %}
 {% from "components/collection_card.html" import collection_card %}
@@ -31,6 +31,16 @@
 {% set collection = collection_data["name"] %}
 {% set collection_count = collection_data["count"] - 1 %}
 {% set parent = collection_data["parent"] %}
+{% set filters_active = has_active_filters(
+    keywords=keywords,
+    org_types=org_types,
+    publisher=publisher,
+    org_slug=org_slug,
+    selected_organization=selected_organization,
+    spatial_filter=spatial_filter,
+    spatial_geometry=spatial_geometry
+) %}
+
 <div class="catalog-layout">
     <div class="catalog-layout__primary">
     <div class="catalog-layout__search">
@@ -78,6 +88,8 @@
                 </div>
             </div>
         </form>
+
+        {{ render_filter_mobile_trigger(filters_active) }}
     </div>
 
     <!-- Results Section -->
@@ -169,6 +181,7 @@
         id="filter-sidebar-panel"
         class="filter-sidebar-panel catalog-layout__filters"
         aria-label="Filters"
+        hidden
     >
         {% set clear_filters_url = url_for('main.index', q=query, sort='relevance', collection=collection if collection else none) %}
         {{ render_filter_sidebar(
@@ -201,6 +214,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/filter_sidebar_toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filter_accordion.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
 <script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>

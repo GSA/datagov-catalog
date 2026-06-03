@@ -1,6 +1,24 @@
 @use "uswds-core" as *;
 
-// Catalog filter sidebar, results toolbar, and filter accordions.
+// Catalog filter sidebar, mobile layout, results toolbar, and filter accordions.
+
+.filter-mobile-trigger {
+    align-items: center;
+    display: none;
+    gap: 0.5rem;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    margin-top: 0.75rem;
+    width: 100%;
+}
+
+.filter-mobile-trigger__badge {
+    background-color: color("secondary");
+    border-radius: 999px;
+    display: inline-block;
+    height: 0.5rem;
+    width: 0.5rem;
+}
 
 .catalog-layout {
     display: grid;
@@ -23,6 +41,10 @@
 
 .filter-sidebar-panel {
     margin-top: 0;
+}
+
+.filter-sidebar-panel[hidden] {
+    display: none !important;
 }
 
 .filter-sidebar__chrome {
@@ -136,6 +158,66 @@
     overflow: hidden;
     padding: 0.25rem 0.5rem;
     white-space: nowrap;
+}
+
+@media (max-width: 63.99em) {
+    #content > .usa-section {
+        padding-top: 0.75rem;
+    }
+
+    .catalog-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .catalog-layout__primary {
+        display: contents;
+    }
+
+    .catalog-layout__search {
+        order: 1;
+    }
+
+    .catalog-layout__filters {
+        order: 2;
+    }
+
+    .catalog-layout__geography,
+    .catalog-layout__results {
+        order: 3;
+    }
+
+    .filter-mobile-trigger {
+        display: inline-flex;
+        margin-bottom: 0;
+        margin-top: 0.75rem;
+    }
+
+    .catalog-layout__filters:not([hidden]) {
+        border: 1px solid color("base-lighter");
+        border-radius: 0.25rem;
+        margin-bottom: 0.75rem;
+        margin-top: 0.5rem;
+        padding: 1rem;
+    }
+
+    .catalog-layout__filters:not([hidden]) .filter-sidebar__chrome {
+        margin-left: -1rem;
+        margin-right: -1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    #search-results.margin-top-3,
+    .catalog-layout__results.margin-top-3 {
+        margin-top: 0.75rem;
+    }
+
+    #search-results .results-toolbar.margin-top-2,
+    .catalog-layout__results .results-toolbar.margin-top-2 {
+        margin-top: 0.75rem;
+    }
 }
 
 @media (min-width: 64em) {
