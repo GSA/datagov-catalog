@@ -726,6 +726,7 @@ details {
     bottom: -2px;
     right: -2px;
     min-width: 16px;
+    max-width: 24px;
     height: 12px;
     padding: 0 3px;
     border-radius: 2px;
@@ -736,6 +737,9 @@ details {
     line-height: 12px;
     text-align: center;
     letter-spacing: 0.02em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .resources-list__details {
@@ -758,6 +762,9 @@ details {
     color: #62676A;
     text-transform: uppercase;
     margin-top: 0.125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .resources-list__link {
@@ -819,6 +826,7 @@ details {
         bottom: 0;
         right: 0;
         min-width: 22px;
+        max-width: 32px;
         height: 14px;
         padding: 0 4px;
         border-radius: 3px;
@@ -826,6 +834,9 @@ details {
         line-height: 14px;
         background: #e8f0fe;
         color: #1a4480;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }
 
@@ -846,6 +857,9 @@ details {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-top: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .resources-list__actions {

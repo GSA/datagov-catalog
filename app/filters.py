@@ -133,16 +133,77 @@ def format_icon_class(extension: str) -> str:
     return f"file-icon--{icon}"
 
 
+_OVERLAY_BADGE_MAX_LEN = 4
+
+# Short badge labels for normalized formats that are too long for the icon overlay.
+_OVERLAY_BADGE_ALIASES = {
+    "octet-stream": "BIN",
+    "arcgis geoservices rest api": "REST",
+}
+
+
+def _shorten_overlay_label(label: str) -> str:
+    if len(label) <= _OVERLAY_BADGE_MAX_LEN:
+        return label
+
+    return label[:_OVERLAY_BADGE_MAX_LEN]
+
+
+def _extract_badge_source(normalized: str) -> str:
+    source = normalized
+    if source.startswith("vnd."):
+        source = source[4:]
+    if source.startswith("x-"):
+        source = source[2:]
+
+    if "." in source:
+        source = source.rsplit(".", 1)[-1]
+
+    source = source.split("+", 1)[0]
+    source = source.split("-", 1)[0]
+    source = source.split()[0] if source.split() else source
+
+    return re.sub(r"[^a-z0-9]", "", source.lower())
+
+
+def _badge_label_from_normalized(normalized: str) -> str:
+    if normalized in _OVERLAY_BADGE_ALIASES:
+        return _OVERLAY_BADGE_ALIASES[normalized]
+
+    source = _extract_badge_source(normalized)
+    if not source:
+        return "FILE"
+
+    return _shorten_overlay_label(source.upper())
+
+
 def format_overlay_label(extension: str) -> str:
     """Short badge text overlaid on the default file icon for formats we don't
     have a dedicated icon for (e.g. KML, WMS, WFS, GML). Returns "" when a
     dedicated icon is available."""
+    if not isinstance(extension, str):
+        return ""
+
     normalized = _normalize_format(extension)
     if normalized in _FORMAT_ICON_MAP:
         return ""
     if normalized in ("default", "file", ""):
         return ""
-    return normalized.upper()
+    return _badge_label_from_normalized(normalized)
+
+
+def format_icon_label(extension: str) -> str:
+    """Return a short extension label for inline file icons, or "" for static SVG icons."""
+    if not isinstance(extension, str):
+        return ""
+
+    normalized = _normalize_format(extension)
+    icon = _FORMAT_ICON_MAP.get(normalized, "default")
+    if icon == "html":
+        return "HTML"
+    if icon != "default":
+        return ""
+    return format_overlay_label(extension)
 
 
 def format_contact_point_email(email: str) -> Union[str, None]:
@@ -393,6 +454,7 @@ __all__ = [
     "is_geometry_mapping",
     "geometry_to_mapping",
     "format_icon_class",
+    "format_icon_label",
     "format_overlay_label",
     "format_contact_point_email",
     "remove_html_tags",
