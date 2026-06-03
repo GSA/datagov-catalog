@@ -32,6 +32,7 @@ i.e.
 @import "components/not_found";
 @import "components/file_icon";
 @import "components/style_guide";
+@import "components/filter-sidebar";
 
 .default-gov-svg-org-item {
   width: 100%;
@@ -133,8 +134,16 @@ ul.menu {
 }
 
 // Fix identifier link colors to match harvester styling
+.usa-identifier {
+  overflow-wrap: break-word;
+}
+
 .usa-identifier__required-link {
   color: #a9aeb1 !important;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  max-width: 100%;
 
   &:hover {
     color: #ffffff !important;
@@ -145,17 +154,27 @@ ul.menu {
   }
 }
 
+.usa-identifier__identity-disclaimer {
+  overflow-wrap: break-word;
+}
+
+.usa-identifier__section--usagov .usa-identifier__container {
+  overflow-wrap: break-word;
+
+  @media (min-width: 40em) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.5rem;
+    row-gap: 0.25rem;
+  }
+}
+
 // Fix icon alignment with links
 .usa-icon {
   vertical-align: middle;
   margin-left: 0.25rem;
-}
-
-// Prevent icon wrapping in identifier links
-.usa-identifier__required-link {
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
+  flex-shrink: 0;
 }
 
 // Search box not connecting well with Search Button
@@ -949,6 +968,8 @@ details {
     gap: 0.5rem;
     margin-top: 0.5rem;
     min-height: 2rem;
+    min-width: 0;
+    width: 100%;
 }
 
 .keyword-chips:empty {
@@ -962,31 +983,44 @@ details {
     // margin-bottom: 0.5rem;
 
 /* Individual chip */
-.keyword-chip {
+.keyword-chips > .tag-link,
+.keyword-chips > .keyword-chip {
+    align-items: flex-start;
     display: inline-flex;
-    align-items: center;
     gap: 0.375rem;
-    padding: 0.25rem 0.5rem;
+    margin-bottom: 0;
+    margin-right: 0;
+    max-width: 100%;
+}
+
+.keyword-chip {
+    align-items: flex-start;
     background: white;
-    color: #005ea2;
     border: 2px solid #dfe1e2;
     border-radius: 1.5rem;
+    color: #005ea2;
+    display: inline-flex;
     font-size: 0.875rem;
+    gap: 0.375rem;
     line-height: 1.5;
     max-width: 100%;
+    padding: 0.25rem 0.5rem;
     transition: all 0.2s;
+
     :hover {
-      border-color: #005ea2;
-      background: #005ea2;
-      color: white;
-      text-decoration: none;
+        background: #005ea2;
+        border-color: #005ea2;
+        color: white;
+        text-decoration: none;
     }
 }
 
 .keyword-chip__text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: break-word;
+    white-space: normal;
+    word-break: normal;
 }
 
 .keyword-chip__remove {

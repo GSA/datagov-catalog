@@ -21,7 +21,246 @@ def read_csv(file_path) -> list:
     return output
 
 
-def fixture_data():
+def _bbox_polygon(min_lon, min_lat, max_lon, max_lat):
+    """Build a GeoJSON Polygon (for a dataset's translated_spatial) from a bbox."""
+    return {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [min_lon, min_lat],
+                [max_lon, min_lat],
+                [max_lon, max_lat],
+                [min_lon, max_lat],
+                [min_lon, min_lat],
+            ]
+        ],
+    }
+
+
+def _bbox_wkt(min_lon, min_lat, max_lon, max_lat):
+    """Build a WKT MULTIPOLYGON (for a Locations.the_geom) from a bbox."""
+    return (
+        "MULTIPOLYGON((("
+        f"{min_lon} {min_lat},{max_lon} {min_lat},{max_lon} {max_lat},"
+        f"{min_lon} {max_lat},{min_lon} {min_lat})))"
+    )
+
+
+# Demo organizations: one per non-Federal org type so the organization and
+# organization-type filters have variety. Each gets its own harvest source.
+# (id, name, slug, organization_type)
+_DEMO_ORGS = [
+    ("city-portland", "City of Portland", "city-of-portland", "City Government"),
+    (
+        "state-california",
+        "State of California",
+        "state-of-california",
+        "State Government",
+    ),
+    ("county-cook", "Cook County", "cook-county", "County Government"),
+    ("univ-michigan", "University of Michigan", "university-of-michigan", "University"),
+    ("tribe-navajo", "Navajo Nation", "navajo-nation", "Tribal"),
+    ("nonprofit-redcross", "American Red Cross", "american-red-cross", "Non-Profit"),
+]
+
+# Demo datasets. Each falls inside one of the demo locations so the "within"
+# geography filter returns it. Fields:
+# (slug, title, keywords, publisher, org_id, bbox-or-None)
+_DEMO_DATASETS = [
+    (
+        "portland-bike-lanes",
+        "Portland Bike Lane Network",
+        ["transportation", "cycling"],
+        "Portland Bureau of Transportation",
+        "city-portland",
+        (-122.75, 45.45, -122.55, 45.60),
+    ),
+    (
+        "portland-park-trees",
+        "Portland Park Tree Inventory",
+        ["environment", "trees"],
+        "Portland Parks and Recreation",
+        "city-portland",
+        (-122.70, 45.48, -122.60, 45.55),
+    ),
+    (
+        "california-wildfire-perimeters",
+        "California Wildfire Perimeters",
+        ["wildfire", "environment", "emergency"],
+        "California Department of Forestry and Fire Protection",
+        "state-california",
+        (-122.0, 37.0, -119.0, 39.0),
+    ),
+    (
+        "california-water-quality",
+        "California Surface Water Quality",
+        ["water", "environment"],
+        "California State Water Resources Control Board",
+        "state-california",
+        (-121.0, 36.5, -120.0, 38.0),
+    ),
+    (
+        "cook-county-property-assessments",
+        "Cook County Property Assessments",
+        ["property", "taxes", "finance"],
+        "Cook County Assessor's Office",
+        "county-cook",
+        (-87.95, 41.65, -87.55, 42.05),
+    ),
+    (
+        "michigan-enrollment-stats",
+        "University of Michigan Enrollment Statistics",
+        ["education", "enrollment"],
+        "University of Michigan Office of the Registrar",
+        "univ-michigan",
+        (-83.80, 42.22, -83.68, 42.32),
+    ),
+    (
+        "michigan-research-grants",
+        "University of Michigan Research Grants",
+        ["research", "funding", "education"],
+        "University of Michigan Office of Research",
+        "univ-michigan",
+        None,
+    ),
+    (
+        "navajo-water-access",
+        "Navajo Nation Water Access Points",
+        ["water", "infrastructure"],
+        "Navajo Nation Department of Water Resources",
+        "tribe-navajo",
+        (-110.5, 35.5, -109.0, 37.0),
+    ),
+    (
+        "redcross-shelter-locations",
+        "Red Cross Shelter Locations",
+        ["emergency", "health", "shelter"],
+        "American Red Cross",
+        "nonprofit-redcross",
+        None,
+    ),
+    (
+        "redcross-blood-drives",
+        "Red Cross Blood Drive Schedule",
+        ["health", "blood", "volunteer"],
+        "American Red Cross",
+        "nonprofit-redcross",
+        (-118.50, 33.90, -118.10, 34.20),
+    ),
+]
+
+# Demo locations whose geometry covers the demo datasets above.
+# (id, name, type, display_name, bbox, type_order)
+_DEMO_LOCATIONS = [
+    (101, "OR", "us_state", "Oregon", (-124.6, 41.9, -116.4, 46.3), 2),
+    (102, "CA", "us_state", "California", (-124.5, 32.5, -114.1, 42.1), 2),
+    (103, "MI", "us_state", "Michigan", (-90.5, 41.6, -82.1, 48.3), 2),
+    (
+        104,
+        "Cook County",
+        "us_county",
+        "Cook County, Illinois",
+        (-88.3, 41.4, -87.5, 42.2),
+        3,
+    ),
+    (
+        105,
+        "Portland",
+        "us_place",
+        "Portland, Oregon",
+        (-122.9, 45.4, -122.4, 45.7),
+        4,
+    ),
+    (
+        106,
+        "Los Angeles",
+        "us_place",
+        "Los Angeles, California",
+        (-118.7, 33.7, -118.1, 34.3),
+        4,
+    ),
+]
+
+
+def _add_filter_demo_data(fixture_dict):
+    """Append demo orgs, harvest sources, datasets, and locations in place."""
+    job_id = fixture_dict["harvest_job"]["id"]
+    fixture_dict.setdefault("extra_harvest_source", [])
+
+    for org_id, name, slug, org_type in _DEMO_ORGS:
+        fixture_dict["organization"].append(
+            dict(id=org_id, name=name, slug=slug, organization_type=org_type)
+        )
+        fixture_dict["extra_harvest_source"].append(
+            dict(
+                id=f"src-{org_id}",
+                name=f"{name} source",
+                organization_id=org_id,
+                url=f"https://example.com/sources/{slug}",
+                frequency="manual",
+                schema_type="dcatus1.1: non-federal",
+                source_type="document",
+                notification_frequency="always",
+            )
+        )
+
+    for index, (slug, title, keywords, publisher, org_id, bbox) in enumerate(
+        _DEMO_DATASETS
+    ):
+        record_id = f"demo-record-{index}"
+        dcat = {
+            "title": title,
+            "description": f"Demo dataset for filter testing: {title}.",
+            "keyword": keywords,
+            "identifier": slug,
+            "modified": "2025-01-15",
+            "publisher": {"name": publisher},
+            "distribution": [
+                {
+                    "title": f"{title} (CSV)",
+                    "format": "CSV",
+                    "downloadURL": f"https://example.com/{slug}.csv",
+                }
+            ],
+        }
+        fixture_dict["harvest_record"].append(
+            dict(
+                id=record_id,
+                harvest_source_id=f"src-{org_id}",
+                harvest_job_id=job_id,
+                identifier=slug,
+                source_raw=json.dumps(dcat),
+                source_transform=dcat,
+            )
+        )
+        fixture_dict["dataset"].append(
+            dict(
+                id=f"demo-dataset-{index}",
+                slug=slug,
+                dcat=dcat,
+                harvest_record_id=record_id,
+                harvest_source_id=f"src-{org_id}",
+                organization_id=org_id,
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+                popularity=50 + index,
+                translated_spatial=_bbox_polygon(*bbox) if bbox else None,
+            )
+        )
+
+    for loc_id, loc_name, loc_type, display_name, bbox, type_order in _DEMO_LOCATIONS:
+        fixture_dict["locations"].append(
+            {
+                "id": loc_id,
+                "name": loc_name,
+                "type": loc_type,
+                "display_name": display_name,
+                "the_geom": _bbox_wkt(*bbox),
+                "type_order": type_order,
+            }
+        )
+
+
+def fixture_data(*, include_filter_demos: bool = False):
     fixture_dict = {
         "organization": [
             dict(
@@ -430,6 +669,9 @@ def fixture_data():
             },
         ],
     }
+
+    if include_filter_demos:
+        _add_filter_demo_data(fixture_dict)
 
     # add additional dataset records
     datasets = read_csv(TEST_DIR / "data" / "americorps_datasets.csv")

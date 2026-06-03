@@ -1,4 +1,3 @@
-{% from "components/filters/sort_filter.html" import render_sort_filter %}
 {% from "components/filters/keyword_filter.html" import render_keyword_filter %}
 {% from "components/filters/publisher_filter.html" import render_publisher_filter %}
 {% from "components/filters/organization_autocomplete_filter.html" import render_organization_autocomplete_filter %}
@@ -17,6 +16,7 @@
     suggested_publishers=None,
     search_result_geometries=None,
     spatial_geometry=None,
+    geography_label=none,
     form_id='filter-form',
     org_slug=None,
     show_org_autocomplete=False,
@@ -27,20 +27,52 @@
     contextual_keyword_counts=None,
     contextual_org_counts=None,
     contextual_publisher_counts=None,
-    collection=None
+    collection=None,
+    clear_filters_url=none
 ) %}
-<p class="font-body-2xs text-light">Filter selections are applied on each click</p>
-<form class="usa-form margin-top-neg-2" method="get" action="{{ form_action }}" id="{{ form_id }}">
+{% set filters_active = has_active_filters(
+    keywords=keywords,
+    org_types=org_types,
+    publisher=publisher,
+    org_slug=org_slug,
+    selected_organization=selected_organization,
+    spatial_filter=spatial_filter,
+    spatial_geometry=spatial_geometry
+) %}
+<div class="filter-sidebar">
+    <div class="filter-sidebar__chrome">
+        <div class="filter-sidebar__header">
+            <h2 class="filter-sidebar__heading font-body-lg margin-top-0 margin-bottom-0">Filters</h2>
+            <div class="filter-sidebar__actions">
+                {% if filters_active and clear_filters_url %}
+                <a href="{{ clear_filters_url }}" class="filter-sidebar__clear">Clear filters</a>
+                {% endif %}
+                <button
+                    type="button"
+                    class="usa-button usa-button--unstyled filter-sidebar__toggle-all"
+                    id="filter-toggle-all"
+                    data-filter-toggle-all
+                    aria-controls="filter-form"
+                    aria-label="Collapse all filters"
+                    data-expanded="true"
+                >
+                    Collapse all
+                </button>
+            </div>
+        </div>
+        <p class="filter-sidebar__hint font-body-2xs text-light margin-top-0 margin-bottom-0">Filter selections are applied on each click</p>
+    </div>
+    <form class="usa-form margin-top-0" method="get" action="{{ form_action }}" id="{{ form_id }}">
     {% if collection %}
     <input type="hidden" name="collection" value="{{ collection }}">
     {% endif %}
     <input type="hidden" name="q" value="{{ query_value }}">
+    <input type="hidden" name="sort" value="{{ sort_value }}">
     {% if org_slug %}
     <input type="hidden" name="org_slug" value="{{ org_slug }}">
     {% endif %}
 
-    {{ render_sort_filter(sort_value, spatial_geometry is not none) }}
-    {{ render_geography_filter(search_result_geometries) }}
+    {{ render_geography_filter(search_result_geometries, spatial_geometry=spatial_geometry, geography_label=geography_label) }}
     {{ render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts) }}
 
     {% if show_org_autocomplete %}
@@ -55,5 +87,6 @@
     {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts) }}
 
     {{ render_spatial_filter(spatial_filter) }}
-</form>
+    </form>
+</div>
 {% endmacro %}
