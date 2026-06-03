@@ -20,6 +20,7 @@ htmx = None
 
 def register_template_filters(app):
     import app.filters as filters
+
     from .static_assets import static_url
 
     for name in filters.__all__:
