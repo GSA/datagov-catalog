@@ -373,7 +373,11 @@ class GeographyAutocomplete {
       var el = document.getElementById('geography-map');
       if (!el) return;
       if (typeof L === 'undefined') return;
-      var map = L.map(el, { zoomControl: true, attributionControl: true });
+      var map = L.map(el, {
+        zoomControl: true,
+        attributionControl: true,
+        scrollWheelZoom: false,
+      });
       if (map.attributionControl && typeof map.attributionControl.setPrefix === 'function') {
         map.attributionControl.setPrefix(false);
       }
