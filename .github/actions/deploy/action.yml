@@ -88,11 +88,15 @@ runs:
       shell: bash
       run: make update-dependencies && cat requirements.txt
 
+    - name: Set deploy asset version
+      shell: bash
+      run: echo "asset_version=${GITHUB_SHA:0:7}" >> "$GITHUB_ENV"
+
     - name: Deploy datagov-catalog app
       uses: cloud-gov/cg-cli-tools@main
       with:
         command: >-
-          ${{ inputs.command }} --vars-file vars.${{ inputs.cf_space }}.yml
+          ${{ inputs.command }} --vars-file vars.${{ inputs.cf_space }}.yml --var asset_version=${{ env.asset_version }}
         cf_org: ${{ inputs.cf_org }}
         cf_space: ${{ inputs.cf_space }}
         cf_username: ${{ inputs.cf_username }}

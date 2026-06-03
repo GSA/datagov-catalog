@@ -20,9 +20,12 @@ htmx = None
 
 def register_template_filters(app):
     import app.filters as filters
+    from .static_assets import static_url
 
     for name in filters.__all__:
         app.add_template_filter(getattr(filters, name))
+
+    app.add_template_global(static_url, "static_url")
 
 
 def create_app(config_name: str = "local") -> APIFlask:
@@ -36,7 +39,10 @@ def create_app(config_name: str = "local") -> APIFlask:
     if os.getenv("SITE_URL"):
         app.config["SERVERS"] = [{"url": f"{os.getenv('SITE_URL')}"}]
 
+    from .static_assets import get_asset_version
+
     app.config["PREFERRED_URL_SCHEME"] = "https"
+    app.config["ASSET_VERSION"] = get_asset_version()
     # enable template hot template reloading in local
     if config_name == "local" or app.config.get("FLASK_ENV") == "local":
         # Enable template auto-reload
