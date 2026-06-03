@@ -30,6 +30,7 @@ def fixture_data():
 def fixture_data_with_filter_demos():
     return build_fixture_data(include_filter_demos=True)
 
+
 load_dotenv()
 
 

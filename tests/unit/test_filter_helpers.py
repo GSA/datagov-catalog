@@ -25,7 +25,10 @@ def test_organization_active_summary_from_object():
 
 
 def test_geography_active_summary_with_label():
-    assert geography_active_summary({"type": "Polygon"}, "Portland, Oregon") == "Portland, Oregon"
+    assert (
+        geography_active_summary({"type": "Polygon"}, "Portland, Oregon")
+        == "Portland, Oregon"
+    )
 
 
 def test_geography_active_summary_without_label():
