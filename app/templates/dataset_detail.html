@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/labeled_file_icon.html" import labeled_file_icon %}
 
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_slug = dataset.slug %}
@@ -147,18 +148,19 @@
 
                         <li class="resources-list__item resources-list__item--main">
                             <div class="resources-list__info">
-                                {% set overlay_label = resource_format|format_overlay_label %}
-                                <div class="resources-list__icon{% if overlay_label %} resources-list__icon--badged{% endif %}">
+                                {% set icon_label = resource_format|format_icon_label %}
+                                <div class="resources-list__icon">
+                                    {% if icon_label %}
+                                    {{ labeled_file_icon(icon_label, resource_format) }}
+                                    {% else %}
                                     <span class="file-icon {{ resource_format|format_icon_class }}" aria-hidden="true"></span>
-                                    {% if overlay_label %}
-                                    <span class="resources-list__icon-badge">{{ overlay_label }}</span>
                                     {% endif %}
                                 </div>
                                 <div class="resources-list__details">
                                     <p class="resources-list__name" title="{{ resource_title }}">
                                         {{ resource_title }}
                                     </p>
-                                    <div class="resources-list__format">{{ resource_format }}</div>
+                                    <div class="resources-list__format" title="{{ resource_format }}">{{ resource_format }}</div>
                                 </div>
                             </div>
                             <div class="resources-list__actions">

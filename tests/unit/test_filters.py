@@ -6,6 +6,7 @@ from app.filters import (
     dcatus_to_schema_org_jsonld,
     format_dcat_date,
     format_icon_class,
+    format_icon_label,
     format_overlay_label,
     parse_datetime,
     remove_html_tags,
@@ -193,9 +194,54 @@ class TestFormatOverlayLabel:
             ("WFS", "WFS"),
             ("GML", "GML"),
             ("SHP", "SHP"),
+            ("application/octet-stream", "BIN"),
+            ("APPLICATION/OCTET-STREAM", "BIN"),
+            ("octet-stream", "BIN"),
+            ("ARCGIS GEOSERVICES REST API", "REST"),
+            ("ArcGIS GeoServices REST API", "REST"),
+            ("application/vnd.google-earth.wmts", "WMTS"),
+            ("application/x-netcdf", "NETC"),
+            ("application/vnd.unknown-format", "UNKN"),
+            ("application/vnd.esri.mapserver", "MAPS"),
+            ("verylongformatname", "VERY"),
             ("", ""),
             (None, ""),
         ],
     )
     def test_returns_expected_badge(self, fmt, expected):
         assert format_overlay_label(fmt) == expected
+
+    @pytest.mark.parametrize(
+        "fmt, expected",
+        [
+            ("HTML", "HTML"),
+            ("application/xhtml+xml", "HTML"),
+            ("application/json", ""),
+            ("CSV", ""),
+            ("application/octet-stream", "BIN"),
+            ("ARCGIS GEOSERVICES REST API", "REST"),
+            ("KML", "KML"),
+            ("", ""),
+            (None, ""),
+        ],
+    )
+    def test_returns_expected_icon_label(self, fmt, expected):
+        assert format_icon_label(fmt) == expected
+
+    @pytest.mark.parametrize(
+        "fmt",
+        [
+            "application/octet-stream",
+            "APPLICATION/OCTET-STREAM",
+            "ARCGIS GEOSERVICES REST API",
+            "application/vnd.google-earth.kml+xml",
+            "application/x-netcdf",
+            "application/vnd.unknown-format",
+            "application/vnd.esri.mapserver",
+            "WMS",
+            "verylongformatname",
+        ],
+    )
+    def test_badge_labels_are_short(self, fmt):
+        label = format_overlay_label(fmt)
+        assert len(label) <= 4
