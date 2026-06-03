@@ -1601,7 +1601,10 @@ def test_index_filter_checkboxes_checked_when_selected(db_client):
     org_type_button = soup.find("button", {"aria-controls": "filter-organization"})
     assert org_type_button is not None
     assert org_type_button.get("aria-expanded") == "true"
-    assert org_type_button.find("span", class_="filter-accordion__active-indicator") is not None
+    assert (
+        org_type_button.find("span", class_="filter-accordion__active-indicator")
+        is not None
+    )
 
     keyword_button = soup.find("button", {"aria-controls": "filter-keywords"})
     assert keyword_button is not None
@@ -1695,7 +1698,9 @@ def test_index_active_organization_filter_expanded_in_html(db_client):
     assert response.status_code == 200
 
     soup = BeautifulSoup(response.text, "html.parser")
-    org_button = soup.find("button", {"aria-controls": "filter-organization-autocomplete"})
+    org_button = soup.find(
+        "button", {"aria-controls": "filter-organization-autocomplete"}
+    )
     assert org_button is not None
     assert org_button.get("aria-expanded") == "true"
     org_section = soup.find("div", {"id": "filter-organization-autocomplete"})
@@ -1706,7 +1711,7 @@ def test_index_active_organization_filter_expanded_in_html(db_client):
 def test_index_filter_accordion_script_included(db_client):
     response = db_client.get("/")
     assert response.status_code == 200
-    assert 'js/filter_accordion.js' in response.text
+    assert "js/filter_accordion.js" in response.text
 
 
 def test_index_apply_filters_button_absent(db_client):
