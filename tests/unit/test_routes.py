@@ -29,6 +29,29 @@ def test_static_asset_cache_duration_by_environment():
     assert response.cache_control.max_age == STATIC_ASSET_MAX_AGE_SECONDS
 
 
+def test_non_static_pages_do_not_set_cache_duration():
+    # For regular pages, leave max_age unset
+    # to use the default caching behavior configured in CloudFront.
+    production_app = create_app("production")
+    client = production_app.test_client()
+
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0,
+        results=[],
+        search_after=None,
+        aggregations={"keywords": [], "organizations": [], "publishers": []},
+    )
+    mock_interface.count_all_datasets_in_search.return_value = 0
+    mock_interface.get_organizations.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        for path in ["/", "/openapi/docs", "/does-not-exist"]:
+            response = client.get(path)
+
+            assert response.cache_control.max_age is None
+
+
 def test_dataset_slug_api_endpoint(db_client, interface_with_dataset):
     # check an existing document by slug name and id
     # "test-dataset-2" is the id
