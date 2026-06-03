@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 htmx = None
+STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 
 
 def register_template_filters(app):
@@ -37,6 +38,7 @@ def create_app(config_name: str = "local") -> APIFlask:
         app.config["SERVERS"] = [{"url": f"{os.getenv('SITE_URL')}"}]
 
     app.config["PREFERRED_URL_SCHEME"] = "https"
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = STATIC_ASSET_MAX_AGE_SECONDS
     # enable template hot template reloading in local
     if config_name == "local" or app.config.get("FLASK_ENV") == "local":
         # Enable template auto-reload
