@@ -241,25 +241,13 @@
         display: block !important;
         grid-column: 2;
         grid-row: 1;
-        position: sticky;
-        top: 1rem;
+        overflow: visible;
     }
 
-    .filter-sidebar {
-        display: flex;
-        flex-direction: column;
-        max-height: calc(100vh - 2rem);
-    }
-
-    .filter-sidebar__chrome {
-        flex-shrink: 0;
-    }
-
+    .filter-sidebar-panel,
+    .filter-sidebar,
     .filter-sidebar > .usa-form {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 0.25rem;
+        overflow: visible;
     }
 
 }
