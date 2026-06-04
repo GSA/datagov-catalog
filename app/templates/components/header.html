@@ -3,7 +3,7 @@
     <header class="usa-banner__header">
       <div class="usa-banner__inner">
         <div class="grid-col-auto">
-          <img class="usa-banner__header-flag" src="{{ static_url('assets/uswds/img/us_flag_small.png') }}"
+          <img class="usa-banner__header-flag" src="{{ url_for('static', filename='assets/uswds/img/us_flag_small.png') }}"
             alt="U.S. flag">
         </div>
         <div class="grid-col-fill tablet:grid-col-auto">
@@ -20,7 +20,7 @@
       <div class="grid-row grid-gap-lg">
         <div class="usa-banner__guidance tablet:grid-col-6">
           <img class="usa-banner__icon usa-media-block__img"
-            src="{{ static_url('assets/uswds/img/icon-dot-gov.svg') }}"
+            src="{{ url_for('static', filename='assets/uswds/img/icon-dot-gov.svg') }}"
             role="img" alt="Dot gov">
           <div class="usa-media-block__body">
             <p>
@@ -32,7 +32,7 @@
         </div>
         <div class="usa-banner__guidance tablet:grid-col-6">
           <img class="usa-banner__icon usa-media-block__img"
-            src="{{ static_url('assets/uswds/img/icon-https.svg') }}"
+            src="{{ url_for('static', filename='assets/uswds/img/icon-https.svg') }}"
             role="img" alt="Https">
           <div class="usa-media-block__body">
             <p>

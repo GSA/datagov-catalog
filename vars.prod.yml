@@ -10,4 +10,3 @@ basic_auth_enabled: off # nginx terminology 'on' 'off'. cf will interpret these 
 route_external: catalog.data.gov
 route_beta: catalog-beta.data.gov  
 route_internal: datagov-catalog-prod.apps.internal
-asset_version: unversioned
