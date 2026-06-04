@@ -8,15 +8,15 @@ from datetime import date, datetime
 from typing import Any, Union
 
 from bs4 import BeautifulSoup
+from flask import url_for
 
-from app.static_assets import static_url
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
 
 def usa_icon(icon_name: str) -> str:
     """Return SVG markup for a USWDS icon referenced from the sprite sheet."""
 
-    sprite_path = static_url("assets/uswds/img/sprite.svg")
+    sprite_path = url_for("static", filename="assets/uswds/img/sprite.svg")
     return (
         '<svg class="usa-icon" aria-hidden="true" role="img">'
         f'<use xlink:href="{sprite_path}#{icon_name}"></use>'

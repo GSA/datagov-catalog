@@ -10,4 +10,3 @@ basic_auth_enabled: on # nginx terminology 'on' 'off'. cf will interpret these a
 route_external: catalog-stage.data.gov
 route_beta: unused-staging-redirect.invalid # an invalid url because there's no 'beta' equivalent
 route_internal: datagov-catalog-staging.apps.internal
-asset_version: unversioned

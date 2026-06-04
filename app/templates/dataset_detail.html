@@ -432,11 +432,11 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ static_url('js/dataset_tags.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dataset_tags.js') }}"></script>
 {% if dataset.translated_spatial %}
-<link rel="stylesheet" href="{{ static_url('css/vendor/leaflet.css') }}" />
-<script src="{{ static_url('js/vendor/leaflet.js') }}"></script>
-<script src="{{ static_url('js/view_bbox_map.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}" />
+<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
+<script src="{{ url_for('static', filename='js/view_bbox_map.js') }}"></script>
 </script>
 {% endif %}
 {% endblock %}
