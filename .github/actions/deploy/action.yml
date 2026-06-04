@@ -73,6 +73,13 @@ runs:
       shell: bash
       run: make install-static
 
+    - name: Set deploy asset version
+      shell: bash
+      run: |
+        asset_version="$(.github/scripts/compute-asset-version.sh)"
+        echo "asset_version=${asset_version}" >> "$GITHUB_ENV"
+        echo "Static asset version: ${asset_version}"
+
     - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -87,10 +94,6 @@ runs:
     - name: Add requirements.txt
       shell: bash
       run: make update-dependencies && cat requirements.txt
-
-    - name: Set deploy asset version
-      shell: bash
-      run: echo "asset_version=${GITHUB_SHA:0:7}" >> "$GITHUB_ENV"
 
     - name: Deploy datagov-catalog app
       uses: cloud-gov/cg-cli-tools@main
