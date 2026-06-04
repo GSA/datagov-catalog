@@ -87,6 +87,26 @@ def test_organization_type_filter_limits_results(page: Page) -> None:
     expect_result_hidden(page, "California Wildfire Perimeters")
 
 
+def test_geography_map_fills_container_after_accordion_expand(page: Page) -> None:
+    """The sidebar map should size correctly after expanding a collapsed section."""
+    page.goto("/")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-geography")
+
+    map_size = page.evaluate("""() => {
+            const controller = window.dataGovGeographyAutocomplete;
+            const map = controller && controller.map;
+            if (!map || typeof map.getSize !== 'function') {
+                return null;
+            }
+            const size = map.getSize();
+            return { x: size.x, y: size.y };
+        }""")
+    assert map_size is not None
+    assert map_size["x"] >= 200
+    assert map_size["y"] >= 150
+
+
 def test_geography_filter_limits_results(page: Page) -> None:
     """Selecting a geography suggestion limits results to datasets in that area."""
     page.goto("/")

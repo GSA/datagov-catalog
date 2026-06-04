@@ -118,6 +118,7 @@ class GeographyAutocomplete {
         }
 
         this.initMapPanel();
+        this._initSidebarMapResize();
     }
 
     loadSearchResultGeometries() {
@@ -365,6 +366,66 @@ class GeographyAutocomplete {
       labelDiv.removeChild(clearButton);
 
       requestFilterFormSubmit(this.form);
+    }
+
+    _getGeographyFilterContent() {
+      return document.getElementById('filter-geography');
+    }
+
+    _isGeographyFilterVisible() {
+      const content = this._getGeographyFilterContent();
+      return !!(content && !content.hidden);
+    }
+
+    _refreshSidebarMapLayout() {
+      if (!this._isGeographyFilterVisible()) {
+        return;
+      }
+
+      if (!this.map) {
+        if (this.selectedGeometry) {
+          this.displayGeometry(this.selectedGeometry);
+        } else {
+          this.displayNoGeometry();
+        }
+        return;
+      }
+
+      this.map.invalidateSize();
+      if (this.geoLayer) {
+        const bounds = this.geoLayer.getBounds();
+        if (bounds && bounds.isValid()) {
+          if (bounds.getSouthWest().equals(bounds.getNorthEast())) {
+            this.map.setView(bounds.getSouthWest(), 8);
+          } else {
+            this.map.fitBounds(bounds.pad(0.1));
+          }
+        }
+      } else {
+        this._setDefaultView(this.map);
+      }
+    }
+
+    _initSidebarMapResize() {
+      const content = this._getGeographyFilterContent();
+      if (!content || content.dataset.geographyMapResizeInit === 'true') {
+        return;
+      }
+      content.dataset.geographyMapResizeInit = 'true';
+
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.attributeName === 'hidden' && !content.hidden) {
+            window.requestAnimationFrame(() => this._refreshSidebarMapLayout());
+            break;
+          }
+        }
+      });
+      observer.observe(content, { attributes: true, attributeFilter: ['hidden'] });
+
+      if (!content.hidden) {
+        window.requestAnimationFrame(() => this._refreshSidebarMapLayout());
+      }
     }
 
     _createMap() {
