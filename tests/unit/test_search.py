@@ -3,6 +3,7 @@ from datetime import datetime
 
 from app.database.opensearch import OpenSearchInterface
 from app.models import Dataset
+from tests.helpers.opensearch import index_datasets
 
 
 def test_search(interface_with_dataset):
@@ -51,8 +52,10 @@ def test_last_harvested_date_sort_orders_results(interface_with_dataset):
     older_dataset.last_harvested_date = datetime(2024, 1, 1)
     newer_dataset.last_harvested_date = datetime(2025, 1, 1)
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     latest_sorted = interface_with_dataset.search_datasets(
@@ -97,8 +100,10 @@ def test_popularity_sort_orders_results(interface_with_dataset):
     interface_with_dataset.db.add(high_popularity_dataset)
     interface_with_dataset.db.add(high_score_dataset)
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     relevance_sorted = interface_with_dataset.search_datasets(
@@ -124,8 +129,9 @@ def test_search_with_keyword(interface_with_dataset):
     interface_with_dataset.db.commit()
 
     # Index datasets in OpenSearch
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
     # Search by single keyword
     result = interface_with_dataset.search_datasets(keywords=["health"])
@@ -152,8 +158,9 @@ def test_search_with_keyword(interface_with_dataset):
 
 def test_search_spatial_geometry(interface_with_dataset):
     """Search_datasets accepts spatial_geometry."""
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
     results = interface_with_dataset.search_datasets(
         spatial_geometry={"type": "point", "coordinates": [-75, 40]},
@@ -241,8 +248,9 @@ class TestPhraseSearch:
 
     def test_phrase_search_finds_exact_phrase(self, interface_with_dataset):
         """Test that phrase search finds datasets with exact phrase."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         # Search for exact phrase that exists in test data
@@ -263,8 +271,9 @@ class TestPhraseSearch:
 
     def test_phrase_search_with_filters(self, interface_with_dataset):
         """Test that phrase search works with organization filter."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
         org = interface_with_dataset.db.query(Dataset).first().organization
 
@@ -285,8 +294,9 @@ class TestOrQuerySearch:
 
     def test_simple_or_query_returns_results(self, interface_with_dataset):
         """Test that OR query returns results matching either term."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         # Search for "health OR climate"
@@ -312,8 +322,9 @@ class TestOrQuerySearch:
 
     def test_or_query_returns_more_results_than_and(self, interface_with_dataset):
         """Test that OR query returns equal or more results than AND query."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         # Search with OR
@@ -327,8 +338,9 @@ class TestOrQuerySearch:
 
     def test_or_query_with_quoted_phrase(self, interface_with_dataset):
         """Test OR query with quoted phrases."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         # Test that quoted phrases work with OR
@@ -339,8 +351,9 @@ class TestOrQuerySearch:
 
     def test_or_query_with_popularity_sort(self, interface_with_dataset):
         """Test that OR query works with popularity sorting."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         result = interface_with_dataset.search_datasets(
@@ -398,8 +411,9 @@ def test_distribution_title_search_returns_only_matching_dataset(
     interface_with_dataset.db.add(Dataset(**dataset_b))
     interface_with_dataset.db.commit()
 
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     result = interface_with_dataset.search_datasets("Rainfall Measurements Report")

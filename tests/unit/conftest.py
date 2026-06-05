@@ -17,6 +17,7 @@ from app.models import (
     Organization,
     db,
 )
+from tests.helpers.opensearch import delete_all_datasets, index_datasets
 
 from ..fixtures import fixture_data
 
@@ -74,7 +75,7 @@ def interface(session) -> CatalogDBInterface:
     interface = CatalogDBInterface(session=session)
     # best effort to clear the opensearch index
     try:
-        interface.opensearch.delete_all_datasets()
+        delete_all_datasets(interface.opensearch)
     except OpenSearchException:
         pass
 
@@ -128,8 +129,10 @@ def interface_with_dataset(interface_with_harvest_record, fixture_data):
     for dataset_data in fixture_data["dataset"]:
         interface_with_harvest_record.db.add(Dataset(**dataset_data))
     interface_with_harvest_record.db.commit()
-    interface_with_harvest_record.opensearch.index_datasets(
-        interface_with_harvest_record.db.query(Dataset)
+
+    index_datasets(
+        interface_with_harvest_record.opensearch,
+        interface_with_harvest_record.db.query(Dataset),
     )
 
     yield interface_with_harvest_record

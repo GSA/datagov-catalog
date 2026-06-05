@@ -27,8 +27,8 @@ to fetch the next one.
 
 Because Opensearch is alongside our Postgres database, we have to synchronize
 the contents of our database with the searchable index in Opensearch.
-Currently, we do this in a daily batch operation. A command `flask search
-sync` is available for this. It clears the Opensearch index and then indexes
+Currently, we do this in a daily batch operation. A command `flask search compare --update` 
+is available for this. It clears the Opensearch index and then indexes
 every dataset from Postgres into Opensearch.
 
 ## Paginated search

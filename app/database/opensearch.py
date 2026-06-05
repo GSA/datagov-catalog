@@ -3,17 +3,17 @@ import json
 import logging
 import os
 import re
+
+# ruff: noqa: F401
+# time isn't used here but patched in a test for retry
 import time
 from dataclasses import dataclass
-from datetime import date, datetime
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 from urllib.parse import urlparse
 
 from botocore.credentials import Credentials
-from flask import url_for
 from haversine import Unit, haversine
-from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
-from opensearchpy.exceptions import ConnectionTimeout
+from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection
 
 from .constants import DEFAULT_PER_PAGE
 
@@ -364,31 +364,6 @@ class OpenSearchInterface:
         self._ensure_index()
 
     @staticmethod
-    def _normalize_dcat_dates(dcat: dict) -> dict:
-        """Normalize date fields in DCAT to ensure they're always strings.
-
-        dcat: DCAT dictionary that may contain datetime objects
-
-        the returned value is the modified dcat dict.
-        """
-        # Create a copy to avoid mutating the original
-        normalized_dcat = dcat.copy()
-
-        # Fields that should be converted to strings
-        date_fields = ["modified", "issued", "temporal"]
-
-        for field in date_fields:
-            if field in normalized_dcat:
-                value = normalized_dcat[field]
-                if isinstance(value, (datetime, date)):
-                    normalized_dcat[field] = value.isoformat()
-                elif value is not None and not isinstance(value, str):
-                    # Convert any other non-string type to string
-                    normalized_dcat[field] = str(value)
-
-        return normalized_dcat
-
-    @staticmethod
     def _distance_km(point_a: dict, point_b: dict) -> float | None:
         """Return the great-circle distance in km between two points.
 
@@ -494,235 +469,6 @@ class OpenSearchInterface:
         lat_total = sum(point[1] for point in points)
         count = len(points)
         return {"lat": lat_total / count, "lon": lon_total / count}
-
-    def dataset_to_document(self, dataset):
-        """Map a dataset into a document for indexing.
-
-        Document is a JSON object used in a bulk insert so it needs to include
-        an `_id` and `_index` property. We use the dataset's `id` for the
-        document's `_id`.
-        """
-        # Check if dataset has spatial data
-        spatial_value = dataset.dcat.get("spatial")
-        has_spatial = bool(spatial_value and str(spatial_value).strip()) or (
-            dataset.translated_spatial is not None
-        )
-
-        # Normalize DCAT dates to ensure they're strings
-        normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
-
-        spatial_centroid = self._geometry_centroid(dataset.translated_spatial)
-
-        document = {
-            "_index": self.INDEX_NAME,
-            "_id": dataset.id,
-            "title": dataset.dcat.get("title", ""),
-            "slug": dataset.slug,
-            "last_harvested_date": dataset.last_harvested_date.isoformat(),
-            "description": dataset.dcat.get("description", ""),
-            "publisher": dataset.dcat.get("publisher", {}).get("name", ""),
-            "dcat": normalized_dcat,
-            # Opensearch handles array-value properties
-            "keyword": dataset.dcat.get("keyword", []),
-            "theme": dataset.dcat.get("theme", []),
-            "identifier": dataset.dcat.get("identifier", ""),
-            "has_spatial": has_spatial,
-            "organization": dataset.organization.to_dict(),
-            "distribution_titles": [
-                dist["title"]
-                for dist in (dataset.dcat.get("distribution") or [])
-                if isinstance(dist, dict) and dist.get("title")
-            ],
-            "popularity": (
-                dataset.popularity if dataset.popularity is not None else None
-            ),
-            "spatial_shape": dataset.translated_spatial,
-            "spatial_centroid": spatial_centroid,
-            "harvest_record": self._create_harvest_record_url(dataset),
-            "harvest_record_raw": self._create_harvest_record_raw_url(dataset),
-        }
-        if self._has_harvest_record_transformed(dataset):
-            document["harvest_record_transformed"] = (
-                self._create_harvest_record_transformed_url(dataset)
-            )
-        return document
-
-    def _create_harvest_record_url(self, dataset) -> str:
-        """Generates a url to the harvest record."""
-        return url_for("main.get_harvest_record", record_id=dataset.harvest_record_id)
-
-    def _create_harvest_record_raw_url(self, dataset) -> str:
-        """Generates a url to the raw harvest-record payload."""
-        return url_for(
-            "main.get_harvest_record_raw", record_id=dataset.harvest_record_id
-        )
-
-    def _create_harvest_record_transformed_url(self, dataset) -> str:
-        """Generates a url to the transformed harvest-record payload."""
-        return url_for(
-            "main.get_harvest_record_transformed", record_id=dataset.harvest_record_id
-        )
-
-    @staticmethod
-    def _has_harvest_record_transformed(dataset) -> bool:
-        """True when dataset's harvest record has a non-empty transformed payload."""
-        record = getattr(dataset, "harvest_record", None)
-        if record is None:
-            return False
-
-        transformed = getattr(record, "source_transform", None)
-        if transformed is None:
-            return False
-
-        if isinstance(transformed, str) and not transformed.strip():
-            return False
-
-        return True
-
-    def _run_with_timeout_retry(
-        self,
-        action: Callable[[], T],
-        *,
-        action_name: str,
-        timeout_retries: int,
-        timeout_backoff_base: float,
-    ) -> T:
-        attempt = 0
-
-        while True:
-            try:
-                return action()
-            except ConnectionTimeout as exc:
-                attempt += 1
-                if attempt > timeout_retries:
-                    logger.error(
-                        "%s timed out after %s retries; giving up.",
-                        action_name,
-                        timeout_retries,
-                        exc_info=exc,
-                    )
-                    raise
-
-                wait_seconds = min(timeout_backoff_base**attempt, 60)
-                logger.warning(
-                    "%s timed out (attempt %s/%s); retrying in %.1f seconds.",
-                    action_name,
-                    attempt,
-                    timeout_retries,
-                    wait_seconds,
-                    exc_info=exc,
-                )
-                time.sleep(wait_seconds)
-
-    def delete_all_datasets(
-        self,
-        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
-        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
-        request_timeout: int = DEFAULT_DELETE_REQUEST_TIMEOUT_SECONDS,
-    ):
-        """Delete all documents from our index."""
-
-        def _do_delete():
-            return self.client.delete_by_query(
-                index=self.INDEX_NAME,
-                body={"query": {"match_all": {}}},
-                # allow long-running deletions to finish before timing out
-                request_timeout=request_timeout,
-            )
-
-        self._run_with_timeout_retry(
-            _do_delete,
-            action_name="OpenSearch delete_by_query",
-            timeout_retries=timeout_retries,
-            timeout_backoff_base=timeout_backoff_base,
-        )
-
-    def _refresh(
-        self,
-        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
-        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
-        request_timeout: int = DEFAULT_REFRESH_REQUEST_TIMEOUT_SECONDS,
-    ):
-        """Refresh our index."""
-
-        def _do_refresh():
-            return self.client.indices.refresh(
-                index=self.INDEX_NAME, request_timeout=request_timeout
-            )
-
-        self._run_with_timeout_retry(
-            _do_refresh,
-            action_name="OpenSearch refresh",
-            timeout_retries=timeout_retries,
-            timeout_backoff_base=timeout_backoff_base,
-        )
-
-    def index_datasets(
-        self,
-        dataset_iter,
-        refresh_after=True,
-        timeout_retries: int = DEFAULT_TIMEOUT_RETRIES,
-        timeout_backoff_base: float = DEFAULT_TIMEOUT_BACKOFF_BASE,
-    ):
-        """Index an iterator of dataset objects into OpenSearch.
-
-        Returns a tuple of number of (succeeded, failed) items.
-        """
-        datasets = getattr(dataset_iter, "items", dataset_iter)
-        documents = [self.dataset_to_document(dataset) for dataset in datasets]
-
-        def _stream_bulk():
-            succeeded_local = 0
-            failed_local = 0
-            errors = []
-            for success, item in helpers.streaming_bulk(
-                self.client,
-                documents,
-                raise_on_error=False,
-                # retry when we are making too many requests
-                max_retries=8,
-            ):
-                index_info = item.get("index")
-                index_error = index_info.get("error")
-                if success:
-                    succeeded_local += 1
-                    if item["index"]["result"].lower() not in ["created", "updated"]:
-                        if index_info:
-                            errors.append(
-                                {
-                                    "dataset_id": index_info.get("_id"),
-                                    "status_code": index_info["_shards"].get("status"),
-                                    "error_type": "Silent Error",
-                                    "error_reason": "Unknown",
-                                    "caused_by": index_info,
-                                }
-                            )
-                else:
-                    failed_local += 1
-                    if index_info and index_error:
-                        errors.append(
-                            {
-                                "dataset_id": index_info.get("_id"),
-                                "status_code": index_info.get("status"),
-                                "error_type": index_error.get("type"),
-                                "error_reason": index_error.get("reason"),
-                                "caused_by": index_error.get("caused_by"),
-                            }
-                        )
-                    errors.append(item)
-            return succeeded_local, failed_local, errors
-
-        succeeded, failed, errors = self._run_with_timeout_retry(
-            _stream_bulk,
-            action_name="OpenSearch bulk index",
-            timeout_retries=timeout_retries,
-            timeout_backoff_base=timeout_backoff_base,
-        )
-
-        if refresh_after:
-            self._refresh()
-
-        return (succeeded, failed, errors)
 
     # allow sort_by values: distance, popularity, relevance, last_harvested_date
     # optionalsort_point can be passed as a keyword argument

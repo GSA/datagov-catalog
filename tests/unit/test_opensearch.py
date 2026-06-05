@@ -1,13 +1,12 @@
-from datetime import date, datetime
 from unittest.mock import Mock
 
 import pytest
 from opensearchpy.exceptions import ConnectionTimeout
 
 import app.database.opensearch as opensearch_module
-from app import create_app
 from app.database import OpenSearchInterface
 from app.models import Dataset
+from tests.helpers.opensearch import index_datasets, run_with_timeout_retry
 
 
 class TestOpenSearch:
@@ -22,7 +21,7 @@ class TestOpenSearch:
 
     def test_index_and_search_datasets(self, interface_with_dataset, opensearch_client):
         dataset_iterator = interface_with_dataset.db.query(Dataset)
-        opensearch_client.index_datasets(dataset_iterator)
+        index_datasets(opensearch_client, dataset_iterator)
         # the test dataset has title "test"
         result_obj = opensearch_client.search("test")
         assert len(result_obj.results) > 0
@@ -31,7 +30,7 @@ class TestOpenSearch:
         self, interface_with_dataset, opensearch_client
     ):
         dataset_iterator = interface_with_dataset.db.query(Dataset)
-        opensearch_client.index_datasets(dataset_iterator)
+        index_datasets(opensearch_client, dataset_iterator)
         # One of the Americorps datasets has tnxs-meph in an identifier
         result_obj = opensearch_client.search("tnxs-meph")
         assert len(result_obj.results) > 0
@@ -40,7 +39,7 @@ class TestOpenSearch:
         self, interface_with_dataset, opensearch_client
     ):
         dataset_iterator = interface_with_dataset.db.query(Dataset)
-        opensearch_client.index_datasets(dataset_iterator)
+        index_datasets(opensearch_client, dataset_iterator)
         # This point is inside the polygon of the test dataset
         result_obj = opensearch_client.search(
             "",
@@ -53,7 +52,7 @@ class TestOpenSearch:
         self, interface_with_dataset, opensearch_client
     ):
         dataset_iterator = interface_with_dataset.db.query(Dataset)
-        opensearch_client.index_datasets(dataset_iterator)
+        index_datasets(opensearch_client, dataset_iterator)
         # This polygon contains the whole test dataset (and planet)
         result_obj = opensearch_client.search(
             "",
@@ -71,7 +70,7 @@ class TestOpenSearch:
         self, interface_with_dataset, opensearch_client
     ):
         dataset_iterator = interface_with_dataset.db.query(Dataset)
-        opensearch_client.index_datasets(dataset_iterator)
+        index_datasets(opensearch_client, dataset_iterator)
         # This polygon intersects the test dataset but doesn't contain it
         polygon = {
             "type": "polygon",
@@ -89,7 +88,7 @@ class TestOpenSearch:
 
     def test_search_collection(self, interface_with_dataset, opensearch_client):
         dataset_iterator = interface_with_dataset.db.query(Dataset)
-        opensearch_client.index_datasets(dataset_iterator)
+        index_datasets(opensearch_client, dataset_iterator)
 
         result_obj = opensearch_client.search(
             "", collection="https://subdomain.domain/parent/example.shp.iso.xml"
@@ -97,340 +96,56 @@ class TestOpenSearch:
         assert len(result_obj.results) == 2
 
 
-class TestDcatDateNormalization:
-    """Test suite for _normalize_dcat_dates method."""
-
-    def test_normalize_datetime_modified_field(self):
-        """Test that datetime objects in modified field are converted to ISO strings."""
-        dcat = {
-            "title": "Test Dataset",
-            "modified": datetime(2023, 6, 22, 20, 25, 39, 652070),
-            "description": "Test description",
+# _geometry_centroid is slightly different between harvester and catalog.
+# in catalog the function returns None for invalid points (e.g. out-of-bounds) compared to
+# harvester which returns the original geometry. _geometry_centroid is used in spatial search
+# so keeping some tests here
+class TestGeometryCentroid:
+    def test_geometry_centroid_skips_out_of_range_longitude(self):
+        """
+        A longitude outside -180-180 (e.g. 185.34) must be excluded from the
+        centroid calculation to prevent OpenSearch geo_point parse failures.
+        """
+        geometry = {
+            "type": "Point",
+            "coordinates": [185.34570208999997, 45.0],
         }
+        centroid = OpenSearchInterface._geometry_centroid(geometry)
+        # The single point is invalid, so no valid points remain,
+        # so it should return none
+        assert centroid is None
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert isinstance(result["modified"], str)
-        assert result["modified"] == "2023-06-22T20:25:39.652070"
-        assert result["title"] == "Test Dataset"
-        assert result["description"] == "Test description"
-
-    def test_normalize_date_modified_field(self):
-        """Test that date objects in modified field are converted to ISO strings."""
-        dcat = {
-            "title": "Test Dataset",
-            "modified": date(2023, 6, 22),
-            "description": "Test description",
+    def test_geometry_centroid_skips_out_of_range_latitude(self):
+        """
+        A latitude outside -90-90 (e.g. -90.90) must be excluded from the
+        centroid calculation to prevent OpenSearch geo_point parse failures.
+        """
+        geometry = {
+            "type": "Point",
+            "coordinates": [-74.0, -90.90776196883162],
         }
+        centroid = OpenSearchInterface._geometry_centroid(geometry)
+        assert centroid is None
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert isinstance(result["modified"], str)
-        assert result["modified"] == "2023-06-22"
-
-    def test_normalize_datetime_issued_field(self):
-        """Test that datetime objects in issued field are converted to ISO strings."""
-        dcat = {
-            "title": "Test Dataset",
-            "issued": datetime(2006, 5, 31, 0, 0, 0),
-            "description": "Test description",
-        }
-
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert isinstance(result["issued"], str)
-        assert result["issued"] == "2006-05-31T00:00:00"
-
-    def test_normalize_multiple_date_fields(self):
-        """Test that multiple date fields are all normalized."""
-        dcat = {
-            "title": "Test Dataset",
-            "modified": datetime(2023, 6, 22, 20, 25, 39),
-            "issued": date(2006, 5, 31),
-            "temporal": "2004/2005",
-            "description": "Test description",
-        }
-
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert isinstance(result["modified"], str)
-        assert result["modified"] == "2023-06-22T20:25:39"
-        assert isinstance(result["issued"], str)
-        assert result["issued"] == "2006-05-31"
-        assert result["temporal"] == "2004/2005"  # Already string
-
-    def test_normalize_leaves_string_dates_unchanged(self):
-        """Test that date fields that are already strings are not modified."""
-        dcat = {
-            "title": "Test Dataset",
-            "modified": "2023-06-22T20:25:39.652070",
-            "issued": "2006-05-31",
-            "description": "Test description",
-        }
-
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert result["modified"] == "2023-06-22T20:25:39.652070"
-        assert result["issued"] == "2006-05-31"
-
-    def test_normalize_with_missing_date_fields(self):
-        """Test that missing date fields don't cause errors."""
-        dcat = {
-            "title": "Test Dataset",
-            "description": "Test description",
-            "keyword": ["health", "education"],
-        }
-
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert "modified" not in result
-        assert "issued" not in result
-        assert result["title"] == "Test Dataset"
-        assert result["keyword"] == ["health", "education"]
-
-    def test_normalize_with_none_date_fields(self):
-        """Test that None values in date fields are preserved."""
-        dcat = {
-            "title": "Test Dataset",
-            "modified": None,
-            "issued": None,
-            "description": "Test description",
-        }
-
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert result["modified"] is None
-        assert result["issued"] is None
-
-    def test_normalize_with_integer_date_field(self):
-        """Test that non-standard types (like integers) are converted to strings."""
-        dcat = {
-            "title": "Test Dataset",
-            "modified": 20230622,  # Non-standard format
-            "description": "Test description",
-        }
-
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert isinstance(result["modified"], str)
-        assert result["modified"] == "20230622"
-
-    def test_normalize_does_not_mutate_original(self):
-        """Test that the original dcat dict is not modified."""
-        modified_datetime = datetime(2023, 6, 22, 20, 25, 39)
-        dcat = {
-            "title": "Test Dataset",
-            "modified": modified_datetime,
-            "description": "Test description",
-        }
-
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        # Original should still have datetime object
-        assert isinstance(dcat["modified"], datetime)
-        assert dcat["modified"] is modified_datetime
-        # Result should have string
-        assert isinstance(result["modified"], str)
-
-    def test_normalize_preserves_nested_structures(self):
-        """Test that nested structures in DCAT are preserved."""
-        dcat = {
-            "title": "Test Dataset",
-            "modified": datetime(2023, 6, 22, 20, 25, 39),
-            "publisher": {
-                "name": "Department of Education",
-                "subOrganizationOf": {"name": "U.S. Government"},
-            },
-            "distribution": [
-                {"title": "Data File", "downloadURL": "https://example.com/data.csv"}
+    def test_geometry_centroid_uses_valid_points_when_some_are_out_of_range(self):
+        """
+        When a geometry contains a mix of valid and out-of-range coordinates, the
+        centroid is computed from only the valid points rather than discarding
+        the whole geometry.
+        """
+        geometry = {
+            "type": "MultiPoint",
+            "coordinates": [
+                [10.0, 20.0],  # valid
+                [185.0, 45.0],  # invalid lon
+                [30.0, -91.0],  # invalid lat
+                [50.0, 60.0],  # valid
             ],
         }
-
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
-
-        assert isinstance(result["modified"], str)
-        assert result["publisher"]["name"] == "Department of Education"
-        assert result["publisher"]["subOrganizationOf"]["name"] == "U.S. Government"
-        assert len(result["distribution"]) == 1
-        assert result["distribution"][0]["title"] == "Data File"
-
-
-class TestDatasetToDocument:
-    """Test suite for dataset_to_document with date normalization."""
-
-    def test_dataset_to_document_normalizes_modified_datetime(
-        self, opensearch_client, mock_dataset_with_datetime, mock_organization
-    ):
-        """Test that dataset_to_document normalizes datetime in modified field."""
-        # Convert to document
-        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
-
-        # Verify modified is a string
-        assert isinstance(document["dcat"]["modified"], str)
-        assert document["dcat"]["modified"] == "2023-06-22T20:25:39.652070"
-        assert document["title"] == "Test Dataset"
-        assert document["slug"] == "test-dataset"
-
-    def test_dataset_to_document_normalizes_issued_date(
-        self, opensearch_client, mock_dataset_with_date, mock_organization
-    ):
-        """Test that dataset_to_document normalizes date in issued field."""
-        document = opensearch_client.dataset_to_document(mock_dataset_with_date)
-
-        assert isinstance(document["dcat"]["issued"], str)
-        assert document["dcat"]["issued"] == "2006-05-31"
-
-    def test_dataset_to_document_preserves_string_dates(
-        self, opensearch_client, mock_dataset_with_string_dates, mock_organization
-    ):
-        """Test that string dates in DCAT are preserved as-is."""
-        document = opensearch_client.dataset_to_document(mock_dataset_with_string_dates)
-
-        assert document["dcat"]["modified"] == "2023-06-22T20:25:39.652070"
-        assert document["dcat"]["issued"] == "2006-05-31"
-
-    def test_dataset_to_document_with_spatial_data(
-        self, opensearch_client, mock_dataset_with_spatial, mock_organization
-    ):
-        """Test dataset_to_document with spatial data and date normalization."""
-        document = opensearch_client.dataset_to_document(mock_dataset_with_spatial)
-
-        assert document["has_spatial"] is True
-        assert isinstance(document["dcat"]["modified"], str)
-        assert document["dcat"]["modified"] == "2023-01-15T10:30:00"
-
-    def test_dataset_to_document_does_not_modify_original_dcat(
-        self, opensearch_client, mock_dataset_with_datetime, mock_organization
-    ):
-        """Test that the original dataset.dcat is not mutated."""
-        modified_datetime = mock_dataset_with_datetime.dcat["modified"]
-
-        # Convert to document
-        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
-
-        # Original dcat should still have datetime object
-        assert isinstance(mock_dataset_with_datetime.dcat["modified"], datetime)
-        assert mock_dataset_with_datetime.dcat["modified"] is modified_datetime
-
-        # Document should have string
-        assert isinstance(document["dcat"]["modified"], str)
-
-    def test_dataset_to_document_includes_harvest_record_raw_url(
-        self, dbapp, opensearch_client, mock_dataset_with_datetime, mock_organization
-    ):
-        """Test that harvest_record_raw is included as a URL."""
-        with dbapp.app_context():
-            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-            document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
-
-            assert (
-                document["harvest_record_raw"]
-                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/raw"
-            )
-
-    def test_dataset_to_document_includes_harvest_record_transformed_url(
-        self, dbapp, opensearch_client, mock_dataset_with_datetime, mock_organization
-    ):
-        """Test that harvest_record_transformed is included as a URL."""
-        with dbapp.app_context():
-            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-            mock_dataset_with_datetime.harvest_record = type(
-                "Record", (), {"source_transform": {"title": "x"}}
-            )()
-
-            document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
-
-            assert (
-                document["harvest_record_transformed"]
-                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
-            )
-
-
-def test_dataset_to_document_omits_harvest_record_transformed_without_payload(
-    dbapp, opensearch_client, mock_dataset_with_datetime, mock_organization
-):
-    with dbapp.app_context():
-        dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-        dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-        mock_dataset_with_datetime.harvest_record_id = (
-            "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-        )
-        mock_dataset_with_datetime.harvest_record = type(
-            "Record", (), {"source_transform": None}
-        )()
-
-        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
-
-        assert "harvest_record_transformed" not in document
-
-
-def test_geometry_centroid_from_polygon():
-    geometry = {
-        "type": "Polygon",
-        "coordinates": [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]],
-    }
-    centroid = OpenSearchInterface._geometry_centroid(geometry)
-    assert centroid is not None
-    assert centroid["lon"] == pytest.approx(0.8)
-    assert centroid["lat"] == pytest.approx(0.8)
-
-
-def test_geometry_centroid_skips_out_of_range_longitude():
-    """
-    A longitude outside -180-180 (e.g. 185.34) must be excluded from the
-    centroid calculation to prevent OpenSearch geo_point parse failures.
-    """
-    geometry = {
-        "type": "Point",
-        "coordinates": [185.34570208999997, 45.0],
-    }
-    centroid = OpenSearchInterface._geometry_centroid(geometry)
-    # The single point is invalid, so no valid points remain,
-    # so it should return none
-    assert centroid is None
-
-
-def test_geometry_centroid_skips_out_of_range_latitude():
-    """
-    A latitude outside -90-90 (e.g. -90.90) must be excluded from the
-    centroid calculation to prevent OpenSearch geo_point parse failures.
-    """
-    geometry = {
-        "type": "Point",
-        "coordinates": [-74.0, -90.90776196883162],
-    }
-    centroid = OpenSearchInterface._geometry_centroid(geometry)
-    assert centroid is None
-
-
-def test_geometry_centroid_uses_valid_points_when_some_are_out_of_range():
-    """
-    When a geometry contains a mix of valid and out-of-range coordinates, the
-    centroid is computed from only the valid points rather than discarding
-    the whole geometry.
-    """
-    geometry = {
-        "type": "MultiPoint",
-        "coordinates": [
-            [10.0, 20.0],  # valid
-            [185.0, 45.0],  # invalid lon
-            [30.0, -91.0],  # invalid lat
-            [50.0, 60.0],  # valid
-        ],
-    }
-    centroid = OpenSearchInterface._geometry_centroid(geometry)
-    assert centroid is not None
-    assert centroid["lon"] == pytest.approx(30.0)  # mean of 10.0 and 50.0
-    assert centroid["lat"] == pytest.approx(40.0)  # mean of 20.0 and 60.0
+        centroid = OpenSearchInterface._geometry_centroid(geometry)
+        assert centroid is not None
+        assert centroid["lon"] == pytest.approx(30.0)  # mean of 10.0 and 50.0
+        assert centroid["lat"] == pytest.approx(40.0)  # mean of 20.0 and 60.0
 
 
 class TestOpenSearchMappings:
@@ -499,29 +214,6 @@ class TestOpenSearchMappings:
         assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
 
 
-def test_count_datasets_with_ispartof_passes_filtered_count_query():
-    """OpenSearch count returns the number of docs matching the supplied query."""
-    client = OpenSearchInterface.__new__(OpenSearchInterface)
-    client.INDEX_NAME = "datasets"
-    client.client = Mock()
-    client.client.count.return_value = {"count": 7}
-
-    count = client.count_datasets_with_ispartof()
-
-    assert count == 7
-    client.client.count.assert_called_once_with(
-        index=client.INDEX_NAME,
-        body={
-            "query": {
-                "nested": {
-                    "path": "dcat",
-                    "query": {"exists": {"field": "dcat.isPartOf"}},
-                }
-            }
-        },
-    )
-
-
 class TestCaseInsensitiveKeywords:
     """
     Tests for case-insensitive keyword filtering and aggregation.
@@ -580,7 +272,8 @@ class TestCaseInsensitiveKeywords:
                 keywords=["Environment", "Climate"],
                 mock_organization=mock_organization,
             )
-            opensearch_client.index_datasets([dataset])
+
+            index_datasets(opensearch_client, [dataset])
 
         # Filtering with the lowercase form must still find the document.
         result_lower = opensearch_client.search("", keywords=["environment"])
@@ -613,7 +306,7 @@ class TestCaseInsensitiveKeywords:
                 keywords=["environment"],
                 mock_organization=mock_organization,
             )
-            opensearch_client.index_datasets([dataset])
+            index_datasets(opensearch_client, [dataset])
 
         # "ENVIRONMENT", "Environment", and "eNvIrOnMeNt" should all match.
         for variant in ("ENVIRONMENT", "Environment", "eNvIrOnMeNt"):
@@ -645,7 +338,8 @@ class TestCaseInsensitiveKeywords:
                 keywords=["Environment"],
                 mock_organization=mock_organization,
             )
-            opensearch_client.index_datasets([dataset_lower, dataset_title])
+
+            index_datasets(opensearch_client, [dataset_lower, dataset_title])
 
         keywords = opensearch_client.get_unique_keywords()
 
@@ -694,7 +388,7 @@ class TestCaseInsensitiveKeywords:
                     mock_organization=mock_organization,
                 ),
             ]
-            opensearch_client.index_datasets(datasets)
+            index_datasets(opensearch_client, datasets)
 
         keywords = opensearch_client.get_unique_keywords(search="earth science")
         keyword_values = [item["keyword"] for item in keywords]
@@ -705,6 +399,29 @@ class TestCaseInsensitiveKeywords:
         assert "earth" not in keyword_values
         # Completely unrelated keywords must be excluded
         assert "ocean" not in keyword_values
+
+
+def test_count_datasets_with_ispartof_passes_filtered_count_query():
+    """OpenSearch count returns the number of docs matching the supplied query."""
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    client.INDEX_NAME = "datasets"
+    client.client = Mock()
+    client.client.count.return_value = {"count": 7}
+
+    count = client.count_datasets_with_ispartof()
+
+    assert count == 7
+    client.client.count.assert_called_once_with(
+        index=client.INDEX_NAME,
+        body={
+            "query": {
+                "nested": {
+                    "path": "dcat",
+                    "query": {"exists": {"field": "dcat.isPartOf"}},
+                }
+            }
+        },
+    )
 
 
 def test_relevance_sort_uses_popularity_tie_breaker():
@@ -741,7 +458,6 @@ def test_last_harvested_date_sort_uses_latest_first():
 
 
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
-    interface = OpenSearchInterface.__new__(OpenSearchInterface)
     monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
 
     attempts = {"count": 0}
@@ -752,9 +468,8 @@ def test_run_with_timeout_retry_eventual_success(monkeypatch):
             raise ConnectionTimeout("TIMEOUT")
         return "done"
 
-    result = interface._run_with_timeout_retry(
+    result = run_with_timeout_retry(
         _action,
-        action_name="test action",
         timeout_retries=3,
         timeout_backoff_base=2.0,
     )
@@ -764,228 +479,14 @@ def test_run_with_timeout_retry_eventual_success(monkeypatch):
 
 
 def test_run_with_timeout_retry_exhausted(monkeypatch):
-    interface = OpenSearchInterface.__new__(OpenSearchInterface)
     monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
 
     def _action():
         raise ConnectionTimeout("TIMEOUT")
 
     with pytest.raises(ConnectionTimeout):
-        interface._run_with_timeout_retry(
+        run_with_timeout_retry(
             _action,
-            action_name="test action",
             timeout_retries=2,
             timeout_backoff_base=2.0,
         )
-
-
-class TestCreateHarvestRecordUrl:
-    """Test for _create_harvest_record_url method."""
-
-    def test_create_harvest_record_url_with_local_server(
-        self, dbapp, mock_dataset_with_datetime, opensearch_client
-    ):
-        """Test that _create_harvest_record_url generates correct URL for local server."""
-        with dbapp.app_context():
-            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-
-            # Set a specific harvest_record_id
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-            url = opensearch_client._create_harvest_record_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-    def test_create_harvest_record_url_with_production_server(
-        self, mock_dataset_with_datetime, opensearch_client, monkeypatch
-    ):
-        """Test that _create_harvest_record_url generates correct URL for production server."""
-        # Set production environment variables
-        monkeypatch.setenv("SITE_URL", "example.gov")
-
-        # Create app with production configuration
-        app = create_app(config_name="production")
-
-        with app.app_context():
-            # Set a specific harvest_record_id
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-            url = opensearch_client._create_harvest_record_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-    def test_create_harvest_record_raw_url_with_local_server(
-        self, dbapp, mock_dataset_with_datetime, opensearch_client
-    ):
-        """Test that _create_harvest_record_raw_url generates correct URL for local server."""
-        with dbapp.app_context():
-            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-            url = opensearch_client._create_harvest_record_raw_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/raw"
-            )
-
-    def test_create_harvest_record_raw_url_with_production_server(
-        self, mock_dataset_with_datetime, opensearch_client, monkeypatch
-    ):
-        """Test that _create_harvest_record_raw_url generates correct URL for production server."""
-        monkeypatch.setenv("SITE_URL", "example.gov")
-        app = create_app(config_name="production")
-
-        with app.app_context():
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-            url = opensearch_client._create_harvest_record_raw_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/raw"
-            )
-
-    def test_create_harvest_record_transformed_url_with_local_server(
-        self, dbapp, mock_dataset_with_datetime, opensearch_client
-    ):
-        """Test that _create_harvest_record_transformed_url generates correct URL for local server."""
-        with dbapp.app_context():
-            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-            url = opensearch_client._create_harvest_record_transformed_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "http://0.0.0.0:8080/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
-            )
-
-    def test_create_harvest_record_transformed_url_with_production_server(
-        self, mock_dataset_with_datetime, opensearch_client, monkeypatch
-    ):
-        """Test that _create_harvest_record_transformed_url generates correct URL for production server."""
-        monkeypatch.setenv("SITE_URL", "example.gov")
-        app = create_app(config_name="production")
-
-        with app.app_context():
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-            url = opensearch_client._create_harvest_record_transformed_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
-            )
-
-
-class TestDistributionTitles:
-    """Validate the `or []` fallback in dataset_to_document's distribution_titles."""
-
-    def _make_dataset(self, dcat: dict, mock_organization: Mock) -> Mock:
-        """Return a minimal mock dataset whose dcat is the supplied dict."""
-        dataset = Mock()
-        dataset.id = "dist-test-id"
-        dataset.slug = "dist-test-dataset"
-        dataset.last_harvested_date = Mock()
-        dataset.last_harvested_date.isoformat.return_value = "2024-01-01"
-        dataset.translated_spatial = None
-        dataset.harvest_record_id = "harvest-rec-id"
-        dataset.harvest_record = None
-        dataset.popularity = 0
-        dataset.organization = mock_organization
-        dataset.dcat = dcat
-        return dataset
-
-    def test_distribution_key_absent_yields_empty_list(
-        self, dbapp, opensearch_client, mock_organization
-    ):
-        """When 'distribution' is not present in dcat at all, distribution_titles
-        must be an empty list (the `or []` prevents a TypeError on None)."""
-        dcat = {
-            "title": "No Distribution Dataset",
-            "description": "DCAT with no distribution key whatsoever.",
-            "publisher": {"name": "Test Agency"},
-            # intentionally omitting "distribution"
-        }
-        dataset = self._make_dataset(dcat, mock_organization)
-
-        with dbapp.app_context():
-            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-            document = opensearch_client.dataset_to_document(dataset)
-
-        assert document["distribution_titles"] == []
-
-    def test_distribution_none_yields_empty_list(
-        self, dbapp, opensearch_client, mock_organization
-    ):
-        """When 'distribution' is explicitly None, the `or []` guard kicks in
-        and distribution_titles must still be an empty list."""
-        dcat = {
-            "title": "Null Distribution Dataset",
-            "description": "DCAT where distribution is None.",
-            "publisher": {"name": "Test Agency"},
-            "distribution": None,
-        }
-        dataset = self._make_dataset(dcat, mock_organization)
-
-        with dbapp.app_context():
-            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-            document = opensearch_client.dataset_to_document(dataset)
-
-        assert document["distribution_titles"] == []
-
-    def test_distribution_empty_list_yields_empty_list(
-        self, dbapp, opensearch_client, mock_organization
-    ):
-        """When 'distribution' is an empty list the comprehension iterates
-        zero times, so distribution_titles must be an empty list."""
-        dcat = {
-            "title": "Empty Distribution Dataset",
-            "description": "DCAT where distribution is [].",
-            "publisher": {"name": "Test Agency"},
-            "distribution": [],
-        }
-        dataset = self._make_dataset(dcat, mock_organization)
-
-        with dbapp.app_context():
-            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
-            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
-            document = opensearch_client.dataset_to_document(dataset)
-
-        assert document["distribution_titles"] == []

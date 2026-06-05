@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from app.database.opensearch import SearchResult
 from app.models import Dataset
 from tests.fixtures import HARVEST_RECORD_ID
+from tests.helpers.opensearch import index_datasets
 
 
 def test_dataset_slug_api_endpoint(db_client, interface_with_dataset):
@@ -56,8 +57,9 @@ def test_location_api_by_id(interface_with_location, db_client):
 
 def test_search_api_endpoint(interface_with_dataset, db_client):
     # search relies on Opensearch now
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
@@ -69,8 +71,9 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
 def test_search_api_response_containes_harvest_record_url(
     interface_with_dataset, db_client
 ):
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
@@ -98,8 +101,9 @@ def test_search_api_pagination(interface_with_dataset, db_client):
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
     # search relies on Opensearch now
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test", "per_page": "5"})
@@ -128,8 +132,9 @@ def test_search_api_paginate_after(interface_with_dataset, db_client):
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
     # search relies on Opensearch now
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test", "per_page": "1"})
@@ -360,8 +365,9 @@ def test_get_stats_api_returns_data(db_client):
 
 
 def test_search_api_spatial_geometry(interface_with_dataset, db_client):
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
     polygon = {
         "type": "polygon",
@@ -377,8 +383,9 @@ def test_search_api_spatial_geometry(interface_with_dataset, db_client):
 
 
 def test_index_spatial_geometry(interface_with_dataset, db_client):
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
     polygon = {
         "type": "polygon",
@@ -1526,8 +1533,9 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
         dataset_dict["slug"] = f"test-{i}"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     with patch("app.routes.interface", interface_with_dataset):
@@ -1553,8 +1561,9 @@ def test_index_search_results_arg(interface_with_dataset, db_client):
         dataset_dict["slug"] = f"test-{i}"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     with patch("app.routes.interface", interface_with_dataset):
@@ -1674,8 +1683,9 @@ class TestKeywordSearch:
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/?keyword=health")
@@ -1691,8 +1701,9 @@ class TestKeywordSearch:
         self, interface_with_dataset, db_client
     ):
         """Test filtering by multiple keywords returns datasets with all keywords."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         with patch("app.routes.interface", interface_with_dataset):
@@ -1712,8 +1723,9 @@ class TestKeywordSearch:
         self, interface_with_dataset, db_client
     ):
         """Test that filtering by a non-existent keyword returns no results."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         with patch("app.routes.interface", interface_with_dataset):
@@ -1760,8 +1772,9 @@ class TestPublisherSearch:
         interface_with_dataset.db.add(Dataset(**dataset_dict))
         interface_with_dataset.db.commit()
 
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         with patch("app.routes.interface", interface_with_dataset):
@@ -1795,8 +1808,9 @@ class TestGeospatialSearch:
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         with patch("app.routes.interface", interface_with_dataset):
@@ -1847,8 +1861,9 @@ class TestGeospatialSearch:
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         with patch("app.routes.interface", interface_with_dataset):
@@ -1882,8 +1897,9 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     interface_with_dataset.db.commit()
 
     # Index datasets in OpenSearch
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     with patch("app.routes.interface", interface_with_dataset):
@@ -1954,8 +1970,9 @@ def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
 
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     with patch("app.routes.interface", interface_with_dataset):
@@ -1994,8 +2011,9 @@ def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_clien
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
 
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     with patch("app.routes.interface", interface_with_dataset):
@@ -2044,8 +2062,9 @@ def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
         interface_with_dataset.db.add(Dataset(**dataset_dict))
 
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     with patch("app.routes.interface", interface_with_dataset):
@@ -2124,8 +2143,9 @@ def test_index_search_message_with_query_and_filters(interface_with_dataset, db_
     }
     interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     with patch("app.routes.interface", interface_with_dataset):
@@ -2157,8 +2177,9 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
     }
     interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     with patch("app.routes.interface", interface_with_dataset):
