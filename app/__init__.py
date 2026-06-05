@@ -102,7 +102,6 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "https://ekr.zdassets.com",  # zendesk
                 "'sha256-Ff1SFMp5PHyy62W49sHzg1RI9yL6Y9xoqXeGrJP8TUI='",
                 "https://gsa-solutionshelp.zendesk.com",  # zendesk
-                "'nonce-RgDplMTo1jIsP_9Vr4lErzJtec9zO4Z3'",
             ]
         ),
         "font-src": " ".join(
@@ -131,6 +130,7 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "https://static.zdassets.com",  # zendesk
                 "https://ekr.zdassets.com",  # zendesk
                 "https://gsa-solutionshelp.zendesk.com",  # zendesk
+                "https://gov-bam.nr-data.net",  # new relic browser monitoring
                 "https://*.ingest.de.sentry.io",  # sentry
             ]
         ),
@@ -164,6 +164,16 @@ def create_app(config_name: str = "local") -> APIFlask:
         # our https connections are terminated outside this app
         force_https=False,
     )
+
+    @app.template_global()
+    def newrelic_browser_timing_header():
+        try:
+            import newrelic.agent
+        except ImportError:
+            return ""
+
+        nonce = getattr(request, "csp_nonce", None)
+        return newrelic.agent.get_browser_timing_header(nonce)
 
     return app
 
