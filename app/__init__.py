@@ -23,6 +23,7 @@ def register_template_filters(app):
     import app.filters as filters
 
     from . import filter_helpers
+    from .static_assets import static_url
 
     for name in filters.__all__:
         app.add_template_filter(getattr(filters, name))
@@ -31,6 +32,7 @@ def register_template_filters(app):
         app.add_template_filter(getattr(filter_helpers, name))
 
     app.add_template_global(filter_helpers.has_active_filters, "has_active_filters")
+    app.add_template_global(static_url, "static_url")
 
 
 def create_app(config_name: str = "local") -> APIFlask:
@@ -44,7 +46,10 @@ def create_app(config_name: str = "local") -> APIFlask:
     if os.getenv("SITE_URL"):
         app.config["SERVERS"] = [{"url": f"{os.getenv('SITE_URL')}"}]
 
+    from .static_assets import get_asset_version
+
     app.config["PREFERRED_URL_SCHEME"] = "https"
+    app.config["ASSET_VERSION"] = get_asset_version()
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = STATIC_ASSET_MAX_AGE_SECONDS
 
     # enable template hot template reloading in local
