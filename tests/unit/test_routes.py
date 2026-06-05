@@ -6,10 +6,51 @@ from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
+from app import STATIC_ASSET_MAX_AGE_SECONDS, create_app
 from app.database.opensearch import SearchResult
 from app.models import Dataset
 from tests.fixtures import HARVEST_RECORD_ID
 from tests.helpers.opensearch import index_datasets
+
+
+def test_static_asset_cache_duration_by_environment():
+    production_app = create_app("production")
+    local_app = create_app("local")
+
+    assert production_app.config["SEND_FILE_MAX_AGE_DEFAULT"] == 60 * 60 * 24
+    assert production_app.config["SEND_FILE_MAX_AGE_DEFAULT"] == (
+        STATIC_ASSET_MAX_AGE_SECONDS
+    )
+    assert local_app.config["SEND_FILE_MAX_AGE_DEFAULT"] == 0
+
+    response = production_app.test_client().get("/js/datetime.js")
+
+    assert response.status_code == 200
+    assert response.cache_control.public
+    assert response.cache_control.max_age == STATIC_ASSET_MAX_AGE_SECONDS
+
+
+def test_non_static_pages_do_not_set_cache_duration():
+    # For regular pages, leave max_age unset
+    # to use the default caching behavior configured in CloudFront.
+    production_app = create_app("production")
+    client = production_app.test_client()
+
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0,
+        results=[],
+        search_after=None,
+        aggregations={"keywords": [], "organizations": [], "publishers": []},
+    )
+    mock_interface.count_all_datasets_in_search.return_value = 0
+    mock_interface.get_organizations.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        for path in ["/", "/openapi/docs", "/does-not-exist"]:
+            response = client.get(path)
+
+            assert response.cache_control.max_age is None
 
 
 def test_dataset_slug_api_endpoint(db_client, interface_with_dataset):
