@@ -20,6 +20,14 @@ STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 HTML_PAGE_MAX_AGE_SECONDS = 60 * 60
 
 
+class VersionedStaticAPIFlask(APIFlask):
+    def send_static_file(self, filename):
+        from .static_assets import DEFAULT_ASSET_VERSION, unversion_static_filename
+
+        version = self.config.get("ASSET_VERSION", DEFAULT_ASSET_VERSION)
+        return super().send_static_file(unversion_static_filename(filename, version))
+
+
 def register_template_filters(app):
     import app.filters as filters
 
@@ -37,7 +45,9 @@ def register_template_filters(app):
 
 
 def create_app(config_name: str = "local") -> APIFlask:
-    app = APIFlask(__name__, static_url_path="", static_folder="static", docs_path=None)
+    app = VersionedStaticAPIFlask(
+        __name__, static_url_path="", static_folder="static", docs_path=None
+    )
 
     app.config["CONFIG_NAME"] = config_name
     app.config["INFO"] = {
