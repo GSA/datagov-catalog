@@ -1752,7 +1752,7 @@ def test_index_active_organization_filter_expanded_in_html(db_client):
 def test_index_filter_accordion_script_included(db_client):
     response = db_client.get("/")
     assert response.status_code == 200
-    assert "js/filter_accordion.js" in response.text
+    assert re.search(r"/js/filter_accordion\.[^/]+\.js(?:[?#\"']|$)", response.text)
 
 
 def test_index_filter_mobile_trigger_and_toggle_script(db_client):
@@ -1770,7 +1770,9 @@ def test_index_filter_mobile_trigger_and_toggle_script(db_client):
     assert panel.find(class_="filter-sidebar") is not None
     assert panel.has_attr("hidden")
 
-    assert "js/filter_sidebar_toggle.js" in response.text
+    assert re.search(
+        r"/js/filter_sidebar_toggle\.[^/]+\.js(?:[?#\"']|$)", response.text
+    )
     assert "js/filter_sidebar_modal.js" not in response.text
 
 
