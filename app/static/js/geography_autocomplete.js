@@ -40,6 +40,7 @@ class GeographyAutocomplete {
         this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
 
         this.selectedGeometry = null;
+        this.selectedGeographyLabel = null;
         this.geoLayer = null;
         this.allGeographies = [];
         this.debounceTimer = null;
@@ -117,6 +118,7 @@ class GeographyAutocomplete {
         }
 
         this.initMapPanel();
+        this._initSidebarMapResize();
     }
 
     loadSearchResultGeometries() {
@@ -288,6 +290,7 @@ class GeographyAutocomplete {
         // Load geography from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const existingGeometry = urlParams.get('spatial_geometry');
+        const existingLabel = urlParams.get('geography_label');
         this.spatialWithin = this.parseSpatialWithinParam(
           urlParams.get('spatial_within')
         );
@@ -295,6 +298,8 @@ class GeographyAutocomplete {
         if (existingGeometry) {
             // URL-encoded parameter is a string of a GeoJSON object
             this.selectedGeometry = JSON.parse(decodeURI(existingGeometry))
+            this.selectedGeographyLabel = existingLabel || null;
+            this.input.value = existingLabel || 'Area selected';
             this.displayGeometry(this.selectedGeometry);
             this.showClearButton();
         } else {
@@ -347,6 +352,8 @@ class GeographyAutocomplete {
     // handle the click of the clear button
     clearClicked() {
       this.selectedGeometry = null;
+      this.selectedGeographyLabel = null;
+      this.input.value = '';
       this.disableDrawMode();
       this.displayNoGeometry();
       if (this.map) this.map.removeLayer(this.geoLayer);
@@ -361,13 +368,77 @@ class GeographyAutocomplete {
       requestFilterFormSubmit(this.form);
     }
 
+    _getGeographyFilterContent() {
+      return document.getElementById('filter-geography');
+    }
+
+    _isGeographyFilterVisible() {
+      const content = this._getGeographyFilterContent();
+      return !!(content && !content.hidden);
+    }
+
+    _refreshSidebarMapLayout() {
+      if (!this._isGeographyFilterVisible()) {
+        return;
+      }
+
+      if (!this.map) {
+        if (this.selectedGeometry) {
+          this.displayGeometry(this.selectedGeometry);
+        } else {
+          this.displayNoGeometry();
+        }
+        return;
+      }
+
+      this.map.invalidateSize();
+      if (this.geoLayer) {
+        const bounds = this.geoLayer.getBounds();
+        if (bounds && bounds.isValid()) {
+          if (bounds.getSouthWest().equals(bounds.getNorthEast())) {
+            this.map.setView(bounds.getSouthWest(), 8);
+          } else {
+            this.map.fitBounds(bounds.pad(0.1));
+          }
+        }
+      } else {
+        this._setDefaultView(this.map);
+      }
+    }
+
+    _initSidebarMapResize() {
+      const content = this._getGeographyFilterContent();
+      if (!content || content.dataset.geographyMapResizeInit === 'true') {
+        return;
+      }
+      content.dataset.geographyMapResizeInit = 'true';
+
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.attributeName === 'hidden' && !content.hidden) {
+            window.requestAnimationFrame(() => this._refreshSidebarMapLayout());
+            break;
+          }
+        }
+      });
+      observer.observe(content, { attributes: true, attributeFilter: ['hidden'] });
+
+      if (!content.hidden) {
+        window.requestAnimationFrame(() => this._refreshSidebarMapLayout());
+      }
+    }
+
     _createMap() {
       // create a map and store it on this.map
       if (this.map) return;  // don't create the map if it already exists
       var el = document.getElementById('geography-map');
       if (!el) return;
       if (typeof L === 'undefined') return;
-      var map = L.map(el, { zoomControl: true, attributionControl: true });
+      var map = L.map(el, {
+        zoomControl: true,
+        attributionControl: true,
+        scrollWheelZoom: false,
+      });
       if (map.attributionControl && typeof map.attributionControl.setPrefix === 'function') {
         map.attributionControl.setPrefix(false);
       }
@@ -740,6 +811,8 @@ class GeographyAutocomplete {
     applyBoundsSelection(bounds) {
       const geometry = this.geometryFromBounds(bounds);
       this.selectedGeometry = geometry;
+      this.selectedGeographyLabel = 'Custom area';
+      this.input.value = 'Custom area';
       this.pendingGeometry = null;
       this.updateApplyButtonState();
       this.showClearButton();
@@ -1110,8 +1183,8 @@ class GeographyAutocomplete {
             `;
 
             div.addEventListener('click', () => {
+                this.input.value = item.display_name;
                 this.selectGeography(item);
-                this.input.value = '';
                 this.hideSuggestions();
             });
 
@@ -1138,6 +1211,7 @@ class GeographyAutocomplete {
         const data = await response.json();
         // data.geometry is a string of the GeoJSON geometry of that location
         this.selectedGeometry = JSON.parse(data.geometry);
+        this.selectedGeographyLabel = location_data.display_name || null;
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);
         this.setMapPanelOpen(true, { discardPending: false });
@@ -1160,6 +1234,11 @@ class GeographyAutocomplete {
         );
         existingWithinInputs.forEach(input => input.remove());
 
+        const existingLabelInputs = form.querySelectorAll(
+          'input[name="geography_label"][type="hidden"]'
+        );
+        existingLabelInputs.forEach(input => input.remove());
+
         if (this.selectedGeometry) {
           const geometryInput = document.createElement('input');
           geometryInput.type = 'hidden';
@@ -1173,6 +1252,14 @@ class GeographyAutocomplete {
           withinInput.name = 'spatial_within';
           withinInput.value = this.spatialWithin ? 'true' : 'false';
           form.appendChild(withinInput);
+
+          if (this.selectedGeographyLabel) {
+            const labelInput = document.createElement('input');
+            labelInput.type = 'hidden';
+            labelInput.name = 'geography_label';
+            labelInput.value = this.selectedGeographyLabel;
+            form.appendChild(labelInput);
+          }
         }
     }
 
