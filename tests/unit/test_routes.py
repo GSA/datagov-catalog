@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
-from app import STATIC_ASSET_MAX_AGE_SECONDS, create_app
+from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
 from app.database.opensearch import SearchResult
 from app.models import Dataset, Organization
 from tests.fixtures import HARVEST_RECORD_ID
@@ -29,9 +29,7 @@ def test_static_asset_cache_duration_by_environment():
     assert response.cache_control.max_age == STATIC_ASSET_MAX_AGE_SECONDS
 
 
-def test_non_static_pages_do_not_set_cache_duration():
-    # For regular pages, leave max_age unset
-    # to use the default caching behavior configured in CloudFront.
+def test_html_pages_set_one_hour_cache_duration_in_production():
     production_app = create_app("production")
     client = production_app.test_client()
 
@@ -49,7 +47,37 @@ def test_non_static_pages_do_not_set_cache_duration():
         for path in ["/", "/openapi/docs", "/does-not-exist"]:
             response = client.get(path)
 
-            assert response.cache_control.max_age is None
+            assert response.cache_control.public
+            assert response.cache_control.max_age == HTML_PAGE_MAX_AGE_SECONDS
+
+
+def test_html_pages_do_not_set_cache_duration_in_local():
+    local_app = create_app("local")
+    client = local_app.test_client()
+
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0,
+        results=[],
+        search_after=None,
+        aggregations={"keywords": [], "organizations": [], "publishers": []},
+    )
+    mock_interface.count_all_datasets_in_search.return_value = 0
+    mock_interface.get_organizations.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get("/")
+
+    assert response.cache_control.max_age is None
+
+
+def test_api_responses_do_not_set_html_cache_duration(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/dataset/test-health-data")
+
+    assert response.cache_control.max_age is None
 
 
 def test_dataset_slug_api_endpoint(db_client, interface_with_dataset):
