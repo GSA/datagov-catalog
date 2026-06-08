@@ -10,3 +10,5 @@ basic_auth_enabled: on # nginx terminology 'on' 'off'. cf will interpret these a
 route_external: catalog-dev.data.gov
 route_beta: catalog-beta-dev.app.cloud.gov # an invalid url because there's no 'beta' equivalent
 route_internal: datagov-catalog-dev.apps.internal
+# Placeholder for manifest ((asset_version)); CI overrides via --var on deploy
+asset_version: set-at-deploy
