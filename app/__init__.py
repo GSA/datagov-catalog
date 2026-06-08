@@ -21,9 +21,15 @@ STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 
 class VersionedStaticAPIFlask(APIFlask):
     def send_static_file(self, filename):
-        from .static_assets import DEFAULT_ASSET_VERSION, unversion_static_filename
+        from .static_assets import (
+            DEFAULT_ASSET_VERSION,
+            unversion_static_filename,
+            validate_asset_version,
+        )
 
-        version = self.config.get("ASSET_VERSION", DEFAULT_ASSET_VERSION)
+        version = validate_asset_version(
+            self.config.get("ASSET_VERSION", DEFAULT_ASSET_VERSION)
+        )
         return super().send_static_file(unversion_static_filename(filename, version))
 
 

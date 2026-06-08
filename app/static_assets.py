@@ -1,16 +1,27 @@
 """Helpers for versioned static asset URLs."""
 
 import os
+import re
 
 from flask import current_app, url_for
 
 DEFAULT_ASSET_VERSION = "dev"
+ASSET_VERSION_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def validate_asset_version(version: str) -> str:
+    """Return a filename-safe static asset version."""
+    if not ASSET_VERSION_PATTERN.fullmatch(version):
+        raise ValueError(
+            "ASSET_VERSION must contain only letters, numbers, underscores, or hyphens"
+        )
+    return version
 
 
 def get_asset_version() -> str:
     """Return the cache-bust version for static assets."""
     env_version = os.getenv("ASSET_VERSION", "").strip()
-    return env_version or DEFAULT_ASSET_VERSION
+    return validate_asset_version(env_version or DEFAULT_ASSET_VERSION)
 
 
 def versioned_static_filename(filename: str, version: str) -> str:
@@ -35,5 +46,7 @@ def unversion_static_filename(filename: str, version: str) -> str:
 
 def static_url(filename: str) -> str:
     """Return a static asset URL with the cache-bust version in the filename."""
-    version = current_app.config.get("ASSET_VERSION", DEFAULT_ASSET_VERSION)
+    version = validate_asset_version(
+        current_app.config.get("ASSET_VERSION", DEFAULT_ASSET_VERSION)
+    )
     return url_for("static", filename=versioned_static_filename(filename, version))

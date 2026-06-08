@@ -1,3 +1,5 @@
+import pytest
+
 from app.static_assets import (
     DEFAULT_ASSET_VERSION,
     get_asset_version,
@@ -15,6 +17,21 @@ def test_get_asset_version_uses_env_var(monkeypatch):
 def test_get_asset_version_falls_back_to_dev_when_env_unset(monkeypatch):
     monkeypatch.delenv("ASSET_VERSION", raising=False)
     assert get_asset_version() == DEFAULT_ASSET_VERSION
+
+
+@pytest.mark.parametrize("asset_version", ["../secret", "abc/123", "abc.123", ""])
+def test_static_url_rejects_unsafe_asset_version(app, asset_version):
+    app.config["ASSET_VERSION"] = asset_version
+
+    with app.test_request_context("/"), pytest.raises(ValueError):
+        static_url("js/filter_sidebar_toggle.js")
+
+
+def test_get_asset_version_rejects_unsafe_env_var(monkeypatch):
+    monkeypatch.setenv("ASSET_VERSION", "../secret")
+
+    with pytest.raises(ValueError):
+        get_asset_version()
 
 
 def test_static_url_embeds_version_in_filename(app):
