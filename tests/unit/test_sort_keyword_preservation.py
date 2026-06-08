@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_sort_change_does_not_drop_keyword_filters():
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     auto_submit_js = (repo_root / "app/static/js/filter_form_auto_submit.js").read_text(
         encoding="utf-8"
     )

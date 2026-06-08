@@ -29,6 +29,7 @@ from .api_schemas import (
     LocationsResults,
     OpensearchHealth,
     OrganizationsResults,
+    PublishersResults,
     SearchQuery,
     SearchResults,
     StatsResult,
@@ -194,6 +195,7 @@ def index():
     org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
+    publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
     spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
@@ -245,6 +247,7 @@ def index():
         query
         or org_types
         or keywords
+        or publisher
         or org_filter_id
         or spatial_filter
         or spatial_geometry
@@ -258,6 +261,7 @@ def index():
             per_page=num_results,
             org_id=org_filter_id,
             org_types=org_types,
+            publisher=publisher,
             sort_by=sort_by,
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
@@ -265,6 +269,7 @@ def index():
             include_aggregations=True,
             keyword_size=100,
             org_size=100,
+            publisher_size=100,
             collection=collection,
         )
 
@@ -290,13 +295,16 @@ def index():
     contextual_aggs = (
         result.aggregations
         if result is not None and result.aggregations is not None
-        else {"keywords": [], "organizations": []}
+        else {"keywords": [], "organizations": [], "publishers": []}
     )
     contextual_keyword_counts = {
         item["keyword"]: item["count"] for item in contextual_aggs.get("keywords", [])
     }
     contextual_org_counts = {
         item["slug"]: item["count"] for item in contextual_aggs.get("organizations", [])
+    }
+    contextual_publisher_counts = {
+        item["name"]: item["count"] for item in contextual_aggs.get("publishers", [])
     }
 
     # Always compute suggested keywords from contextual aggregations,
@@ -348,6 +356,16 @@ def index():
     except Exception:
         logger.exception("Failed to fetch suggested organizations")
 
+    suggested_publishers = [
+        item["name"]
+        for item in sorted(
+            contextual_aggs.get("publishers", []),
+            key=lambda x: x["count"],
+            reverse=True,
+        )
+        if item["name"] != publisher
+    ][:10]
+
     # Only emit a return-to-search hint when there is actual search or filter state.
     from_hint = hint_from_dict(request.args) if request.args else None
     search_result_geometries = (
@@ -388,9 +406,11 @@ def index():
         ),
         org_types=org_types,
         keywords=keywords,
+        publisher=publisher,
         sort_by=sort_by,
         suggested_keywords=suggested_keywords,
         suggested_organizations=suggested_organizations,
+        suggested_publishers=suggested_publishers,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
         search_result_geometries=search_result_geometries,
@@ -399,6 +419,7 @@ def index():
         selected_organization=selected_organization,
         contextual_keyword_counts=contextual_keyword_counts,
         contextual_org_counts=contextual_org_counts,
+        contextual_publisher_counts=contextual_publisher_counts,
         collection_data=collection_data,
     )
 
@@ -439,6 +460,7 @@ def search(**kwargs):
     org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
+    publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
     after = request.args.get("after")
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
@@ -483,6 +505,7 @@ def search(**kwargs):
         per_page=per_page,
         org_id=org_filter_id,
         org_types=org_types,
+        publisher=publisher,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
         spatial_within=spatial_within,
@@ -512,6 +535,7 @@ def search(**kwargs):
                 spatial_filter=spatial_filter,
                 spatial_geometry=spatial_geometry,
                 spatial_within=spatial_within,
+                publisher=publisher,
             )
         return render_template(
             "components/dataset_results.html",
@@ -531,6 +555,7 @@ def search(**kwargs):
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
+            publisher=publisher,
         )
 
     response_dict = {
@@ -678,10 +703,17 @@ def organization_detail(slug: str):
     dataset_search_query = request.args.get("q", default="", type=str).strip()
     num_results = request.args.get("results", default=DEFAULT_PER_PAGE, type=int)
     keywords = request.args.getlist("keyword")
+    publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
     spatial_filter = request.args.get("spatial_filter", None, type=str)
     spatial_geometry = request.args.get("spatial_geometry", type=str)
     spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
     sort_by = request.args.get("sort", default="relevance")
+
+    from_hint = None
+    if request.args:
+        hint_args = dict(request.args)
+        hint_args["slug"] = request.path.split("/")[2]  # get the org slug
+        from_hint = hint_from_dict(hint_args)
 
     if spatial_geometry is not None:
         try:
@@ -698,26 +730,19 @@ def organization_detail(slug: str):
             )
     sort_by = _normalize_sort(sort_by, spatial_geometry)
 
-    suggested_keywords: list[str] = []
-    if not keywords:
-        try:
-            suggested_keywords = interface.get_unique_keywords(size=10, min_doc_count=1)
-            if suggested_keywords:
-                suggested_keywords = [
-                    keyword["keyword"] for keyword in suggested_keywords
-                ]
-        except Exception:
-            logger.exception("Failed to fetch suggested keywords")
-
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
         dataset_search_query=dataset_search_query,
         sort_by=sort_by,
         num_results=num_results,
         keywords=keywords,
+        publisher=publisher,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
         spatial_within=spatial_within,
+        include_aggregations=True,
+        keyword_size=100,
+        publisher_size=100,
     )
     after = dataset_result.search_after_obscured()
     search_result_geometries = (
@@ -725,6 +750,35 @@ def organization_detail(slug: str):
         if spatial_geometry is not None
         else []
     )
+    contextual_aggs = dataset_result.aggregations or {
+        "keywords": [],
+        "organizations": [],
+        "publishers": [],
+    }
+    contextual_keyword_counts = {
+        item["keyword"]: item["count"] for item in contextual_aggs.get("keywords", [])
+    }
+    contextual_publisher_counts = {
+        item["name"]: item["count"] for item in contextual_aggs.get("publishers", [])
+    }
+    suggested_keywords = [
+        item["keyword"]
+        for item in sorted(
+            contextual_aggs.get("keywords", []),
+            key=lambda x: x["count"],
+            reverse=True,
+        )
+        if item["keyword"] not in set(keywords)
+    ][:10]
+    suggested_publishers = [
+        item["name"]
+        for item in sorted(
+            contextual_aggs.get("publishers", []),
+            key=lambda x: x["count"],
+            reverse=True,
+        )
+        if item["name"] != publisher
+    ][:10]
 
     slug_or_id = organization.slug or slug
 
@@ -747,11 +801,16 @@ def organization_detail(slug: str):
         selected_sort=sort_by,
         dataset_search_query=dataset_search_query,
         keywords=keywords,
+        publisher=publisher,
         spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
         spatial_within=spatial_within,
         search_result_geometries=search_result_geometries,
         suggested_keywords=suggested_keywords,
+        suggested_publishers=suggested_publishers,
+        contextual_keyword_counts=contextual_keyword_counts,
+        contextual_publisher_counts=contextual_publisher_counts,
+        from_hint=from_hint,
     )
 
 
@@ -808,12 +867,14 @@ def get_keywords_api(**kwargs):
     Query parameters:
         size: Maximum number of keywords to return (default 100, max 1000)
         min_count: Minimum document count for keywords (default 1)
+        search: Substring to perofrm lookup for specific keyword (default: None)
 
     Returns:
         JSON with list of keywords and their counts
     """
     size = request.args.get("size", 100, type=int)
     min_count = request.args.get("min_count", 1, type=int)
+    search = request.args.get("search", None)
 
     # Validate parameters
     # Between 1 and 1000
@@ -822,7 +883,9 @@ def get_keywords_api(**kwargs):
     min_count = max(min_count, 1)
 
     try:
-        keywords = interface.get_unique_keywords(size=size, min_doc_count=min_count)
+        keywords = interface.get_unique_keywords(
+            size=size, min_doc_count=min_count, search=search
+        )
 
         return jsonify(
             {
@@ -854,6 +917,26 @@ def get_organizations_api(**kwargs):
         response = jsonify(
             {"error": "Failed to fetch organizations", "message": str(e)}
         )
+        response.status_code = 500
+        return response
+
+
+@api.route("/api/publishers", methods=["GET"])
+@api.output(PublishersResults)
+@api.doc(description="Get the top 100 publishers")
+def get_publishers_api(**kwargs):
+    """Fetch the top 100 publishers."""
+
+    try:
+        publishers = interface.get_top_publishers()
+        return jsonify(
+            {
+                "publishers": publishers,
+                "total": len(publishers),
+            }
+        )
+    except Exception as e:
+        response = jsonify({"error": "Failed to fetch publishers", "message": str(e)})
         response.status_code = 500
         return response
 
@@ -962,11 +1045,66 @@ def get_location_by_id_api(location_id, **kwargs):
     )
 
 
+@api.get("/api/dataset/<slug_or_id>")
+@api.output(SearchResults)
+@api.doc(description="Get a single opensearch document based on slug name")
+def get_document_by_dataset_slug(slug_or_id: str):
+    """
+    gets a single document based on the dataset slug name or dataset id
+    """
+    try:
+        document = interface.get_document_by_slug(slug_or_id)
+        response = jsonify(document)
+
+        if document.total == 0:
+            response.status_code = 404
+
+    except Exception as e:
+        logger.exception("Failed to fetch document by slug")
+        response = jsonify(
+            {"error": "Failed to fetch document by slug", "message": str(e)}
+        )
+        response.status_code = 500
+
+    return response
+
+
 @main.route("/openapi/docs", methods=["GET"])
 def openapi_docs():
     return render_template("swagger.html")
 
 
+def style_guide_icons():
+    samples = [
+        {"format": "CSV", "label": "Sample data export"},
+        {"format": "application/json", "label": "DCAT-US metadata"},
+        {"format": "application/xml", "label": "FGDC metadata record"},
+        {"format": "application/rdf+xml", "label": "Linked-data manifest"},
+        {"format": "PDF", "label": "Codebook"},
+        {"format": "ZIP", "label": "Bulk archive"},
+        {"format": "XLSX", "label": "Quarterly workbook"},
+        {"format": "DOCX", "label": "Methodology document"},
+        {"format": "HTML", "label": "Project landing page"},
+        {"format": "TXT", "label": "Readme"},
+        {"format": "application/geo+json", "label": "Boundaries (GeoJSON)"},
+        {"format": "PNG", "label": "Map preview"},
+        {"format": "API", "label": "REST endpoint"},
+        {"format": "KML", "label": "Aerial overlay (KML)"},
+        {"format": "WMS", "label": "Web Map Service"},
+        {"format": "WFS", "label": "Web Feature Service"},
+        {"format": "GML", "label": "Geography Markup"},
+        {"format": "SHP", "label": "Shapefile (no icon)"},
+    ]
+    return render_template("style_guide_icons.html", samples=samples)
+
+
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
+
+    if app.config.get("CONFIG_NAME") == "local":
+        app.add_url_rule(
+            "/style-guide/icons",
+            view_func=style_guide_icons,
+            methods=["GET"],
+        )

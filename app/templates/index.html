@@ -56,6 +56,9 @@
                     {% for keyword in keywords %}
                     <input type="hidden" name="keyword" value="{{ keyword }}">
                     {% endfor %}
+                    {% if publisher %}
+                    <input type="hidden" name="publisher" value="{{ publisher }}">
+                    {% endif %}
                     {% if org_slug %}
                     <input type="hidden" name="org_slug" value="{{ org_slug }}">
                     {% endif %}
@@ -74,8 +77,8 @@
         </form>
 
         <!-- Results Section -->
-        <div id="search-results" class="margin-top-3">      
-            {% set total = total -1 if collection and total > 1 else total %}      
+        <div id="search-results" class="margin-top-3">
+            {% set total = total -1 if collection and total > 1 else total %}
             {% if collection and parent %}
                 {{ collection_card(
                     parent,
@@ -84,7 +87,7 @@
             {% endif %}
             {% if datasets %}
             <div class="usa-prose">
-              {% if query or org_types or keywords or org_slug or spatial_filter or spatial_geometry %}
+              {% if query or org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
                 <p class="text-base-dark">
                 {%- if total < 2 -%}
                     Found <strong>{{ total }}</strong> dataset matching
@@ -93,10 +96,13 @@
                 {%- else -%}
                     Found over <strong>{{ total }}</strong> datasets matching
                 {%- endif %}
-                {%- if query and (org_types or keywords or org_slug or spatial_filter or spatial_geometry) %} "{{ query }}" and filters.
+                {%- if query and (org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry) %} "{{ query }}" and filters.
                 {%- elif query %} "{{ query }}".
                 {%- else %} filters.
                 {%- endif -%}
+                {%- if org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
+                <a href="/?q={{ query }}&sort=relevance" class="usa-link">(clear all filters)</a>
+                {%- endif %}
                 </p>
                 {% if total >= 10000 %}
                     <div class="advanced-search-tip">
@@ -115,7 +121,7 @@
                     datasets available on Data.gov.
                     These are the most popular:
                     </p>
-                {% else %} 
+                {% else %}
                     <p class="text-base-dark">
                     <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
                     dataset {{s if total > 1 }} in this collection
@@ -132,10 +138,15 @@
                 </ul>
             </section>
             {% else %}
-            <div class="usa-alert usa-alert--info margin-top-3">
-                <div class="usa-alert__body">
-                    <p class="usa-alert__text" id="no-datasets-alert">
-                        No datasets found. Try adjusting your search terms or filters.
+            <div class="usa-prose margin-top-3">
+                <p class="text-base-dark" id="no-datasets-alert">
+                    Found <strong>0</strong> datasets.
+                </p>
+                <div class="advanced-search-tip">
+                    <div class="advanced-search-tip__title">💡 Search Tips</div>
+                    <p class="advanced-search-tip__text">
+                        Try adjusting your search terms or filters. For example, remove quotation marks,
+                        add <strong>OR</strong>, or clear some filters.
                     </p>
                 </div>
             </div>
@@ -152,6 +163,8 @@
             sort_value=sort_by,
             keywords=keywords,
             suggested_keywords=suggested_keywords,
+            publisher=publisher,
+            suggested_publishers=suggested_publishers,
             spatial_filter=spatial_filter,
             search_result_geometries=search_result_geometries,
             spatial_geometry=spatial_geometry,
@@ -163,6 +176,7 @@
             suggested_organizations=suggested_organizations,
             contextual_keyword_counts=contextual_keyword_counts,
             contextual_org_counts=contextual_org_counts,
+            contextual_publisher_counts=contextual_publisher_counts,
             collection=collection
         ) }}
     </aside>
@@ -171,9 +185,9 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
-<script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>
-<script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}"/>
-<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
+<script src="{{ static_url('js/filter_form_auto_submit.js') }}"></script>
+<script src="{{ static_url('js/filters_autocomplete.js') }}"></script>
+<script src="{{ static_url('js/geography_autocomplete.js') }}"></script>
+<link rel="stylesheet" href="{{ static_url('css/vendor/leaflet.css') }}"/>
+<script src="{{ static_url('js/vendor/leaflet.js') }}"></script>
 {% endblock %}

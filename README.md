@@ -68,6 +68,15 @@ Auto-fix linting:
 make lint-fix
 ```
 
+### Pre-commit hooks
+
+Optionally, install the Git pre-commit hooks to run `black`, `ruff`, and `isort` automatically before each commit. These run the same tools as `make lint-check`, but scoped to the files you're staging rather than the whole tree — CI still runs `make lint-check` across the full codebase. Run once per clone:
+```
+pip install pre-commit
+pre-commit install
+```
+The hook configuration lives in `.pre-commit-config.yaml`. After this, the formatters run on staged files at commit time; if a formatter changes a file the commit is aborted so you can stage the fixes and commit again.
+
 ### Poetry
 
 CI uses the latest Poetry release. Keep your local Poetry up to date:

@@ -1,0 +1,61 @@
+{% macro render_publisher_filter(selected_publisher=None, suggested_publishers=None, contextual_publisher_counts=None) %}
+<div class="usa-accordion usa-accordion--bordered margin-bottom-2">
+    <h3 class="usa-accordion__heading">
+        <button
+            type="button"
+            class="usa-accordion__button"
+            aria-expanded="true"
+            aria-controls="filter-publishers"
+        >
+            Publisher
+        </button>
+    </h3>
+    <div id="filter-publishers" class="usa-accordion__content usa-prose">
+        <div class="keyword-autocomplete">
+            <label class="usa-label" for="publisher-input">
+                Filter by publisher <br>
+                <span class="usa-hint">Start typing to select a publisher</span>
+            </label>
+            <input
+                type="text"
+                id="publisher-input"
+                class="keyword-autocomplete__input usa-input"
+                placeholder="Type a publisher name..."
+                autocomplete="off"
+                aria-autocomplete="list"
+                aria-controls="publisher-suggestions"
+                aria-expanded="false">
+            <div id="publisher-suggestions" class="keyword-suggestions" role="listbox"></div>
+
+            <div
+                id="publisher-chips"
+                class="keyword-chips"
+                role="list"
+                aria-label="Selected publisher"
+                data-initial-publisher-name="{{ (selected_publisher or '') | e }}"
+                {% if contextual_publisher_counts %} data-contextual-counts='{{ contextual_publisher_counts | tojson }}' {% endif %}
+            ></div>
+
+            {% if suggested_publishers %}
+            <div id="suggested-publishers" class="suggested-keywords margin-top-2">
+                <p class="text-base-dark margin-bottom-1"><strong>Popular publishers:</strong></p>
+                <div class="suggested-keywords__list">
+                    {% for publisher in suggested_publishers %}
+                    <button
+                        type="button"
+                        class="tag-link tag-link--suggested tag-link--publisher"
+                        data-publisher-name="{{ publisher | e }}"
+                    >
+                        {{ publisher }}
+                        {% if contextual_publisher_counts and contextual_publisher_counts.get(publisher) %}
+                        <span class="tag-link__count">({{ contextual_publisher_counts[publisher] }})</span>
+                        {% endif %}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endmacro %}

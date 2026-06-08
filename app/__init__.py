@@ -3,23 +3,10 @@ import os
 
 from apiflask import APIFlask
 from dotenv import load_dotenv
+from flask import render_template, request
 from flask_htmx import HTMX
 from flask_talisman import Talisman
 
-from .filters import (
-    fa_icon_from_extension,
-    format_contact_point_email,
-    format_dcat_value,
-    format_gov_type,
-    geometry_to_mapping,
-    is_bbox_string,
-    is_geometry_mapping,
-    is_json,
-    json_to_semantic_html,
-    remove_html_tags,
-    simplify_resource_type,
-    usa_icon,
-)
 from .models import db
 from .utils import normalize_site_url
 
@@ -29,11 +16,24 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 htmx = None
+STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
+
+
+def register_template_filters(app):
+    import app.filters as filters
+
+    from .static_assets import static_url
+
+    for name in filters.__all__:
+        app.add_template_filter(getattr(filters, name))
+
+    app.add_template_global(static_url, "static_url")
 
 
 def create_app(config_name: str = "local") -> APIFlask:
     app = APIFlask(__name__, static_url_path="", static_folder="static", docs_path=None)
 
+    app.config["CONFIG_NAME"] = config_name
     app.config["INFO"] = {
         "title": "Datagov Catalog",
         "version": "0.1.0",
@@ -41,7 +41,11 @@ def create_app(config_name: str = "local") -> APIFlask:
     if os.getenv("SITE_URL"):
         app.config["SERVERS"] = [{"url": f"{os.getenv('SITE_URL')}"}]
 
+    from .static_assets import get_asset_version
+
     app.config["PREFERRED_URL_SCHEME"] = "https"
+    app.config["ASSET_VERSION"] = get_asset_version()
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = STATIC_ASSET_MAX_AGE_SECONDS
     # enable template hot template reloading in local
     if config_name == "local" or app.config.get("FLASK_ENV") == "local":
         # Enable template auto-reload
@@ -73,18 +77,13 @@ def create_app(config_name: str = "local") -> APIFlask:
 
     register_commands(app)
 
-    app.add_template_filter(usa_icon)
-    app.add_template_filter(format_dcat_value)
-    app.add_template_filter(format_gov_type)
-    app.add_template_filter(fa_icon_from_extension)
-    app.add_template_filter(format_contact_point_email)
-    app.add_template_filter(is_bbox_string)
-    app.add_template_filter(is_geometry_mapping)
-    app.add_template_filter(geometry_to_mapping)
-    app.add_template_filter(remove_html_tags)
-    app.add_template_filter(simplify_resource_type)
-    app.add_template_filter(json_to_semantic_html)
-    app.add_template_filter(is_json)
+    register_template_filters(app)
+
+    @app.errorhandler(404)
+    def not_found(error):
+        if request.blueprint == "api" or request.path.startswith("/api/"):
+            return {"message": "Not Found", "detail": {}}, 404
+        return render_template("404.html"), 404
 
     # Content-Security-Policy headers
     # single quotes need to appear in some of the strings
@@ -118,8 +117,6 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "https://s3-us-gov-west-1.amazonaws.com",  # logos
                 "https://raw.githubusercontent.com",  # github logos repo
                 "data:",  # leaflet
-                "https://cg-1b082c1b-3db7-477f-9ca5-bd51a786b41e.s3-us-gov-west-1.amazonaws.com",  # touchpoints
-                "https://touchpoints.app.cloud.gov",  # touchpoints
                 "https://*.google-analytics.com",
                 "https://*.googletagmanager.com",
             ]
@@ -128,7 +125,6 @@ def create_app(config_name: str = "local") -> APIFlask:
             [
                 "'self'",
                 "https://api.github.com",
-                "https://touchpoints.app.cloud.gov",
                 "https://*.google-analytics.com",
                 "https://*.analytics.google.com",
                 "https://*.googletagmanager.com",

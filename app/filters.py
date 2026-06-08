@@ -8,15 +8,15 @@ from datetime import date, datetime
 from typing import Any, Union
 
 from bs4 import BeautifulSoup
-from flask import url_for
 
+from app.static_assets import static_url
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
 
 def usa_icon(icon_name: str) -> str:
     """Return SVG markup for a USWDS icon referenced from the sprite sheet."""
 
-    sprite_path = url_for("static", filename="assets/uswds/img/sprite.svg")
+    sprite_path = static_url("assets/uswds/img/sprite.svg")
     return (
         '<svg class="usa-icon" aria-hidden="true" role="img">'
         f'<use xlink:href="{sprite_path}#{icon_name}"></use>'
@@ -56,25 +56,93 @@ def format_gov_type(gov_type: str, lower=True) -> str:
     return "unknown"
 
 
-def fa_icon_from_extension(extension: str) -> str:
-    """Return a Font Awesome icon class based on file extension."""
-    extension = extension.lower() if extension else "default"
-    # if extension is a MIME type, extract the last part
-    # e.g. "application/json" -> "json"
-    if "/" in extension:
-        extension = extension.split("/")[-1]
-    if extension in ["csv"]:
-        return "fa-file-csv"
-    elif extension in ["xlsx", "xls", "ods"]:
-        return "fa-file-excel"
-    elif extension in ["pdf"]:
-        return "fa-file-pdf"
-    elif extension in ["html"]:
-        return "fa-arrow-up-right-from-square"
-    elif extension in ["api"]:
-        return "fa-plug"
-    else:
-        return "fa-file"
+_VENDOR_MIME_ALIASES = (
+    ("spreadsheetml", "xlsx"),
+    ("wordprocessingml", "docx"),
+    ("presentationml", "pptx"),
+    ("opendocument.spreadsheet", "ods"),
+    ("opendocument.text", "odt"),
+    ("opendocument.presentation", "odp"),
+    ("ms-excel", "xls"),
+    ("ms-word", "doc"),
+    ("ms-powerpoint", "ppt"),
+    ("google-earth.kmz", "kmz"),
+    ("google-earth.kml", "kml"),
+    ("ogc.wmts", "wmts"),
+    ("ogc.wms", "wms"),
+    ("ogc.wfs", "wfs"),
+    ("ogc.gml", "gml"),
+    ("shapefile", "shp"),
+)
+
+
+def _normalize_format(value: str) -> str:
+    value = value.lower() if value else "default"
+    if "/" in value:
+        value = value.split("/")[-1]
+    # Strip MIME suffix like "+xml" / "+json" before matching aliases so
+    # "vnd.google-earth.kml+xml" matches "google-earth.kml".
+    head = value.split("+", 1)[0]
+    if head.startswith("vnd."):
+        for needle, alias in _VENDOR_MIME_ALIASES:
+            if needle in head:
+                return alias
+    return value
+
+
+_FORMAT_ICON_MAP = {
+    "csv": "csv",
+    "json": "json",
+    "xml": "xml",
+    "rdf+xml": "rdf",
+    "rdf": "rdf",
+    "pdf": "pdf",
+    "html": "html",
+    "xhtml+xml": "html",
+    "api": "api",
+    "zip": "zip",
+    "gz": "zip",
+    "tar": "zip",
+    "7z": "zip",
+    "rar": "zip",
+    "doc": "word",
+    "docx": "word",
+    "rtf": "word",
+    "odt": "word",
+    "xls": "excel",
+    "xlsx": "excel",
+    "ods": "excel",
+    "txt": "text",
+    "plain": "text",
+    "geo+json": "geojson",
+    "geojson": "geojson",
+    "png": "image",
+    "jpg": "image",
+    "jpeg": "image",
+    "gif": "image",
+    "tiff": "image",
+    "webp": "image",
+    "svg+xml": "image",
+    "svg": "image",
+}
+
+
+def format_icon_class(extension: str) -> str:
+    """Return a CSS modifier class for the resource icon based on format."""
+    icon = _FORMAT_ICON_MAP.get(_normalize_format(extension), "default")
+    return f"file-icon--{icon}"
+
+
+def format_overlay_label(extension: str) -> str:
+    """Short badge text overlaid on the default file icon for formats we don't
+    have a dedicated icon for (e.g. KML, WMS, WFS, GML). Returns "" when a
+    dedicated icon is available."""
+    normalized = _normalize_format(extension)
+    if normalized in _FORMAT_ICON_MAP:
+        return ""
+    if normalized in ("default", "file", ""):
+        return ""
+    return normalized.upper()
 
 
 def format_contact_point_email(email: str) -> Union[str, None]:
@@ -233,6 +301,90 @@ def is_json(value):
         return False
 
 
+def parse_datetime(date_str: str) -> datetime | date | None:
+    """
+    Parse a date/datetime string into a datetime or date object.
+    """
+    if not isinstance(date_str, str):
+        return None
+    date_str = date_str.strip()
+    if not date_str:
+        return None
+    if "T" in date_str:
+        normalized = date_str.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
+    try:
+        return date.fromisoformat(date_str[:10])
+    except ValueError:
+        return None
+
+
+def format_dcat_date(value: datetime | date | None) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.strftime("%B %d, %Y at %I:%M %p")
+    if isinstance(value, date):
+        return value.strftime("%B %d, %Y")
+    return None
+
+
+def jsonld_distributions(dcatus: dict):
+    """
+    processes schema.org json-ld distributions. schema.org distributions
+    only supports type 'DataDownload' so accessURL is skipped.
+    """
+    output = []
+
+    distributions = dcatus.get("distribution", [])
+
+    if not distributions:
+        return output
+
+    for dist in distributions:
+        if dist.get("downloadURL"):
+            output.append(
+                {
+                    "@type": "DataDownload",
+                    "encodingFormat": dist.get(
+                        "mediaType"
+                    ),  # required when downloadURL is present
+                    "contentUrl": dist.get("downloadURL"),
+                }
+            )
+
+    return output
+
+
+def dcatus_to_schema_org_jsonld(dcatus: dict):
+    """
+    converts dcatus into schema.org jsonld for google search compatibility
+
+    all inputs are valid dcatus
+    """
+
+    return {
+        "@context": "https://schema.org/",
+        "@type": "Dataset",
+        "name": dcatus.get("title"),  # required
+        "description": dcatus.get("description"),  # required
+        "url": dcatus.get("landingPage", None),
+        "identifier": dcatus.get("identifier"),  # required
+        "keywords": dcatus.get("keyword"),  # required
+        "license": dcatus.get("license", None),
+        "datePublished": dcatus.get("issued", None),
+        "dateModified": dcatus.get("modified"),  # required
+        "publisher": {
+            "@type": "Organization",
+            "name": dcatus.get("publisher").get("name"),  # required
+        },
+        "distribution": jsonld_distributions(dcatus),
+    }
+
+
 __all__ = [
     "usa_icon",
     "format_dcat_value",
@@ -240,10 +392,14 @@ __all__ = [
     "is_bbox_string",
     "is_geometry_mapping",
     "geometry_to_mapping",
-    "fa_icon_from_extension",
+    "format_icon_class",
+    "format_overlay_label",
     "format_contact_point_email",
     "remove_html_tags",
     "simplify_resource_type",
     "json_to_semantic_html",
     "is_json",
+    "parse_datetime",
+    "format_dcat_date",
+    "dcatus_to_schema_org_jsonld",
 ]

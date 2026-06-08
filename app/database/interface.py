@@ -70,6 +70,7 @@ class CatalogDBInterface:
         per_page=DEFAULT_PER_PAGE,
         org_id=None,
         org_types=None,
+        publisher: str | None = None,
         spatial_filter=None,
         spatial_geometry=None,
         spatial_within=True,
@@ -78,6 +79,7 @@ class CatalogDBInterface:
         include_aggregations: bool = False,
         keyword_size: int = 100,
         org_size: int = 100,
+        publisher_size: int = 100,
         collection: str = None,
         *args,
         **kwargs,
@@ -109,6 +111,7 @@ class CatalogDBInterface:
             per_page=per_page,
             org_id=org_id,
             org_types=org_types,
+            publisher=publisher,
             search_after=search_after,
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
@@ -117,52 +120,27 @@ class CatalogDBInterface:
             include_aggregations=include_aggregations,
             keyword_size=keyword_size,
             org_size=org_size,
+            publisher_size=publisher_size,
             collection=collection,
         )
 
-    def get_unique_keywords(self, size=100, min_doc_count=1) -> list[dict]:
+    def get_document_by_slug(self, slug_name: str) -> list[dict]:
+        """
+        get single document by slug name
+        """
+        return self.opensearch.get_document_by_slug(slug_name)
+
+    def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
 
         size: Maximum number of unique keywords to return (default 100)
         min_doc_count: Minimum number of documents a keyword must appear in (default 1)
+        search: Optional substring to filter returned keywords by
         """
         return self.opensearch.get_unique_keywords(
-            size=size, min_doc_count=min_doc_count
+            size=size, min_doc_count=min_doc_count, search=search
         )
-
-    def get_contextual_aggregations(
-        self,
-        query: str = "",
-        org_id=None,
-        org_types=None,
-        keywords: list[str] = None,
-        spatial_filter=None,
-        spatial_geometry=None,
-        spatial_within=True,
-        keyword_size=100,
-        org_size=100,
-    ) -> dict:
-        """
-        Get keyword and organization aggregations based on current search context.
-
-        Returns aggregations that reflect the current search query and filters,
-        allowing for contextual filter counts.
-        """
-        result = self.search_datasets(
-            query,
-            keywords=keywords or [],
-            per_page=0,
-            org_id=org_id,
-            org_types=org_types,
-            spatial_filter=spatial_filter,
-            spatial_geometry=spatial_geometry,
-            spatial_within=spatial_within,
-            include_aggregations=True,
-            keyword_size=keyword_size,
-            org_size=org_size,
-        )
-        return result.aggregations or {"keywords": [], "organizations": []}
 
     def search_locations(self, query, size=100):
         """
@@ -298,9 +276,14 @@ class CatalogDBInterface:
         dataset_search_query: str = "",
         num_results=DEFAULT_PER_PAGE,
         keywords: list[str] | None = None,
+        publisher: str | None = None,
         spatial_filter: str | None = None,
         spatial_geometry: dict | None = None,
         spatial_within: bool = True,
+        include_aggregations: bool = False,
+        keyword_size: int = 100,
+        org_size: int = 100,
+        publisher_size: int = 100,
     ) -> SearchResult:
         if not organization_id:
             return SearchResult.empty()
@@ -311,9 +294,14 @@ class CatalogDBInterface:
             org_id=organization_id,
             sort_by=sort_by,
             per_page=num_results,
+            publisher=publisher,
             spatial_filter=spatial_filter,
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
+            include_aggregations=include_aggregations,
+            keyword_size=keyword_size,
+            org_size=org_size,
+            publisher_size=publisher_size,
         )
 
     def get_opensearch_org_dataset_counts(self, as_dict=False):
@@ -405,6 +393,18 @@ class CatalogDBInterface:
             for row in rows
         ]
 
+    def get_top_publishers(self) -> list[dict]:
+        """Return the top 100 publishers ordered by dataset count."""
+        publishers = self.opensearch.get_publisher_counts(size=100)
+
+        return sorted(
+            publishers,
+            key=lambda item: (
+                -item["count"],
+                item["name"].lower(),
+            ),
+        )
+
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:
         if obj is None:
@@ -494,6 +494,12 @@ class CatalogDBInterface:
         """
         return self.opensearch.count_all_datasets()
 
+    def count_datasets_with_ispartof_in_search(self) -> int:
+        """
+        Get the total number of indexed datasets with a DCAT isPartOf value.
+        """
+        return self.opensearch.count_datasets_with_ispartof()
+
     @staticmethod
     def _normalize_metric_count(number: int) -> float:
         """feed the data the way 11ty chart wants it (log-scaled)"""
@@ -515,6 +521,7 @@ class CatalogDBInterface:
         work is performed only when `/api/stats` is called.
         """
         total_datasets = self.count_all_datasets_in_search()
+        datasets_with_ispartof = self.count_datasets_with_ispartof_in_search()
         harvest_stats = self.opensearch.get_last_harvested_stats()
         counts_by_slug = self.get_opensearch_org_dataset_counts(as_dict=True)
         harvest_sources_by_org_id = dict(
@@ -567,6 +574,7 @@ class CatalogDBInterface:
         return {
             "results": {
                 "datasets": total_datasets,
+                "datasetsWithIsPartOf": datasets_with_ispartof,
             },
             "metrics": {
                 "orgBarMetric": self._encode_metric_payload(org_metric_rows),

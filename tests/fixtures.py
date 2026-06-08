@@ -113,6 +113,13 @@ def fixture_data():
                     "title": "test",
                     "description": "this is the test description",
                     "keyword": ["health", "education", "Health"],
+                    "identifier": "test identifier",
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Test Contact",
+                        "hasEmail": "mailto:test.contact@example.gov",
+                    },
                     "distribution": [
                         {
                             "title": "Test CSV",
@@ -147,6 +154,11 @@ def fixture_data():
                     "title": "Health and Medical Research Data",
                     "description": "Comprehensive health statistics and medical research findings",
                     "keyword": ["health", "medical", "research"],
+                    "publisher": {"name": "Department of Health Research"},
+                    "contactPoint": {
+                        "fn": "Dr. Jane Smith",
+                        "hasEmail": "mailto:jane.smith@example.gov",
+                    },
                     "distribution": [
                         {
                             "title": "Health Statistics",
@@ -169,6 +181,13 @@ def fixture_data():
                     "description": "Environmental monitoring and climate science datasets",
                     "keyword": ["environment", "science", "climate", "Environment"],
                     "spatial": "-122.4194,37.7749,-122.4094,37.7849",
+                    "identifier": "test climate environment",
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Climate Data Office",
+                        "hasEmail": "mailto:climate@example.gov",
+                    },
                     "distribution": [
                         {
                             "title": "Climate Measurements",
@@ -190,6 +209,11 @@ def fixture_data():
                     "title": "Education and School Performance Data",
                     "description": "School statistics and educational outcomes",
                     "keyword": [],
+                    "publisher": {"name": "Department of Education"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
                     "distribution": [
                         {
                             "title": "School Data",
@@ -211,6 +235,11 @@ def fixture_data():
                     "title": "Technology and Data Science Resources",
                     "description": "Technology trends and data science methodologies",
                     "keyword": ["technology", "data", "science"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
                     "distribution": [
                         {
                             "title": "Tech Trends",
@@ -232,6 +261,11 @@ def fixture_data():
                     "title": "Health Food Access Statistics",
                     "description": "National statistics on access to health food resources",
                     "keyword": ["health", "food"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
                     "distribution": [
                         {
                             "title": "Health Food Data",
@@ -254,6 +288,12 @@ def fixture_data():
                     "description": "National statistics on access to health food resources",
                     "keyword": ["health", "food"]
                     * 25,  # the tag/keyword section is collapsible in dataset_detail.html (max 8 tags)
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test parent publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
                     "distribution": [
                         {
                             "title": "Health Food Data",
@@ -283,12 +323,72 @@ def fixture_data():
                 },
             ),
             dict(
+                id="earth-keyword-dataset",
+                slug="earth-keyword-dataset",
+                dcat={
+                    "title": "Earth Observation Dataset",
+                    "description": "Dataset tagged with the keyword earth",
+                    "keyword": ["earth"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="earth-science-keyword-dataset",
+                slug="earth-science-keyword-dataset",
+                dcat={
+                    "title": "Earth Science Dataset",
+                    "description": "Dataset tagged with the keyword earth science",
+                    "keyword": ["earth science"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="earth-science-trees-keyword-dataset",
+                slug="earth-science-trees-keyword-dataset",
+                dcat={
+                    "title": "Earth Science Trees Dataset",
+                    "description": "Dataset tagged with the keyword earth science > trees",
+                    "keyword": ["earth science > trees"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                },
+                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
                 id="child1234567",
                 slug="child-harvest-record",
                 dcat={
                     "title": "Child Harvest Record",
                     "description": "National statistics on access to health food resources",
                     "keyword": ["health", "food"],
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test child publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
                     "distribution": [
                         {
                             "title": "Health Food Data",

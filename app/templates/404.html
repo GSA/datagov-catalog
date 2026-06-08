@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Page not found - Data.gov{% endblock %}
+
+{% block main_content %}
+<div class="not-found-page">
+    <div class="grid-container">
+        <div class="grid-row flex-justify-center">
+            <div class="grid-col-12 desktop:grid-col-8 text-center">
+                <i class="fa-solid fa-signs-post not-found-page__icon" aria-hidden="true"></i>
+                <h1 class="font-heading-2xl margin-bottom-2">Page not found</h1>
+                <p class="font-body-lg margin-bottom-4">
+                    We couldn't find the page you were looking for. It may have been moved,
+                    renamed, or removed &mdash; but there's plenty more to explore.
+                </p>
+                <div class="margin-bottom-4">
+                    <a class="usa-button" href="{{ url_for('main.index') }}">
+                        Return to search
+                    </a>
+                    <a class="usa-button usa-button--outline" href="https://data.gov/contact/">
+                        Contact data.gov
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

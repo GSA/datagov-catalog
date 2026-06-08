@@ -6,9 +6,70 @@ from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
+from app import STATIC_ASSET_MAX_AGE_SECONDS, create_app
 from app.database.opensearch import SearchResult
 from app.models import Dataset
 from tests.fixtures import HARVEST_RECORD_ID
+
+
+def test_static_asset_cache_duration_by_environment():
+    production_app = create_app("production")
+    local_app = create_app("local")
+
+    assert production_app.config["SEND_FILE_MAX_AGE_DEFAULT"] == 60 * 60 * 24
+    assert production_app.config["SEND_FILE_MAX_AGE_DEFAULT"] == (
+        STATIC_ASSET_MAX_AGE_SECONDS
+    )
+    assert local_app.config["SEND_FILE_MAX_AGE_DEFAULT"] == 0
+
+    response = production_app.test_client().get("/js/datetime.js")
+
+    assert response.status_code == 200
+    assert response.cache_control.public
+    assert response.cache_control.max_age == STATIC_ASSET_MAX_AGE_SECONDS
+
+
+def test_non_static_pages_do_not_set_cache_duration():
+    # For regular pages, leave max_age unset
+    # to use the default caching behavior configured in CloudFront.
+    production_app = create_app("production")
+    client = production_app.test_client()
+
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0,
+        results=[],
+        search_after=None,
+        aggregations={"keywords": [], "organizations": [], "publishers": []},
+    )
+    mock_interface.count_all_datasets_in_search.return_value = 0
+    mock_interface.get_organizations.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        for path in ["/", "/openapi/docs", "/does-not-exist"]:
+            response = client.get(path)
+
+            assert response.cache_control.max_age is None
+
+
+def test_dataset_slug_api_endpoint(db_client, interface_with_dataset):
+    # check an existing document by slug name and id
+    # "test-dataset-2" is the id
+    slug_and_id = ["test-health-data", "test-dataset-2"]
+
+    for data in slug_and_id:
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get(f"/api/dataset/{data}")
+
+        assert response.status_code == 200
+        assert len(response.json["results"]) == 1
+
+    # check a non-existent document
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/dataset/doesnt-exist")
+
+    assert response.status_code == 404
+    assert len(response.json["results"]) == 0
 
 
 def test_location_search_api_endpoint(interface_with_location, db_client):
@@ -324,7 +385,7 @@ def test_get_opensearch_health_api_handles_errors(db_client):
 def test_get_stats_api_returns_data(db_client):
     mock_interface = Mock()
     mock_interface.get_stats.return_value = {
-        "results": {"datasets": 123456},
+        "results": {"datasets": 123456, "datasetsWithIsPartOf": 789},
         "metrics": {"orgBarMetric": "%5B%5D", "datasetsBarMetric": "%5B%5D"},
         "meta": {"date": "Thu, 01 Jan 2026 00:00:00 GMT"},
     }
@@ -335,6 +396,7 @@ def test_get_stats_api_returns_data(db_client):
     assert response.status_code == 200
     data = response.get_json()
     assert data["results"]["datasets"] == 123456
+    assert data["results"]["datasetsWithIsPartOf"] == 789
     mock_interface.get_stats.assert_called_once_with()
 
 
@@ -731,7 +793,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 56"
+    assert datasets_text == "Datasets: 59"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -780,7 +842,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 56"
+    assert overview_items[1].text.strip() == "Total datasets: 59"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -839,6 +901,9 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
 
     keyword_section = soup.find("div", {"id": "filter-keywords"})
     assert keyword_section is not None
+
+    publisher_section = soup.find("div", {"id": "filter-publishers"})
+    assert publisher_section is not None
 
     geography_section = soup.find("div", {"id": "filter-geography"})
     assert geography_section is not None
@@ -1202,7 +1267,7 @@ def test_organization_detail_displays_searched_dataset_no_pagination(
     title_link = item.select_one(".usa-collection__heading a")
     assert title_link is not None
     assert (
-        title_link.get("href")
+        title_link.get("href").split("?")[0]
         == "/dataset/2016-americorps-mes-americorps-member-exit-survey"
     )
     assert (
@@ -1286,6 +1351,9 @@ def test_index_page_has_filters_sidebar(db_client):
     # Check for organization type filters
     filter_form = soup.find("form", {"id": "filter-form"})
     assert filter_form is not None
+
+    publisher_input = soup.find("input", {"id": "publisher-input"})
+    assert publisher_input is not None
 
     # Check for specific organization type checkboxes
     federal_checkbox = soup.find(
@@ -1495,7 +1563,7 @@ def test_index_search_result_includes_published_on_in_metrics_line(db_client):
     metadata_line = first_item.find("small", class_="text-base-dark")
     assert metadata_line is not None
     assert (
-        "Search relevance: 1.00 | Views last month: 0 | Published on: 2024-01-15"
+        "Search relevance: 1.00 | Views last month: 0 | Catalog Last Checked: January 15, 2024 at 12:30 PM"
         in metadata_line.get_text(" ", strip=True)
     )
 
@@ -1708,10 +1776,58 @@ class TestKeywordSearch:
         # Check for no results message
         no_results_alert = soup.find(id="no-datasets-alert")
         assert no_results_alert is not None
-        assert "No datasets found" in no_results_alert.text
+        assert "Found" in no_results_alert.text and "0" in no_results_alert.text
         # Expanded geography panel should still exist so pencil button can open it.
         geography_panel = soup.find(id="geography-map-expanded-panel")
         assert geography_panel is not None
+
+
+class TestPublisherSearch:
+    """Test publisher filter functionality on index page."""
+
+    def test_publisher_filter_shows_matching_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+
+        dataset_dict["id"] = "publisher-alpha"
+        dataset_dict["slug"] = "publisher-alpha"
+        dataset_dict["dcat"] = {
+            "title": "Alpha Publisher Dataset",
+            "description": "Dataset from Alpha publisher",
+            "publisher": {"name": "Agency Alpha"},
+            "distribution": [],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+
+        dataset_dict["id"] = "publisher-beta"
+        dataset_dict["slug"] = "publisher-beta"
+        dataset_dict["dcat"] = {
+            "title": "Beta Publisher Dataset",
+            "description": "Dataset from Beta publisher",
+            "publisher": {"name": "Agency Beta"},
+            "distribution": [],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        interface_with_dataset.db.commit()
+
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?publisher=Agency Alpha")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        titles = [
+            item.get_text(" ", strip=True)
+            for item in soup.select(".usa-collection__heading")
+        ]
+
+        assert any("Alpha Publisher Dataset" in title for title in titles)
+        assert not any("Beta Publisher Dataset" in title for title in titles)
 
 
 class TestGeospatialSearch:
@@ -1811,6 +1927,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"]["title"] = f"test-{i}"
         dataset_dict["dcat"]["keyword"] = ["health", "education"]
+        dataset_dict["dcat"]["publisher"] = {"name": "Test Publisher"}
         dataset_dict["dcat"]["spatial"] = "-90.155,27.155,-90.26,27.255"
         interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
@@ -1829,6 +1946,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
                 "per_page": "10",
                 "org_type": "Federal Government",
                 "keyword": "health",
+                "publisher": "Test Publisher",
                 "spatial_filter": "geospatial",
                 "sort": "popularity",
             },
@@ -1855,6 +1973,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     assert params.get("q") == ["test"]
     assert params.get("org_type") == ["Federal Government"]
     assert params.get("keyword") == ["health"]
+    assert params.get("publisher") == ["Test Publisher"]
     assert params.get("spatial_filter") == ["geospatial"]
     assert params.get("sort") == ["popularity"]
     assert "after" in params
@@ -1870,6 +1989,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     assert push_params.get("q") == ["test"]
     assert push_params.get("org_type") == ["Federal Government"]
     assert push_params.get("keyword") == ["health"]
+    assert push_params.get("publisher") == ["Test Publisher"]
 
 
 def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client):
@@ -2405,3 +2525,45 @@ def test_dataset_detail_tag_links_point_to_keyword_search(
         found_keywords.add(qs["keyword"][0])
 
     assert found_keywords == expected_keywords
+
+
+def test_keywords_api_returns_all_when_no_search(db_client):
+    """GET /api/keywords with no search param returns keywords unfiltered."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = [
+        {"keyword": "earth science", "count": 5},
+        {"keyword": "ocean", "count": 3},
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?size=10")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    keyword_values = [item["keyword"] for item in data["keywords"]]
+    assert "earth science" in keyword_values
+    assert "ocean" in keyword_values
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10, min_doc_count=1, search=None
+    )
+
+
+def test_keywords_api_passes_search_param_to_interface(db_client):
+    """GET /api/keywords?search=... forwards the search value to the interface."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = [
+        {"keyword": "earth science", "count": 5},
+        {"keyword": "earth science > trees", "count": 2},
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?search=earth+science&size=10")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    keyword_values = [item["keyword"] for item in data["keywords"]]
+    assert "earth science" in keyword_values
+    assert "earth science > trees" in keyword_values
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10, min_doc_count=1, search="earth science"
+    )

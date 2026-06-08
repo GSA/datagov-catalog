@@ -384,6 +384,55 @@ def test_geometry_centroid_from_polygon():
     assert centroid["lat"] == pytest.approx(0.8)
 
 
+def test_geometry_centroid_skips_out_of_range_longitude():
+    """
+    A longitude outside -180-180 (e.g. 185.34) must be excluded from the
+    centroid calculation to prevent OpenSearch geo_point parse failures.
+    """
+    geometry = {
+        "type": "Point",
+        "coordinates": [185.34570208999997, 45.0],
+    }
+    centroid = OpenSearchInterface._geometry_centroid(geometry)
+    # The single point is invalid, so no valid points remain,
+    # so it should return none
+    assert centroid is None
+
+
+def test_geometry_centroid_skips_out_of_range_latitude():
+    """
+    A latitude outside -90-90 (e.g. -90.90) must be excluded from the
+    centroid calculation to prevent OpenSearch geo_point parse failures.
+    """
+    geometry = {
+        "type": "Point",
+        "coordinates": [-74.0, -90.90776196883162],
+    }
+    centroid = OpenSearchInterface._geometry_centroid(geometry)
+    assert centroid is None
+
+
+def test_geometry_centroid_uses_valid_points_when_some_are_out_of_range():
+    """
+    When a geometry contains a mix of valid and out-of-range coordinates, the
+    centroid is computed from only the valid points rather than discarding
+    the whole geometry.
+    """
+    geometry = {
+        "type": "MultiPoint",
+        "coordinates": [
+            [10.0, 20.0],  # valid
+            [185.0, 45.0],  # invalid lon
+            [30.0, -91.0],  # invalid lat
+            [50.0, 60.0],  # valid
+        ],
+    }
+    centroid = OpenSearchInterface._geometry_centroid(geometry)
+    assert centroid is not None
+    assert centroid["lon"] == pytest.approx(30.0)  # mean of 10.0 and 50.0
+    assert centroid["lat"] == pytest.approx(40.0)  # mean of 20.0 and 60.0
+
+
 class TestOpenSearchMappings:
     """Test suite for OpenSearch mappings."""
 
@@ -448,6 +497,29 @@ class TestOpenSearchMappings:
         """Test that spatial centroid field is mapped as geo_point."""
         mappings = OpenSearchInterface.MAPPINGS
         assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
+
+
+def test_count_datasets_with_ispartof_passes_filtered_count_query():
+    """OpenSearch count returns the number of docs matching the supplied query."""
+    client = OpenSearchInterface.__new__(OpenSearchInterface)
+    client.INDEX_NAME = "datasets"
+    client.client = Mock()
+    client.client.count.return_value = {"count": 7}
+
+    count = client.count_datasets_with_ispartof()
+
+    assert count == 7
+    client.client.count.assert_called_once_with(
+        index=client.INDEX_NAME,
+        body={
+            "query": {
+                "nested": {
+                    "path": "dcat",
+                    "query": {"exists": {"field": "dcat.isPartOf"}},
+                }
+            }
+        },
+    )
 
 
 class TestCaseInsensitiveKeywords:
@@ -581,6 +653,58 @@ class TestCaseInsensitiveKeywords:
         env_buckets = [k for k in keywords if k["keyword"] == "environment"]
         assert len(env_buckets) == 1
         assert env_buckets[0]["count"] == 2
+
+    def test_get_unique_keywords_search_filters_by_substring(
+        self, dbapp, opensearch_client, mock_organization
+    ):
+        """
+        Passing search="earth science" should return only keyword buckets whose
+        normalized value contains that substring, ordered by doc count descending.
+        Unrelated keywords must not appear in the results.
+        """
+        self._recreate_index(opensearch_client)
+
+        with dbapp.app_context():
+            dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
+            dbapp.config["PREFERRED_URL_SCHEME"] = "http"
+
+            datasets = [
+                self._make_mock_dataset(
+                    doc_id="kw-search-1",
+                    slug="kw-search-1",
+                    keywords=["earth"],
+                    mock_organization=mock_organization,
+                ),
+                self._make_mock_dataset(
+                    doc_id="kw-search-2",
+                    slug="kw-search-2",
+                    keywords=["earth science"],
+                    mock_organization=mock_organization,
+                ),
+                self._make_mock_dataset(
+                    doc_id="kw-search-3",
+                    slug="kw-search-3",
+                    keywords=["earth science > trees"],
+                    mock_organization=mock_organization,
+                ),
+                self._make_mock_dataset(
+                    doc_id="kw-search-4",
+                    slug="kw-search-4",
+                    keywords=["ocean"],
+                    mock_organization=mock_organization,
+                ),
+            ]
+            opensearch_client.index_datasets(datasets)
+
+        keywords = opensearch_client.get_unique_keywords(search="earth science")
+        keyword_values = [item["keyword"] for item in keywords]
+
+        assert "earth science" in keyword_values
+        assert "earth science > trees" in keyword_values
+        # "earth" does not contain the substring "earth science"
+        assert "earth" not in keyword_values
+        # Completely unrelated keywords must be excluded
+        assert "ocean" not in keyword_values
 
 
 def test_relevance_sort_uses_popularity_tie_breaker():

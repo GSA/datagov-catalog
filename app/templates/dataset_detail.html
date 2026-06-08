@@ -37,11 +37,10 @@
 
 {% block gsearchdata %}
 <script type="application/ld+json">
-    {{ dataset.dcat | tojson }}
+    {{ dataset.dcat | dcatus_to_schema_org_jsonld | tojson }}
 </script>
 {% endblock %}
 
-<script src="{{ url_for('static', filename='js/dataset_tags.js') }}"></script>
 
 {% block head_extra %}
 {% set description_value = dataset.dcat.get('description') %}
@@ -72,9 +71,10 @@
 <div class="usa-section">
     <div class="grid-container-widescreen">
 
-        <!-- Return to search link -->
+        <!-- Return to search link (compatible with org or main search) -->
         {% if from_dict %}
-        <a href="{{ url_for('main.index', **from_dict) }}" class="return-link">
+        {% set endpoint = 'main.organization_detail' if 'slug' in from_dict else 'main.index' %}
+        <a href="{{ url_for(endpoint, **from_dict) }}" class="return-link">
             <i class="fa-solid fa-arrow-left"></i>
             Return to search results
         </a>
@@ -97,10 +97,11 @@
                         }}</a>
                     {% endif %}
                     {% if dataset.last_harvested_date %}
-                    | Metadata Last Checked: <strong>{{ dataset.last_harvested_date.strftime('%B %d, %Y') }}</strong>
+                    | Catalog Last Checked: <strong>{{ dataset.last_harvested_date | format_dcat_date }}</strong>
                     {% endif %}
-                    {% if dataset.dcat.get('modified') %}
-                    | Last Modified: <strong>{{ dataset.dcat.modified }}</strong>
+                    {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
+                    {% if modified_dt %}
+                    | Dataset Last Updated: <strong>{{ modified_dt | format_dcat_date }}</strong>
                     {% endif %}
                 </div>
 
@@ -146,8 +147,12 @@
 
                         <li class="resources-list__item resources-list__item--main">
                             <div class="resources-list__info">
-                                <div class="resources-list__icon">
-                                    <i class="{{ resource_format|fa_icon_from_extension }} fa-solid"></i>
+                                {% set overlay_label = resource_format|format_overlay_label %}
+                                <div class="resources-list__icon{% if overlay_label %} resources-list__icon--badged{% endif %}">
+                                    <span class="file-icon {{ resource_format|format_icon_class }}" aria-hidden="true"></span>
+                                    {% if overlay_label %}
+                                    <span class="resources-list__icon-badge">{{ overlay_label }}</span>
+                                    {% endif %}
                                 </div>
                                 <div class="resources-list__details">
                                     <p class="resources-list__name" title="{{ resource_title }}">
@@ -182,16 +187,16 @@
                     </ul>
                 </div>
                 {% endif %}
-                
+
                 <h2 class="text-primary-darker margin-bottom-1">Find Related Datasets</h2>
                 <section class="usa-section bg-base-lightest radius-lg padding-3 margin-top-4">
 
                     <div class="grid-row grid-gap-lg">
-                        
+
                         {% if dataset.dcat.get('keyword') %}
                         <div class="tablet:grid-col-6">
                         <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
-                            
+
                             <h4 class="margin-top-0 display-flex flex-align-center">
                             Search by Tags
                             </h4>
@@ -235,8 +240,8 @@
 
                         </div>
                         </div>
-                        {% endif %} 
-                        
+                        {% endif %}
+
                         {% set collection_total = collection_data.get('count') - 1 %}
                         {% if collection_total > 0 %}
                         <div class="tablet:grid-col-6 collection-tooltip">
@@ -253,9 +258,7 @@
                                     data-classes="tablet:width-auto"
                                     title="A 'collection' is a group of related datasets by the data provider"
                                 >
-                                    <svg class="usa-icon" aria-hidden="true">
-                                        <use href="/assets/uswds/img/sprite.svg#info"></use>
-                                    </svg>
+                                    {{ 'info' | usa_icon | safe }}
                                 </button>
                             </div>
 
@@ -268,11 +271,11 @@
                             </div>
                         </div>
                         </div>
-                        {% endif %} 
+                        {% endif %}
 
                     </div>
                 </section>
-                
+
                 <details class="margin-bottom-3 margin-top-3">
                     <summary>
                         <h2 class="complete-metadata-heading">Complete Metadata</h2>
@@ -286,7 +289,9 @@
                                 <tr>
                                     <th scope="row">{{ key }}</th>
                                     <td>
-                                        {% if rendered_value | is_json %}
+                                        {% if key == 'landingPage' %}
+                                        <a href="{{ value }}" target="_blank" rel="noopener">{{ value }}</a>
+                                        {% elif rendered_value | is_json %}
                                         <pre class="json">
                                             {{ value | json_to_semantic_html | safe }}
                                         </pre>
@@ -306,30 +311,27 @@
             <aside class="desktop:grid-col-4">
 
                 <!-- Contact Information -->
-                {% if dataset.dcat.get('contactPoint') %}
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Contact</h3>
+                    <p class="dataset-feedback">
+                        Have questions or suggestions about this dataset? Reach out to the contact below.
+                    </p>
 
-                    {% if dataset.dcat.contactPoint.get('fn') %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Name</div>
                         <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
                     </div>
-                    {% endif %}
 
-                    {% if dataset.dcat.contactPoint.get('hasEmail') %}
-                    {% set email = dataset.dcat.contactPoint.get('hasEmail') | format_contact_point_email%}
+                    {% set email = dataset.dcat.contactPoint.hasEmail | format_contact_point_email %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Email</div>
                         <div class="sidebar-section__value">
                             <a href="mailto:{{ email }}">
-                                {{ email}}
+                                {{ email }}
                             </a>
                         </div>
                     </div>
-                    {% endif %}
                 </div>
-                {% endif %}
 
                 <!-- Access and Use Information -->
                 <div class="sidebar-section">
@@ -354,20 +356,22 @@
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Dataset Information</h3>
 
-                    {% if dataset.dcat.get('issued') %}
+                    {% set issued_dt = dataset.dcat.get('issued') | parse_datetime %}
+                    {% if issued_dt %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Dataset Issued</div>
+                        <div class="sidebar-section__label">Dataset First Published</div>
                         <div class="sidebar-section__value">
-                            {{ dataset.dcat.get('issued') }}
+                            {{ issued_dt | format_dcat_date }}
                         </div>
                     </div>
                     {% endif %}
 
-                    {% if dataset.dcat.get('modified') %}
+                    {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
+                    {% if modified_dt %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Dataset Last Modified</div>
+                        <div class="sidebar-section__label">Dataset Last Updated</div>
                         <div class="sidebar-section__value">
-                            {{ dataset.dcat.get('modified') }}
+                            {{ modified_dt | format_dcat_date }}
                         </div>
                     </div>
                     {% endif %}
@@ -399,9 +403,9 @@
 
                     {% if dataset.last_harvested_date %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Metadata Last Checked</div>
+                        <div class="sidebar-section__label">Catalog Last Checked</div>
                         <div class="sidebar-section__value">
-                            {{ dataset.last_harvested_date.strftime('%B %d, %Y at %I:%M %p') }}
+                            {{ dataset.last_harvested_date | format_dcat_date }}
                         </div>
                     </div>
                     {% endif %}
@@ -418,20 +422,6 @@
                     {% endif %}
                 </div>
 
-                <!-- Feedback -->
-                <div class="sidebar-section">
-                    <h3 class="sidebar-section__heading">Provide Feedback</h3>
-                    <p class="dataset-feedback">
-                        Have questions or suggestions about this dataset?
-                    </p>
-                    <button class="usa-button width-full" type="button" id="contact-btn"
-                        data-dataset-identifier="{{ dataset_slug }}" data-dataset-title="{{ dataset_title }}"
-                        aria-label="Provide feedback on {{ dataset_title }}">
-                        <i class="fa-solid fa-comment-dots margin-right-05"></i>
-                        Send Feedback
-                    </button>
-                </div>
-
             </aside>
         </div>
     </div>
@@ -440,11 +430,11 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/dataset_feedback.js') }}"></script>
+<script src="{{ static_url('js/dataset_tags.js') }}"></script>
 {% if dataset.translated_spatial %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}" />
-<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
-<script src="{{ url_for('static', filename='js/view_bbox_map.js') }}"></script>
+<link rel="stylesheet" href="{{ static_url('css/vendor/leaflet.css') }}" />
+<script src="{{ static_url('js/vendor/leaflet.js') }}"></script>
+<script src="{{ static_url('js/view_bbox_map.js') }}"></script>
 </script>
 {% endif %}
 {% endblock %}

@@ -73,6 +73,13 @@ runs:
       shell: bash
       run: make install-static
 
+    - name: Set deploy asset version
+      shell: bash
+      run: |
+        asset_version="$(.github/scripts/compute-asset-version.sh)"
+        echo "asset_version=${asset_version}" >> "$GITHUB_ENV"
+        echo "Static asset version: ${asset_version}"
+
     - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v5
       with:
@@ -92,7 +99,7 @@ runs:
       uses: cloud-gov/cg-cli-tools@main
       with:
         command: >-
-          ${{ inputs.command }} --vars-file vars.${{ inputs.cf_space }}.yml
+          ${{ inputs.command }} --vars-file vars.${{ inputs.cf_space }}.yml --var asset_version=${{ env.asset_version }}
         cf_org: ${{ inputs.cf_org }}
         cf_space: ${{ inputs.cf_space }}
         cf_username: ${{ inputs.cf_username }}
