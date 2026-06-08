@@ -22,11 +22,16 @@ STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 def register_template_filters(app):
     import app.filters as filters
 
+    from . import filter_helpers
     from .static_assets import static_url
 
     for name in filters.__all__:
         app.add_template_filter(getattr(filters, name))
 
+    for name in filter_helpers.TEMPLATE_FILTERS:
+        app.add_template_filter(getattr(filter_helpers, name))
+
+    app.add_template_global(filter_helpers.has_active_filters, "has_active_filters")
     app.add_template_global(static_url, "static_url")
 
 
@@ -46,8 +51,11 @@ def create_app(config_name: str = "local") -> APIFlask:
     app.config["PREFERRED_URL_SCHEME"] = "https"
     app.config["ASSET_VERSION"] = get_asset_version()
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = STATIC_ASSET_MAX_AGE_SECONDS
+
     # enable template hot template reloading in local
-    if config_name == "local" or app.config.get("FLASK_ENV") == "local":
+    is_local = config_name == "local" or app.config.get("FLASK_ENV") == "local"
+    app.config["IS_LOCAL"] = is_local
+    if is_local:
         # Enable template auto-reload
         app.config["TEMPLATES_AUTO_RELOAD"] = True
         app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0

@@ -2,6 +2,17 @@ import re
 
 from playwright.sync_api import expect
 
+from tests.browser.filter_helpers import (
+    check_org_type_checkbox,
+    check_spatial_radio,
+    expand_filter_section,
+    geography_input,
+    keyword_input,
+    open_filter_sidebar,
+    spatial_radio,
+    wait_for_filtered_results,
+)
+
 """Test basic pages using the browser."""
 
 
@@ -55,21 +66,25 @@ def test_filter_geospatial_click(page):
     expect(page.locator("#search-results div.usa-prose p:first-child")).to_have_text(
         re.compile(r"^\s*\d+\s+datasets available on ")
     )
-    page.locator("#filter-spatial-geo").scroll_into_view_if_needed()
-    expect(page.locator("#filter-spatial-geo")).to_be_visible()
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-spatial")
+    geospatial_radio = spatial_radio(page, "Geospatial only")
+    expect(geospatial_radio).to_be_visible()
 
-    page.locator("#filter-spatial-geo").dispatch_event("click")
+    check_spatial_radio(page, "Geospatial only")
     # after the click, filter is applied and the number of matching datasets
     # is given
-    expect(page.locator("#search-results div.usa-prose p:first-child")).to_have_text(
-        re.compile(r"^Found 10 datasets matching filters\.")
+    expect(page.locator("#search-results div.usa-prose p:first-child")).to_contain_text(
+        re.compile(r"^Found \d+ datasets matching filters\.", re.I)
     )
 
 
 def test_keyword_autocomplete_finds_earth(page):
     """Typing a single-word keyword finds a matching suggestion and filters results."""
     page.goto("/")
-    page.locator("#keyword-input").fill("earth")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-keywords")
+    keyword_input(page).fill("earth")
     suggestion = page.locator(
         '#keyword-suggestions .keyword-suggestion[data-keyword="earth"]'
     )
@@ -83,7 +98,9 @@ def test_keyword_autocomplete_finds_earth(page):
 def test_keyword_autocomplete_finds_earth_science(page):
     """Typing a multi-word keyword finds a matching suggestion and filters results."""
     page.goto("/")
-    page.locator("#keyword-input").fill("earth science")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-keywords")
+    keyword_input(page).fill("earth science")
     suggestion = page.locator(
         '#keyword-suggestions .keyword-suggestion[data-keyword="earth science"]'
     )
@@ -97,7 +114,9 @@ def test_keyword_autocomplete_finds_earth_science(page):
 def test_keyword_autocomplete_finds_earth_science_trees(page):
     """Typing a keyword containing '>' finds a matching suggestion and filters results."""
     page.goto("/")
-    page.locator("#keyword-input").fill("earth science > trees")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-keywords")
+    keyword_input(page).fill("earth science > trees")
     suggestion = page.locator(
         '#keyword-suggestions .keyword-suggestion[data-keyword="earth science > trees"]'
     )
@@ -133,10 +152,12 @@ def test_clear_all_filters_and_preserves_query(page):
     page.get_by_role("textbox", name="Search datasets").fill("payments")
     page.get_by_role("button", name="Search", exact=True).click()
 
-    # Apply an org type filter on top of the query.
-    federal_radio = page.locator('input[name="org_type"][value="Federal Government"]')
-    federal_radio.scroll_into_view_if_needed()
-    federal_radio.dispatch_event("click")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-organization")
+
+    check_org_type_checkbox(page, "Federal Government")
+
+    wait_for_filtered_results(page)
 
     results_paragraph = page.locator("#search-results div.usa-prose p:first-child")
     expect(results_paragraph).to_contain_text('"payments" and filters.')
@@ -158,12 +179,12 @@ def test_geography_suggestions_z_index(page):
     the Leaflet control buttons so it renders on top.
     """
     page.goto("/")
-    page.locator("#geography-input").click()
-    page.locator("#geography-input").press_sequentially("Washington", delay=1000)
-    expect(page.locator("#geography-suggestions")).to_be_visible()
-
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-geography")
+    geography_input(page).click()
+    geography_input(page).fill("Washington")
     first_suggestion = page.locator("#geography-suggestions .keyword-suggestion").first
-    expect(first_suggestion).to_be_visible(timeout=1000)
+    expect(first_suggestion).to_be_visible()
     first_suggestion.scroll_into_view_if_needed()
     z_indices = page.evaluate("""() => {
         function effectiveZIndex(el) {

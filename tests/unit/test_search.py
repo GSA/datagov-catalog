@@ -2,7 +2,7 @@ import copy
 from datetime import datetime
 
 from app.database.opensearch import OpenSearchInterface
-from app.models import Dataset
+from app.models import Dataset, Organization
 
 
 def test_search(interface_with_dataset):
@@ -148,6 +148,61 @@ def test_search_with_keyword(interface_with_dataset):
     result = interface_with_dataset.search_datasets(keywords=["nonexistent"])
     assert len(result) == 0
     assert result.results == []
+
+
+def test_search_with_org_type_filters_by_organization_type(interface_with_dataset):
+    """Search by organization type returns only datasets from matching orgs."""
+    interface_with_dataset.db.add(
+        Organization(
+            id="org-city-test",
+            name="City Test Org",
+            slug="city-test-org",
+            organization_type="City Government",
+        )
+    )
+    interface_with_dataset.db.add(
+        Organization(
+            id="org-state-test",
+            name="State Test Org",
+            slug="state-test-org",
+            organization_type="State Government",
+        )
+    )
+
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+
+    dataset_dict["id"] = "city-type-dataset"
+    dataset_dict["slug"] = "city-type-dataset"
+    dataset_dict["organization_id"] = "org-city-test"
+    dataset_dict["dcat"] = {
+        "title": "City Type Dataset",
+        "description": "Dataset from a city government organization",
+        "publisher": {"name": "City Agency"},
+        "distribution": [],
+    }
+    interface_with_dataset.db.add(Dataset(**dataset_dict))
+
+    dataset_dict["id"] = "state-type-dataset"
+    dataset_dict["slug"] = "state-type-dataset"
+    dataset_dict["organization_id"] = "org-state-test"
+    dataset_dict["dcat"] = {
+        "title": "State Type Dataset",
+        "description": "Dataset from a state government organization",
+        "publisher": {"name": "State Agency"},
+        "distribution": [],
+    }
+    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    interface_with_dataset.db.commit()
+
+    interface_with_dataset.opensearch.index_datasets(
+        interface_with_dataset.db.query(Dataset)
+    )
+
+    result = interface_with_dataset.search_datasets(org_types=["City Government"])
+    slugs = {dataset["slug"] for dataset in result.results}
+
+    assert "city-type-dataset" in slugs
+    assert "state-type-dataset" not in slugs
 
 
 def test_search_spatial_geometry(interface_with_dataset):
