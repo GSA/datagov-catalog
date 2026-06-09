@@ -17,6 +17,21 @@ load_dotenv()
 
 htmx = None
 STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
+HTML_PAGE_MAX_AGE_SECONDS = 60 * 60
+
+
+class VersionedStaticAPIFlask(APIFlask):
+    def send_static_file(self, filename):
+        from .static_assets import (
+            DEFAULT_ASSET_VERSION,
+            unversion_static_filename,
+            validate_asset_version,
+        )
+
+        version = validate_asset_version(
+            self.config.get("ASSET_VERSION", DEFAULT_ASSET_VERSION)
+        )
+        return super().send_static_file(unversion_static_filename(filename, version))
 
 
 def register_template_filters(app):
@@ -36,7 +51,9 @@ def register_template_filters(app):
 
 
 def create_app(config_name: str = "local") -> APIFlask:
-    app = APIFlask(__name__, static_url_path="", static_folder="static", docs_path=None)
+    app = VersionedStaticAPIFlask(
+        __name__, static_url_path="", static_folder="static", docs_path=None
+    )
 
     app.config["CONFIG_NAME"] = config_name
     app.config["INFO"] = {
@@ -86,6 +103,23 @@ def create_app(config_name: str = "local") -> APIFlask:
     register_commands(app)
 
     register_template_filters(app)
+
+    @app.after_request
+    def set_html_cache_control(response):
+        if is_local:
+            return response
+
+        content_type = response.content_type or ""
+        if not content_type.startswith("text/html"):
+            return response
+
+        if response.cache_control.max_age is not None:
+            return response
+
+        response.cache_control.public = True
+        response.cache_control.max_age = HTML_PAGE_MAX_AGE_SECONDS
+        response.cache_control.must_revalidate = True
+        return response
 
     @app.errorhandler(404)
     def not_found(error):
