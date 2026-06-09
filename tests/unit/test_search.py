@@ -2,8 +2,8 @@ import copy
 from datetime import datetime
 
 from app.database.opensearch import OpenSearchInterface
-from tests.helpers.opensearch import index_datasets
 from app.models import Dataset, Organization
+from tests.helpers.opensearch import index_datasets
 
 
 def test_search(interface_with_dataset):
