@@ -6,9 +6,9 @@ from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
-from app import STATIC_ASSET_MAX_AGE_SECONDS, create_app
+from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
 from app.database.opensearch import SearchResult
-from app.models import Dataset
+from app.models import Dataset, Organization
 from tests.fixtures import HARVEST_RECORD_ID
 from tests.helpers.opensearch import index_datasets
 
@@ -30,9 +30,7 @@ def test_static_asset_cache_duration_by_environment():
     assert response.cache_control.max_age == STATIC_ASSET_MAX_AGE_SECONDS
 
 
-def test_non_static_pages_do_not_set_cache_duration():
-    # For regular pages, leave max_age unset
-    # to use the default caching behavior configured in CloudFront.
+def test_html_pages_set_one_hour_cache_duration_in_production():
     production_app = create_app("production")
     client = production_app.test_client()
 
@@ -50,7 +48,38 @@ def test_non_static_pages_do_not_set_cache_duration():
         for path in ["/", "/openapi/docs", "/does-not-exist"]:
             response = client.get(path)
 
-            assert response.cache_control.max_age is None
+            assert response.cache_control.public
+            assert response.cache_control.max_age == HTML_PAGE_MAX_AGE_SECONDS
+            assert response.cache_control.must_revalidate
+
+
+def test_html_pages_do_not_set_cache_duration_in_local():
+    local_app = create_app("local")
+    client = local_app.test_client()
+
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0,
+        results=[],
+        search_after=None,
+        aggregations={"keywords": [], "organizations": [], "publishers": []},
+    )
+    mock_interface.count_all_datasets_in_search.return_value = 0
+    mock_interface.get_organizations.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get("/")
+
+    assert response.cache_control.max_age is None
+
+
+def test_api_responses_do_not_set_html_cache_duration(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/dataset/test-health-data")
+
+    assert response.cache_control.max_age is None
 
 
 def test_dataset_slug_api_endpoint(db_client, interface_with_dataset):
@@ -774,13 +803,18 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
 
     cards = soup.select(".organization-list .usa-card")
 
-    # "test org filtered" is removed because it has no datasets
-    # leaving only 1 organization present
-    assert len(cards) == 1
+    # Only organizations that have datasets are listed; "test org filtered"
+    # has none and must be absent.
+    headings = {c.select_one(".usa-card__heading").get_text(strip=True) for c in cards}
+    assert "test org" in headings
+    assert "test org filtered" not in headings
 
-    card = cards[0]
-    heading = card.select_one(".usa-card__heading").get_text(strip=True)
-    assert heading == "test org"
+    # Find the "test org" card and verify its type + count rendering.
+    card = next(
+        c
+        for c in cards
+        if c.select_one(".usa-card__heading").get_text(strip=True) == "test org"
+    )
 
     body_paragraphs = card.select(".usa-card__body p")
     assert len(body_paragraphs) >= 2
@@ -893,8 +927,12 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
     filter_form = soup.find("form", {"id": "filter-form"})
     assert filter_form is not None
 
-    sort_select = filter_form.find("select", {"id": "sort-select"})
+    hidden_sort = filter_form.find("input", {"name": "sort", "type": "hidden"})
+    assert hidden_sort is not None
+
+    sort_select = soup.find("select", {"id": "sort-select"})
     assert sort_select is not None
+    assert sort_select.get("form") == "filter-form"
 
     keyword_section = soup.find("div", {"id": "filter-keywords"})
     assert keyword_section is not None
@@ -1639,6 +1677,167 @@ def test_index_filter_checkboxes_checked_when_selected(db_client):
     assert city_checkbox is not None
     assert "checked" not in city_checkbox.attrs
 
+    org_type_button = soup.find("button", {"aria-controls": "filter-organization"})
+    assert org_type_button is not None
+    assert org_type_button.get("aria-expanded") == "true"
+    assert (
+        org_type_button.find("span", class_="filter-accordion__active-indicator")
+        is not None
+    )
+
+    keyword_button = soup.find("button", {"aria-controls": "filter-keywords"})
+    assert keyword_button is not None
+    assert keyword_button.get("aria-expanded") == "true"
+
+
+def test_index_filter_sidebar_heading_and_expanded_defaults(db_client):
+    """Filter sidebar is labeled; accordion sections are expanded without JS."""
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    search_heading = soup.find("h1", id="catalog-search-heading")
+    assert search_heading is not None
+    assert search_heading.get_text(strip=True) == "Search datasets"
+
+    heading = soup.find("h2", class_="filter-sidebar__heading")
+    assert heading is not None
+    assert heading.get_text(strip=True) == "Filters"
+
+    panel = soup.find("aside", {"id": "filter-sidebar-panel"})
+    assert panel is not None
+    assert panel.has_attr("hidden")
+
+    toggle_all = soup.find("button", {"id": "filter-toggle-all"})
+    assert toggle_all is not None
+    assert toggle_all.get("aria-label") == "Collapse all filters"
+
+    for section_id in (
+        "filter-keywords",
+        "filter-geography",
+        "filter-publishers",
+        "filter-spatial",
+        "filter-organization",
+        "filter-organization-autocomplete",
+    ):
+        section = soup.find("div", {"id": section_id})
+        assert section is not None
+        assert not section.has_attr("hidden")
+
+        button = soup.find("button", {"aria-controls": section_id})
+        assert button is not None
+        assert button.get("aria-expanded") == "true"
+
+
+def test_index_filter_sidebar_active_indicator_when_keyword_selected(db_client):
+    """Active filters show an applied-value summary and remain usable without JS."""
+    response = db_client.get("/?keyword=health")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    keyword_button = soup.find("button", {"aria-controls": "filter-keywords"})
+    assert keyword_button is not None
+    assert keyword_button.get("aria-expanded") == "true"
+    indicator = keyword_button.find("span", class_="filter-accordion__active-indicator")
+    assert indicator is not None
+    assert indicator.get_text(strip=True) == "health"
+
+    keyword_section = soup.find("div", {"id": "filter-keywords"})
+    assert keyword_section is not None
+    assert not keyword_section.has_attr("hidden")
+
+
+def test_index_filter_sidebar_shows_clear_filters_when_active(db_client):
+    response = db_client.get("/?keyword=health")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    clear_link = soup.find("a", class_="filter-sidebar__clear")
+    assert clear_link is not None
+    assert "keyword" not in clear_link.get("href", "")
+
+
+def test_index_sort_control_in_results_not_sidebar(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    sort_select = soup.find("select", {"id": "sort-select"})
+    assert sort_select is not None
+    assert sort_select.get("form") == "filter-form"
+    assert sort_select.find_parent(class_="results-sort") is not None
+    assert sort_select.find_parent(class_="filter-sidebar") is None
+
+
+def test_index_active_organization_filter_expanded_in_html(db_client):
+    """Active organization filters render expanded for no-JS access to controls."""
+    response = db_client.get("/?org_slug=test-org")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    org_button = soup.find(
+        "button", {"aria-controls": "filter-organization-autocomplete"}
+    )
+    assert org_button is not None
+    assert org_button.get("aria-expanded") == "true"
+    org_section = soup.find("div", {"id": "filter-organization-autocomplete"})
+    assert org_section is not None
+    assert not org_section.has_attr("hidden")
+
+
+def test_index_filter_accordion_script_included(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+    assert re.search(r"/js/filter_accordion\.[^/]+\.js(?:[?#\"']|$)", response.text)
+
+
+def test_index_filter_mobile_trigger_and_toggle_script(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    toggle_button = soup.find("button", {"id": "filter-mobile-toggle"})
+    assert toggle_button is not None
+    assert toggle_button.get("aria-controls") == "filter-sidebar-panel"
+    assert "Show filters" in toggle_button.get_text()
+
+    panel = soup.find("aside", {"id": "filter-sidebar-panel"})
+    assert panel is not None
+    assert panel.find(class_="filter-sidebar") is not None
+    assert panel.has_attr("hidden")
+
+    assert re.search(
+        r"/js/filter_sidebar_toggle\.[^/]+\.js(?:[?#\"']|$)", response.text
+    )
+    assert "js/filter_sidebar_modal.js" not in response.text
+
+
+def test_index_filter_panel_collapsed_when_filters_active(db_client):
+    response = db_client.get("/?keyword=health")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    panel = soup.find("aside", {"id": "filter-sidebar-panel"})
+    assert panel is not None
+    assert panel.has_attr("hidden")
+
+    toggle_button = soup.find("button", {"id": "filter-mobile-toggle"})
+    assert toggle_button.get("aria-expanded") == "false"
+    assert "Show filters" in toggle_button.get_text()
+    assert toggle_button.find("span", class_="filter-mobile-trigger__badge") is not None
+
+
+def test_index_filter_mobile_trigger_shows_active_badge(db_client):
+    response = db_client.get("/?keyword=health")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    open_button = soup.find("button", {"id": "filter-mobile-toggle"})
+    assert open_button is not None
+    assert open_button.find("span", class_="filter-mobile-trigger__badge") is not None
+
 
 def test_index_apply_filters_button_absent(db_client):
     """The Apply Filters button should not render on the homepage sidebar."""
@@ -1831,6 +2030,73 @@ class TestPublisherSearch:
 
         assert any("Alpha Publisher Dataset" in title for title in titles)
         assert not any("Beta Publisher Dataset" in title for title in titles)
+
+
+class TestOrganizationTypeSearch:
+    """Test organization type filter functionality on index page."""
+
+    def test_org_type_filter_shows_matching_datasets(
+        self, interface_with_dataset, db_client
+    ):
+        interface_with_dataset.db.add(
+            Organization(
+                id="org-city-test",
+                name="City Test Org",
+                slug="city-test-org",
+                organization_type="City Government",
+            )
+        )
+        interface_with_dataset.db.add(
+            Organization(
+                id="org-state-test",
+                name="State Test Org",
+                slug="state-test-org",
+                organization_type="State Government",
+            )
+        )
+
+        dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+
+        dataset_dict["id"] = "city-type-dataset"
+        dataset_dict["slug"] = "city-type-dataset"
+        dataset_dict["organization_id"] = "org-city-test"
+        dataset_dict["dcat"] = {
+            "title": "City Type Dataset",
+            "description": "Dataset from a city government organization",
+            "publisher": {"name": "City Agency"},
+            "distribution": [],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+
+        dataset_dict["id"] = "state-type-dataset"
+        dataset_dict["slug"] = "state-type-dataset"
+        dataset_dict["organization_id"] = "org-state-test"
+        dataset_dict["dcat"] = {
+            "title": "State Type Dataset",
+            "description": "Dataset from a state government organization",
+            "publisher": {"name": "State Agency"},
+            "distribution": [],
+        }
+        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        interface_with_dataset.db.commit()
+
+        interface_with_dataset.opensearch.index_datasets(
+            interface_with_dataset.db.query(Dataset)
+        )
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/?org_type=City+Government")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        titles = [
+            item.get_text(" ", strip=True)
+            for item in soup.select(".usa-collection__heading")
+        ]
+
+        assert any("City Type Dataset" in title for title in titles)
+        assert not any("State Type Dataset" in title for title in titles)
 
 
 class TestGeospatialSearch:
@@ -2305,9 +2571,9 @@ def test_index_collection(interface_with_dataset, db_client):
     soup = BeautifulSoup(response.text, "html.parser")
 
     # check to see that we're in a collection
-    collection_label = soup.select_one("label.usa-label b")
-    assert collection_label is not None
-    assert collection_label.text == "Search datasets in collection"
+    collection_heading = soup.select_one("#catalog-search-heading")
+    assert collection_heading is not None
+    assert collection_heading.text == "Search datasets in collection"
 
     # assertions on the collection card itself
     collection_card = soup.select_one("div.collection-card")

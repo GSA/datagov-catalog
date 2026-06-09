@@ -59,7 +59,7 @@ def load_test_data(clear):
     """
     from tests.fixtures import fixture_data
 
-    fixture = fixture_data()
+    fixture = fixture_data(include_filter_demos=True)
     interface = CatalogDBInterface()
 
     if clear:
@@ -83,6 +83,8 @@ def load_test_data(clear):
         for organization_data in fixture["organization"]:
             interface.db.add(Organization(**organization_data))
         interface.db.add(HarvestSource(**fixture["harvest_source"]))
+        for extra_source in fixture.get("extra_harvest_source", []):
+            interface.db.add(HarvestSource(**extra_source))
         interface.db.add(HarvestJob(**fixture["harvest_job"]))
         for record in fixture["harvest_record"]:
             interface.db.add(HarvestRecord(**record))

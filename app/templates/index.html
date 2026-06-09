@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% from "components/filter_sidebar.html" import render_filter_sidebar %}
+{% from "components/filter_sidebar.html" import render_filter_sidebar, render_filter_mobile_trigger %}
 {% from "components/filters/geography_expanded_panel.html" import render_geography_expanded_panel %}
+{% from "components/filters/sort_control.html" import render_results_toolbar %}
 {% from "components/collection_card.html" import collection_card %}
 
 {% set page_title = "Catalog - Data.gov" %}
@@ -30,26 +31,38 @@
 {% set collection = collection_data["name"] %}
 {% set collection_count = collection_data["count"] - 1 %}
 {% set parent = collection_data["parent"] %}
+{% set filters_active = has_active_filters(
+    keywords=keywords,
+    org_types=org_types,
+    publisher=publisher,
+    org_slug=org_slug,
+    selected_organization=selected_organization,
+    spatial_filter=spatial_filter,
+    spatial_geometry=spatial_geometry
+) %}
 
-<div class="grid-row grid-gap-lg">
-    <!-- Main search and results area -->
-    <div class="tablet:grid-col-12 desktop:grid-col-9">
+<div class="catalog-layout">
+    <div class="catalog-layout__primary">
+    <div class="catalog-layout__search">
+        {% if collection %}
+            {% set search_heading = "Search datasets in collection" %}
+        {% else %}
+            {% set search_heading = "Search datasets" %}
+        {% endif %}
+        <h1
+            class="catalog-layout__search-title margin-top-0 margin-bottom-0"
+            id="catalog-search-heading"
+        >{{ search_heading }}</h1>
         <form method="GET" action="{{ url_for('main.index', collection=collection) }}" class="usa-form" id="main-search-form">
 
-            <label class="usa-label" for="search-query">
-                {% if collection %}
-                    <b>Search datasets in collection</b>
-                {% else %}
-                    <b>Search datasets</b>
-                {% endif %}
-            </label>
             <div class="grid-row grid-gap-1 flex-align-end margin-top-neg-1px">
                 <div class="grid-col-fill">
                     {% if collection %}
                         <input type="hidden" name="collection" value="{{ collection }}">
                     {% endif %}
                     <input class="usa-input margin-0" id="search-query" name="q" type="text"
-                        placeholder="Search Data.gov..." autofocus value="{{ query }}">
+                        placeholder="Search Data.gov..." autofocus value="{{ query }}"
+                        aria-labelledby="catalog-search-heading">
                     {% for org_type in org_types %}
                     <input type="hidden" name="org_type" value="{{ org_type }}">
                     {% endfor %}
@@ -76,8 +89,11 @@
             </div>
         </form>
 
-        <!-- Results Section -->
-        <div id="search-results" class="margin-top-3">
+        {{ render_filter_mobile_trigger(filters_active) }}
+    </div>
+
+    <!-- Results Section -->
+    <div id="search-results" class="catalog-layout__results margin-top-3">
             {% set total = total -1 if collection and total > 1 else total %}
             {% if collection and parent %}
                 {{ collection_card(
@@ -86,9 +102,9 @@
                 ) }}
             {% endif %}
             {% if datasets %}
-            <div class="usa-prose">
+            {% call render_results_toolbar(sort_by, spatial_geometry is not none) %}
               {% if query or org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
-                <p class="text-base-dark">
+                <p class="text-base-dark margin-bottom-0">
                 {%- if total < 2 -%}
                     Found <strong>{{ total }}</strong> dataset matching
                 {%- elif total < 10000 -%}
@@ -104,7 +120,24 @@
                 <a href="/?q={{ query }}&sort=relevance" class="usa-link">(clear all filters)</a>
                 {%- endif %}
                 </p>
+              {% else %}
+                {% if not collection %}
+                    <p class="text-base-dark margin-bottom-0">
+                    <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
+                    datasets available on Data.gov.
+                    These are the most popular:
+                    </p>
+                {% else %}
+                    <p class="text-base-dark margin-bottom-0">
+                    <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
+                    dataset {{s if total > 1 }} in this collection
+                    </p>
+                {% endif %}
+              {% endif %}
+            {% endcall %}
+            {% if query or org_types or keywords or publisher or org_slug or spatial_filter or spatial_geometry %}
                 {% if total >= 10000 %}
+            <div class="usa-prose">
                     <div class="advanced-search-tip">
                         <div class="advanced-search-tip__title">💡 Search Tips</div>
                         <p class="advanced-search-tip__text">
@@ -113,22 +146,9 @@
                             Searches dataset titles, descriptions, tags, and publishers
                         </p>
                     </div>
-                {% endif %}
-              {% else %}
-                {% if not collection %}
-                    <p class="text-base-dark">
-                    <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
-                    datasets available on Data.gov.
-                    These are the most popular:
-                    </p>
-                {% else %}
-                    <p class="text-base-dark">
-                    <span class="text-heavy text-secondary font-sans-lg">{{ "{:,}".format(total) }}</span>
-                    dataset {{s if total > 1 }} in this collection
-                    </p>
-                {% endif %}
-              {% endif %}
             </div>
+                {% endif %}
+            {% endif %}
 
             {{ render_geography_expanded_panel() }}
 
@@ -138,10 +158,12 @@
                 </ul>
             </section>
             {% else %}
-            <div class="usa-prose margin-top-3">
-                <p class="text-base-dark" id="no-datasets-alert">
-                    Found <strong>0</strong> datasets.
-                </p>
+            {% call render_results_toolbar(sort_by, spatial_geometry is not none) %}
+                    <p class="text-base-dark margin-bottom-0" id="no-datasets-alert">
+                        Found <strong>0</strong> datasets.
+                    </p>
+            {% endcall %}
+            <div class="usa-prose margin-top-2">
                 <div class="advanced-search-tip">
                     <div class="advanced-search-tip__title">💡 Search Tips</div>
                     <p class="advanced-search-tip__text">
@@ -152,11 +174,16 @@
             </div>
             {{ render_geography_expanded_panel() }}
             {% endif %}
-        </div>
+    </div>
     </div>
 
-    <!-- Sidebar for filters and sort -->
-    <aside class="tablet:grid-col-12 desktop:grid-col-3 margin-top-0">
+    <aside
+        id="filter-sidebar-panel"
+        class="filter-sidebar-panel catalog-layout__filters"
+        aria-label="Filters"
+        hidden
+    >
+        {% set clear_filters_url = url_for('main.index', q=query, sort='relevance', collection=collection if collection else none) %}
         {{ render_filter_sidebar(
             form_action=url_for('main.index'),
             query_value=query,
@@ -168,6 +195,7 @@
             spatial_filter=spatial_filter,
             search_result_geometries=search_result_geometries,
             spatial_geometry=spatial_geometry,
+            geography_label=geography_label,
             org_slug=org_slug,
             show_org_autocomplete=True,
             show_org_type_filters=True,
@@ -177,7 +205,8 @@
             contextual_keyword_counts=contextual_keyword_counts,
             contextual_org_counts=contextual_org_counts,
             contextual_publisher_counts=contextual_publisher_counts,
-            collection=collection
+            collection=collection,
+            clear_filters_url=clear_filters_url
         ) }}
     </aside>
 </div>
@@ -185,9 +214,11 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/filter_form_auto_submit.js') }}"></script>
-<script src="{{ url_for('static', filename='js/filters_autocomplete.js') }}"></script>
-<script src="{{ url_for('static', filename='js/geography_autocomplete.js') }}"></script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/vendor/leaflet.css') }}"/>
-<script src="{{ url_for('static', filename='js/vendor/leaflet.js') }}"></script>
+<script src="{{ static_url('js/filter_sidebar_toggle.js') }}"></script>
+<script src="{{ static_url('js/filter_accordion.js') }}"></script>
+<script src="{{ static_url('js/filter_form_auto_submit.js') }}"></script>
+<script src="{{ static_url('js/filters_autocomplete.js') }}"></script>
+<script src="{{ static_url('js/geography_autocomplete.js') }}"></script>
+<link rel="stylesheet" href="{{ static_url('css/vendor/leaflet.css') }}"/>
+<script src="{{ static_url('js/vendor/leaflet.js') }}"></script>
 {% endblock %}

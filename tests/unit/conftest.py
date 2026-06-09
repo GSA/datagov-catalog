@@ -19,9 +19,18 @@ from app.models import (
 )
 from tests.helpers.opensearch import delete_all_datasets, index_datasets
 
-from ..fixtures import fixture_data
+from ..fixtures import fixture_data as build_fixture_data
 
-fixture_data = pytest.fixture(fixture_data)
+
+@pytest.fixture
+def fixture_data():
+    return build_fixture_data()
+
+
+@pytest.fixture
+def fixture_data_with_filter_demos():
+    return build_fixture_data(include_filter_demos=True)
+
 
 load_dotenv()
 
@@ -101,6 +110,8 @@ def interface_with_organization(interface, fixture_data):
 @pytest.fixture
 def interface_with_harvest_source(interface_with_organization, fixture_data):
     interface_with_organization.db.add(HarvestSource(**fixture_data["harvest_source"]))
+    for extra_source in fixture_data.get("extra_harvest_source", []):
+        interface_with_organization.db.add(HarvestSource(**extra_source))
     interface_with_organization.db.commit()
     yield interface_with_organization
 

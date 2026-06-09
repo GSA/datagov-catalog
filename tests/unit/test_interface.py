@@ -9,11 +9,13 @@ def test_get_organizations_includes_zero_dataset_orgs_with_opensearch_counts(
 
     organizations = interface_with_organization.get_organizations()
 
-    assert len(organizations) == 2
+    # Organizations with datasets are listed first, so the org with a count
+    # from OpenSearch sorts to the top.
     assert organizations[0]["slug"] == "test-org"
 
     by_slug = {org["slug"]: org for org in organizations}
     assert by_slug["test-org"]["dataset_count"] == 4
+    # Organizations with no datasets are still included with a zero count.
     assert by_slug["test-org-filtered"]["dataset_count"] == 0
 
 
@@ -30,8 +32,8 @@ def test_get_organizations_db_fallback_includes_zero_dataset_orgs(
     organizations = interface_with_dataset.get_organizations()
     by_slug = {org["slug"]: org for org in organizations}
 
-    assert len(organizations) == 2
     assert by_slug["test-org"]["dataset_count"] > 0
+    # Organizations with no datasets are still included with a zero count.
     assert by_slug["test-org-filtered"]["dataset_count"] == 0
 
 

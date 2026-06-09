@@ -1,17 +1,15 @@
+{% from "components/filters/filter_accordion_section.html" import render_filter_accordion_section %}
+
 {% macro render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations,
 contextual_org_counts=None) %}
-<div class="usa-accordion usa-accordion--bordered margin-bottom-2">
-    <h3 class="usa-accordion__heading">
-        <button
-            type="button"
-            class="usa-accordion__button"
-            aria-expanded="true"
-            aria-controls="filter-organization-autocomplete"
-        >
-            Organization
-        </button>
-    </h3>
-    <div id="filter-organization-autocomplete" class="usa-accordion__content usa-prose">
+{% call render_filter_accordion_section(
+    'filter-organization-autocomplete',
+    'Organization',
+    is_active=(selected_organization is not none or (org_slug is not none and org_slug != '')),
+    active_summary=selected_organization|organization_active_summary(org_slug),
+    subtitle='A specific publishing organization',
+    extra_classes='margin-bottom-2'
+) %}
         <div class="keyword-autocomplete">
             <label class="usa-label" for="organization-input">
                 Filter by organization <br>
@@ -60,6 +58,5 @@ contextual_org_counts=None) %}
             </div>
             {% endif %}
         </div>
-    </div>
-</div>
+{% endcall %}
 {% endmacro %}

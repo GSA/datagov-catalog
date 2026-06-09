@@ -13,6 +13,11 @@ install-static: ## Installs static assets
 	npm install; \
 	npm run build
 
+watch-static: ## Rebuild static assets when SCSS/JS changes
+	cd app/static; \
+	npm install; \
+	npm run watch
+
 poetry-update: ## Updates local Poetry to latest
 	poetry self update
 

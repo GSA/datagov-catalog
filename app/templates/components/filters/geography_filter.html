@@ -1,12 +1,13 @@
-{% macro render_geography_filter(search_result_geometries=None) %}
-<div class="usa-accordion usa-accordion--bordered">
-    <h3 class="usa-accordion__heading">
-        <button type="button" class="usa-accordion__button"
-          aria-expanded="true" aria-controls="filter-geography">
-            Geographic Area
-        </button>
-    </h3>
-    <div id="filter-geography" class="usa-accordion__content usa-prose">
+{% from "components/filters/filter_accordion_section.html" import render_filter_accordion_section %}
+
+{% macro render_geography_filter(search_result_geometries=None, spatial_geometry=None, geography_label=none) %}
+{% call render_filter_accordion_section(
+    'filter-geography',
+    'Geographic Area',
+    is_active=(spatial_geometry is not none),
+    active_summary=spatial_geometry|geography_active_summary(geography_label),
+    extra_classes='margin-bottom-2'
+) %}
         <div class="keyword-autocomplete">
             <label id="geography-input-label" class="usa-label" for="geography-input">
               Filter by Geography <br>
@@ -26,6 +27,5 @@
         </div>
         <div id="geography-map"></div>
         <script id="geography-search-result-geometries" type="application/json">{{ (search_result_geometries or []) | tojson }}</script>
-    </div>
-</div>
+{% endcall %}
 {% endmacro %}
