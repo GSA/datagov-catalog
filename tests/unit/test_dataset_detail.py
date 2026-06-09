@@ -1,4 +1,5 @@
 import json
+import re
 from unittest.mock import patch
 
 import pytest
@@ -6,6 +7,11 @@ from bs4 import BeautifulSoup
 
 from app.utils import hint_from_dict
 from tests.fixtures import DATASET_ID, DEFAULT_LAST_HARVESTED_DATE
+
+
+def versioned_asset_url(filename):
+    path, extension = filename.rsplit(".", maxsplit=1)
+    return re.compile(rf"/{re.escape(path)}\.[^/]+\.{re.escape(extension)}(?:[?#]|$)")
 
 
 class TestDatasetDetail:
@@ -270,9 +276,13 @@ class TestDatasetDetail:
         assert map_div.get("data-geometry") is not None
 
         # Leaflet assets (conditionally included)
-        leaflet_css = soup.select_one('link[href*="leaflet.css"]')
-        leaflet_js = soup.select_one('script[src*="leaflet.js"]')
-        view_js = soup.select_one('script[src*="js/view_bbox_map.js"]')
+        leaflet_css = soup.find(
+            "link", href=versioned_asset_url("css/vendor/leaflet.css")
+        )
+        leaflet_js = soup.find(
+            "script", src=versioned_asset_url("js/vendor/leaflet.js")
+        )
+        view_js = soup.find("script", src=versioned_asset_url("js/view_bbox_map.js"))
         assert leaflet_css is not None
         assert leaflet_js is not None
         assert view_js is not None
@@ -302,9 +312,13 @@ class TestDatasetDetail:
         assert geometry_attr is not None
         assert json.loads(geometry_attr) == ds.translated_spatial
 
-        leaflet_css = soup.select_one('link[href*="leaflet.css"]')
-        leaflet_js = soup.select_one('script[src*="leaflet.js"]')
-        view_js = soup.select_one('script[src*="js/view_bbox_map.js"]')
+        leaflet_css = soup.find(
+            "link", href=versioned_asset_url("css/vendor/leaflet.css")
+        )
+        leaflet_js = soup.find(
+            "script", src=versioned_asset_url("js/vendor/leaflet.js")
+        )
+        view_js = soup.find("script", src=versioned_asset_url("js/view_bbox_map.js"))
         assert leaflet_css is not None
         assert leaflet_js is not None
         assert view_js is not None
@@ -327,9 +341,16 @@ class TestDatasetDetail:
         assert soup.select_one("#dataset-map") is None
 
         # No Leaflet assets
-        assert soup.select_one('link[href*="leaflet.css"]') is None
-        assert soup.select_one('script[src*="leaflet.js"]') is None
-        assert soup.select_one('script[src*="js/view_bbox_map.js"]') is None
+        assert (
+            soup.find("link", href=versioned_asset_url("css/vendor/leaflet.css"))
+            is None
+        )
+        assert (
+            soup.find("script", src=versioned_asset_url("js/vendor/leaflet.js")) is None
+        )
+        assert (
+            soup.find("script", src=versioned_asset_url("js/view_bbox_map.js")) is None
+        )
 
     @pytest.mark.parametrize(
         "dataset_detail_url",
