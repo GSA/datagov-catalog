@@ -16,7 +16,18 @@
         return true;
     }
 
+    function hideResultsLoadingOverlay() {
+        const overlay = document.getElementById('search-results-loading-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+
     function showResultsLoadingOverlay() {
+        if (document.getElementById('search-results-loading-overlay')) {
+            return;
+        }
+
         const overlay = document.createElement('div');
         overlay.id = 'search-results-loading-overlay';
         overlay.style.cssText = [
@@ -141,6 +152,21 @@
         });
     }
 
+    function attachShowMoreLoadingOverlayListeners() {
+        document.addEventListener('htmx:beforeRequest', (event) => {
+            const elt = event.detail.elt;
+            if (elt && elt.hasAttribute('data-results-loading-overlay')) {
+                showResultsLoadingOverlay();
+            }
+        });
+
+        document.addEventListener('htmx:afterSwap', hideResultsLoadingOverlay);
+        document.addEventListener('htmx:responseError', hideResultsLoadingOverlay);
+        document.addEventListener('htmx:sendError', hideResultsLoadingOverlay);
+    }
+
+    attachShowMoreLoadingOverlayListeners();
+
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('filter-form');
         if (!form) {
@@ -162,6 +188,9 @@
             });
         }
     });
+
+    autoSubmit.showLoadingOverlay = showResultsLoadingOverlay;
+    autoSubmit.hideLoadingOverlay = hideResultsLoadingOverlay;
 
     window.dataGovFilterFormAutoSubmit = autoSubmit;
 })(window, document);

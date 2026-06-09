@@ -15,7 +15,7 @@
     {% if after %}
     <div id="replaceMe">
     {% set new_results = results_hint + per_page %}
-    <button class="usa-button margin-top-2"
+    <button class="usa-button margin-top-2" data-results-loading-overlay
         {% if from_hint %}
           hx-get="{{ url_for('api.search', 
               q=query, 
