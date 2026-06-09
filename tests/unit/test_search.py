@@ -200,8 +200,9 @@ def test_search_with_org_type_filters_by_organization_type(interface_with_datase
     interface_with_dataset.db.add(Dataset(**dataset_dict))
     interface_with_dataset.db.commit()
 
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
+    index_datasets(
+        interface_with_dataset.opensearch,
+        interface_with_dataset.db.query(Dataset),
     )
 
     result = interface_with_dataset.search_datasets(org_types=["City Government"])

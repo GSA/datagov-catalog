@@ -2080,8 +2080,9 @@ class TestOrganizationTypeSearch:
         interface_with_dataset.db.add(Dataset(**dataset_dict))
         interface_with_dataset.db.commit()
 
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
+        index_datasets(
+            interface_with_dataset.opensearch,
+            interface_with_dataset.db.query(Dataset),
         )
 
         with patch("app.routes.interface", interface_with_dataset):
