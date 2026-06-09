@@ -49,6 +49,7 @@ def test_html_pages_set_one_hour_cache_duration_in_production():
 
             assert response.cache_control.public
             assert response.cache_control.max_age == HTML_PAGE_MAX_AGE_SECONDS
+            assert response.cache_control.must_revalidate
 
 
 def test_html_pages_do_not_set_cache_duration_in_local():

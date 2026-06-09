@@ -118,6 +118,7 @@ def create_app(config_name: str = "local") -> APIFlask:
 
         response.cache_control.public = True
         response.cache_control.max_age = HTML_PAGE_MAX_AGE_SECONDS
+        response.cache_control.must_revalidate = True
         return response
 
     @app.errorhandler(404)
