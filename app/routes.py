@@ -192,7 +192,9 @@ def index():
     """
     query = request.args.get("q", "")
     num_results = request.args.get("results", DEFAULT_PER_PAGE, type=int)
-    org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
+    org_slug_param = (
+        request.args.get("org_slug", None, type=str) or ""
+    ).strip() or None
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
@@ -461,7 +463,9 @@ def search(**kwargs):
         )
     results_hint = request.args.get("results", 0, type=int)
     from_hint = request.args.get("from_hint")
-    org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
+    org_slug_param = (
+        request.args.get("org_slug", None, type=str) or ""
+    ).strip() or None
     org_types = request.args.getlist("org_type")
     keywords = request.args.getlist("keyword")
     publisher = (request.args.get("publisher", None, type=str) or "").strip() or None

@@ -15,35 +15,40 @@
     {% if after %}
     <div id="replaceMe">
     {% set new_results = results_hint + per_page %}
+    {% set load_more_query = query if query else none %}
+    {% set load_more_sort = sort_by if sort_by and sort_by != 'relevance' else none %}
+    {% set load_more_org_slug = org_slug if org_slug else none %}
+    {% set load_more_publisher = publisher if publisher else none %}
+    {% set load_more_spatial_filter = spatial_filter if spatial_filter else none %}
     <button class="usa-button margin-top-2"
         {% if from_hint %}
           hx-get="{{ url_for('api.search', 
-              q=query, 
+              q=load_more_query, 
               per_page=per_page, 
               after=after, 
               results=new_results,
-              sort=sort_by,
-              org_slug=org_slug,
+              sort=load_more_sort,
+              org_slug=load_more_org_slug,
               org_type=org_types,
               keyword=keywords,
-              publisher=publisher,
-              spatial_filter=spatial_filter,
+              publisher=load_more_publisher,
+              spatial_filter=load_more_spatial_filter,
               spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
               spatial_within=spatial_within if spatial_geometry else none,
               from_hint=from_hint
           ) }}"
         {% else %}
           hx-get="{{ url_for('api.search', 
-              q=query, 
+              q=load_more_query, 
               per_page=per_page, 
               after=after, 
               results=new_results,
-              sort=sort_by,
-              org_slug=org_slug,
+              sort=load_more_sort,
+              org_slug=load_more_org_slug,
               org_type=org_types,
               keyword=keywords,
-              publisher=publisher,
-              spatial_filter=spatial_filter,
+              publisher=load_more_publisher,
+              spatial_filter=load_more_spatial_filter,
               spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
               spatial_within=spatial_within if spatial_geometry else none,
           ) }}"
@@ -51,14 +56,14 @@
         hx-target="#replaceMe"
         hx-swap="outerHTML"
         hx-push-url="{{ url_for('main.index', 
-            q=query, 
+            q=load_more_query, 
             results=new_results,
-            sort=sort_by,
-            org_slug=org_slug,
+            sort=load_more_sort,
+            org_slug=load_more_org_slug,
             org_type=org_types,
             keyword=keywords,
-            publisher=publisher,
-            spatial_filter=spatial_filter,
+            publisher=load_more_publisher,
+            spatial_filter=load_more_spatial_filter,
             spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
             spatial_within=spatial_within if spatial_geometry else none,
         ) }}"

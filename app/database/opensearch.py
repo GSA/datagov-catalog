@@ -747,7 +747,7 @@ class OpenSearchInterface:
                     },
                     {"_score": {"order": "desc"}},
                     {"popularity": {"order": "desc", "missing": "_last"}},
-                    {"_id": {"order": "desc"}},
+                    {"slug": {"order": "desc", "missing": "_last"}},
                 ]
             sort_key = "relevance"
 
@@ -755,7 +755,7 @@ class OpenSearchInterface:
             return [
                 {"popularity": {"order": "desc", "missing": "_last"}},
                 {"_score": {"order": "desc"}},
-                {"_id": {"order": "desc"}},
+                {"slug": {"order": "desc", "missing": "_last"}},
             ]
 
         if sort_key == "last_harvested_date":
@@ -763,14 +763,14 @@ class OpenSearchInterface:
                 {"last_harvested_date": {"order": "desc", "missing": "_last"}},
                 {"_score": {"order": "desc"}},
                 {"popularity": {"order": "desc", "missing": "_last"}},
-                {"_id": {"order": "desc"}},
+                {"slug": {"order": "desc", "missing": "_last"}},
             ]
 
         # Default to relevance sorting with popularity as a tie-breaker
         return [
             {"_score": {"order": "desc"}},
             {"popularity": {"order": "desc", "missing": "_last"}},
-            {"_id": {"order": "desc"}},
+            {"slug": {"order": "desc", "missing": "_last"}},
         ]
 
     @staticmethod

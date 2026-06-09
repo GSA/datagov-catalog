@@ -2217,6 +2217,63 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     assert push_params.get("publisher") == ["Test Publisher"]
 
 
+def test_htmx_load_more_omits_empty_and_default_parameters(db_client):
+    """Blank query/org filters and default relevance sort should not pollute URLs."""
+    mock_dataset = {
+        "id": "mock-id",
+        "slug": "mock-slug",
+        "dcat": {
+            "title": "Mock Dataset",
+            "description": "Mock description",
+            "distribution": [],
+        },
+        "organization": {
+            "id": "org-id",
+            "slug": "test-org",
+            "name": "Test Org",
+            "organization_type": "Federal Government",
+        },
+        "popularity": 42,
+    }
+    mock_interface = Mock()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=2, results=[mock_dataset], search_after=["mock-slug"]
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/search",
+            query_string={
+                "q": "",
+                "per_page": "1",
+                "sort": "relevance",
+                "org_slug": "",
+            },
+            headers={"HX-Request": "true"},
+        )
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+    load_more_button = soup.find(
+        "button", string=lambda s: s and "Show more results" in s
+    )
+    assert load_more_button is not None
+
+    for attr in ("hx-get", "hx-push-url"):
+        parsed = urlparse(load_more_button.get(attr))
+        params = parse_qs(parsed.query, keep_blank_values=True)
+
+        assert "q" not in params
+        assert "org_slug" not in params
+        assert "sort" not in params
+
+    hx_get_params = parse_qs(
+        urlparse(load_more_button.get("hx-get")).query, keep_blank_values=True
+    )
+    assert hx_get_params.get("per_page") == ["1"]
+    assert "after" in hx_get_params
+
+
 def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client):
     """Test that multiple keywords are preserved in the load more button."""
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()

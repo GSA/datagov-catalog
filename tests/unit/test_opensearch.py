@@ -713,7 +713,7 @@ def test_relevance_sort_uses_popularity_tie_breaker():
     assert sort_clause == [
         {"_score": {"order": "desc"}},
         {"popularity": {"order": "desc", "missing": "_last"}},
-        {"_id": {"order": "desc"}},
+        {"slug": {"order": "desc", "missing": "_last"}},
     ]
 
 
@@ -736,7 +736,7 @@ def test_last_harvested_date_sort_uses_latest_first():
         {"last_harvested_date": {"order": "desc", "missing": "_last"}},
         {"_score": {"order": "desc"}},
         {"popularity": {"order": "desc", "missing": "_last"}},
-        {"_id": {"order": "desc"}},
+        {"slug": {"order": "desc", "missing": "_last"}},
     ]
 
 
