@@ -17,7 +17,7 @@ dependencies = [
     "geoalchemy2 (>=0.14.0,<0.19.0)",
     "flask-htmx (>=0.4.0,<0.5.0)",
     "opensearch-py (>=3.2.0,<4.0.0)",
-    "botocore (>=1.43.22,<2.0.0)",
+    "botocore (>=1.43.26,<2.0.0)",
     "beautifulsoup4 (>=4.14.2,<5.0.0)",
     "flask-talisman (>=1.1.0,<2.0.0)",
     "haversine (>=2.9.0,<3.0.0)",
@@ -39,10 +39,10 @@ packages = [
 
 [tool.poetry.group.dev.dependencies]
 black = "^26.5.1"
-ruff = "^0.15.15"
+ruff = "^0.15.16"
 isort = "^8.0.1"
-beautifulsoup4 = "^4.14.2"
-moto = {version = ">=5.2.1,<6.0.0", extras = ["s3"]}
+beautifulsoup4 = "^4.15.0"
+moto = {version = ">=5.2.2,<6.0.0", extras = ["s3"]}
 pytest = ">=8.4.2,<10.0.0"
 pytest-playwright = "^0.8.0"
 playwright = "^1.60.0"
