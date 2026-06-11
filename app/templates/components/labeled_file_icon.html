@@ -1,0 +1,7 @@
+{% macro labeled_file_icon(label, title=none) %}
+{% set font_size = 64 if label|length <= 3 else (56 if label|length == 4 else 48) %}
+<svg class="file-icon file-icon--labeled" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"{% if title %} title="{{ title }}"{% endif %} aria-hidden="true">
+  <path fill="#000" d="M214 120V88a6 6 0 0 0-1.76-4.24l-56-56A6 6 0 0 0 152 26H56a14 14 0 0 0-14 14v80a6 6 0 0 0 12 0V40a2 2 0 0 1 2-2h90v50a6 6 0 0 0 6 6h50v26a6 6 0 0 0 12 0m-56-73.52L193.52 82H158Z" />
+  <text x="128" y="204" text-anchor="middle" dominant-baseline="middle" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-weight="700" font-size="{{ font_size }}" fill="#000">{{ label }}</text>
+</svg>
+{% endmacro %}
