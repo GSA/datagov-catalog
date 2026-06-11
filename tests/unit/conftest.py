@@ -1,3 +1,4 @@
+import os
 from datetime import date, datetime
 from unittest.mock import Mock
 
@@ -32,6 +33,11 @@ def fixture_data_with_filter_demos():
 
 
 load_dotenv()
+os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key")
+os.environ.setdefault(
+    "DATABASE_URI",
+    "postgresql+psycopg://myuser:mypassword@localhost:5432/mydb",
+)
 
 
 @pytest.fixture(scope="session", autouse=True)
