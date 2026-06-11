@@ -299,6 +299,38 @@ class TestDatasetToDocument:
         assert isinstance(document["dcat"]["modified"], str)
         assert document["dcat"]["modified"] == "2023-01-15T10:30:00"
 
+    @pytest.mark.parametrize(
+        "theme",
+        [
+            ["Geospatial"],
+            ["GEOSPATIAL"],
+            ["Health", " geospatial "],
+            "Geospatial",
+        ],
+    )
+    def test_dataset_to_document_with_geospatial_theme(
+        self, opensearch_client, mock_dataset_with_datetime, theme
+    ):
+        mock_dataset_with_datetime.dcat["theme"] = theme
+        mock_dataset_with_datetime.dcat.pop("spatial", None)
+        mock_dataset_with_datetime.translated_spatial = None
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert document["has_spatial"] is True
+
+    @pytest.mark.parametrize("theme", [None, [], ["Health"], "Environment", "Spatial"])
+    def test_dataset_to_document_without_spatial_values_or_geospatial_theme(
+        self, opensearch_client, mock_dataset_with_datetime, theme
+    ):
+        mock_dataset_with_datetime.dcat["theme"] = theme
+        mock_dataset_with_datetime.dcat.pop("spatial", None)
+        mock_dataset_with_datetime.translated_spatial = None
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert document["has_spatial"] is False
+
     def test_dataset_to_document_does_not_modify_original_dcat(
         self, opensearch_client, mock_dataset_with_datetime, mock_organization
     ):
