@@ -7,6 +7,13 @@
     background-size: contain;
 }
 
+.file-icon--labeled {
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    color: #000;
+}
+
 .file-icon--csv     { background-image: url("../../img/file-icons/csv.svg"); }
 .file-icon--json    { background-image: url("../../img/file-icons/json.svg"); }
 .file-icon--xml     { background-image: url("../../img/file-icons/xml.svg"); }
