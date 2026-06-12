@@ -1,8 +1,28 @@
+.style-guide-section {
+    margin-top: 2.5rem;
+
+    &:first-of-type {
+        margin-top: 0;
+    }
+}
+
+.style-guide-section__title {
+    font-size: 1.25rem;
+    margin: 0 0 0.5rem;
+    color: #1b1b1b;
+}
+
+.style-guide-section__description {
+    margin: 0 0 1rem;
+    color: #62676a;
+    max-width: 70ch;
+}
+
 .style-guide-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
-    margin-top: 2rem;
+    margin-top: 0;
 }
 
 @media (max-width: 880px) {
