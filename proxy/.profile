@@ -25,3 +25,4 @@ echo "Setting basic auth username and password"
 PROXY_USER=$(vcap_get_service secrets .credentials.PROXY_USER)
 PROXY_PASSWORD=$(openssl passwd -apr1 "$(vcap_get_service secrets .credentials.PROXY_PASSWORD)")
 echo "$PROXY_USER:$PROXY_PASSWORD" > ${HOME}/etc/nginx/.htpasswd
+
