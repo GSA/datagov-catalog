@@ -18,6 +18,8 @@ load_dotenv()
 htmx = None
 STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 HTML_PAGE_MAX_AGE_SECONDS = 60 * 60
+HSTS_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+HSTS_HEADER = f"max-age={HSTS_MAX_AGE_SECONDS}; includeSubDomains; preload"
 
 
 class VersionedStaticAPIFlask(APIFlask):
@@ -203,6 +205,8 @@ def create_app(config_name: str = "local") -> APIFlask:
         app,
         content_security_policy=csp,
         content_security_policy_nonce_in=["script-src"],
+        strict_transport_security_max_age=HSTS_MAX_AGE_SECONDS,
+        strict_transport_security_preload=True,
         # our https connections are terminated outside this app
         force_https=False,
     )
