@@ -13,7 +13,8 @@ each upstream license is included in the [`licenses/`](./licenses) directory.
 | `zip.svg` | VSCode Icons | MIT | [`licenses/vscode-icons.LICENSE`](./licenses/vscode-icons.LICENSE) | https://github.com/vscode-icons/vscode-icons | `vscode-icons:file-type-zip` |
 | `excel.svg` | VSCode Icons | MIT | [`licenses/vscode-icons.LICENSE`](./licenses/vscode-icons.LICENSE) | https://github.com/vscode-icons/vscode-icons | `vscode-icons:file-type-excel` |
 | `word.svg` | VSCode Icons | MIT | [`licenses/vscode-icons.LICENSE`](./licenses/vscode-icons.LICENSE) | https://github.com/vscode-icons/vscode-icons | `vscode-icons:file-type-word` |
-| `html.svg` | VSCode Icons | MIT | [`licenses/vscode-icons.LICENSE`](./licenses/vscode-icons.LICENSE) | https://github.com/vscode-icons/vscode-icons | `vscode-icons:file-type-html` |
+| `html.svg` | Phosphor Icons | MIT | [`licenses/phosphor-icons.LICENSE`](./licenses/phosphor-icons.LICENSE) | https://phosphoricons.com/ | `ph:file-html-light` (file base + `HTML` text) |
+| `file-base.svg` | Phosphor Icons | MIT | [`licenses/phosphor-icons.LICENSE`](./licenses/phosphor-icons.LICENSE) | https://phosphoricons.com/ | `ph:file-html-light` (file outline only) |
 | `geojson.svg` | VSCode Icons | MIT | [`licenses/vscode-icons.LICENSE`](./licenses/vscode-icons.LICENSE) | https://github.com/vscode-icons/vscode-icons | `vscode-icons:file-type-geojson` |
 | `image.svg` | VSCode Icons | MIT | [`licenses/vscode-icons.LICENSE`](./licenses/vscode-icons.LICENSE) | https://github.com/vscode-icons/vscode-icons | `vscode-icons:file-type-image` |
 | `text.svg` | VSCode Icons | MIT | [`licenses/vscode-icons.LICENSE`](./licenses/vscode-icons.LICENSE) | https://github.com/vscode-icons/vscode-icons | `vscode-icons:file-type-text` |
@@ -34,6 +35,8 @@ upstream license, taken from the source repositories:
   — MIT, from https://github.com/catppuccin/vscode-icons
 - [`vscode-icons.LICENSE`](./licenses/vscode-icons.LICENSE)
   — MIT, from https://github.com/vscode-icons/vscode-icons
+- [`phosphor-icons.LICENSE`](./licenses/phosphor-icons.LICENSE)
+  — MIT, from https://phosphoricons.com/ (source: https://github.com/phosphor-icons/core)
 - [`material-design-icons.LICENSE`](./licenses/material-design-icons.LICENSE)
   — Pictogrammers Free License (icons released under Apache-2.0), from
   https://github.com/Templarian/MaterialDesign

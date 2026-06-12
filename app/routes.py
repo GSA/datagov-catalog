@@ -1083,27 +1083,126 @@ def openapi_docs():
 
 
 def style_guide_icons():
-    samples = [
-        {"format": "CSV", "label": "Sample data export"},
-        {"format": "application/json", "label": "DCAT-US metadata"},
-        {"format": "application/xml", "label": "FGDC metadata record"},
-        {"format": "application/rdf+xml", "label": "Linked-data manifest"},
-        {"format": "PDF", "label": "Codebook"},
-        {"format": "ZIP", "label": "Bulk archive"},
-        {"format": "XLSX", "label": "Quarterly workbook"},
-        {"format": "DOCX", "label": "Methodology document"},
-        {"format": "HTML", "label": "Project landing page"},
-        {"format": "TXT", "label": "Readme"},
-        {"format": "application/geo+json", "label": "Boundaries (GeoJSON)"},
-        {"format": "PNG", "label": "Map preview"},
-        {"format": "API", "label": "REST endpoint"},
-        {"format": "KML", "label": "Aerial overlay (KML)"},
-        {"format": "WMS", "label": "Web Map Service"},
-        {"format": "WFS", "label": "Web Feature Service"},
-        {"format": "GML", "label": "Geography Markup"},
-        {"format": "SHP", "label": "Shapefile (no icon)"},
+    sample_sections = [
+        {
+            "title": "Dedicated icons",
+            "description": (
+                "Formats with a matching SVG render the file-type icon with no badge."
+            ),
+            "samples": [
+                {"format": "CSV", "label": "Sample data export"},
+                {"format": "application/json", "label": "DCAT-US metadata"},
+                {"format": "application/xml", "label": "FGDC metadata record"},
+                {"format": "application/rdf+xml", "label": "Linked-data manifest"},
+                {"format": "PDF", "label": "Codebook"},
+                {"format": "ZIP", "label": "Bulk archive"},
+                {"format": "XLSX", "label": "Quarterly workbook"},
+                {"format": "DOCX", "label": "Methodology document"},
+                {"format": "HTML", "label": "Project landing page"},
+                {"format": "TXT", "label": "Readme"},
+                {"format": "application/geo+json", "label": "Boundaries (GeoJSON)"},
+                {"format": "PNG", "label": "Map preview"},
+                {"format": "API", "label": "REST endpoint"},
+            ],
+        },
+        {
+            "title": "Short badge overlays",
+            "description": (
+                "Unrecognized formats use the shared file outline with a short "
+                "extension label rendered as SVG text."
+            ),
+            "samples": [
+                {"format": "KML", "label": "Aerial overlay (KML)"},
+                {"format": "WMS", "label": "Web Map Service"},
+                {"format": "WFS", "label": "Web Feature Service"},
+                {"format": "GML", "label": "Geography Markup"},
+                {"format": "SHP", "label": "Shapefile"},
+                {
+                    "format": "application/vnd.google-earth.kml+xml",
+                    "label": "KML (vendor MIME)",
+                },
+                {"format": "application/vnd.ogc.wms", "label": "WMS (vendor MIME)"},
+            ],
+        },
+        {
+            "title": "Long formats (truncated badges & subtitles)",
+            "description": (
+                "Long MIME types and extension strings truncate in the format "
+                "subtitle. Hover to see the full value."
+            ),
+            "samples": [
+                {
+                    "format": "application/octet-stream",
+                    "label": "Binary download (octet-stream)",
+                },
+                {
+                    "format": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "label": "Excel workbook (long vendor MIME)",
+                },
+                {
+                    "format": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "label": "Word document (long vendor MIME)",
+                },
+                {
+                    "format": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    "label": "PowerPoint deck (long vendor MIME)",
+                },
+                {
+                    "format": "application/vnd.unknown-format",
+                    "label": "Unknown vendor format",
+                },
+                {
+                    "format": "application/vnd.esri.mapserver",
+                    "label": "Esri MapServer endpoint",
+                },
+                {
+                    "format": "ARCGIS GEOSERVICES REST API",
+                    "label": "ArcGIS GeoService",
+                },
+                {
+                    "format": "application/vnd.mapbox-vector-tile",
+                    "label": "Mapbox vector tiles",
+                },
+                {
+                    "format": "application/x-netcdf",
+                    "label": "NetCDF scientific dataset",
+                },
+                {
+                    "format": "application/x-protobuf",
+                    "label": "Protocol buffer payload",
+                },
+                {
+                    "format": "application/x-msdownload",
+                    "label": "Windows executable download",
+                },
+                {
+                    "format": "application/x-zip-compressed",
+                    "label": "ZIP archive (x-zip-compressed)",
+                },
+                {
+                    "format": "text/tab-separated-values",
+                    "label": "Tab-separated values export",
+                },
+                {
+                    "format": "application/vnd.geo+json",
+                    "label": "GeoJSON (vendor geo+json MIME)",
+                },
+                {
+                    "format": "application/vnd.sqlite3",
+                    "label": "SQLite database file",
+                },
+                {
+                    "format": "model/vnd.collada+xml",
+                    "label": "COLLADA 3D model",
+                },
+                {
+                    "format": "verylongformatnamewithouticon",
+                    "label": "Extremely long plain format string",
+                },
+            ],
+        },
     ]
-    return render_template("style_guide_icons.html", samples=samples)
+    return render_template("style_guide_icons.html", sample_sections=sample_sections)
 
 
 def register_routes(app):
