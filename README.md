@@ -94,6 +94,7 @@ make poetry-update
 | `DATABASE_USER` | Postgres user |
 | `DATABASE_PASSWORD` | Postgres password |
 | `DATABASE_URI` | Full Postgres connection URI (auto-constructed from above) |
+| `FLASK_SECRET_KEY` | Secret key used by Flask for session signing |
 | `PORT` | App port (default: 8080) |
 | `OPENSEARCH_HOST` | OpenSearch host (default: localhost) |
 | `NEW_RELIC_LICENSE_KEY` | New Relic license key |
