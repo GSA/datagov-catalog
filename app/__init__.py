@@ -8,6 +8,7 @@ from flask_htmx import HTMX
 from flask_talisman import Talisman
 
 from .models import db
+from .startup_validation import validate_required_env_vars
 from .utils import normalize_site_url
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,8 @@ load_dotenv()
 htmx = None
 STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 HTML_PAGE_MAX_AGE_SECONDS = 60 * 60
+HSTS_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+HSTS_HEADER = f"max-age={HSTS_MAX_AGE_SECONDS}; includeSubDomains; preload"
 
 
 class VersionedStaticAPIFlask(APIFlask):
@@ -51,6 +54,7 @@ def register_template_filters(app):
 
 
 def create_app(config_name: str = "local") -> APIFlask:
+    env_values = validate_required_env_vars()
     app = VersionedStaticAPIFlask(
         __name__, static_url_path="", static_folder="static", docs_path=None
     )
@@ -78,8 +82,8 @@ def create_app(config_name: str = "local") -> APIFlask:
         app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
         app.config["PREFERRED_URL_SCHEME"] = "http"
 
-    app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
+    app.config["SECRET_KEY"] = env_values["FLASK_SECRET_KEY"]
+    app.config["SQLALCHEMY_DATABASE_URI"] = env_values["DATABASE_URI"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SOCIAL_IMAGE_URL"] = os.getenv(
         "SOCIAL_IMAGE_URL",
@@ -203,6 +207,8 @@ def create_app(config_name: str = "local") -> APIFlask:
         app,
         content_security_policy=csp,
         content_security_policy_nonce_in=["script-src"],
+        strict_transport_security_max_age=HSTS_MAX_AGE_SECONDS,
+        strict_transport_security_preload=True,
         # our https connections are terminated outside this app
         force_https=False,
     )

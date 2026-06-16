@@ -61,6 +61,9 @@ jobs:
           poetry env use ${{ env.PY_VERSION }}
           poetry install
 
+      - name: Create local env file
+        run: cp .env.sample .env
+
       - name: Run Pytest
         run: make test-ci
 
@@ -95,6 +98,9 @@ jobs:
 
       - name: Build static files
         run: make install-static
+
+      - name: Create local env file
+        run: cp .env.sample .env
 
       - name: Start Docker Services
         run: make up
@@ -142,6 +148,9 @@ jobs:
 
       - name: Install Node Dependencies
         run: npm install
+
+      - name: Create local env file
+        run: cp .env.sample .env
 
       - name: Start Docker Services
         run: make up
