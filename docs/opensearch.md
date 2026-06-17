@@ -27,9 +27,14 @@ to fetch the next one.
 
 Because Opensearch is alongside our Postgres database, we have to synchronize
 the contents of our database with the searchable index in Opensearch.
-Currently, we do this in a daily batch operation. A command `flask search
-sync` is available for this. It clears the Opensearch index and then indexes
-every dataset from Postgres into Opensearch.
+`datagov-harvester` owns all production index creation, updates, and deletes.
+The catalog application only reads from OpenSearch.
+
+Catalog tests vendor the harvester writer at
+`tests/vendor/opensearch_index`. Browser and accessibility test setup invokes
+`python -m tests.index_test_data` to populate the local test index. The
+`check-db-models` workflow compares every vendored writer file with the
+canonical harvester files and fails when they drift.
 
 ## Paginated search
 

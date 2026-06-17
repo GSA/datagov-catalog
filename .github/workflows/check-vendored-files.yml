@@ -1,0 +1,60 @@
+name: Check vendored files
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  check-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Compare borrowed files with upstream
+        run: |
+          set -euo pipefail
+
+          declare -A files=(
+            ["app/models.py"]="https://raw.githubusercontent.com/GSA/datagov-harvester/main/database/models.py"
+            ["shared/constants.py"]="https://raw.githubusercontent.com/GSA/datagov-harvester/main/shared/constants.py"
+            ["tests/vendor/opensearch_index/__init__.py"]="https://raw.githubusercontent.com/GSA/datagov-harvester/main/shared/opensearch_index/__init__.py"
+            ["tests/vendor/opensearch_index/README.md"]="https://raw.githubusercontent.com/GSA/datagov-harvester/main/shared/opensearch_index/README.md"
+            ["tests/vendor/opensearch_index/writer.py"]="https://raw.githubusercontent.com/GSA/datagov-harvester/main/shared/opensearch_index/writer.py"
+          )
+
+          for path in "${!files[@]}"; do
+            echo "Checking ${path}"
+
+            tmp_file="$(mktemp)"
+            curl --fail --silent --show-error "${files[$path]}" > "${tmp_file}"
+
+            if ! diff --unified "${tmp_file}" "${path}"; then
+              echo "::error file=${path}::${path} has drifted from ${files[$path]}" >&2
+              exit 1
+            fi
+
+            rm -f "${tmp_file}"
+          done
+
+          expected_writer_files="$(printf '%s\n' \
+            '__init__.py' \
+            'README.md' \
+            'writer.py')"
+          actual_writer_files="$(
+            find tests/vendor/opensearch_index -maxdepth 1 -type f -print \
+              | sed 's#tests/vendor/opensearch_index/##' \
+              | sort
+          )"
+
+          if ! diff --unified \
+            <(printf '%s\n' "${expected_writer_files}" | sort) \
+            <(printf '%s\n' "${actual_writer_files}"); then
+            echo "::error::tests/vendor/opensearch_index contains missing or extra files" >&2
+            exit 1
+          fi
