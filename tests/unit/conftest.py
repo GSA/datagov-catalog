@@ -8,7 +8,7 @@ from opensearchpy import OpenSearchException
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
-from app.database import CatalogDBInterface, OpenSearchInterface
+from app.database import CatalogDBInterface
 from app.models import (
     Dataset,
     HarvestJob,
@@ -20,6 +20,7 @@ from app.models import (
 )
 
 from ..fixtures import fixture_data as build_fixture_data
+from ..opensearch_test_client import TestOpenSearchInterface
 
 
 @pytest.fixture
@@ -38,6 +39,11 @@ os.environ.setdefault(
     "DATABASE_URI",
     "postgresql+psycopg://myuser:mypassword@localhost:5432/mydb",
 )
+
+
+@pytest.fixture(autouse=True)
+def catalog_base_url(monkeypatch):
+    monkeypatch.setenv("CATALOG_BASE_URL", "http://0.0.0.0:8080")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -87,6 +93,7 @@ def session(dbapp):
 @pytest.fixture
 def interface(session) -> CatalogDBInterface:
     interface = CatalogDBInterface(session=session)
+    interface.opensearch = TestOpenSearchInterface()
     # best effort to clear the opensearch index
     try:
         interface.opensearch.delete_all_datasets()
@@ -154,7 +161,7 @@ def interface_with_dataset(interface_with_harvest_record, fixture_data):
 
 @pytest.fixture
 def opensearch_client():
-    return OpenSearchInterface(test_host="localhost")
+    return TestOpenSearchInterface()
 
 
 @pytest.fixture
