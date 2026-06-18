@@ -865,6 +865,12 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     )
 
 
+@main.route("/dcat-us/validator", methods=["GET"])
+def redirect_to_dcat_validator():
+    """Redirect the user to the dcat validator."""
+    return redirect("https://harvest.data.gov/validate/")
+
+
 @api.get("/api/keywords")
 @api.input(KeywordsQuery, location="query", validation=False)
 @api.output(KeywordsResults)
