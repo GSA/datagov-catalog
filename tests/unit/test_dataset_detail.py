@@ -397,6 +397,28 @@ class TestDatasetDetail:
         )
         assert collection_link is not None
 
+    def test_dataset_detail_omits_collection_when_ispartof_null(
+        self, interface_with_dataset, db_client
+    ):
+        # A null isPartOf means the dataset isn't part of any collection, so the
+        # "Explore Collection" card and its "Find Related Datasets" button should
+        # not show up. See GSA/data.gov#5862.
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {**ds.dcat, "isPartOf": None}
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        assert soup.select_one("div.collection-tooltip") is None
+        find_related = soup.find(
+            "a", string=lambda t: t and "Find Related Datasets" in t
+        )
+        assert find_related is None
+
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
         Test that the landingPage key in the Complete Metadata section

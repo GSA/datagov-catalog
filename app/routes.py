@@ -841,7 +841,7 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
 
     # collections
     collection_data = {"name": None, "count": 0}
-    if "isPartOf" in dataset.dcat:
+    if dataset.dcat.get("isPartOf"):
         result = interface.search_datasets(collection=dataset.dcat["isPartOf"])
         collection_data["name"] = dataset.dcat["isPartOf"]
         collection_data["count"] = result.total
