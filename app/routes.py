@@ -35,6 +35,7 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
+from .dcat_normalizer import normalize_rights
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -855,6 +856,12 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
 
     # set the type for google search json-ld
     dataset.dcat["@type"] = "dcat:Dataset"
+
+    # Normalize DCAT 3.0 fields to 1.1 format for display
+    if "rights" in dataset.dcat:
+        normalized_rights = normalize_rights(dataset.dcat["rights"])
+        if normalized_rights:
+            dataset.dcat["rights"] = normalized_rights
 
     return render_template(
         "dataset_detail.html",

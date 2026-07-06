@@ -7,6 +7,8 @@ HARVEST_RECORD_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 DATASET_ID = "e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
 STOPWORD_RECORD_ID = "health-food-record"
 STOPWORD_DATASET_ID = "health-food-dataset"
+DCAT_3_0_RECORD_ID = "dcat-3-0-test-record"
+DCAT_3_0_DATASET_ID = "dcat-3-0-test-dataset"
 TEST_DIR = Path(__file__).parent
 DEFAULT_LAST_HARVESTED_DATE = datetime(2023, 1, 1)
 
@@ -343,6 +345,16 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "isPartOf": "https://subdomain.domain/missing_parent/example.shp.iso.xml",
                 },
             ),
+            dict(
+                id=DCAT_3_0_RECORD_ID,
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="dcat-3-0-test-identifier",
+                source_raw='{"title": "DCAT-US 3.0 Test Dataset"}',
+                source_transform={
+                    "title": "DCAT-US 3.0 Test Dataset",
+                },
+            ),
         ],
         "dataset": [
             dict(
@@ -643,6 +655,118 @@ def fixture_data(*, include_filter_demos: bool = False):
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
                 popularity=125,
+                translated_spatial={
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [-125.0, 24.0],
+                            [-67.0, 24.0],
+                            [-67.0, 50.0],
+                            [-125.0, 50.0],
+                            [-125.0, 24.0],
+                        ]
+                    ],
+                },
+            ),
+            dict(
+                id=DCAT_3_0_DATASET_ID,
+                slug="test-dcat-3-0",
+                dcat={
+                    "@type": "dcat:Dataset",
+                    "identifier": "dcat-3-0-test-identifier",
+                    "title": "DCAT-US 3.0 Test Dataset",
+                    "description": "This is a sample dataset using DCAT-US 3.0 schema for testing the normalization layer. It includes all the major changes from version 1.1 to 3.0.",
+                    "keyword": ["sample", "testing", "dcat-us-3.0", "climate", "environment"],
+                    "modified": "2024-10-01",
+                    "accrualPeriodicity": "annually",
+                    "issued": "2020-01-15T00:00:00Z",
+                    "publisher": {
+                        "@type": "org:Organization",
+                        "name": "Sample Federal Agency",
+                        "subOrganizationOf": [
+                            {
+                                "@type": "org:Organization",
+                                "name": "Department of Sample Services",
+                            }
+                        ],
+                    },
+                    "contactPoint": {
+                        "@type": "vcard:Contact",
+                        "fn": "Jane Doe",
+                        "hasEmail": "mailto:jane.doe@example.gov",
+                    },
+                    "accessLevel": "public",
+                    "accessRights": "public",
+                    "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+                    "rights": ["This data is in the public domain and available for unrestricted use."],
+                    "temporal": [
+                        {
+                            "@type": "PeriodOfTime",
+                            "startDate": "2000-01-15",
+                            "endDate": "2023-12-31",
+                        }
+                    ],
+                    "spatial": [
+                        {
+                            "@type": "Location",
+                            "prefLabel": "United States",
+                        }
+                    ],
+                    "language": ["en"],
+                    "conformsTo": [
+                        {
+                            "@type": "Standard",
+                            "identifier": "https://www.iso.org/standard/53798.html",
+                            "title": "ISO 19115",
+                        }
+                    ],
+                    "landingPage": {
+                        "@type": "Document",
+                        "title": "Sample Dataset Landing Page",
+                        "accessURL": "https://example.gov/datasets/sample-dcat-3-0",
+                    },
+                    "describedBy": {
+                        "@type": "Distribution",
+                        "accessURL": "https://example.gov/schemas/sample-schema.json",
+                        "mediaType": "application/schema+json",
+                    },
+                    "distribution": [
+                        {
+                            "@type": "dcat:Distribution",
+                            "title": "Sample CSV Data File",
+                            "description": "Complete dataset in CSV format",
+                            "downloadURL": "https://example.gov/data/sample-data.csv",
+                            "mediaType": "text/csv",
+                            "format": "CSV",
+                            "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+                        },
+                        {
+                            "@type": "dcat:Distribution",
+                            "title": "Sample JSON Data File",
+                            "description": "Complete dataset in JSON format",
+                            "downloadURL": "https://example.gov/data/sample-data.json",
+                            "accessURL": "https://example.gov/data/sample-data.json",
+                            "mediaType": "application/json",
+                            "format": "JSON",
+                            "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+                        },
+                        {
+                            "@type": "dcat:Distribution",
+                            "title": "Sample API Endpoint",
+                            "description": "REST API access to the dataset",
+                            "accessURL": "https://api.example.gov/v1/sample-data",
+                            "mediaType": "application/json",
+                            "format": "API",
+                        },
+                    ],
+                    "theme": ["Climate", "Environment"],
+                    "isPartOf": "sample-collection-2024",
+                },
+                harvest_record_id=DCAT_3_0_RECORD_ID,
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+                popularity=150,
                 translated_spatial={
                     "type": "Polygon",
                     "coordinates": [
