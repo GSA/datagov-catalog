@@ -87,9 +87,9 @@ def session(dbapp):
 @pytest.fixture
 def interface(session) -> CatalogDBInterface:
     interface = CatalogDBInterface(session=session)
-    # best effort to clear the opensearch index
+    # Recreate the index so mapping changes are picked up in tests.
     try:
-        interface.opensearch.delete_all_datasets()
+        interface.opensearch.recreate_index()
     except OpenSearchException:
         pass
 
@@ -154,7 +154,12 @@ def interface_with_dataset(interface_with_harvest_record, fixture_data):
 
 @pytest.fixture
 def opensearch_client():
-    return OpenSearchInterface(test_host="localhost")
+    client = OpenSearchInterface(test_host="localhost")
+    try:
+        client.recreate_index()
+    except OpenSearchException:
+        pass
+    return client
 
 
 @pytest.fixture

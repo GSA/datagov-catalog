@@ -35,6 +35,7 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
+from .dcat_opensearch import collection_uri_from_dcat
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -841,9 +842,10 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
 
     # collections
     collection_data = {"name": None, "count": 0}
-    if "isPartOf" in dataset.dcat:
-        result = interface.search_datasets(collection=dataset.dcat["isPartOf"])
-        collection_data["name"] = dataset.dcat["isPartOf"]
+    collection_uri = collection_uri_from_dcat(dataset.dcat)
+    if collection_uri:
+        result = interface.search_datasets(collection=collection_uri)
+        collection_data["name"] = collection_uri
         collection_data["count"] = result.total
 
     # get the org for GA purposes so far

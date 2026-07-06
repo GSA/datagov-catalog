@@ -10,6 +10,8 @@ from uuid import UUID
 
 from flask import Response, jsonify
 
+from app.dcat_opensearch import identifier_id
+
 F = TypeVar("F", bound=Callable[..., Response])
 
 
@@ -80,5 +82,5 @@ def pop_doc_by_identifier(os_docs: list, identifier: str) -> dict | None:
     changes the input list in place by removing parent doc
     """
     for idx, doc in enumerate(os_docs):
-        if doc.get("identifier") == identifier:
+        if identifier_id(doc.get("identifier")) == identifier:
             return os_docs.pop(idx)

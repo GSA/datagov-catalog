@@ -4,7 +4,8 @@
 
 {% set title = dataset.title %}
 {% set description = dataset.description %}
-{% set collection_url = "/?collection=" + dataset.dcat.isPartOf %}
+{% set collection_uri = dataset.inSeries[0]['@id'] if dataset.inSeries else dataset.dcat.get('isPartOf') %}
+{% set collection_url = "/?collection=" + collection_uri if collection_uri else "" %}
 {% set metadata_url = "/dataset/" + dataset.slug %}
 {% set file_formats = dataset.dcat.get('distribution', []) %}
 

@@ -31,6 +31,16 @@ Currently, we do this in a daily batch operation. A command `flask search
 sync` is available for this. It clears the Opensearch index and then indexes
 every dataset from Postgres into Opensearch.
 
+When the DCAT-US 3.0 index mapping changes (for example, `identifier`, `theme`,
+or `inSeries` field types), recreate the index before reindexing:
+
+```bash
+flask search sync --recreate-index
+```
+
+This deletes the existing `datasets` index, applies the updated mapping, and
+reindexes all datasets from Postgres.
+
 ## Paginated search
 
 As described above, we need to provide a `search_after` parameter to the

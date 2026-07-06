@@ -484,7 +484,12 @@ class CatalogDBInterface:
     def get_dataset_by_dcat_identifier(self, identifier: str) -> Dataset | None:
         return (
             self.db.query(Dataset)
-            .filter(Dataset.dcat["identifier"].astext == identifier)
+            .filter(
+                or_(
+                    Dataset.dcat["identifier"].astext == identifier,
+                    Dataset.dcat["identifier"]["@id"].astext == identifier,
+                )
+            )
             .first()
         )
 

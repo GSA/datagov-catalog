@@ -56,6 +56,27 @@ class _Any(Field):
     pass
 
 
+class Identifier(Schema):
+    id = String(data_key="@id")
+    notation = String()
+    schemaAgency = String()
+    version = String()
+
+
+class Concept(Schema):
+    id = String(data_key="@id")
+    prefLabel = String()
+    altLabel = String()
+    definition = String()
+    notation = String()
+
+
+class DatasetSeries(Schema):
+    id = String(data_key="@id")
+    title = String()
+    description = String()
+
+
 class Dataset(Schema):
     _score = Float()
     _sort = List(_Any())
@@ -65,7 +86,8 @@ class Dataset(Schema):
     harvest_record_raw = URL()
     harvest_record_transformed = URL()
     has_spatial = Boolean()
-    identifier = String()
+    identifier = Nested(Identifier(), allow_none=True)
+    inSeries = List(Nested(DatasetSeries()))
     keyword = List(String())
     last_harvested_date = Date()
     organization = Nested(Organization())
@@ -74,6 +96,7 @@ class Dataset(Schema):
     slug = String()
     spatial_centroid = Centroid()
     spatial_shape = GeoJson()
+    theme = List(Nested(Concept()))
 
 
 class SearchResults(Schema):

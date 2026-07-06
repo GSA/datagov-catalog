@@ -96,6 +96,40 @@ class TestOpenSearch:
         )
         assert len(result_obj.results) == 2
 
+    def test_dataset_to_document_emits_dcat_3_shapes(
+        self, opensearch_client, mock_dataset_with_datetime
+    ):
+        mock_dataset_with_datetime.dcat["identifier"] = "id-1"
+        mock_dataset_with_datetime.dcat["theme"] = ["Geospatial"]
+        mock_dataset_with_datetime.dcat["isPartOf"] = (
+            "https://catalog.data.gov/dataset/my-collection"
+        )
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert document["identifier"] == {"@id": "id-1"}
+        assert document["theme"] == [{"prefLabel": "Geospatial"}]
+        assert document["inSeries"] == [
+            {"@id": "https://catalog.data.gov/dataset/my-collection"}
+        ]
+
+    def test_legacy_is_part_of_indexed_as_in_series_for_collection_filter(
+        self, interface_with_dataset, opensearch_client
+    ):
+        child = interface_with_dataset.get_dataset_by_slug("child-harvest-record")
+        opensearch_client.index_datasets([child])
+
+        document = opensearch_client.dataset_to_document(child)
+        assert document["inSeries"] == [
+            {"@id": "https://subdomain.domain/parent/example.shp.iso.xml"}
+        ]
+
+        result_obj = opensearch_client.search(
+            "", collection="https://subdomain.domain/parent/example.shp.iso.xml"
+        )
+        slugs = {doc["slug"] for doc in result_obj.results}
+        assert "child-harvest-record" in slugs
+
 
 class TestDcatDateNormalization:
     """Test suite for _normalize_dcat_dates method."""
@@ -306,6 +340,8 @@ class TestDatasetToDocument:
             ["GEOSPATIAL"],
             ["Health", " geospatial "],
             "Geospatial",
+            [{"prefLabel": "Geospatial"}],
+            [{"prefLabel": "GEOSPATIAL"}],
         ],
     )
     def test_dataset_to_document_with_geospatial_theme(
@@ -530,6 +566,26 @@ class TestOpenSearchMappings:
         mappings = OpenSearchInterface.MAPPINGS
         assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
 
+    def test_identifier_mapping_is_object(self):
+        mappings = OpenSearchInterface.MAPPINGS
+        identifier = mappings["properties"]["identifier"]
+        assert identifier["type"] == "object"
+        assert identifier["properties"]["@id"]["fields"]["keyword"]["type"] == "keyword"
+
+    def test_theme_mapping_is_object_with_pref_label(self):
+        mappings = OpenSearchInterface.MAPPINGS
+        theme = mappings["properties"]["theme"]
+        assert theme["type"] == "object"
+        assert theme["properties"]["prefLabel"]["fields"]["keyword"]["normalizer"] == (
+            OpenSearchInterface.KEYWORD_NORMALIZER
+        )
+
+    def test_in_series_mapping_is_object(self):
+        mappings = OpenSearchInterface.MAPPINGS
+        in_series = mappings["properties"]["inSeries"]
+        assert in_series["type"] == "object"
+        assert in_series["properties"]["@id"]["type"] == "keyword"
+
 
 def test_count_datasets_with_ispartof_passes_filtered_count_query():
     """OpenSearch count returns the number of docs matching the supplied query."""
@@ -538,19 +594,12 @@ def test_count_datasets_with_ispartof_passes_filtered_count_query():
     client.client = Mock()
     client.client.count.return_value = {"count": 7}
 
-    count = client.count_datasets_with_ispartof()
+    count = client.count_datasets_in_series()
 
     assert count == 7
     client.client.count.assert_called_once_with(
         index=client.INDEX_NAME,
-        body={
-            "query": {
-                "nested": {
-                    "path": "dcat",
-                    "query": {"exists": {"field": "dcat.isPartOf"}},
-                }
-            }
-        },
+        body={"query": {"exists": {"field": "inSeries.@id"}}},
     )
 
 

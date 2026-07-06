@@ -15,6 +15,13 @@ from haversine import Unit, haversine
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
 from opensearchpy.exceptions import ConnectionTimeout
 
+from app.dcat_opensearch import (
+    normalize_identifier,
+    normalize_in_series,
+    normalize_theme,
+    theme_pref_labels,
+)
+
 from .constants import DEFAULT_PER_PAGE
 
 logger = logging.getLogger(__name__)
@@ -175,6 +182,8 @@ class OpenSearchInterface:
         }
     }
 
+    # DCAT-US 3.0 top-level fields require `flask search sync --recreate-index`
+    # after mapping changes.
     MAPPINGS = {
         "properties": {
             "title": {
@@ -222,14 +231,72 @@ class OpenSearchInterface:
                 },
             },
             "theme": {
-                "type": "text",
-                "analyzer": TEXT_ANALYZER,
-                "search_analyzer": TEXT_ANALYZER,
+                "type": "object",
+                "properties": {
+                    "@id": {"type": "keyword"},
+                    "prefLabel": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "normalizer": KEYWORD_NORMALIZER,
+                            }
+                        },
+                    },
+                    "altLabel": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                    },
+                    "definition": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                    },
+                    "notation": {"type": "keyword"},
+                },
             },
             "identifier": {
-                "type": "text",
-                "analyzer": TEXT_ANALYZER,
-                "search_analyzer": TEXT_ANALYZER,
+                "type": "object",
+                "properties": {
+                    "@id": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                        "fields": {"keyword": {"type": "keyword"}},
+                    },
+                    "notation": {"type": "keyword"},
+                    "schemaAgency": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                    },
+                    "version": {"type": "keyword"},
+                },
+            },
+            "inSeries": {
+                "type": "object",
+                "properties": {
+                    "@id": {"type": "keyword"},
+                    "title": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "normalizer": KEYWORD_NORMALIZER,
+                            }
+                        },
+                    },
+                    "description": {
+                        "type": "text",
+                        "analyzer": TEXT_ANALYZER,
+                        "search_analyzer": TEXT_ANALYZER,
+                    },
+                },
             },
             "has_spatial": {"type": "boolean"},  # Whether dataset has spatial data
             "popularity": {"type": "integer"},
@@ -303,6 +370,12 @@ class OpenSearchInterface:
             max_retries=DEFAULT_CLIENT_MAX_RETRIES,
             retry_on_timeout=True,
         )
+
+    def recreate_index(self):
+        """Delete and recreate the index with the current mapping."""
+        if self.client.indices.exists(index=self.INDEX_NAME):
+            self.client.indices.delete(index=self.INDEX_NAME)
+        self._ensure_index()
 
     def _ensure_index(self):
         """Ensure that the named index named exists.
@@ -504,12 +577,9 @@ class OpenSearchInterface:
         """
         # Check if dataset has spatial data
         spatial_value = dataset.dcat.get("spatial")
-        themes = dataset.dcat.get("theme") or []
-        if isinstance(themes, str):
-            themes = [themes]
         has_spatial_theme = any(
-            isinstance(theme, str) and theme.strip().lower() == "geospatial"
-            for theme in themes
+            label.strip().lower() == "geospatial"
+            for label in theme_pref_labels(dataset.dcat)
         )
         has_spatial = (
             bool(spatial_value and str(spatial_value).strip())
@@ -533,8 +603,9 @@ class OpenSearchInterface:
             "dcat": normalized_dcat,
             # Opensearch handles array-value properties
             "keyword": dataset.dcat.get("keyword", []),
-            "theme": dataset.dcat.get("theme", []),
-            "identifier": dataset.dcat.get("identifier", ""),
+            "theme": normalize_theme(dataset.dcat),
+            "identifier": normalize_identifier(dataset.dcat),
+            "inSeries": normalize_in_series(dataset.dcat),
             "has_spatial": has_spatial,
             "organization": dataset.organization.to_dict(),
             "distribution_titles": [
@@ -852,8 +923,8 @@ class OpenSearchInterface:
                     "description^3",
                     "publisher^3",
                     "keyword^2",
-                    "theme",
-                    "identifier",
+                    "theme.prefLabel",
+                    "identifier.@id",
                     "distribution_titles^2",
                 ],
                 "operator": "AND",
@@ -882,8 +953,8 @@ class OpenSearchInterface:
                     },
                     {"match_phrase": {"publisher": {"query": phrase_text, "boost": 3}}},
                     {"match_phrase": {"keyword": {"query": phrase_text, "boost": 2}}},
-                    {"match_phrase": {"theme": {"query": phrase_text}}},
-                    {"match_phrase": {"identifier": {"query": phrase_text}}},
+                    {"match_phrase": {"theme.prefLabel": {"query": phrase_text}}},
+                    {"match_phrase": {"identifier.@id": {"query": phrase_text}}},
                     {
                         "match_phrase": {
                             "distribution_titles": {"query": phrase_text, "boost": 2}
@@ -1079,14 +1150,7 @@ class OpenSearchInterface:
             )
 
         if collection:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "dcat",
-                        "query": {"term": {"dcat.isPartOf": collection}},
-                    }
-                }
-            )
+            filters.append({"term": {"inSeries.@id": collection}})
 
         # Apply filters if any exist
         if filters:
@@ -1353,23 +1417,20 @@ class OpenSearchInterface:
             logger.error(f"Error counting datasets in OpenSearch: {e}")
             return 0
 
-    def count_datasets_with_ispartof(self) -> int:
+    def count_datasets_in_series(self) -> int:
         """
-        Get the total count of datasets whose DCAT payload includes isPartOf.
+        Get the total count of datasets indexed with an inSeries membership.
         """
         try:
             result = self.client.count(
                 index=self.INDEX_NAME,
-                body={
-                    "query": {
-                        "nested": {
-                            "path": "dcat",
-                            "query": {"exists": {"field": "dcat.isPartOf"}},
-                        }
-                    }
-                },
+                body={"query": {"exists": {"field": "inSeries.@id"}}},
             )
             return result.get("count", 0)
         except Exception as e:
-            logger.error(f"Error counting datasets with isPartOf in OpenSearch: {e}")
+            logger.error(f"Error counting datasets with inSeries in OpenSearch: {e}")
             return 0
+
+    def count_datasets_with_ispartof(self) -> int:
+        """Backward-compatible alias for count_datasets_in_series."""
+        return self.count_datasets_in_series()
