@@ -36,7 +36,7 @@ test-pa11y: ## Runs accessibility tests with pa11y-ci (requires running app)
 
 load-test-data: ## Loads test fixture data into the database
 	docker compose exec app flask testdata load_test_data --clear
-	docker compose exec app flask search sync
+	docker compose exec app python -m tests.index_test_data
 
 test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests with test data loaded
 

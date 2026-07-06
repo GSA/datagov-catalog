@@ -4,21 +4,23 @@ from unittest.mock import Mock
 import pytest
 from opensearchpy.exceptions import ConnectionTimeout
 
-import app.database.opensearch as opensearch_module
-from app import create_app
-from app.database import OpenSearchInterface
+import tests.vendor.opensearch_index.writer as writer_module
+from app.database import OpenSearchInterface as ReadOnlyOpenSearchInterface
 from app.models import Dataset
+from tests.opensearch_test_client import TestOpenSearchInterface as OpenSearchInterface
 
 
 class TestOpenSearch:
     def test_bad_host_arguments(self):
         with pytest.raises(ValueError):
             # no hostnames
-            OpenSearchInterface()
+            ReadOnlyOpenSearchInterface()
 
         with pytest.raises(ValueError):
             # both hostnames
-            OpenSearchInterface(test_host="not-empty", aws_host="also-not-empty")
+            ReadOnlyOpenSearchInterface(
+                test_host="not-empty", aws_host="also-not-empty"
+            )
 
     def test_index_and_search_datasets(self, interface_with_dataset, opensearch_client):
         dataset_iterator = interface_with_dataset.db.query(Dataset)
@@ -774,7 +776,7 @@ def test_last_harvested_date_sort_uses_latest_first():
 
 def test_run_with_timeout_retry_eventual_success(monkeypatch):
     interface = OpenSearchInterface.__new__(OpenSearchInterface)
-    monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
+    monkeypatch.setattr(writer_module.time, "sleep", lambda _: None)
 
     attempts = {"count": 0}
 
@@ -797,7 +799,7 @@ def test_run_with_timeout_retry_eventual_success(monkeypatch):
 
 def test_run_with_timeout_retry_exhausted(monkeypatch):
     interface = OpenSearchInterface.__new__(OpenSearchInterface)
-    monkeypatch.setattr(opensearch_module.time, "sleep", lambda _: None)
+    monkeypatch.setattr(writer_module.time, "sleep", lambda _: None)
 
     def _action():
         raise ConnectionTimeout("TIMEOUT")
@@ -840,26 +842,17 @@ class TestCreateHarvestRecordUrl:
         self, mock_dataset_with_datetime, opensearch_client, monkeypatch
     ):
         """Test that _create_harvest_record_url generates correct URL for production server."""
-        # Set production environment variables
-        monkeypatch.setenv("SITE_URL", "example.gov")
+        monkeypatch.setenv("CATALOG_BASE_URL", "https://example.gov")
+        mock_dataset_with_datetime.harvest_record_id = (
+            "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+        )
 
-        # Create app with production configuration
-        app = create_app(config_name="production")
+        url = opensearch_client._create_harvest_record_url(mock_dataset_with_datetime)
 
-        with app.app_context():
-            # Set a specific harvest_record_id
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
-
-            url = opensearch_client._create_harvest_record_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
+        assert (
+            url
+            == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+        )
 
     def test_create_harvest_record_raw_url_with_local_server(
         self, dbapp, mock_dataset_with_datetime, opensearch_client
@@ -885,22 +878,19 @@ class TestCreateHarvestRecordUrl:
         self, mock_dataset_with_datetime, opensearch_client, monkeypatch
     ):
         """Test that _create_harvest_record_raw_url generates correct URL for production server."""
-        monkeypatch.setenv("SITE_URL", "example.gov")
-        app = create_app(config_name="production")
+        monkeypatch.setenv("CATALOG_BASE_URL", "https://example.gov")
+        mock_dataset_with_datetime.harvest_record_id = (
+            "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+        )
 
-        with app.app_context():
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
+        url = opensearch_client._create_harvest_record_raw_url(
+            mock_dataset_with_datetime
+        )
 
-            url = opensearch_client._create_harvest_record_raw_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/raw"
-            )
+        assert (
+            url
+            == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/raw"
+        )
 
     def test_create_harvest_record_transformed_url_with_local_server(
         self, dbapp, mock_dataset_with_datetime, opensearch_client
@@ -926,22 +916,19 @@ class TestCreateHarvestRecordUrl:
         self, mock_dataset_with_datetime, opensearch_client, monkeypatch
     ):
         """Test that _create_harvest_record_transformed_url generates correct URL for production server."""
-        monkeypatch.setenv("SITE_URL", "example.gov")
-        app = create_app(config_name="production")
+        monkeypatch.setenv("CATALOG_BASE_URL", "https://example.gov")
+        mock_dataset_with_datetime.harvest_record_id = (
+            "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
+        )
 
-        with app.app_context():
-            mock_dataset_with_datetime.harvest_record_id = (
-                "c9b367ca-3dd4-407e-b170-6d9688f3b79e"
-            )
+        url = opensearch_client._create_harvest_record_transformed_url(
+            mock_dataset_with_datetime
+        )
 
-            url = opensearch_client._create_harvest_record_transformed_url(
-                mock_dataset_with_datetime
-            )
-
-            assert (
-                url
-                == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
-            )
+        assert (
+            url
+            == "https://example.gov/harvest_record/c9b367ca-3dd4-407e-b170-6d9688f3b79e/transformed"
+        )
 
 
 class TestDistributionTitles:
