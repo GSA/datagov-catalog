@@ -47,5 +47,11 @@
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.62.0"
+  },
+  "overrides": {
+    "@uswds/compile": {
+      "postcss": "8.5.16"
+    },
+    "picomatch@2.3.1": "2.3.2"
   }
 }
