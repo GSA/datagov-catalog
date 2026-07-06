@@ -1,10 +1,3 @@
-"""
-DCAT-US 3.0 to 1.1 Display Normalization
-
-This module provides functions to normalize DCAT-US 3.0 dataset metadata
-to DCAT-US 1.1 format for consistent display in the UI.
-"""
-
 from typing import Any
 
 

@@ -676,7 +676,13 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "identifier": "dcat-3-0-test-identifier",
                     "title": "DCAT-US 3.0 Test Dataset",
                     "description": "This is a sample dataset using DCAT-US 3.0 schema for testing the normalization layer. It includes all the major changes from version 1.1 to 3.0.",
-                    "keyword": ["sample", "testing", "dcat-us-3.0", "climate", "environment"],
+                    "keyword": [
+                        "sample",
+                        "testing",
+                        "dcat-us-3.0",
+                        "climate",
+                        "environment",
+                    ],
                     "modified": "2024-10-01",
                     "accrualPeriodicity": "annually",
                     "issued": "2020-01-15T00:00:00Z",
@@ -698,7 +704,9 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "accessLevel": "public",
                     "accessRights": "public",
                     "license": "https://creativecommons.org/publicdomain/zero/1.0/",
-                    "rights": ["This data is in the public domain and available for unrestricted use."],
+                    "rights": [
+                        "This data is in the public domain and available for unrestricted use."
+                    ],
                     "temporal": [
                         {
                             "@type": "PeriodOfTime",
