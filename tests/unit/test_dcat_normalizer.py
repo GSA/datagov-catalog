@@ -1,5 +1,3 @@
-import pytest
-
 from app.dcat_normalizer import (
     normalize_access_rights,
     normalize_accrual_periodicity,
