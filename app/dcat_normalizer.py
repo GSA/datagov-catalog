@@ -84,3 +84,77 @@ def normalize_temporal(temporal: Any) -> str | None:
                 return start
 
     return None
+
+
+def normalize_spatial(spatial: Any) -> str | None:
+    """
+    Convert DCAT 3.0 spatial (Location object array) back to 1.1 format (string or bbox).
+
+    v3.0: [{"@type": "Location", "prefLabel": "United States"}]
+    v1.1: "United States"
+    """
+    if not spatial:
+        return None
+
+    if isinstance(spatial, str):
+        return spatial
+
+    if isinstance(spatial, list) and len(spatial) > 0:
+        location = spatial[0]
+        if isinstance(location, dict):
+            if "prefLabel" in location:
+                return location["prefLabel"]
+            if "bbox" in location:
+                return location["bbox"]
+            if "geometry" in location:
+                return location["geometry"]
+
+    return None
+
+
+def normalize_conforms_to(conforms_to: Any) -> str | list[str] | None:
+    """
+    Convert DCAT 3.0 conformsTo (Standard object array) back to 1.1 format (URI string or array).
+
+    v3.0: [{"@type": "Standard", "identifier": "https://www.iso.org/standard/53798.html"}]
+    v1.1: "https://www.iso.org/standard/53798.html"
+    """
+    if not conforms_to:
+        return None
+
+    if isinstance(conforms_to, str):
+        return conforms_to
+
+    if isinstance(conforms_to, list):
+        identifiers = []
+        for item in conforms_to:
+            if isinstance(item, dict) and "identifier" in item:
+                identifiers.append(item["identifier"])
+            elif isinstance(item, str):
+                identifiers.append(item)
+
+        if len(identifiers) == 1:
+            return identifiers[0]
+        elif len(identifiers) > 1:
+            return identifiers
+
+    return None
+
+
+def normalize_modified(modified: Any) -> str | None:
+    """
+    Ensure DCAT 3.0 modified is in ISO date format (not repeating intervals).
+
+    v3.0: "2024-10-01" or "R/P1Y"
+    v1.1: "2024-10-01"
+    """
+    if not modified:
+        return None
+
+    if isinstance(modified, str):
+        # Remove repeating interval patterns like R/P1Y
+        if modified.startswith("R/"):
+            return None
+        return modified
+
+    return None

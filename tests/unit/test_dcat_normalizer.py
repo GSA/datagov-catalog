@@ -1,9 +1,12 @@
 import pytest
 
 from app.dcat_normalizer import (
+    normalize_conforms_to,
     normalize_described_by,
     normalize_landing_page,
+    normalize_modified,
     normalize_rights,
+    normalize_spatial,
     normalize_temporal,
 )
 from tests.fixtures import DCAT_3_0_DATASET_ID
@@ -54,3 +57,33 @@ class TestNormalizer:
 
         assert isinstance(normalized, str)
         assert normalized == "2000-01-15T00:00:00Z/2023-12-31T00:00:00Z"
+
+    def test_normalize_spatial_array_to_string(self, interface_with_dataset):
+        """Test DCAT 3.0 spatial Location array → DCAT 1.1 string."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        spatial = dataset.dcat.get("spatial")
+
+        normalized = normalize_spatial(spatial)
+
+        assert isinstance(normalized, str)
+        assert normalized == "United States"
+
+    def test_normalize_conforms_to_array_to_string(self, interface_with_dataset):
+        """Test DCAT 3.0 conformsTo Standard array → DCAT 1.1 URI string."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        conforms_to = dataset.dcat.get("conformsTo")
+
+        normalized = normalize_conforms_to(conforms_to)
+
+        assert isinstance(normalized, str)
+        assert normalized == "https://www.iso.org/standard/53798.html"
+
+    def test_normalize_modified_keeps_iso_date(self, interface_with_dataset):
+        """Test DCAT 3.0 modified ISO date remains unchanged."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        modified = dataset.dcat.get("modified")
+
+        normalized = normalize_modified(modified)
+
+        assert isinstance(normalized, str)
+        assert normalized == "2024-10-01"

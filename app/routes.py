@@ -36,9 +36,12 @@ from .api_schemas import (
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
 from .dcat_normalizer import (
+    normalize_conforms_to,
     normalize_described_by,
     normalize_landing_page,
+    normalize_modified,
     normalize_rights,
+    normalize_spatial,
     normalize_temporal,
 )
 from .sitemap_s3 import (
@@ -882,6 +885,21 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         normalized_temporal = normalize_temporal(dataset.dcat["temporal"])
         if normalized_temporal:
             dataset.dcat["temporal"] = normalized_temporal
+
+    if "spatial" in dataset.dcat:
+        normalized_spatial = normalize_spatial(dataset.dcat["spatial"])
+        if normalized_spatial:
+            dataset.dcat["spatial"] = normalized_spatial
+
+    if "conformsTo" in dataset.dcat:
+        normalized_conforms_to = normalize_conforms_to(dataset.dcat["conformsTo"])
+        if normalized_conforms_to:
+            dataset.dcat["conformsTo"] = normalized_conforms_to
+
+    if "modified" in dataset.dcat:
+        normalized_modified = normalize_modified(dataset.dcat["modified"])
+        if normalized_modified:
+            dataset.dcat["modified"] = normalized_modified
 
     return render_template(
         "dataset_detail.html",
