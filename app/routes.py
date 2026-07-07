@@ -35,7 +35,7 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
-from .dcat_normalizer import normalize_rights
+from .dcat_normalizer import normalize_landing_page, normalize_rights
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -862,6 +862,11 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         normalized_rights = normalize_rights(dataset.dcat["rights"])
         if normalized_rights:
             dataset.dcat["rights"] = normalized_rights
+
+    if "landingPage" in dataset.dcat:
+        normalized_landing_page = normalize_landing_page(dataset.dcat["landingPage"])
+        if normalized_landing_page:
+            dataset.dcat["landingPage"] = normalized_landing_page
 
     return render_template(
         "dataset_detail.html",

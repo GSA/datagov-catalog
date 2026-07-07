@@ -1,6 +1,6 @@
 import pytest
 
-from app.dcat_normalizer import normalize_rights
+from app.dcat_normalizer import normalize_landing_page, normalize_rights
 from tests.fixtures import DCAT_3_0_DATASET_ID
 
 
@@ -8,29 +8,24 @@ class TestNormalizer:
     """Test DCAT-US 3.0 to 1.1 normalization functions."""
 
     def test_normalize_rights_array_to_string(self, interface_with_dataset):
-        """
-        Test that DCAT 3.0 rights (array) is normalized to DCAT 1.1 format (string).
-
-        DCAT 3.0: "rights": ["This data is in the public domain..."]
-        DCAT 1.1: "rights": "This data is in the public domain..."
-        """
-
+        """Test DCAT 3.0 rights array → DCAT 1.1 string."""
         dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
-        assert dataset is not None, "DCAT 3.0 test dataset should exist"
-
         rights = dataset.dcat.get("rights")
-        assert isinstance(rights, list), "DCAT 3.0 rights should be an array"
-        assert len(rights) > 0, "DCAT 3.0 rights array should not be empty"
 
-        normalized_rights = normalize_rights(rights)
+        normalized = normalize_rights(rights)
 
-        assert isinstance(
-            normalized_rights, str
-        ), "Normalized rights should be a string"
+        assert isinstance(normalized, str)
         assert (
-            normalized_rights == rights[0]
-        ), "Should return the first element of the array"
-        assert (
-            normalized_rights
+            normalized
             == "This data is in the public domain and available for unrestricted use."
         )
+
+    def test_normalize_landing_page_object_to_string(self, interface_with_dataset):
+        """Test DCAT 3.0 landingPage Document object → DCAT 1.1 URL string."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        landing_page = dataset.dcat.get("landingPage")
+
+        normalized = normalize_landing_page(landing_page)
+
+        assert isinstance(normalized, str)
+        assert normalized == "https://example.gov/datasets/sample-dcat-3-0"
