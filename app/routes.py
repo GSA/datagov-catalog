@@ -35,7 +35,12 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
-from .dcat_normalizer import normalize_landing_page, normalize_rights
+from .dcat_normalizer import (
+    normalize_described_by,
+    normalize_landing_page,
+    normalize_rights,
+    normalize_temporal,
+)
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -867,6 +872,16 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         normalized_landing_page = normalize_landing_page(dataset.dcat["landingPage"])
         if normalized_landing_page:
             dataset.dcat["landingPage"] = normalized_landing_page
+
+    if "describedBy" in dataset.dcat:
+        normalized_described_by = normalize_described_by(dataset.dcat["describedBy"])
+        if normalized_described_by:
+            dataset.dcat["describedBy"] = normalized_described_by
+
+    if "temporal" in dataset.dcat:
+        normalized_temporal = normalize_temporal(dataset.dcat["temporal"])
+        if normalized_temporal:
+            dataset.dcat["temporal"] = normalized_temporal
 
     return render_template(
         "dataset_detail.html",

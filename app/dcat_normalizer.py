@@ -37,3 +37,50 @@ def normalize_landing_page(landing_page: Any) -> str | None:
         return landing_page.get("accessURL")
 
     return None
+
+
+def normalize_described_by(described_by: Any) -> str | None:
+    """
+    Convert DCAT 3.0 describedBy (Distribution object) back to 1.1 format (URL string).
+
+    v3.0: {"accessURL": "https://agency.gov/schema.json", "mediaType": "application/schema+json"}
+    v1.1: "https://agency.gov/schema.json"
+    """
+    if not described_by:
+        return None
+
+    if isinstance(described_by, str):
+        return described_by
+
+    if isinstance(described_by, dict):
+        return described_by.get("accessURL")
+
+    return None
+
+
+def normalize_temporal(temporal: Any) -> str | None:
+    """
+    Convert DCAT 3.0 temporal (PeriodOfTime array) back to 1.1 format (ISO 8601 interval string).
+
+    v3.0: [{"@type": "PeriodOfTime", "startDate": "2000-01-15", "endDate": "2010-01-15"}]
+    v1.1: "2000-01-15T00:00:00Z/2010-01-15T00:00:00Z"
+    """
+    if not temporal:
+        return None
+
+    if isinstance(temporal, str):
+        return temporal
+
+    if isinstance(temporal, list) and len(temporal) > 0:
+        period = temporal[0]
+        if isinstance(period, dict):
+            start = period.get("startDate")
+            end = period.get("endDate")
+            if start and end:
+                start_normalized = start if "T" in start else f"{start}T00:00:00Z"
+                end_normalized = end if "T" in end else f"{end}T00:00:00Z"
+                return f"{start_normalized}/{end_normalized}"
+            elif start:
+                return start
+
+    return None
