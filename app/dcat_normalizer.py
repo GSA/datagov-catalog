@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any
 
 
@@ -158,3 +159,157 @@ def normalize_modified(modified: Any) -> str | None:
         return modified
 
     return None
+
+
+def normalize_issued(issued: Any) -> str | None:
+    """
+    Normalize DCAT 3.0 issued to ISO date or UTC datetime format.
+
+    v3.0: "2018-09-28T02:00:00-04:00"
+    v1.1: "2018-09-28T06:00:00Z"
+    """
+    if not issued:
+        return None
+
+    if isinstance(issued, str):
+        return issued
+
+    return None
+
+
+def normalize_access_rights(access_rights: Any, access_level: Any = None) -> str | None:
+    """
+    Map DCAT 3.0 accessRights to accessLevel if accessLevel is missing.
+
+    v3.0: has both accessRights and accessLevel
+    v1.1: only has accessLevel
+    """
+    if access_level:
+        return access_level
+
+    if access_rights:
+        return access_rights
+
+    return None
+
+
+def normalize_language(language: Any) -> list[str] | None:
+    """
+    Convert DCAT 3.0 language (ISO 639-1 codes) to DCAT 1.1 format (RFC 5646 tags).
+
+    v3.0: ["en"]
+    v1.1: ["en-US"]
+    """
+    # Mapping of ISO 639-1 codes to RFC 5646 tags commonly used in federal data
+    LANGUAGE_MAPPING = {
+        "en": "en-US",
+        "es": "es-US",
+        "fr": "fr-FR",
+        "de": "de-DE",
+        "zh": "zh-CN",
+        "ja": "ja-JP",
+        "ko": "ko-KR",
+        "ar": "ar-SA",
+        "pt": "pt-BR",
+        "ru": "ru-RU",
+        "it": "it-IT",
+        "nl": "nl-NL",
+        "pl": "pl-PL",
+        "tr": "tr-TR",
+        "vi": "vi-VN",
+        "th": "th-TH",
+        "hi": "hi-IN",
+    }
+
+    if not language:
+        return None
+
+    # If already RFC 5646 format (has hyphen), return as-is
+    if isinstance(language, str):
+        if "-" in language:
+            return [language]
+        return [LANGUAGE_MAPPING.get(language, language)]
+
+    if isinstance(language, list):
+        normalized = []
+        for lang in language:
+            if isinstance(lang, str):
+                # If already RFC 5646 format, keep it
+                if "-" in lang:
+                    normalized.append(lang)
+                else:
+                    # Map ISO 639-1 to RFC 5646
+                    normalized.append(LANGUAGE_MAPPING.get(lang, lang))
+        return normalized if normalized else None
+
+    return None
+
+
+def normalize_dcat_for_display(dcat: dict) -> dict:
+    """
+    Normalize DCAT-US 3.0 dataset metadata to DCAT-US 1.1 format for display.
+
+    This master function applies all normalizations to ensure DCAT 3.0 datasets
+    display consistently with DCAT 1.1 datasets.
+
+    Args:
+        dcat: The dataset's DCAT metadata dictionary
+
+    Returns:
+        A normalized copy of the metadata with v1.1 structure
+    """
+    normalized = deepcopy(dcat)
+
+    if "rights" in normalized:
+        result = normalize_rights(normalized["rights"])
+        if result:
+            normalized["rights"] = result
+
+    if "landingPage" in normalized:
+        result = normalize_landing_page(normalized["landingPage"])
+        if result:
+            normalized["landingPage"] = result
+
+    if "describedBy" in normalized:
+        result = normalize_described_by(normalized["describedBy"])
+        if result:
+            normalized["describedBy"] = result
+
+    if "temporal" in normalized:
+        result = normalize_temporal(normalized["temporal"])
+        if result:
+            normalized["temporal"] = result
+
+    if "spatial" in normalized:
+        result = normalize_spatial(normalized["spatial"])
+        if result:
+            normalized["spatial"] = result
+
+    if "conformsTo" in normalized:
+        result = normalize_conforms_to(normalized["conformsTo"])
+        if result:
+            normalized["conformsTo"] = result
+
+    if "modified" in normalized:
+        result = normalize_modified(normalized["modified"])
+        if result:
+            normalized["modified"] = result
+
+    if "issued" in normalized:
+        result = normalize_issued(normalized["issued"])
+        if result:
+            normalized["issued"] = result
+
+    if "accessRights" in normalized or "accessLevel" in normalized:
+        result = normalize_access_rights(
+            normalized.get("accessRights"), normalized.get("accessLevel")
+        )
+        if result:
+            normalized["accessLevel"] = result
+
+    if "language" in normalized:
+        result = normalize_language(normalized["language"])
+        if result:
+            normalized["language"] = result
+
+    return normalized

@@ -1,9 +1,12 @@
 import pytest
 
 from app.dcat_normalizer import (
+    normalize_access_rights,
     normalize_conforms_to,
     normalize_described_by,
+    normalize_issued,
     normalize_landing_page,
+    normalize_language,
     normalize_modified,
     normalize_rights,
     normalize_spatial,
@@ -87,3 +90,33 @@ class TestNormalizer:
 
         assert isinstance(normalized, str)
         assert normalized == "2024-10-01"
+
+    def test_normalize_issued_keeps_iso_datetime(self, interface_with_dataset):
+        """Test DCAT 3.0 issued ISO datetime remains unchanged."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        issued = dataset.dcat.get("issued")
+
+        normalized = normalize_issued(issued)
+
+        assert isinstance(normalized, str)
+        assert normalized == "2020-01-15T00:00:00Z"
+
+    def test_normalize_access_rights_maps_to_access_level(self, interface_with_dataset):
+        """Test DCAT 3.0 accessRights maps to accessLevel if missing."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        access_rights = dataset.dcat.get("accessRights")
+        access_level = dataset.dcat.get("accessLevel")
+
+        normalized = normalize_access_rights(access_rights, access_level)
+
+        assert normalized == "public"
+
+    def test_normalize_language_iso_to_rfc(self, interface_with_dataset):
+        """Test DCAT 3.0 language ISO 639-1 codes → DCAT 1.1 RFC 5646 tags."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        language = dataset.dcat.get("language")
+
+        normalized = normalize_language(language)
+
+        assert isinstance(normalized, list)
+        assert normalized == ["en-US"]
