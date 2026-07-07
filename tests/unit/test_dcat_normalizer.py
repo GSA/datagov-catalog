@@ -2,12 +2,16 @@ import pytest
 
 from app.dcat_normalizer import (
     normalize_access_rights,
+    normalize_accrual_periodicity,
     normalize_conforms_to,
+    normalize_dcat_for_display,
     normalize_described_by,
+    normalize_distribution_license,
     normalize_issued,
     normalize_landing_page,
     normalize_language,
     normalize_modified,
+    normalize_publisher_sub_org,
     normalize_rights,
     normalize_spatial,
     normalize_temporal,
@@ -120,3 +124,54 @@ class TestNormalizer:
 
         assert isinstance(normalized, list)
         assert normalized == ["en-US"]
+
+    def test_normalize_accrual_periodicity_keeps_value(self, interface_with_dataset):
+        """Test DCAT 3.0 accrualPeriodicity remains unchanged."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        periodicity = dataset.dcat.get("accrualPeriodicity")
+
+        normalized = normalize_accrual_periodicity(periodicity)
+
+        assert normalized == "annually"
+
+    def test_normalize_publisher_sub_org_array_to_object(self, interface_with_dataset):
+        """Test DCAT 3.0 publisher.subOrganizationOf array → DCAT 1.1 object."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        publisher = dataset.dcat.get("publisher")
+
+        normalized = normalize_publisher_sub_org(publisher)
+
+        assert isinstance(normalized.get("subOrganizationOf"), dict)
+        assert (
+            normalized["subOrganizationOf"]["name"] == "Department of Sample Services"
+        )
+
+    def test_normalize_distribution_license_moves_to_dataset(
+        self, interface_with_dataset
+    ):
+        """Test license moves from distribution → dataset level."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        dcat = dataset.dcat.copy()
+
+        normalized = normalize_distribution_license(dcat)
+
+        assert "license" in normalized
+        assert (
+            normalized["license"]
+            == "https://creativecommons.org/publicdomain/zero/1.0/"
+        )
+
+    def test_normalize_dcat_for_display_full_pipeline(self, interface_with_dataset):
+        """Test the full normalization pipeline transforms all DCAT 3.0 fields."""
+        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
+        original_dcat = dataset.dcat.copy()
+
+        normalized = normalize_dcat_for_display(original_dcat)
+
+        assert isinstance(normalized["rights"], str)
+        assert isinstance(normalized["landingPage"], str)
+        assert isinstance(normalized["temporal"], str)
+        assert isinstance(normalized["spatial"], str)
+        assert normalized["language"] == ["en-US"]
+        assert isinstance(normalized["publisher"]["subOrganizationOf"], dict)
+        assert "license" in normalized

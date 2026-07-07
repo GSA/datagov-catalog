@@ -245,6 +245,68 @@ def normalize_language(language: Any) -> list[str] | None:
     return None
 
 
+def normalize_accrual_periodicity(accrual_periodicity: Any) -> str | None:
+    """
+    Keep DCAT 3.0 accrualPeriodicity as-is (can be displayed in both versions).
+
+    v3.0: "annually"
+    v1.1: Doesn't exist, but can keep for display
+    """
+    if not accrual_periodicity:
+        return None
+
+    if isinstance(accrual_periodicity, str):
+        return accrual_periodicity
+
+    return None
+
+
+def normalize_publisher_sub_org(publisher: dict) -> dict:
+    """
+    Convert DCAT 3.0 publisher.subOrganizationOf (array) back to 1.1 format (single object).
+
+    v3.0: {"subOrganizationOf": [{"name": "Parent Org"}]}
+    v1.1: {"subOrganizationOf": {"name": "Parent Org"}}
+    """
+    if not isinstance(publisher, dict):
+        return publisher
+
+    publisher_copy = publisher.copy()
+    sub_org = publisher_copy.get("subOrganizationOf")
+
+    if isinstance(sub_org, list) and len(sub_org) > 0:
+        publisher_copy["subOrganizationOf"] = sub_org[0]
+        # Recursively normalize nested subOrganizationOf
+        if isinstance(publisher_copy["subOrganizationOf"], dict):
+            publisher_copy["subOrganizationOf"] = normalize_publisher_sub_org(
+                publisher_copy["subOrganizationOf"]
+            )
+
+    return publisher_copy
+
+
+def normalize_distribution_license(dcat: dict) -> dict:
+    """
+    Move license from distribution back to dataset level for 1.1 display compatibility.
+
+    v3.0: distribution[0].license = "https://creativecommons.org/..."
+    v1.1: dataset.license = "https://creativecommons.org/..."
+    """
+    dcat_copy = dcat.copy()
+    distributions = dcat_copy.get("distribution")
+
+    if not distributions or not isinstance(distributions, list):
+        return dcat_copy
+
+    # If dataset doesn't have license, get it from first distribution
+    if not dcat_copy.get("license") and len(distributions) > 0:
+        first_dist = distributions[0]
+        if isinstance(first_dist, dict) and "license" in first_dist:
+            dcat_copy["license"] = first_dist["license"]
+
+    return dcat_copy
+
+
 def normalize_dcat_for_display(dcat: dict) -> dict:
     """
     Normalize DCAT-US 3.0 dataset metadata to DCAT-US 1.1 format for display.
@@ -311,5 +373,16 @@ def normalize_dcat_for_display(dcat: dict) -> dict:
         result = normalize_language(normalized["language"])
         if result:
             normalized["language"] = result
+
+    if "accrualPeriodicity" in normalized:
+        result = normalize_accrual_periodicity(normalized["accrualPeriodicity"])
+        if result:
+            normalized["accrualPeriodicity"] = result
+
+    if "publisher" in normalized:
+        normalized["publisher"] = normalize_publisher_sub_org(normalized["publisher"])
+
+    # Move license from distribution to dataset level
+    normalized = normalize_distribution_license(normalized)
 
     return normalized
