@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search Filters Refactor — Walkthrough</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8f9fb;
+      --surface: #ffffff;
+      --text: #1b1b1b;
+      --muted: #5c5c5c;
+      --accent: #005ea2;
+      --accent-soft: #e8f1f8;
+      --before: #9b1c1c;
+      --before-soft: #fde8e8;
+      --after: #1a7f37;
+      --after-soft: #e6f4ea;
+      --border: #d9dde3;
+      --code-bg: #f1f3f5;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Public Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, #002d62 0%, #005ea2 100%);
+      color: #fff;
+      padding: 2.5rem 1.5rem 2rem;
+    }
+
+    header h1 {
+      margin: 0 0 0.5rem;
+      font-size: clamp(1.6rem, 4vw, 2.2rem);
+      font-weight: 700;
+    }
+
+    header p {
+      margin: 0;
+      max-width: 52rem;
+      opacity: 0.92;
+      font-size: 1.05rem;
+    }
+
+    .meta {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      opacity: 0.85;
+    }
+
+    nav.toc {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      overflow-x: auto;
+      white-space: nowrap;
+      box-shadow: var(--shadow);
+    }
+
+    nav.toc a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 1.25rem;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    nav.toc a:hover { text-decoration: underline; }
+
+    main {
+      max-width: 56rem;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.75rem;
+      margin-bottom: 1.75rem;
+      box-shadow: var(--shadow);
+    }
+
+    section h2 {
+      margin-top: 0;
+      color: var(--accent);
+      font-size: 1.45rem;
+      border-bottom: 2px solid var(--accent-soft);
+      padding-bottom: 0.5rem;
+    }
+
+    section h3 {
+      margin-top: 1.5rem;
+      font-size: 1.1rem;
+    }
+
+    p, li { color: var(--text); }
+    .muted { color: var(--muted); }
+
+    .step-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      margin-bottom: 0.75rem;
+    }
+
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin: 1.25rem 0;
+    }
+
+    @media (max-width: 760px) {
+      .compare { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--border);
+    }
+
+    .card.before {
+      background: var(--before-soft);
+      border-color: #f5c2c2;
+    }
+
+    .card.after {
+      background: var(--after-soft);
+      border-color: #b7dfc3;
+    }
+
+    .card h4 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .card.before h4 { color: var(--before); }
+    .card.after h4 { color: var(--after); }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.9rem 1rem;
+      overflow-x: auto;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      margin: 0.75rem 0;
+    }
+
+    code {
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.88em;
+    }
+
+    .callout {
+      background: var(--accent-soft);
+      border-left: 4px solid var(--accent);
+      padding: 0.9rem 1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1rem 0;
+    }
+
+    .callout strong { color: var(--accent); }
+
+    .diagram {
+      background: #fafbfc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1.25rem 0;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 1rem 0;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.55rem 0.7rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .progress-hint {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 2rem;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 0 1.5rem 2rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Search Filters Refactor</h1>
+    <p>
+      A progressive walkthrough of branch <strong>5834-improve-search-builder</strong>:
+      how dataset search filters work now, why the architecture changed, and how the
+      new design makes the system easier to understand and extend.
+    </p>
+    <p class="meta">data.gov catalog · generated walkthrough · open in any browser</p>
+  </header>
+
+  <nav class="toc" aria-label="Table of contents">
+    <a href="#overview">Overview</a>
+    <a href="#problem">The problem</a>
+    <a href="#concept">Core concept</a>
+    <a href="#request-flow">Request flow</a>
+    <a href="#filter-definition">FilterDefinition</a>
+    <a href="#registry">Registry loops</a>
+    <a href="#ui">UI rendering</a>
+    <a href="#api">API &amp; OpenAPI</a>
+    <a href="#extend">Adding a filter</a>
+    <a href="#benefits">Benefits</a>
+  </nav>
+
+  <main>
+    <!-- Step 1 -->
+    <section id="overview">
+      <span class="step-badge">Step 1</span>
+      <h2>What changed at a glance</h2>
+      <p>
+        Search filters used to be <em>scattered</em>: each route parsed its own query
+        parameters, OpenSearch built filter clauses inline, the sidebar hard-coded which
+        filters to show, and OpenAPI docs were maintained separately.
+      </p>
+      <p>
+        Now, each filter is a single <strong>registered definition</strong> that owns
+        parsing, URL serialization, OpenSearch clauses, optional aggregations, sidebar
+        rendering metadata, and API documentation — all in one place under
+        <code>app/search/filters/</code>.
+      </p>
+
+      <div class="compare">
+        <div class="card before">
+          <h4>Before</h4>
+          <ul>
+            <li><code>routes.py</code> — manual <code>request.args.getlist("keyword")</code> etc.</li>
+            <li><code>opensearch.py</code> — 80+ lines of inline filter clause building</li>
+            <li><code>filter_sidebar.html</code> — per-filter flags like <code>show_org_type_filters</code></li>
+            <li><code>api_schemas.py</code> — hand-written query fields per filter</li>
+          </ul>
+        </div>
+        <div class="card after">
+          <h4>After</h4>
+          <ul>
+            <li><code>SearchCriteria</code> — one object parsed from the request</li>
+            <li><code>FilterDefinition</code> — one module per filter (7 today)</li>
+            <li><code>registry.py</code> — loops over <code>FILTERS</code> for clauses, UI, aggs</li>
+            <li><code>docs/search-filters.md</code> — how to add a new filter in ~6 steps</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>One-sentence summary:</strong> Filters went from "copy the same plumbing
+        in four files" to "declare a filter once, register it, and every layer picks it up."
+      </div>
+    </section>
+
+    <!-- Step 2 -->
+    <section id="problem">
+      <span class="step-badge">Step 2</span>
+      <h2>Why we changed it</h2>
+      <p>The old design worked, but every new filter (or tweak) touched many unrelated places:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Concern</th>
+            <th>Old pain</th>
+            <th>New approach</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Parsing</td>
+            <td>Duplicated in index route, org detail route, and <code>/search</code> API</td>
+            <td><code>SearchCriteria.from_request_args()</code> iterates registered filters</td>
+          </tr>
+          <tr>
+            <td>OpenSearch</td>
+            <td>Long <code>if keywords / if org_types / if publisher …</code> block inside <code>search()</code></td>
+            <td><code>build_filter_clauses(criteria)</code> calls each filter's <code>clause_builder</code></td>
+          </tr>
+          <tr>
+            <td>URL preservation</td>
+            <td>Manual hidden inputs and pagination query dicts per route</td>
+            <td><code>criteria.to_query_pairs()</code> and <code>to_query_dict()</code></td>
+          </tr>
+          <tr>
+            <td>Sidebar UI</td>
+            <td>Template macros called with many individual variables</td>
+            <td><code>build_filter_sections()</code> returns a uniform list of sections</td>
+          </tr>
+          <tr>
+            <td>OpenAPI</td>
+            <td>Fields added manually to <code>SearchQuery</code></td>
+            <td>Generated from each filter's <code>api_query_params</code></td>
+          </tr>
+          <tr>
+            <td>Context rules</td>
+            <td>Implicit — "org type only on main search" buried in route logic</td>
+            <td>Explicit — <code>parse_contexts</code> and <code>ui_contexts</code> on each filter</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Before: filter logic lived in OpenSearch</h3>
+      <pre><code># app/database/opensearch.py (old)
+filters = []
+if keywords:
+    for keyword in keywords:
+        filters.append({"term": {"keyword.normalized": keyword.lower()}})
+if org_id is not None:
+    filters.append({"nested": {"path": "organization", ...}})
+if org_types:
+    filters.append({"nested": {"path": "organization", ...}})
+if publisher:
+    filters.append({"term": {"publisher.normalized": publisher.lower()}})
+if spatial_filter == "geospatial":
+    filters.append({"term": {"has_spatial": True}})
+# ... more filters ...</code></pre>
+
+      <h3>After: OpenSearch delegates to the registry</h3>
+      <pre><code># app/database/opensearch.py (new)
+filters = build_filter_clauses(criteria)
+if filters:
+    search_body["query"] = {"bool": {"filter": filters, "must": [base_query]}}</code></pre>
+    </section>
+
+    <!-- Step 3 -->
+    <section id="concept">
+      <span class="step-badge">Step 3</span>
+      <h2>The core concept: one filter, one definition</h2>
+      <p>
+        Each filter is a frozen <code>FilterDefinition</code> dataclass. Think of it as a
+        contract that answers five questions for the rest of the app:
+      </p>
+      <ol>
+        <li><strong>What query params do I own?</strong> → <code>query_params</code></li>
+        <li><strong>How do I parse them from a request?</strong> → <code>parse</code></li>
+        <li><strong>How do I put them back in URLs?</strong> → <code>to_query_pairs</code></li>
+        <li><strong>How do I constrain OpenSearch?</strong> → <code>clause_builder</code></li>
+        <li><strong>How do I appear in the sidebar?</strong> → <code>renderer</code> + <code>section_builder</code></li>
+      </ol>
+
+      <div class="diagram">
+        <pre class="mermaid">
+classDiagram
+    class FilterDefinition {
+        +str name
+        +tuple query_params
+        +tuple parse_contexts
+        +tuple ui_contexts
+        +str label
+        +str renderer
+        +Parser parse
+        +ClauseBuilder clause_builder
+        +SectionBuilder section_builder
+        +to_query_pairs()
+    }
+
+    class SearchCriteria {
+        +str query
+        +str sort_by
+        +dict filters
+        +dict resolved_filters
+        +from_request_args()
+        +to_query_pairs()
+        +has_active_filters()
+    }
+
+    class Registry {
+        +build_filter_clauses()
+        +build_filter_sections()
+        +build_aggregation_specs()
+        +visible_filter_query_params()
+    }
+
+    FilterDefinition "7" --> Registry : FILTERS tuple
+    SearchCriteria --> Registry : consumed by
+    Registry --> OpenSearch : filter clauses
+    Registry --> Templates : filter_sections
+    Registry --> OpenAPI : api_query_params
+        </pre>
+      </div>
+
+      <p class="muted">
+        Registered filters today: Geography, Keyword, Organization, Organization Type,
+        Publisher, Spatial Data, Collection — see <code>app/search/filters/__init__.py</code>.
+      </p>
+    </section>
+
+    <!-- Step 4 -->
+    <section id="request-flow">
+      <span class="step-badge">Step 4</span>
+      <h2>End-to-end request flow</h2>
+      <p>Follow a search request from the browser through to results. The same
+        <code>SearchCriteria</code> object travels through every layer.</p>
+
+      <div class="diagram">
+        <pre class="mermaid">
+sequenceDiagram
+    participant Browser
+    participant Route as routes.py
+    participant Criteria as SearchCriteria
+    participant Registry as registry.py
+    participant DB as OpenSearch
+    participant Template as filter_sidebar.html
+
+    Browser->>Route: GET /?keyword=health&org_type=City+Government&q=water
+    Route->>Criteria: from_request_args(request.args, route_context=MAIN)
+    Note over Criteria: Loop FILTERS where MAIN in parse_contexts
+    Criteria-->>Route: criteria (query, sort, filters dict)
+
+    Route->>DB: search_datasets(criteria)
+    DB->>Registry: build_filter_clauses(criteria)
+    Registry-->>DB: [term, nested, geo_shape, ...]
+    DB-->>Route: SearchResult
+
+    Route->>Registry: build_filter_sections(criteria, context)
+    Registry-->>Route: [{renderer, label, values, ...}, ...]
+    Route->>Template: render_filter_sidebar(filter_sections=...)
+    Template-->>Browser: HTML with generic checkbox/radio/keyword renderers
+        </pre>
+      </div>
+
+      <h3>Route contexts control where a filter applies</h3>
+      <p>Not every page needs every filter. Three constants gate behavior:</p>
+      <ul>
+        <li><code>MAIN_CONTEXT</code> — homepage search (<code>/</code>)</li>
+        <li><code>API_CONTEXT</code> — JSON search API (<code>/search</code>)</li>
+        <li><code>ORGANIZATION_CONTEXT</code> — org detail search</li>
+      </ul>
+
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart LR
+    subgraph contexts [Route contexts]
+        MAIN[MAIN_CONTEXT]
+        API[API_CONTEXT]
+        ORG[ORGANIZATION_CONTEXT]
+    end
+
+    subgraph filters [Example filter visibility]
+        KW[keyword]
+        OT[org_type]
+        GEO[geography]
+        COLL[collection]
+    end
+
+    MAIN --> KW & OT & GEO
+    API --> KW & GEO & COLL
+    ORG --> KW & GEO
+
+    style OT fill:#e8f1f8
+    style COLL fill:#fde8e8
+        </pre>
+      </div>
+      <p class="muted">
+        Example: <code>org_type</code> parses on main + API but only renders in the main
+        sidebar. <code>collection</code> parses for API/main but has no UI section.
+      </p>
+    </section>
+
+    <!-- Step 5 -->
+    <section id="filter-definition">
+      <span class="step-badge">Step 5</span>
+      <h2>Inside a filter module</h2>
+      <p>
+        Let's walk through <strong>Organization Type</strong> — a representative
+        <code>checkbox_group</code> filter. The whole file is ~75 lines and self-contained.
+      </p>
+
+      <pre><code># app/search/filters/organization_type.py (simplified)
+
+def _clause(criteria, values: list[str]) -> dict:
+    return {
+        "nested": {
+            "path": "organization",
+            "query": {"terms": {"organization.organization_type": values}},
+        }
+    }
+
+ORGANIZATION_TYPE_FILTER = FilterDefinition(
+    name="org_type",
+    query_params=("org_type",),
+    parse_contexts=(MAIN_CONTEXT, API_CONTEXT),
+    ui_contexts=(MAIN_CONTEXT,),
+    label="Organization Type",
+    renderer="checkbox_group",
+    options=ORG_TYPE_OPTIONS,
+    parse=lambda args: get_list(args, "org_type"),
+    to_query_pairs=lambda values: [("org_type", v) for v in values],
+    clause_builder=_clause,
+    section_builder=_section,
+)</code></pre>
+
+      <h3>Keyword filter: same pattern, plus aggregations</h3>
+      <p>Filters that power autocomplete also declare aggregation hooks:</p>
+      <ul>
+        <li><code>aggregation_builder</code> — OpenSearch agg spec</li>
+        <li><code>aggregation_parser</code> — turns raw buckets into suggestion lists</li>
+      </ul>
+
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TB
+    subgraph keyword [Keyword filter responsibilities]
+        P[parse: get_list args keyword]
+        C[clause_builder: term keyword.normalized]
+        A[aggregation_builder: terms on keyword.raw]
+        S[section_builder: keywords + suggestions + counts]
+        U[to_query_pairs: repeat keyword=...]
+    end
+
+    P --> SearchCriteria
+    C --> OpenSearch
+    A --> OpenSearch
+    S --> Sidebar
+    U --> Pagination / HTMX / hidden fields
+        </pre>
+      </div>
+
+      <h3>Geography filter: multi-param, complex value</h3>
+      <p>
+        Some filters own <em>multiple</em> query params and store a structured value
+        (geometry + within/intersects + label). The definition still encapsulates all of it:
+      </p>
+      <pre><code>query_params=("spatial_geometry", "spatial_within", "geography_label")
+parse → {geometry, within, label}
+to_query_pairs → serializes JSON geometry back to the URL
+clause_builder → geo_shape WITHIN or INTERSECTS</code></pre>
+
+      <h3>Resolved vs. raw filter values</h3>
+      <p>
+        The <strong>organization</strong> filter accepts <code>org_slug</code> in the URL
+        but OpenSearch needs the organization's <code>id</code>. Routes resolve the slug
+        and call <code>criteria.set_resolved_filter("organization", org_id)</code>.
+        <code>build_filter_clauses</code> reads <code>resolved_filters</code> first.
+      </p>
+    </section>
+
+    <!-- Step 6 -->
+    <section id="registry">
+      <span class="step-badge">Step 6</span>
+      <h2>The registry: four loops, one source of truth</h2>
+      <p><code>app/search/registry.py</code> is thin on purpose. It doesn't know filter
+        specifics — it only iterates <code>FILTERS</code>:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Function</th>
+            <th>What it does</th>
+            <th>Used by</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>build_filter_clauses</code></td>
+            <td>Collect OpenSearch <code>filter</code> clauses from active filters</td>
+            <td><code>opensearch.search()</code></td>
+          </tr>
+          <tr>
+            <td><code>build_aggregation_specs</code></td>
+            <td>Build contextual agg block for suggestions</td>
+            <td><code>opensearch.search()</code></td>
+          </tr>
+          <tr>
+            <td><code>parse_filter_aggregations</code></td>
+            <td>Normalize agg buckets to keyword/org/publisher lists</td>
+            <td><code>SearchResult</code> parsing</td>
+          </tr>
+          <tr>
+            <td><code>build_filter_sections</code></td>
+            <td>Produce sidebar section dicts for the current page</td>
+            <td>Routes → Jinja template</td>
+          </tr>
+          <tr>
+            <td><code>visible_filter_query_params</code></td>
+            <td>Params already shown as visible inputs (exclude from hidden fields)</td>
+            <td>Filter form hidden state</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TD
+    FILTERS[(FILTERS tuple\nin __init__.py)]
+
+    FILTERS --> Parse[from_request_args\nparse each filter]
+    FILTERS --> Clauses[build_filter_clauses]
+    FILTERS --> Aggs[build_aggregation_specs]
+    FILTERS --> Sections[build_filter_sections]
+    FILTERS --> Hidden[visible_filter_query_params]
+    FILTERS --> OpenAPI[_search_filter_query_fields]
+
+    Parse --> SC[SearchCriteria]
+    SC --> Clauses & Aggs & Sections & Hidden
+    Clauses --> OS[(OpenSearch)]
+    Sections --> UI[filter_sidebar.html]
+    Hidden --> Forms[hidden form fields]
+    OpenAPI --> Docs[/search OpenAPI schema]
+        </pre>
+      </div>
+    </section>
+
+    <!-- Step 7 -->
+    <section id="ui">
+      <span class="step-badge">Step 7</span>
+      <h2>UI: generic sidebar driven by <code>filter_sections</code></h2>
+      <p>
+        The sidebar template still uses specialized macros for complex controls (keyword
+        autocomplete, geography map, organization lookup). But <em>which</em> sections
+        appear and in what order is no longer hard-coded in routes.
+      </p>
+
+      <h3>Before</h3>
+      <pre><code>{# routes passed many flags and individual values #}
+render_filter_sidebar(
+    show_org_autocomplete=True,
+    show_org_type_filters=True,
+    keywords=keywords,
+    org_types=org_types,
+    publisher=publisher,
+    spatial_filter=spatial_filter,
+    ...
+)</code></pre>
+
+      <h3>After</h3>
+      <pre><code>{# routes pass one list; template dispatches by renderer #}
+render_filter_sidebar(
+    filter_sections=build_filter_sections(criteria, route_context=MAIN_CONTEXT, ...),
+    hidden_params=criteria.to_query_pairs(exclude=visible_filter_query_params(MAIN_CONTEXT)),
+)</code></pre>
+
+      <p>Supported renderers in <code>filter_sidebar.html</code>:</p>
+      <ul>
+        <li><code>checkbox_group</code> — org type (and future theme, etc.)</li>
+        <li><code>radio_group</code> — spatial data yes/no/all</li>
+        <li><code>keyword</code>, <code>organization</code>, <code>publisher</code>, <code>geography</code> — specialized macros</li>
+      </ul>
+
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart LR
+    subgraph section [Each filter section dict]
+        name[name]
+        label[label]
+        renderer[renderer]
+        is_active[is_active]
+        extras[section_builder fields]
+    end
+
+    section --> R{renderer?}
+    R -->|checkbox_group| CB[Generic checkbox fieldset]
+    R -->|radio_group| RD[Generic radio fieldset]
+    R -->|keyword| KW[keyword_filter macro]
+    R -->|geography| GEO[geography_filter macro]
+    R -->|organization| ORG[organization_autocomplete macro]
+    R -->|publisher| PUB[publisher_filter macro]
+        </pre>
+      </div>
+
+      <div class="callout">
+        <strong>Backward compatibility:</strong> The template still supports the old
+        individual-parameter path when <code>filter_sections</code> is <code>none</code>,
+        so callers can migrate gradually.
+      </div>
+    </section>
+
+    <!-- Step 8 -->
+    <section id="api">
+      <span class="step-badge">Step 8</span>
+      <h2>API &amp; OpenAPI stay in sync automatically</h2>
+      <p>
+        <code>SearchQuery</code> in <code>api_schemas.py</code> is built dynamically from
+        registered filters that include <code>API_CONTEXT</code> in
+        <code>parse_contexts</code>:
+      </p>
+      <pre><code>def _search_filter_query_fields():
+    fields = {}
+    for definition in FILTERS:
+        if API_CONTEXT not in definition.parse_contexts:
+            continue
+        for param in definition.api_query_params:
+            fields[param.name] = _api_query_field(param)
+    return fields</code></pre>
+      <p>
+        Each filter's <code>ApiQueryParam</code> can declare <code>repeated=True</code>,
+        <code>enum_values</code>, or special field types (e.g. JSON string for GeoJSON).
+        Adding a filter with API support updates the schema without touching
+        <code>api_schemas.py</code> field-by-field.
+      </p>
+    </section>
+
+    <!-- Step 9 -->
+    <section id="extend">
+      <span class="step-badge">Step 9</span>
+      <h2>How to add a new filter (e.g. Theme)</h2>
+      <p>See <code>docs/search-filters.md</code> for the full guide. The happy path:</p>
+
+      <div class="diagram">
+        <pre class="mermaid">
+flowchart TD
+    A[1. Create app/search/filters/theme.py] --> B[2. Define FilterDefinition]
+    B --> C[3. Implement parse, to_query_pairs, clause_builder]
+    C --> D[4. Add section_builder + pick renderer]
+    D --> E[5. Import in filters/__init__.py → FILTERS tuple]
+    E --> F[6. Verify OpenSearch field exists]
+    F --> G[7. Manual test + optional unit tests]
+
+    style A fill:#e8f1f8
+    style G fill:#e6f4ea
+        </pre>
+      </div>
+
+      <pre><code>THEME_FILTER = FilterDefinition(
+    name="theme",
+    query_params=("theme",),
+    parse_contexts=(MAIN_CONTEXT, API_CONTEXT, ORGANIZATION_CONTEXT),
+    ui_contexts=(MAIN_CONTEXT, ORGANIZATION_CONTEXT),
+    label="Theme",
+    renderer="checkbox_group",
+    options=THEME_OPTIONS,
+    parse=lambda args: get_list(args, "theme"),
+    to_query_pairs=lambda values: [("theme", v) for v in values],
+    clause_builder=_clause,   # match_phrase on theme field
+    section_builder=_section,
+)</code></pre>
+
+      <p><strong>You do not need to edit:</strong></p>
+      <ul>
+        <li><code>routes.py</code> parsing (unless you need a resolved value like org slug → id)</li>
+        <li><code>opensearch.py</code> filter assembly</li>
+        <li>Hidden field logic for pagination / clear filters</li>
+        <li>OpenAPI query fields (if <code>api_query_params</code> is set)</li>
+      </ul>
+    </section>
+
+    <!-- Step 10 -->
+    <section id="benefits">
+      <span class="step-badge">Step 10</span>
+      <h2>What you gain</h2>
+
+      <div class="compare">
+        <div class="card after">
+          <h4>Easier to understand</h4>
+          <ul>
+            <li>One file per filter — open <code>keyword.py</code> and see everything about keywords</li>
+            <li>Explicit context rules instead of route conditionals</li>
+            <li><code>SearchCriteria</code> is the single vocabulary across routes, DB, and templates</li>
+          </ul>
+        </div>
+        <div class="card after">
+          <h4>Easier to extend</h4>
+          <ul>
+            <li>Add to <code>FILTERS</code> tuple → parsing, clauses, UI, and docs follow</li>
+            <li>Generic renderers cover common patterns (checkbox/radio groups)</li>
+            <li>Tests can target registry behavior once (<code>test_search_filter_registry.py</code>)</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Key files reference</h3>
+      <table>
+        <thead>
+          <tr><th>File</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>app/search/filters/base.py</code></td><td><code>FilterDefinition</code>, parsers, contexts</td></tr>
+          <tr><td><code>app/search/filters/*.py</code></td><td>Individual filter modules</td></tr>
+          <tr><td><code>app/search/filters/__init__.py</code></td><td><code>FILTERS</code> registration order</td></tr>
+          <tr><td><code>app/search/criteria.py</code></td><td><code>SearchCriteria</code> parse + serialize</td></tr>
+          <tr><td><code>app/search/registry.py</code></td><td>Loop helpers for DB, UI, aggs</td></tr>
+          <tr><td><code>app/templates/components/filter_sidebar.html</code></td><td>Renderer dispatch</td></tr>
+          <tr><td><code>docs/search-filters.md</code></td><td>Contributor how-to</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>Next step:</strong> Open <code>app/search/filters/keyword.py</code> side-by-side
+        with this page and trace one active filter from URL → criteria → OpenSearch clause →
+        sidebar section. That single file is the mental model for all the others.
+      </div>
+    </section>
+
+    <p class="progress-hint">↑ Use the nav bar to jump between steps</p>
+  </main>
+
+  <footer>
+    Branch 5834-improve-search-builder · data.gov catalog search filters
+  </footer>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "neutral",
+      securityLevel: "loose",
+      flowchart: { curve: "basis" },
+    });
+  </script>
+</body>
+</html>
