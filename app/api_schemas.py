@@ -139,6 +139,7 @@ class KeywordsQuery(Schema):
     size = Integer()
     min_count = Integer()
     search = String()
+    keyword = List(String())
 
 
 class KeywordAndCount(Schema):

@@ -2935,7 +2935,7 @@ def test_keywords_api_returns_all_when_no_search(db_client):
     assert "earth science" in keyword_values
     assert "ocean" in keyword_values
     mock_interface.get_unique_keywords.assert_called_once_with(
-        size=10, min_doc_count=1, search=None
+        size=10, min_doc_count=1, search=None, keywords=None
     )
 
 
@@ -2956,7 +2956,30 @@ def test_keywords_api_passes_search_param_to_interface(db_client):
     assert "earth science" in keyword_values
     assert "earth science > trees" in keyword_values
     mock_interface.get_unique_keywords.assert_called_once_with(
-        size=10, min_doc_count=1, search="earth science"
+        size=10, min_doc_count=1, search="earth science", keywords=None
+    )
+
+
+def test_keywords_api_passes_selected_keywords_to_interface(db_client):
+    """Selected keywords should narrow autocomplete suggestions to compatible terms."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = [
+        {"keyword": "volunteering", "count": 8},
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(
+            "/api/keywords?search=vol&size=10&keyword=census"
+        )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["keywords"] == [{"keyword": "volunteering", "count": 8}]
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10,
+        min_doc_count=1,
+        search="vol",
+        keywords=["census"],
     )
 
 

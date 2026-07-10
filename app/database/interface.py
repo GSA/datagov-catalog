@@ -86,16 +86,20 @@ class CatalogDBInterface:
         """
         return self.opensearch.get_document_by_slug(slug_name)
 
-    def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
+    def get_unique_keywords(
+        self, size=100, min_doc_count=1, search=None, keywords=None
+    ) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
 
         size: Maximum number of unique keywords to return (default 100)
         min_doc_count: Minimum number of documents a keyword must appear in (default 1)
         search: Optional substring to filter returned keywords by
+        keywords: Optional list of currently selected keywords to make the
+            suggestions compatible with the active filter set.
         """
         return self.opensearch.get_unique_keywords(
-            size=size, min_doc_count=min_doc_count, search=search
+            size=size, min_doc_count=min_doc_count, search=search, keywords=keywords
         )
 
     def search_locations(self, query, size=100):
