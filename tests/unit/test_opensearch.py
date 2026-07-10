@@ -109,9 +109,10 @@ class TestOpenSearch:
 
         assert document["identifier"] == {"@id": "id-1"}
         assert document["theme"] == [{"prefLabel": "Geospatial"}]
-        assert document["inSeries"] == [
-            {"@id": "https://catalog.data.gov/dataset/my-collection"}
-        ]
+        assert "inSeries" not in document
+        assert document["dcat"]["isPartOf"] == (
+            "https://catalog.data.gov/dataset/my-collection"
+        )
 
     def test_legacy_is_part_of_indexed_as_in_series_for_collection_filter(
         self, interface_with_dataset, opensearch_client
@@ -120,15 +121,37 @@ class TestOpenSearch:
         opensearch_client.index_datasets([child])
 
         document = opensearch_client.dataset_to_document(child)
-        assert document["inSeries"] == [
-            {"@id": "https://subdomain.domain/parent/example.shp.iso.xml"}
-        ]
+        assert "inSeries" not in document
+        assert (
+            document["dcat"]["isPartOf"]
+            == "https://subdomain.domain/parent/example.shp.iso.xml"
+        )
 
         result_obj = opensearch_client.search(
             "", collection="https://subdomain.domain/parent/example.shp.iso.xml"
         )
         slugs = {doc["slug"] for doc in result_obj.results}
         assert "child-harvest-record" in slugs
+
+    def test_dcat3_in_series_adds_legacy_is_part_of_for_collection_filter(
+        self, opensearch_client, mock_dataset_with_datetime
+    ):
+        mock_dataset_with_datetime.dcat.pop("isPartOf", None)
+        mock_dataset_with_datetime.dcat["inSeries"] = [
+            {
+                "@id": "https://example.gov/series/annual",
+                "@type": "DatasetSeries",
+                "title": "Annual Series",
+            }
+        ]
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert "inSeries" not in document
+        assert (
+            document["dcat"]["inSeries"] == mock_dataset_with_datetime.dcat["inSeries"]
+        )
+        assert document["dcat"]["isPartOf"] == "https://example.gov/series/annual"
 
 
 class TestDcatDateNormalization:
@@ -580,11 +603,10 @@ class TestOpenSearchMappings:
             OpenSearchInterface.KEYWORD_NORMALIZER
         )
 
-    def test_in_series_mapping_is_object(self):
+    def test_in_series_is_not_top_level_mapping(self):
         mappings = OpenSearchInterface.MAPPINGS
-        in_series = mappings["properties"]["inSeries"]
-        assert in_series["type"] == "object"
-        assert in_series["properties"]["@id"]["type"] == "keyword"
+        assert "inSeries" not in mappings["properties"]
+        assert mappings["properties"]["dcat"]["dynamic"] is False
 
 
 def test_count_datasets_with_ispartof_passes_filtered_count_query():
@@ -599,7 +621,14 @@ def test_count_datasets_with_ispartof_passes_filtered_count_query():
     assert count == 7
     client.client.count.assert_called_once_with(
         index=client.INDEX_NAME,
-        body={"query": {"exists": {"field": "inSeries.@id"}}},
+        body={
+            "query": {
+                "nested": {
+                    "path": "dcat",
+                    "query": {"exists": {"field": "dcat.isPartOf"}},
+                }
+            }
+        },
     )
 
 

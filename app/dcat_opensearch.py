@@ -6,7 +6,6 @@ from typing import Any
 
 _IDENTIFIER_OBJECT_KEYS = ("@id", "notation", "schemaAgency", "version")
 _THEME_OBJECT_KEYS = ("@id", "prefLabel", "altLabel", "definition", "notation")
-_IN_SERIES_OBJECT_KEYS = ("@id", "title", "description")
 
 
 def identifier_id(value: Any) -> str | None:
@@ -112,51 +111,27 @@ def theme_pref_labels(dcat_or_list: dict | list | None) -> list[str]:
     return []
 
 
-def _normalize_in_series_item(series: Any) -> dict | None:
-    if isinstance(series, str):
-        stripped = series.strip()
-        return {"@id": stripped} if stripped else None
-
-    if isinstance(series, dict):
-        result = {
-            key: series[key]
-            for key in _IN_SERIES_OBJECT_KEYS
-            if isinstance(series.get(key), str) and series[key].strip()
-        }
-        return result or None
-
-    return None
-
-
-def normalize_in_series(dcat: dict) -> list[dict]:
-    """Map inSeries objects or legacy isPartOf string to indexed shape."""
+def _first_in_series_identifier(dcat: dict) -> str | None:
     raw = dcat.get("inSeries")
-    if raw is not None:
-        if isinstance(raw, list):
-            series_list: list[dict] = []
-            for item in raw:
-                normalized = _normalize_in_series_item(item)
-                if normalized:
-                    series_list.append(normalized)
-            if series_list:
-                return series_list
-        else:
-            normalized = _normalize_in_series_item(raw)
-            if normalized:
-                return [normalized]
+    if isinstance(raw, dict):
+        raw = [raw]
+    if not isinstance(raw, list):
+        return None
 
-    is_part_of = dcat.get("isPartOf")
-    if isinstance(is_part_of, str) and is_part_of.strip():
-        return [{"@id": is_part_of.strip()}]
-
-    return []
+    for series in raw:
+        if not isinstance(series, dict):
+            continue
+        identifier = series.get("@id")
+        if isinstance(identifier, str) and identifier.strip():
+            return identifier.strip()
+    return None
 
 
 def collection_uri_from_dcat(dcat: dict) -> str | None:
     """Resolve collection/series URI from inSeries or legacy isPartOf."""
-    in_series = normalize_in_series(dcat)
-    if in_series:
-        return in_series[0].get("@id")
+    in_series_identifier = _first_in_series_identifier(dcat)
+    if in_series_identifier is not None:
+        return in_series_identifier
 
     is_part_of = dcat.get("isPartOf")
     if isinstance(is_part_of, str) and is_part_of.strip():
@@ -167,14 +142,6 @@ def collection_uri_from_dcat(dcat: dict) -> str | None:
 
 def collection_uri_from_hit(doc: dict) -> str | None:
     """Resolve collection URL from an OpenSearch hit."""
-    in_series = doc.get("inSeries")
-    if isinstance(in_series, list) and in_series:
-        first = in_series[0]
-        if isinstance(first, dict):
-            series_id = first.get("@id")
-            if isinstance(series_id, str) and series_id.strip():
-                return series_id.strip()
-
     dcat = doc.get("dcat")
     if isinstance(dcat, dict):
         return collection_uri_from_dcat(dcat)

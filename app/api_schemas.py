@@ -71,12 +71,6 @@ class Concept(Schema):
     notation = String()
 
 
-class DatasetSeries(Schema):
-    id = String(data_key="@id")
-    title = String()
-    description = String()
-
-
 class Dataset(Schema):
     _score = Float()
     _sort = List(_Any())
@@ -87,7 +81,6 @@ class Dataset(Schema):
     harvest_record_transformed = URL()
     has_spatial = Boolean()
     identifier = Nested(Identifier(), allow_none=True)
-    inSeries = List(Nested(DatasetSeries()))
     keyword = List(String())
     last_harvested_date = Date()
     organization = Nested(Organization())

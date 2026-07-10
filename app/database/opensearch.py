@@ -17,7 +17,6 @@ from opensearchpy.exceptions import ConnectionTimeout
 
 from app.dcat_opensearch import (
     normalize_identifier,
-    normalize_in_series,
     normalize_theme,
     theme_pref_labels,
 )
@@ -195,6 +194,7 @@ class OpenSearchInterface:
             "last_harvested_date": {"type": "date"},
             "dcat": {
                 "type": "nested",
+                "dynamic": False,
                 "properties": {
                     "modified": {"type": "keyword"},  # Ensure modified is always text
                     "issued": {"type": "keyword"},  # Also ensure issued is text
@@ -274,28 +274,6 @@ class OpenSearchInterface:
                         "search_analyzer": TEXT_ANALYZER,
                     },
                     "version": {"type": "keyword"},
-                },
-            },
-            "inSeries": {
-                "type": "object",
-                "properties": {
-                    "@id": {"type": "keyword"},
-                    "title": {
-                        "type": "text",
-                        "analyzer": TEXT_ANALYZER,
-                        "search_analyzer": TEXT_ANALYZER,
-                        "fields": {
-                            "keyword": {
-                                "type": "keyword",
-                                "normalizer": KEYWORD_NORMALIZER,
-                            }
-                        },
-                    },
-                    "description": {
-                        "type": "text",
-                        "analyzer": TEXT_ANALYZER,
-                        "search_analyzer": TEXT_ANALYZER,
-                    },
                 },
             },
             "has_spatial": {"type": "boolean"},  # Whether dataset has spatial data
@@ -437,12 +415,28 @@ class OpenSearchInterface:
         self._ensure_index()
 
     @staticmethod
-    def _normalize_dcat_dates(dcat: dict) -> dict:
+    def _first_in_series_identifier(dcat: dict) -> str | None:
+        in_series = dcat.get("inSeries")
+        if not isinstance(in_series, list):
+            return None
+
+        for series in in_series:
+            if not isinstance(series, dict):
+                continue
+            identifier = series.get("@id")
+            if isinstance(identifier, str) and identifier.strip():
+                return identifier.strip()
+        return None
+
+    @classmethod
+    def _normalize_dcat_dates(cls, dcat: dict) -> dict:
         """Normalize date fields in DCAT to ensure they're always strings.
 
         dcat: DCAT dictionary that may contain datetime objects
 
-        the returned value is the modified dcat dict.
+        The returned value is a near-copy of the DCAT dict with JSON-safe date
+        fields. For current collection filtering, DCAT-US 3.0 ``inSeries`` also
+        gets a legacy ``isPartOf`` alias when ``isPartOf`` is absent.
         """
         # Create a copy to avoid mutating the original
         normalized_dcat = dcat.copy()
@@ -456,8 +450,14 @@ class OpenSearchInterface:
                 if isinstance(value, (datetime, date)):
                     normalized_dcat[field] = value.isoformat()
                 elif value is not None and not isinstance(value, str):
-                    # Convert any other non-string type to string
-                    normalized_dcat[field] = str(value)
+                    if not isinstance(value, (dict, list)):
+                        normalized_dcat[field] = str(value)
+
+        is_part_of = normalized_dcat.get("isPartOf")
+        if not (isinstance(is_part_of, str) and is_part_of.strip()):
+            in_series_identifier = cls._first_in_series_identifier(dcat)
+            if in_series_identifier is not None:
+                normalized_dcat["isPartOf"] = in_series_identifier
 
         return normalized_dcat
 
@@ -605,7 +605,6 @@ class OpenSearchInterface:
             "keyword": dataset.dcat.get("keyword", []),
             "theme": normalize_theme(dataset.dcat),
             "identifier": normalize_identifier(dataset.dcat),
-            "inSeries": normalize_in_series(dataset.dcat),
             "has_spatial": has_spatial,
             "organization": dataset.organization.to_dict(),
             "distribution_titles": [
@@ -1150,7 +1149,14 @@ class OpenSearchInterface:
             )
 
         if collection:
-            filters.append({"term": {"inSeries.@id": collection}})
+            filters.append(
+                {
+                    "nested": {
+                        "path": "dcat",
+                        "query": {"term": {"dcat.isPartOf": collection}},
+                    }
+                }
+            )
 
         # Apply filters if any exist
         if filters:
@@ -1419,16 +1425,23 @@ class OpenSearchInterface:
 
     def count_datasets_in_series(self) -> int:
         """
-        Get the total count of datasets indexed with an inSeries membership.
+        Get the total count of datasets indexed with collection membership.
         """
         try:
             result = self.client.count(
                 index=self.INDEX_NAME,
-                body={"query": {"exists": {"field": "inSeries.@id"}}},
+                body={
+                    "query": {
+                        "nested": {
+                            "path": "dcat",
+                            "query": {"exists": {"field": "dcat.isPartOf"}},
+                        }
+                    }
+                },
             )
             return result.get("count", 0)
         except Exception as e:
-            logger.error(f"Error counting datasets with inSeries in OpenSearch: {e}")
+            logger.error(f"Error counting datasets with isPartOf in OpenSearch: {e}")
             return 0
 
     def count_datasets_with_ispartof(self) -> int:

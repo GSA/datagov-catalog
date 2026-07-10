@@ -32,7 +32,7 @@ sync` is available for this. It clears the Opensearch index and then indexes
 every dataset from Postgres into Opensearch.
 
 When the DCAT-US 3.0 index mapping changes (for example, `identifier`, `theme`,
-or `inSeries` field types), recreate the index before reindexing:
+or nested `dcat` field behavior), recreate the index before reindexing:
 
 ```bash
 flask search sync --recreate-index

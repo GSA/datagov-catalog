@@ -5,7 +5,6 @@ from app.dcat_opensearch import (
     collection_uri_from_hit,
     identifier_id,
     normalize_identifier,
-    normalize_in_series,
     normalize_theme,
     theme_pref_labels,
 )
@@ -60,36 +59,6 @@ class TestNormalizeTheme:
         ]
 
 
-class TestNormalizeInSeries:
-    def test_legacy_is_part_of(self):
-        assert normalize_in_series(
-            {"isPartOf": "https://catalog.data.gov/dataset/my-collection"}
-        ) == [{"@id": "https://catalog.data.gov/dataset/my-collection"}]
-
-    def test_in_series_objects(self):
-        dcat = {
-            "inSeries": [
-                {
-                    "@id": "https://example.gov/series/annual",
-                    "title": "Annual Series",
-                }
-            ]
-        }
-        assert normalize_in_series(dcat) == [
-            {
-                "@id": "https://example.gov/series/annual",
-                "title": "Annual Series",
-            }
-        ]
-
-    def test_in_series_takes_precedence_over_is_part_of(self):
-        dcat = {
-            "inSeries": [{"@id": "https://example.gov/series/new"}],
-            "isPartOf": "https://example.gov/legacy",
-        }
-        assert normalize_in_series(dcat) == [{"@id": "https://example.gov/series/new"}]
-
-
 class TestReadHelpers:
     def test_identifier_id_from_string(self):
         assert identifier_id("cftc-dc1") == "cftc-dc1"
@@ -110,12 +79,11 @@ class TestReadHelpers:
         }
         assert collection_uri_from_dcat(dcat) == "https://example.gov/series/1"
 
-    def test_collection_uri_from_hit_uses_top_level_in_series(self):
+    def test_collection_uri_from_hit_uses_dcat_blob(self):
         hit = {
-            "inSeries": [{"@id": "https://example.gov/series/1"}],
             "dcat": {"isPartOf": "https://example.gov/legacy"},
         }
-        assert collection_uri_from_hit(hit) == "https://example.gov/series/1"
+        assert collection_uri_from_hit(hit) == "https://example.gov/legacy"
 
     @pytest.mark.parametrize("value", [None, "", {}, []])
     def test_empty_values_return_none_or_empty(self, value):
