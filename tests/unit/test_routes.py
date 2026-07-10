@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
 from app.database.opensearch import SearchResult
 from app.models import Dataset, Organization
+from app.search import SearchCriteria
 from tests.fixtures import HARVEST_RECORD_ID
 
 
@@ -253,8 +254,11 @@ def test_index_page_filters_by_org_slug(db_client):
 
     assert response.status_code == 200
     mock_interface.get_organization_by_slug.assert_called_once_with("test-org")
-    _, kwargs = mock_interface.search_datasets.call_args
-    assert kwargs["org_id"] == "org-1"
+    args, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs == {}
+    criteria = args[0]
+    assert isinstance(criteria, SearchCriteria)
+    assert criteria.get_resolved_filter("organization") == "org-1"
 
     soup = BeautifulSoup(response.text, "html.parser")
     hidden = soup.find("input", {"name": "org_slug", "type": "hidden"})
@@ -584,9 +588,12 @@ def test_index_page_parses_spatial_within_param(db_client):
     assert response.status_code == 200
     # The route now makes a single search_datasets call with include_aggregations=True.
     assert mock_interface.search_datasets.call_count == 1
-    _, kwargs = mock_interface.search_datasets.call_args
-    assert kwargs["spatial_within"] is False
-    assert kwargs["spatial_geometry"] == polygon
+    args, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs == {}
+    criteria = args[0]
+    assert isinstance(criteria, SearchCriteria)
+    assert criteria.spatial_within is False
+    assert criteria.spatial_geometry == polygon
 
 
 def test_search_api_parses_spatial_within_param(db_client):
@@ -612,9 +619,12 @@ def test_search_api_parses_spatial_within_param(db_client):
         )
 
     assert response.status_code == 200
-    _, kwargs = mock_interface.search_datasets.call_args
-    assert kwargs["spatial_within"] is True
-    assert kwargs["spatial_geometry"] == polygon
+    args, kwargs = mock_interface.search_datasets.call_args
+    assert kwargs == {}
+    criteria = args[0]
+    assert isinstance(criteria, SearchCriteria)
+    assert criteria.spatial_within is True
+    assert criteria.spatial_geometry == polygon
 
 
 def test_organization_detail_parses_spatial_within_param(db_client):
@@ -656,9 +666,12 @@ def test_organization_detail_parses_spatial_within_param(db_client):
         )
 
     assert response.status_code == 200
-    _, kwargs = mock_interface.list_datasets_for_organization.call_args
-    assert kwargs["spatial_within"] is False
-    assert kwargs["spatial_geometry"] == polygon
+    args, kwargs = mock_interface.list_datasets_for_organization.call_args
+    assert args == ("org-1",)
+    criteria = kwargs["criteria"]
+    assert isinstance(criteria, SearchCriteria)
+    assert criteria.spatial_within is False
+    assert criteria.spatial_geometry == polygon
 
 
 def test_organization_detail_includes_top_20_result_geometries_for_map(db_client):

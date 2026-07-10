@@ -3,7 +3,6 @@ import logging
 from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
-from urllib.parse import unquote
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
@@ -35,6 +34,15 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
+from .search import (
+    API_CONTEXT,
+    MAIN_CONTEXT,
+    ORGANIZATION_CONTEXT,
+    FilterParseError,
+    SearchCriteria,
+    build_filter_sections,
+    visible_filter_query_params,
+)
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -60,17 +68,6 @@ load_dotenv()
 STATUS_STRINGS_ENUM = {404: "Not Found"}
 
 interface = CatalogDBInterface()
-
-
-def _parse_bool_param(value: str | None, default: bool) -> bool:
-    if value is None:
-        return default
-    normalized = value.strip().lower()
-    if normalized in {"1", "true", "yes", "y", "on", "within"}:
-        return True
-    if normalized in {"0", "false", "no", "n", "off", "intersect", "intersects"}:
-        return False
-    return default
 
 
 def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
@@ -124,6 +121,18 @@ def _normalize_sort(sort_value: str | None, spatial_geometry: dict | None) -> st
     if sort_key == "distance" and spatial_geometry is None:
         return "relevance"
     return sort_key
+
+
+def _filter_parse_error_response(error: FilterParseError):
+    return (
+        jsonify(
+            {
+                "error": "Search failed",
+                "message": error.message,
+            }
+        ),
+        400,
+    )
 
 
 def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
@@ -190,39 +199,34 @@ def index():
     API in the background.
 
     """
-    query = request.args.get("q", "")
-    num_results = request.args.get("results", DEFAULT_PER_PAGE, type=int)
-    org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
-    org_types = request.args.getlist("org_type")
-    keywords = request.args.getlist("keyword")
-    publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
-    spatial_filter = request.args.get("spatial_filter", None, type=str)
-    spatial_geometry = request.args.get("spatial_geometry", type=str)
-    geography_label = (
-        request.args.get("geography_label", None, type=str) or ""
-    ).strip() or None
-    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
-    sort_by = request.args.get("sort", "relevance") or "relevance"
-    collection = request.args.get("collection", None, type=str)
+    try:
+        criteria = SearchCriteria.from_request_args(
+            request.args,
+            route_context=MAIN_CONTEXT,
+            per_page_name="results",
+            default_per_page=DEFAULT_PER_PAGE,
+            max_per_page=9999,
+            include_aggregations=True,
+            keyword_size=100,
+            org_size=100,
+            publisher_size=100,
+        )
+    except FilterParseError as error:
+        return _filter_parse_error_response(error)
+    criteria.sort_by = _normalize_sort(criteria.sort_by, criteria.spatial_geometry)
 
-    # there's a limit on how many results can be requested
-    num_results = min(num_results, 9999)
-
-    if spatial_geometry is not None:
-        try:
-            # it's a URL parameter so it is probably URL-quoted
-            spatial_geometry = json.loads(unquote(spatial_geometry))
-        except json.JSONDecodeError:
-            return (
-                jsonify(
-                    {
-                        "error": "Search failed",
-                        "message": "spatial_geometry parameter is malformed",
-                    }
-                ),
-                400,
-            )
-    sort_by = _normalize_sort(sort_by, spatial_geometry)
+    query = criteria.query
+    num_results = criteria.per_page
+    org_slug_param = criteria.org_slug or ""
+    org_types = criteria.org_types
+    keywords = criteria.keywords
+    publisher = criteria.publisher
+    spatial_filter = criteria.spatial_filter
+    spatial_geometry = criteria.spatial_geometry
+    geography_label = criteria.geography_label
+    spatial_within = criteria.spatial_within
+    sort_by = criteria.sort_by
+    collection = criteria.collection
 
     # Initialize empty results
     datasets: list[dict] = []
@@ -246,35 +250,13 @@ def index():
             else:
                 org_filter_id = org_slug_param
 
-    has_filters = (
-        query
-        or org_types
-        or keywords
-        or publisher
-        or org_filter_id
-        or spatial_filter
-        or spatial_geometry
-        or collection
-    )
+    if org_filter_id:
+        criteria.set_resolved_filter("organization", org_filter_id)
+
+    has_filters = criteria.has_active_filters(include_query=True)
 
     try:
-        result = interface.search_datasets(
-            query,
-            keywords=keywords,
-            per_page=num_results,
-            org_id=org_filter_id,
-            org_types=org_types,
-            publisher=publisher,
-            sort_by=sort_by,
-            spatial_filter=spatial_filter,
-            spatial_geometry=spatial_geometry,
-            spatial_within=spatial_within,
-            include_aggregations=True,
-            keyword_size=100,
-            org_size=100,
-            publisher_size=100,
-            collection=collection,
-        )
+        result = interface.search_datasets(criteria)
 
         # For homepage without filters, get accurate total count
         result_total = result.total if result is not None else 0
@@ -383,14 +365,21 @@ def index():
 
         # get the collection count (regardless of the existing query)
         collection_data["count"] = len(
-            interface.search_datasets(collection=collection).results
+            interface.search_datasets(
+                SearchCriteria.from_values(filters={"collection": collection})
+            ).results
         )
 
         # need to get the parent by exact match so using 'slug' because it's a 'keyword'
         parent_db = interface.get_dataset_by_dcat_identifier(collection)
         if parent_db:
             parent_results = list(
-                interface.search_datasets(parent_db.slug, collection=collection).results
+                interface.search_datasets(
+                    SearchCriteria.from_values(
+                        query=parent_db.slug,
+                        filters={"collection": collection},
+                    )
+                ).results
             )
             if parent_results:
                 collection_data["parent"] = parent_results[0]
@@ -425,6 +414,31 @@ def index():
         contextual_org_counts=contextual_org_counts,
         contextual_publisher_counts=contextual_publisher_counts,
         collection_data=collection_data,
+        filter_sections=build_filter_sections(
+            criteria,
+            route_context=MAIN_CONTEXT,
+            selected_organization=selected_organization,
+            suggested_keywords=suggested_keywords,
+            suggested_organizations=suggested_organizations,
+            suggested_publishers=suggested_publishers,
+            contextual_keyword_counts=contextual_keyword_counts,
+            contextual_org_counts=contextual_org_counts,
+            contextual_publisher_counts=contextual_publisher_counts,
+            search_result_geometries=search_result_geometries,
+        ),
+        main_search_hidden_params=criteria.to_query_pairs(
+            include_query=False,
+            include_sort=True,
+        ),
+        filter_form_hidden_params=criteria.to_query_pairs(
+            include_query=True,
+            include_sort=True,
+            exclude=visible_filter_query_params(MAIN_CONTEXT),
+        ),
+        pagination_query_params=criteria.to_query_dict(
+            include_query=True,
+            include_sort=True,
+        ),
     )
 
 
@@ -444,9 +458,20 @@ def search(**kwargs):
 
     The search argument is `q`: `/search?q=search%20term`.
     """
+    try:
+        criteria = SearchCriteria.from_request_args(
+            request.args,
+            route_context=API_CONTEXT,
+            per_page_name="per_page",
+            default_per_page=DEFAULT_PER_PAGE,
+        )
+    except FilterParseError as error:
+        return _filter_parse_error_response(error)
+    criteria.sort_by = _normalize_sort(criteria.sort_by, criteria.spatial_geometry)
+
     # missing query parameter searches for everything
-    query = request.args.get("q", "")
-    per_page = request.args.get("per_page", DEFAULT_PER_PAGE, type=int)
+    query = criteria.query
+    per_page = criteria.per_page
     if per_page is None or not 1 <= per_page <= SEARCH_API_MAX_PER_PAGE:
         return (
             jsonify(
@@ -459,17 +484,16 @@ def search(**kwargs):
             ),
             400,
         )
-    results_hint = request.args.get("results", 0, type=int)
-    from_hint = request.args.get("from_hint")
-    org_slug_param = (request.args.get("org_slug", None, type=str) or "").strip()
-    org_types = request.args.getlist("org_type")
-    keywords = request.args.getlist("keyword")
-    publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
-    after = request.args.get("after")
-    spatial_filter = request.args.get("spatial_filter", None, type=str)
-    spatial_geometry = request.args.get("spatial_geometry", type=str)
-    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
-    sort_by = request.args.get("sort", "relevance") or "relevance"
+    results_hint = criteria.results_hint
+    from_hint = criteria.from_hint
+    org_slug_param = criteria.org_slug or ""
+    org_types = criteria.org_types
+    keywords = criteria.keywords
+    publisher = criteria.publisher
+    spatial_filter = criteria.spatial_filter
+    spatial_geometry = criteria.spatial_geometry
+    spatial_within = criteria.spatial_within
+    sort_by = criteria.sort_by
 
     selected_organization = None
     org_filter_id = None
@@ -485,37 +509,11 @@ def search(**kwargs):
                 org_filter_id = selected_organization.id
             else:
                 org_filter_id = org_slug_param
-
-    if spatial_geometry is not None:
-        try:
-            # it's a URL parameter so it is probably URL-quoted
-            spatial_geometry = json.loads(unquote(spatial_geometry))
-        except json.JSONDecodeError:
-            return (
-                jsonify(
-                    {
-                        "error": "Search failed",
-                        "message": "spatial_geometry parameter is malformed",
-                    }
-                ),
-                400,
-            )
-    sort_by = _normalize_sort(sort_by, spatial_geometry)
+    if org_filter_id:
+        criteria.set_resolved_filter("organization", org_filter_id)
 
     # Use keyword search if keywords are provided
-    result = interface.search_datasets(
-        keywords=keywords,
-        query=query,
-        per_page=per_page,
-        org_id=org_filter_id,
-        org_types=org_types,
-        publisher=publisher,
-        spatial_filter=spatial_filter,
-        spatial_geometry=spatial_geometry,
-        spatial_within=spatial_within,
-        after=after,
-        sort_by=sort_by,
-    )
+    result = interface.search_datasets(criteria)
 
     if htmx:
         results = [each for each in result.results]
@@ -540,6 +538,15 @@ def search(**kwargs):
                 spatial_geometry=spatial_geometry,
                 spatial_within=spatial_within,
                 publisher=publisher,
+                api_pagination_query_params={
+                    **criteria.to_query_dict(include_query=True, include_sort=True),
+                    "org_slug": selected_organization.slug,
+                },
+                page_pagination_query_params=criteria.to_query_dict(
+                    include_query=True,
+                    include_sort=True,
+                    exclude={"org_slug"},
+                ),
             )
         return render_template(
             "components/dataset_results.html",
@@ -560,6 +567,10 @@ def search(**kwargs):
             spatial_geometry=spatial_geometry,
             spatial_within=spatial_within,
             publisher=publisher,
+            pagination_query_params=criteria.to_query_dict(
+                include_query=True,
+                include_sort=True,
+            ),
         )
 
     response_dict = {
@@ -704,52 +715,42 @@ def organization_detail(slug: str):
                 url_for("main.organization_detail", slug=organization.slug), code=302
             )
 
-    dataset_search_query = request.args.get("q", default="", type=str).strip()
-    num_results = request.args.get("results", default=DEFAULT_PER_PAGE, type=int)
-    keywords = request.args.getlist("keyword")
-    publisher = (request.args.get("publisher", None, type=str) or "").strip() or None
-    spatial_filter = request.args.get("spatial_filter", None, type=str)
-    spatial_geometry = request.args.get("spatial_geometry", type=str)
-    geography_label = (
-        request.args.get("geography_label", None, type=str) or ""
-    ).strip() or None
-    spatial_within = _parse_bool_param(request.args.get("spatial_within"), True)
-    sort_by = request.args.get("sort", default="relevance")
+    try:
+        criteria = SearchCriteria.from_request_args(
+            request.args,
+            route_context=ORGANIZATION_CONTEXT,
+            per_page_name="results",
+            default_per_page=DEFAULT_PER_PAGE,
+            include_aggregations=True,
+            keyword_size=100,
+            publisher_size=100,
+            strip_query=True,
+        )
+    except FilterParseError as error:
+        return _filter_parse_error_response(error)
+    criteria.sort_by = _normalize_sort(criteria.sort_by, criteria.spatial_geometry)
+    criteria.set_resolved_filter("organization", organization.id)
+
+    dataset_search_query = criteria.query
+    num_results = criteria.per_page
+    keywords = criteria.keywords
+    publisher = criteria.publisher
+    spatial_filter = criteria.spatial_filter
+    spatial_geometry = criteria.spatial_geometry
+    geography_label = criteria.geography_label
+    spatial_within = criteria.spatial_within
+    sort_by = criteria.sort_by
 
     from_hint = None
     if request.args:
         hint_args = dict(request.args)
         hint_args["slug"] = request.path.split("/")[2]  # get the org slug
         from_hint = hint_from_dict(hint_args)
-
-    if spatial_geometry is not None:
-        try:
-            spatial_geometry = json.loads(unquote(spatial_geometry))
-        except json.JSONDecodeError:
-            return (
-                jsonify(
-                    {
-                        "error": "Search failed",
-                        "message": "spatial_geometry parameter is malformed",
-                    }
-                ),
-                400,
-            )
-    sort_by = _normalize_sort(sort_by, spatial_geometry)
+    criteria.from_hint = from_hint
 
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
-        dataset_search_query=dataset_search_query,
-        sort_by=sort_by,
-        num_results=num_results,
-        keywords=keywords,
-        publisher=publisher,
-        spatial_filter=spatial_filter,
-        spatial_geometry=spatial_geometry,
-        spatial_within=spatial_within,
-        include_aggregations=True,
-        keyword_size=100,
-        publisher_size=100,
+        criteria=criteria,
     )
     after = dataset_result.search_after_obscured()
     search_result_geometries = (
@@ -819,6 +820,32 @@ def organization_detail(slug: str):
         contextual_keyword_counts=contextual_keyword_counts,
         contextual_publisher_counts=contextual_publisher_counts,
         from_hint=from_hint,
+        filter_sections=build_filter_sections(
+            criteria,
+            route_context=ORGANIZATION_CONTEXT,
+            suggested_keywords=suggested_keywords,
+            suggested_publishers=suggested_publishers,
+            contextual_keyword_counts=contextual_keyword_counts,
+            contextual_publisher_counts=contextual_publisher_counts,
+            search_result_geometries=search_result_geometries,
+        ),
+        main_search_hidden_params=criteria.to_query_pairs(
+            include_query=False,
+            include_sort=True,
+        ),
+        filter_form_hidden_params=criteria.to_query_pairs(
+            include_query=True,
+            include_sort=True,
+            exclude=visible_filter_query_params(ORGANIZATION_CONTEXT),
+        ),
+        api_pagination_query_params={
+            **criteria.to_query_dict(include_query=True, include_sort=True),
+            "org_slug": slug_or_id,
+        },
+        page_pagination_query_params=criteria.to_query_dict(
+            include_query=True,
+            include_sort=True,
+        ),
     )
 
 
@@ -842,7 +869,9 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # collections
     collection_data = {"name": None, "count": 0}
     if "isPartOf" in dataset.dcat:
-        result = interface.search_datasets(collection=dataset.dcat["isPartOf"])
+        result = interface.search_datasets(
+            SearchCriteria.from_values(filters={"collection": dataset.dcat["isPartOf"]})
+        )
         collection_data["name"] = dataset.dcat["isPartOf"]
         collection_data["count"] = result.total
 
