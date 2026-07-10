@@ -674,7 +674,7 @@ def test_count_datasets_with_ispartof_passes_filtered_count_query():
     client.client = Mock()
     client.client.count.return_value = {"count": 7}
 
-    count = client.count_datasets_in_series()
+    count = client.count_datasets_with_ispartof()
 
     assert count == 7
     client.client.count.assert_called_once_with(

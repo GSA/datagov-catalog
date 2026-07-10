@@ -1388,9 +1388,9 @@ class OpenSearchInterface:
             logger.error(f"Error counting datasets in OpenSearch: {e}")
             return 0
 
-    def count_datasets_in_series(self) -> int:
+    def count_datasets_with_ispartof(self) -> int:
         """
-        Get the total count of datasets indexed with collection membership.
+        Get the total count of datasets indexed with a DCAT isPartOf value.
         """
         try:
             result = self.client.count(
@@ -1408,7 +1408,3 @@ class OpenSearchInterface:
         except Exception as e:
             logger.error(f"Error counting datasets with isPartOf in OpenSearch: {e}")
             return 0
-
-    def count_datasets_with_ispartof(self) -> int:
-        """Backward-compatible alias for count_datasets_in_series."""
-        return self.count_datasets_in_series()
