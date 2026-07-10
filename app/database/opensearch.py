@@ -16,6 +16,7 @@ from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, he
 from opensearchpy.exceptions import ConnectionTimeout
 
 from app.dcat_opensearch import (
+    collection_uri_from_dcat,
     normalize_identifier,
     normalize_theme,
     theme_pref_labels,
@@ -417,6 +418,10 @@ class OpenSearchInterface:
                 elif value is not None and not isinstance(value, str):
                     if not isinstance(value, (dict, list)):
                         normalized_dcat[field] = str(value)
+
+        collection_uri = collection_uri_from_dcat(normalized_dcat)
+        if collection_uri:
+            normalized_dcat["isPartOf"] = collection_uri
 
         return normalized_dcat
 

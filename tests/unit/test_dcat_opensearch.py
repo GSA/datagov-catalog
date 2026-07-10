@@ -75,6 +75,36 @@ class TestReadHelpers:
         }
         assert collection_uri_from_dcat(dcat) == "https://example.gov/legacy"
 
+    def test_collection_uri_from_dcat_reads_object_is_part_of(self):
+        dcat = {
+            "isPartOf": {
+                "@id": "https://example.gov/series/object",
+                "@type": "DatasetSeries",
+            },
+        }
+        assert collection_uri_from_dcat(dcat) == "https://example.gov/series/object"
+
+    def test_collection_uri_from_dcat_falls_back_to_in_series(self):
+        dcat = {
+            "inSeries": [
+                {
+                    "@id": "https://example.gov/series/annual-climate",
+                    "@type": "DatasetSeries",
+                }
+            ],
+        }
+        assert (
+            collection_uri_from_dcat(dcat)
+            == "https://example.gov/series/annual-climate"
+        )
+
+    def test_collection_uri_from_dcat_prefers_is_part_of_over_in_series(self):
+        dcat = {
+            "isPartOf": "https://example.gov/legacy",
+            "inSeries": [{"@id": "https://example.gov/series/dcat3"}],
+        }
+        assert collection_uri_from_dcat(dcat) == "https://example.gov/legacy"
+
     def test_collection_uri_from_hit_uses_dcat_blob(self):
         hit = {
             "dcat": {"isPartOf": "https://example.gov/legacy"},

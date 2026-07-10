@@ -116,6 +116,43 @@ class TestOpenSearch:
             "https://catalog.data.gov/dataset/my-collection"
         )
 
+    def test_dataset_to_document_derives_is_part_of_from_in_series(
+        self, opensearch_client, mock_dataset_with_datetime
+    ):
+        mock_dataset_with_datetime.dcat.pop("isPartOf", None)
+        mock_dataset_with_datetime.dcat["inSeries"] = [
+            {
+                "@id": "https://catalog.data.gov/dataset/annual-climate",
+                "@type": "DatasetSeries",
+            }
+        ]
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert "inSeries" not in document
+        assert (
+            document["dcat"]["inSeries"] == mock_dataset_with_datetime.dcat["inSeries"]
+        )
+        assert (
+            document["dcat"]["isPartOf"]
+            == "https://catalog.data.gov/dataset/annual-climate"
+        )
+
+    def test_dataset_to_document_coerces_object_is_part_of(
+        self, opensearch_client, mock_dataset_with_datetime
+    ):
+        mock_dataset_with_datetime.dcat["isPartOf"] = {
+            "@id": "https://catalog.data.gov/dataset/object-series",
+            "@type": "DatasetSeries",
+        }
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert (
+            document["dcat"]["isPartOf"]
+            == "https://catalog.data.gov/dataset/object-series"
+        )
+
     def test_is_part_of_supports_collection_filter(
         self, interface_with_dataset, opensearch_client
     ):

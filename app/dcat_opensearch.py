@@ -22,19 +22,37 @@ def identifier_id(value: Any) -> str | None:
     return None
 
 
+def _id_from_string_or_object(value: Any) -> str | None:
+    """Read a non-empty identifier from a DCAT string or object value."""
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    if isinstance(value, dict):
+        ident = value.get("@id")
+        if isinstance(ident, str):
+            stripped = ident.strip()
+            return stripped or None
+    return None
+
+
 def normalize_identifier(dcat: dict) -> str | None:
     """Map DCAT-US string or Identifier object to the scalar indexed shape."""
     raw = dcat.get("identifier")
     if raw is None:
         return None
 
-    if isinstance(raw, str):
-        stripped = raw.strip()
-        return stripped or None
+    return _id_from_string_or_object(raw)
 
-    if isinstance(raw, dict):
-        return identifier_id(raw)
 
+def _collection_uri_from_in_series(value: Any) -> str | None:
+    """Resolve the first collection URI from a DCAT-US 3.0 inSeries value."""
+    if not isinstance(value, list):
+        return _id_from_string_or_object(value)
+
+    for series in value:
+        uri = _id_from_string_or_object(series)
+        if uri:
+            return uri
     return None
 
 
@@ -106,12 +124,11 @@ def theme_pref_labels(dcat_or_list: dict | list | None) -> list[str]:
 
 
 def collection_uri_from_dcat(dcat: dict) -> str | None:
-    """Resolve collection URI from the normalized legacy isPartOf field."""
-    is_part_of = dcat.get("isPartOf")
-    if isinstance(is_part_of, str) and is_part_of.strip():
-        return is_part_of.strip()
-
-    return None
+    """Resolve collection URI from legacy isPartOf or DCAT-US 3.0 inSeries."""
+    uri = _id_from_string_or_object(dcat.get("isPartOf"))
+    if uri:
+        return uri
+    return _collection_uri_from_in_series(dcat.get("inSeries"))
 
 
 def collection_uri_from_hit(doc: dict) -> str | None:
