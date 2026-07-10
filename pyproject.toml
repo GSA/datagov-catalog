@@ -29,6 +29,7 @@ dependencies = [
     "python-dotenv (>=1.2.2,<2.0.0)",
     "requests (>=2.33.0,<3.0.0)",
     "urllib3 (>=2.7.0,<3.0.0)",
+    "soupsieve (>=2.8.4,<3.0.0)",
 
 ]
 

@@ -2,7 +2,22 @@ import copy
 from datetime import datetime
 
 from app.database.opensearch import OpenSearchInterface
-from app.models import Dataset, Organization
+from app.models import Dataset, HarvestRecord, Organization
+
+
+def _add_dataset_with_harvest_record(interface, dataset_data):
+    dataset_data["harvest_record_id"] = f"{dataset_data['id']}-harvest-record"
+    interface.db.add(
+        HarvestRecord(
+            id=dataset_data["harvest_record_id"],
+            harvest_source_id=dataset_data["harvest_source_id"],
+            harvest_job_id="1",
+            identifier=dataset_data["slug"],
+            source_raw=str(dataset_data["dcat"]),
+            source_transform=dataset_data["dcat"],
+        )
+    )
+    interface.db.add(Dataset(**dataset_data))
 
 
 def test_search(interface_with_dataset):
@@ -76,7 +91,7 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         dataset_data["popularity"] = popularity
         dataset_data["dcat"]["title"] = title
         dataset_data["dcat"]["description"] = description
-        return Dataset(**dataset_data)
+        return dataset_data
 
     high_popularity_dataset = make_dataset(
         "popularity-dataset",
@@ -94,8 +109,8 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         "This dataset says test more than the other: test test test.",
     )
 
-    interface_with_dataset.db.add(high_popularity_dataset)
-    interface_with_dataset.db.add(high_score_dataset)
+    _add_dataset_with_harvest_record(interface_with_dataset, high_popularity_dataset)
+    _add_dataset_with_harvest_record(interface_with_dataset, high_score_dataset)
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
@@ -120,7 +135,7 @@ def test_search_with_keyword(interface_with_dataset):
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"]["title"] = f"test-{i}"
         dataset_dict["dcat"]["keyword"] = ["health", "education"]
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        _add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     # Index datasets in OpenSearch
@@ -180,7 +195,7 @@ def test_search_with_org_type_filters_by_organization_type(interface_with_datase
         "publisher": {"name": "City Agency"},
         "distribution": [],
     }
-    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    _add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
 
     dataset_dict["id"] = "state-type-dataset"
     dataset_dict["slug"] = "state-type-dataset"
@@ -191,7 +206,7 @@ def test_search_with_org_type_filters_by_organization_type(interface_with_datase
         "publisher": {"name": "State Agency"},
         "distribution": [],
     }
-    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    _add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     interface_with_dataset.opensearch.index_datasets(
@@ -449,8 +464,8 @@ def test_distribution_title_search_returns_only_matching_dataset(
         ],
     }
 
-    interface_with_dataset.db.add(Dataset(**dataset_a))
-    interface_with_dataset.db.add(Dataset(**dataset_b))
+    _add_dataset_with_harvest_record(interface_with_dataset, dataset_a)
+    _add_dataset_with_harvest_record(interface_with_dataset, dataset_b)
     interface_with_dataset.db.commit()
 
     interface_with_dataset.opensearch.index_datasets(
