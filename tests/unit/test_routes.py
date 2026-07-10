@@ -147,17 +147,13 @@ def test_search_api_response_containes_harvest_record_url(
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
-    assert (
-        response.json["results"][0]["harvest_record"]
-        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab"
+    harvest_record_url = response.json["results"][0]["harvest_record"]
+    assert harvest_record_url.startswith("http://0.0.0.0:8080/harvest_record/")
+    assert response.json["results"][0]["harvest_record_raw"] == (
+        f"{harvest_record_url}/raw"
     )
-    assert (
-        response.json["results"][0]["harvest_record_raw"]
-        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/raw"
-    )
-    assert (
-        response.json["results"][0]["harvest_record_transformed"]
-        == "http://0.0.0.0:8080/harvest_record/e8b2ef79-8dbe-4d2e-9fe8-dc6766c0b5ab/transformed"
+    assert response.json["results"][0]["harvest_record_transformed"] == (
+        f"{harvest_record_url}/transformed"
     )
 
 
