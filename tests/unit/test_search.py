@@ -109,9 +109,7 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         "This dataset says test more than the other: test test test.",
     )
 
-    _add_dataset_with_harvest_record(
-        interface_with_dataset, high_popularity_dataset
-    )
+    _add_dataset_with_harvest_record(interface_with_dataset, high_popularity_dataset)
     _add_dataset_with_harvest_record(interface_with_dataset, high_score_dataset)
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
