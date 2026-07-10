@@ -11,6 +11,7 @@ from app.database.opensearch import SearchResult
 from app.models import Dataset, Organization
 from app.search import SearchCriteria
 from tests.fixtures import HARVEST_RECORD_ID
+from tests.helpers import add_dataset_with_harvest_record
 
 
 def test_static_asset_cache_duration_by_environment():
@@ -166,7 +167,7 @@ def test_search_api_pagination(interface_with_dataset, db_client):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"] = {"title": "test-{i}"}
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
     # search relies on Opensearch now
     interface_with_dataset.opensearch.index_datasets(
@@ -196,7 +197,7 @@ def test_search_api_paginate_after(interface_with_dataset, db_client):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"] = {"title": f"test-{i}"}
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
     # search relies on Opensearch now
     interface_with_dataset.opensearch.index_datasets(
@@ -1616,7 +1617,7 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
     for i in range(25):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
@@ -1643,7 +1644,7 @@ def test_index_search_results_arg(interface_with_dataset, db_client):
     for i in range(25):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
@@ -1923,7 +1924,7 @@ class TestKeywordSearch:
             dataset_dict["slug"] = f"test-{i}"
             dataset_dict["dcat"]["title"] = f"test-{i}"
             dataset_dict["dcat"]["keyword"] = ["health", "education"]
-            interface_with_dataset.db.add(Dataset(**dataset_dict))
+            add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
@@ -2000,7 +2001,7 @@ class TestPublisherSearch:
             "publisher": {"name": "Agency Alpha"},
             "distribution": [],
         }
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
 
         dataset_dict["id"] = "publisher-beta"
         dataset_dict["slug"] = "publisher-beta"
@@ -2010,7 +2011,7 @@ class TestPublisherSearch:
             "publisher": {"name": "Agency Beta"},
             "distribution": [],
         }
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
         interface_with_dataset.db.commit()
 
         interface_with_dataset.opensearch.index_datasets(
@@ -2066,7 +2067,7 @@ class TestOrganizationTypeSearch:
             "publisher": {"name": "City Agency"},
             "distribution": [],
         }
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
 
         dataset_dict["id"] = "state-type-dataset"
         dataset_dict["slug"] = "state-type-dataset"
@@ -2077,7 +2078,7 @@ class TestOrganizationTypeSearch:
             "publisher": {"name": "State Agency"},
             "distribution": [],
         }
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
         interface_with_dataset.db.commit()
 
         interface_with_dataset.opensearch.index_datasets(
@@ -2198,7 +2199,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
         dataset_dict["dcat"]["keyword"] = ["health", "education"]
         dataset_dict["dcat"]["publisher"] = {"name": "Test Publisher"}
         dataset_dict["dcat"]["spatial"] = "-90.155,27.155,-90.26,27.255"
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     # Index datasets in OpenSearch
@@ -2271,7 +2272,7 @@ def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client
             "title": f"test-{i}",
             "keyword": ["health", "education", "employment"],
         }
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     interface_with_dataset.opensearch.index_datasets(
@@ -2311,7 +2312,7 @@ def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_clien
     for i in range(25):
         dataset_dict["id"] = str(i)
         dataset_dict["slug"] = f"test-{i}"
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     interface_with_dataset.opensearch.index_datasets(
@@ -2361,7 +2362,7 @@ def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
             "keyword": ["health", "education"],
             "spatial": "-90.155,27.155,-90.26,27.255",
         }
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
 
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
@@ -2442,7 +2443,7 @@ def test_index_search_message_with_query_and_filters(interface_with_dataset, db_
         "description": "Test dataset with keywords",
         "keyword": ["health", "education"],
     }
-    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
@@ -2475,7 +2476,7 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
         "description": "Test dataset for filter-only search",
         "keyword": ["environment"],
     }
-    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)

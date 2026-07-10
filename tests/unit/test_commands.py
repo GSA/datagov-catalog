@@ -5,20 +5,21 @@ from opensearchpy.exceptions import ConnectionTimeout, OpenSearchException
 from sqlalchemy.exc import OperationalError
 
 from app.models import Dataset
-from tests.fixtures import HARVEST_RECORD_ID
+from tests.helpers import add_dataset_with_harvest_record
 
 
 def _insert_dataset(interface, dataset_id, last_harvested):
-    dataset = Dataset(
-        id=dataset_id,
-        slug=dataset_id,
-        dcat={"title": dataset_id},
-        harvest_record_id=HARVEST_RECORD_ID,
-        harvest_source_id="1",
-        organization_id="1",
-        last_harvested_date=last_harvested,
+    dataset = add_dataset_with_harvest_record(
+        interface,
+        dict(
+            id=dataset_id,
+            slug=dataset_id,
+            dcat={"title": dataset_id},
+            harvest_source_id="1",
+            organization_id="1",
+            last_harvested_date=last_harvested,
+        ),
     )
-    interface.db.add(dataset)
     interface.db.commit()
     return dataset
 

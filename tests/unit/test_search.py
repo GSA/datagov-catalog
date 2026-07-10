@@ -4,6 +4,7 @@ from datetime import datetime
 from app.database.opensearch import OpenSearchInterface
 from app.models import Dataset, Organization
 from app.search import SearchCriteria
+from tests.helpers import add_dataset_with_harvest_record
 
 
 def search_criteria(**kwargs):
@@ -111,9 +112,9 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         dataset_data["popularity"] = popularity
         dataset_data["dcat"]["title"] = title
         dataset_data["dcat"]["description"] = description
-        return Dataset(**dataset_data)
+        return add_dataset_with_harvest_record(interface_with_dataset, dataset_data)
 
-    high_popularity_dataset = make_dataset(
+    make_dataset(
         "popularity-dataset",
         "popularity-dataset",
         10_000,
@@ -121,7 +122,7 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         "Contains the term test once for matching.",
     )
 
-    high_score_dataset = make_dataset(
+    make_dataset(
         "relevance-dataset",
         "relevance-dataset",
         5,
@@ -129,8 +130,6 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         "This dataset says test more than the other: test test test.",
     )
 
-    interface_with_dataset.db.add(high_popularity_dataset)
-    interface_with_dataset.db.add(high_score_dataset)
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
@@ -155,7 +154,7 @@ def test_search_with_keyword(interface_with_dataset):
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"]["title"] = f"test-{i}"
         dataset_dict["dcat"]["keyword"] = ["health", "education"]
-        interface_with_dataset.db.add(Dataset(**dataset_dict))
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     # Index datasets in OpenSearch
@@ -221,7 +220,7 @@ def test_search_with_org_type_filters_by_organization_type(interface_with_datase
         "publisher": {"name": "City Agency"},
         "distribution": [],
     }
-    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
 
     dataset_dict["id"] = "state-type-dataset"
     dataset_dict["slug"] = "state-type-dataset"
@@ -232,7 +231,7 @@ def test_search_with_org_type_filters_by_organization_type(interface_with_datase
         "publisher": {"name": "State Agency"},
         "distribution": [],
     }
-    interface_with_dataset.db.add(Dataset(**dataset_dict))
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     interface_with_dataset.opensearch.index_datasets(
@@ -506,8 +505,8 @@ def test_distribution_title_search_returns_only_matching_dataset(
         ],
     }
 
-    interface_with_dataset.db.add(Dataset(**dataset_a))
-    interface_with_dataset.db.add(Dataset(**dataset_b))
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_a)
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_b)
     interface_with_dataset.db.commit()
 
     interface_with_dataset.opensearch.index_datasets(
