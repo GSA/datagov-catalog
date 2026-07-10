@@ -69,12 +69,11 @@ class TestReadHelpers:
             "Climate Science"
         ]
 
-    def test_collection_uri_from_dcat_prefers_in_series(self):
+    def test_collection_uri_from_dcat_uses_is_part_of(self):
         dcat = {
-            "inSeries": [{"@id": "https://example.gov/series/1"}],
             "isPartOf": "https://example.gov/legacy",
         }
-        assert collection_uri_from_dcat(dcat) == "https://example.gov/series/1"
+        assert collection_uri_from_dcat(dcat) == "https://example.gov/legacy"
 
     def test_collection_uri_from_hit_uses_dcat_blob(self):
         hit = {

@@ -402,28 +402,12 @@ class OpenSearchInterface:
         self._ensure_index()
 
     @staticmethod
-    def _first_in_series_identifier(dcat: dict) -> str | None:
-        in_series = dcat.get("inSeries")
-        if not isinstance(in_series, list):
-            return None
-
-        for series in in_series:
-            if not isinstance(series, dict):
-                continue
-            identifier = series.get("@id")
-            if isinstance(identifier, str) and identifier.strip():
-                return identifier.strip()
-        return None
-
-    @classmethod
-    def _normalize_dcat_dates(cls, dcat: dict) -> dict:
+    def _normalize_dcat_dates(dcat: dict) -> dict:
         """Normalize date fields in DCAT to ensure they're always strings.
 
         dcat: DCAT dictionary that may contain datetime objects
 
-        The returned value is a near-copy of the DCAT dict with JSON-safe date
-        fields. For current collection filtering, DCAT-US 3.0 ``inSeries`` also
-        gets a legacy ``isPartOf`` alias when ``isPartOf`` is absent.
+        The returned value is a near-copy of the DCAT dict with JSON-safe date fields.
         """
         # Create a copy to avoid mutating the original
         normalized_dcat = dcat.copy()
@@ -439,12 +423,6 @@ class OpenSearchInterface:
                 elif value is not None and not isinstance(value, str):
                     if not isinstance(value, (dict, list)):
                         normalized_dcat[field] = str(value)
-
-        is_part_of = normalized_dcat.get("isPartOf")
-        if not (isinstance(is_part_of, str) and is_part_of.strip()):
-            in_series_identifier = cls._first_in_series_identifier(dcat)
-            if in_series_identifier is not None:
-                normalized_dcat["isPartOf"] = in_series_identifier
 
         return normalized_dcat
 

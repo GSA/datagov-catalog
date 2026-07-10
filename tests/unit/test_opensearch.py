@@ -114,7 +114,7 @@ class TestOpenSearch:
             "https://catalog.data.gov/dataset/my-collection"
         )
 
-    def test_legacy_is_part_of_indexed_as_in_series_for_collection_filter(
+    def test_is_part_of_supports_collection_filter(
         self, interface_with_dataset, opensearch_client
     ):
         child = interface_with_dataset.get_dataset_by_slug("child-harvest-record")
@@ -132,26 +132,6 @@ class TestOpenSearch:
         )
         slugs = {doc["slug"] for doc in result_obj.results}
         assert "child-harvest-record" in slugs
-
-    def test_dcat3_in_series_adds_legacy_is_part_of_for_collection_filter(
-        self, opensearch_client, mock_dataset_with_datetime
-    ):
-        mock_dataset_with_datetime.dcat.pop("isPartOf", None)
-        mock_dataset_with_datetime.dcat["inSeries"] = [
-            {
-                "@id": "https://example.gov/series/annual",
-                "@type": "DatasetSeries",
-                "title": "Annual Series",
-            }
-        ]
-
-        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
-
-        assert "inSeries" not in document
-        assert (
-            document["dcat"]["inSeries"] == mock_dataset_with_datetime.dcat["inSeries"]
-        )
-        assert document["dcat"]["isPartOf"] == "https://example.gov/series/annual"
 
 
 class TestDcatDateNormalization:

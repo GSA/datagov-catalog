@@ -105,28 +105,8 @@ def theme_pref_labels(dcat_or_list: dict | list | None) -> list[str]:
     return []
 
 
-def _first_in_series_identifier(dcat: dict) -> str | None:
-    raw = dcat.get("inSeries")
-    if isinstance(raw, dict):
-        raw = [raw]
-    if not isinstance(raw, list):
-        return None
-
-    for series in raw:
-        if not isinstance(series, dict):
-            continue
-        identifier = series.get("@id")
-        if isinstance(identifier, str) and identifier.strip():
-            return identifier.strip()
-    return None
-
-
 def collection_uri_from_dcat(dcat: dict) -> str | None:
-    """Resolve collection/series URI from inSeries or legacy isPartOf."""
-    in_series_identifier = _first_in_series_identifier(dcat)
-    if in_series_identifier is not None:
-        return in_series_identifier
-
+    """Resolve collection URI from the normalized legacy isPartOf field."""
     is_part_of = dcat.get("isPartOf")
     if isinstance(is_part_of, str) and is_part_of.strip():
         return is_part_of.strip()
