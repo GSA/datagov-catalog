@@ -12,7 +12,7 @@ from app.dcat_opensearch import (
 
 class TestNormalizeIdentifier:
     def test_string_identifier(self):
-        assert normalize_identifier({"identifier": "cftc-dc1"}) == {"@id": "cftc-dc1"}
+        assert normalize_identifier({"identifier": "cftc-dc1"}) == "cftc-dc1"
 
     def test_object_identifier(self):
         dcat = {
@@ -21,10 +21,7 @@ class TestNormalizeIdentifier:
                 "notation": "DATASET-1",
             }
         }
-        assert normalize_identifier(dcat) == {
-            "@id": "https://example.gov/id",
-            "notation": "DATASET-1",
-        }
+        assert normalize_identifier(dcat) == "https://example.gov/id"
 
     def test_missing_identifier(self):
         assert normalize_identifier({}) is None

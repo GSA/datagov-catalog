@@ -96,7 +96,7 @@ class TestOpenSearch:
         )
         assert len(result_obj.results) == 2
 
-    def test_dataset_to_document_emits_dcat_3_shapes(
+    def test_dataset_to_document_emits_normalized_dcat_search_fields(
         self, opensearch_client, mock_dataset_with_datetime
     ):
         mock_dataset_with_datetime.dcat["identifier"] = "id-1"
@@ -107,7 +107,7 @@ class TestOpenSearch:
 
         document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
 
-        assert document["identifier"] == {"@id": "id-1"}
+        assert document["identifier"] == "id-1"
         assert document["theme"] == [{"prefLabel": "Geospatial"}]
         assert "inSeries" not in document
         assert document["dcat"]["isPartOf"] == (
@@ -589,11 +589,14 @@ class TestOpenSearchMappings:
         mappings = OpenSearchInterface.MAPPINGS
         assert mappings["properties"]["spatial_centroid"]["type"] == "geo_point"
 
-    def test_identifier_mapping_is_object(self):
+    def test_identifier_mapping_is_scalar_text(self):
         mappings = OpenSearchInterface.MAPPINGS
         identifier = mappings["properties"]["identifier"]
-        assert identifier["type"] == "object"
-        assert identifier["properties"]["@id"]["fields"]["keyword"]["type"] == "keyword"
+        assert identifier == {
+            "type": "text",
+            "analyzer": OpenSearchInterface.TEXT_ANALYZER,
+            "search_analyzer": OpenSearchInterface.TEXT_ANALYZER,
+        }
 
     def test_theme_mapping_is_object_with_pref_label(self):
         mappings = OpenSearchInterface.MAPPINGS

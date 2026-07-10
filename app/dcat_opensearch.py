@@ -1,10 +1,9 @@
-"""DCAT-US 3.0 helpers for OpenSearch indexing and consumer parsing."""
+"""DCAT helpers for OpenSearch indexing and consumer parsing."""
 
 from __future__ import annotations
 
 from typing import Any
 
-_IDENTIFIER_OBJECT_KEYS = ("@id", "notation", "schemaAgency", "version")
 _THEME_OBJECT_KEYS = ("@id", "prefLabel", "altLabel", "definition", "notation")
 
 
@@ -23,23 +22,18 @@ def identifier_id(value: Any) -> str | None:
     return None
 
 
-def normalize_identifier(dcat: dict) -> dict | None:
-    """Map DCAT-US 1.1 string or 3.0 Identifier object to indexed shape."""
+def normalize_identifier(dcat: dict) -> str | None:
+    """Map DCAT-US string or Identifier object to the scalar indexed shape."""
     raw = dcat.get("identifier")
     if raw is None:
         return None
 
     if isinstance(raw, str):
         stripped = raw.strip()
-        return {"@id": stripped} if stripped else None
+        return stripped or None
 
     if isinstance(raw, dict):
-        result = {
-            key: raw[key]
-            for key in _IDENTIFIER_OBJECT_KEYS
-            if isinstance(raw.get(key), str) and raw[key].strip()
-        }
-        return result or None
+        return identifier_id(raw)
 
     return None
 

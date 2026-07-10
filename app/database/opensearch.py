@@ -259,22 +259,9 @@ class OpenSearchInterface:
                 },
             },
             "identifier": {
-                "type": "object",
-                "properties": {
-                    "@id": {
-                        "type": "text",
-                        "analyzer": TEXT_ANALYZER,
-                        "search_analyzer": TEXT_ANALYZER,
-                        "fields": {"keyword": {"type": "keyword"}},
-                    },
-                    "notation": {"type": "keyword"},
-                    "schemaAgency": {
-                        "type": "text",
-                        "analyzer": TEXT_ANALYZER,
-                        "search_analyzer": TEXT_ANALYZER,
-                    },
-                    "version": {"type": "keyword"},
-                },
+                "type": "text",
+                "analyzer": TEXT_ANALYZER,
+                "search_analyzer": TEXT_ANALYZER,
             },
             "has_spatial": {"type": "boolean"},  # Whether dataset has spatial data
             "popularity": {"type": "integer"},
@@ -923,7 +910,7 @@ class OpenSearchInterface:
                     "publisher^3",
                     "keyword^2",
                     "theme.prefLabel",
-                    "identifier.@id",
+                    "identifier",
                     "distribution_titles^2",
                 ],
                 "operator": "AND",
@@ -953,7 +940,7 @@ class OpenSearchInterface:
                     {"match_phrase": {"publisher": {"query": phrase_text, "boost": 3}}},
                     {"match_phrase": {"keyword": {"query": phrase_text, "boost": 2}}},
                     {"match_phrase": {"theme.prefLabel": {"query": phrase_text}}},
-                    {"match_phrase": {"identifier.@id": {"query": phrase_text}}},
+                    {"match_phrase": {"identifier": {"query": phrase_text}}},
                     {
                         "match_phrase": {
                             "distribution_titles": {"query": phrase_text, "boost": 2}
