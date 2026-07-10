@@ -401,12 +401,12 @@ class OpenSearchInterface:
         self._ensure_index()
 
     @staticmethod
-    def _normalize_dcat_dates(dcat: dict) -> dict:
-        """Normalize date fields in DCAT to ensure they're always strings.
+    def _normalize_dcat_blob(dcat: dict) -> dict:
+        """Prepare the ``dcat`` blob for OpenSearch indexing.
 
-        dcat: DCAT dictionary that may contain datetime objects
-
-        The returned value is a near-copy of the DCAT dict with JSON-safe date fields.
+        The returned value is a near-copy of the DCAT dict with JSON-safe date
+        fields and canonical collection membership in the legacy ``isPartOf``
+        field queried by collection filters.
         """
         # Create a copy to avoid mutating the original
         normalized_dcat = dcat.copy()
@@ -555,8 +555,8 @@ class OpenSearchInterface:
             or has_spatial_theme
         )
 
-        # Normalize DCAT dates to ensure they're strings
-        normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
+        # Normalize the stored DCAT blob without changing the source record.
+        normalized_dcat = self._normalize_dcat_blob(dataset.dcat)
 
         spatial_centroid = self._geometry_centroid(dataset.translated_spatial)
 

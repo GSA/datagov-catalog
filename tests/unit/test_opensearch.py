@@ -209,8 +209,8 @@ class TestOpenSearch:
         assert "child-harvest-record" in slugs
 
 
-class TestDcatDateNormalization:
-    """Test suite for _normalize_dcat_dates method."""
+class TestDcatBlobNormalization:
+    """Test suite for _normalize_dcat_blob method."""
 
     def test_normalize_datetime_modified_field(self):
         """Test that datetime objects in modified field are converted to ISO strings."""
@@ -220,7 +220,7 @@ class TestDcatDateNormalization:
             "description": "Test description",
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert isinstance(result["modified"], str)
         assert result["modified"] == "2023-06-22T20:25:39.652070"
@@ -235,7 +235,7 @@ class TestDcatDateNormalization:
             "description": "Test description",
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert isinstance(result["modified"], str)
         assert result["modified"] == "2023-06-22"
@@ -248,7 +248,7 @@ class TestDcatDateNormalization:
             "description": "Test description",
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert isinstance(result["issued"], str)
         assert result["issued"] == "2006-05-31T00:00:00"
@@ -263,7 +263,7 @@ class TestDcatDateNormalization:
             "description": "Test description",
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert isinstance(result["modified"], str)
         assert result["modified"] == "2023-06-22T20:25:39"
@@ -280,7 +280,7 @@ class TestDcatDateNormalization:
             "description": "Test description",
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert result["modified"] == "2023-06-22T20:25:39.652070"
         assert result["issued"] == "2006-05-31"
@@ -293,7 +293,7 @@ class TestDcatDateNormalization:
             "keyword": ["health", "education"],
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert "modified" not in result
         assert "issued" not in result
@@ -309,7 +309,7 @@ class TestDcatDateNormalization:
             "description": "Test description",
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert result["modified"] is None
         assert result["issued"] is None
@@ -322,7 +322,7 @@ class TestDcatDateNormalization:
             "description": "Test description",
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert isinstance(result["modified"], str)
         assert result["modified"] == "20230622"
@@ -336,7 +336,7 @@ class TestDcatDateNormalization:
             "description": "Test description",
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         # Original should still have datetime object
         assert isinstance(dcat["modified"], datetime)
@@ -358,7 +358,7 @@ class TestDcatDateNormalization:
             ],
         }
 
-        result = OpenSearchInterface._normalize_dcat_dates(dcat)
+        result = OpenSearchInterface._normalize_dcat_blob(dcat)
 
         assert isinstance(result["modified"], str)
         assert result["publisher"]["name"] == "Department of Education"
