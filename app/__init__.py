@@ -41,6 +41,7 @@ def register_template_filters(app):
     import app.filters as filters
 
     from . import filter_helpers
+    from .search import criteria_url_for
     from .static_assets import static_url
 
     for name in filters.__all__:
@@ -50,6 +51,7 @@ def register_template_filters(app):
         app.add_template_filter(getattr(filter_helpers, name))
 
     app.add_template_global(filter_helpers.has_active_filters, "has_active_filters")
+    app.add_template_global(criteria_url_for, "criteria_url_for")
     app.add_template_global(static_url, "static_url")
 
 

@@ -4,6 +4,7 @@
 {% from "components/filters/organization_type_filter.html" import render_organization_type_filter %}
 {% from "components/filters/geography_filter.html" import render_geography_filter %}
 {% from "components/filters/spatial_filter.html" import render_spatial_filter %}
+{% from "components/filters/filter_accordion_section.html" import render_filter_accordion_section %}
 
 {% macro render_filter_mobile_trigger(filters_active=false) %}
 <button
@@ -44,8 +45,13 @@
     contextual_org_counts=None,
     contextual_publisher_counts=None,
     collection=None,
-    clear_filters_url=none
+    clear_filters_url=none,
+    filter_sections=None,
+    hidden_params=None
 ) %}
+{% if filter_sections is not none %}
+{% set filters_active = filter_sections | selectattr('is_active') | list | length > 0 %}
+{% else %}
 {% set filters_active = has_active_filters(
     keywords=keywords,
     org_types=org_types,
@@ -55,6 +61,7 @@
     spatial_filter=spatial_filter,
     spatial_geometry=spatial_geometry
 ) %}
+{% endif %}
 <div class="filter-sidebar">
     <div class="filter-sidebar__chrome">
         <div class="filter-sidebar__header">
@@ -79,6 +86,11 @@
         <p class="filter-sidebar__hint font-body-2xs text-light margin-top-0 margin-bottom-0">Filter selections are applied on each click</p>
     </div>
     <form class="usa-form margin-top-0" method="get" action="{{ form_action }}" id="{{ form_id }}">
+    {% if hidden_params is not none %}
+    {% for name, value in hidden_params %}
+    <input type="hidden" name="{{ name }}" value="{{ value }}">
+    {% endfor %}
+    {% else %}
     {% if collection %}
     <input type="hidden" name="collection" value="{{ collection }}">
     {% endif %}
@@ -87,7 +99,73 @@
     {% if org_slug %}
     <input type="hidden" name="org_slug" value="{{ org_slug }}">
     {% endif %}
+    {% endif %}
 
+    {% if filter_sections is not none %}
+    {% for section in filter_sections %}
+        {% if section.renderer == 'geography' %}
+        {{ render_geography_filter(section.search_result_geometries, spatial_geometry=section.spatial_geometry, geography_label=section.geography_label) }}
+        {% elif section.renderer == 'keyword' %}
+        {{ render_keyword_filter(section.keywords, section.suggested_keywords, section.contextual_keyword_counts) }}
+        {% elif section.renderer == 'organization' %}
+        {{ render_organization_autocomplete_filter(section.selected_organization, section.org_slug, section.suggested_organizations, section.contextual_org_counts) }}
+        {% elif section.renderer == 'publisher' %}
+        {{ render_publisher_filter(section.publisher, section.suggested_publishers, section.contextual_publisher_counts) }}
+        {% elif section.renderer == 'checkbox_group' %}
+        {% call render_filter_accordion_section(
+            section.section_id,
+            section.label,
+            is_active=section.is_active,
+            active_summary=section.active_summary,
+            subtitle=section.subtitle,
+            extra_classes='margin-bottom-2',
+            button_id=section.button_id
+        ) %}
+        <fieldset class="usa-fieldset" aria-labelledby="{{ section.button_id }}">
+            <legend class="usa-sr-only">{{ section.label }}</legend>
+            {% for option in section.options %}
+            <div class="usa-checkbox">
+                <input
+                    class="usa-checkbox__input"
+                    id="{{ option.input_id }}"
+                    type="checkbox"
+                    name="{{ section.field_name }}"
+                    value="{{ option.value }}"
+                    {% if option.value in section["values"] %}checked{% endif %}
+                >
+                <label class="usa-checkbox__label" for="{{ option.input_id }}">{{ option.label }}</label>
+            </div>
+            {% endfor %}
+        </fieldset>
+        {% endcall %}
+        {% elif section.renderer == 'radio_group' %}
+        {% call render_filter_accordion_section(
+            section.section_id,
+            section.label,
+            is_active=section.is_active,
+            active_summary=section.active_summary,
+            button_id=section.button_id
+        ) %}
+        <fieldset class="usa-fieldset" aria-labelledby="{{ section.button_id }}">
+            <legend class="usa-sr-only">{{ section.label }} options</legend>
+            {% for option in section.options %}
+            <div class="usa-radio">
+                <input
+                    class="usa-radio__input"
+                    id="{{ option.input_id }}"
+                    type="radio"
+                    name="{{ section.field_name }}"
+                    value="{{ option.value }}"
+                    {% if option.value == section.value %}checked{% endif %}
+                >
+                <label class="usa-radio__label" for="{{ option.input_id }}">{{ option.label }}</label>
+            </div>
+            {% endfor %}
+        </fieldset>
+        {% endcall %}
+        {% endif %}
+    {% endfor %}
+    {% else %}
     {{ render_geography_filter(search_result_geometries, spatial_geometry=spatial_geometry, geography_label=geography_label) }}
     {{ render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts) }}
 
@@ -103,6 +181,7 @@
     {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts) }}
 
     {{ render_spatial_filter(spatial_filter) }}
+    {% endif %}
     </form>
 </div>
 {% endmacro %}
