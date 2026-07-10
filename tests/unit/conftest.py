@@ -20,6 +20,7 @@ from app.models import (
 )
 
 from ..fixtures import fixture_data as build_fixture_data
+from ..opensearch_helpers import recreate_opensearch_index
 
 
 @pytest.fixture
@@ -89,7 +90,7 @@ def interface(session) -> CatalogDBInterface:
     interface = CatalogDBInterface(session=session)
     # Recreate the index so mapping changes are picked up in tests.
     try:
-        interface.opensearch.recreate_index()
+        recreate_opensearch_index(interface.opensearch)
     except OpenSearchException:
         pass
 
@@ -156,7 +157,7 @@ def interface_with_dataset(interface_with_harvest_record, fixture_data):
 def opensearch_client():
     client = OpenSearchInterface(test_host="localhost")
     try:
-        client.recreate_index()
+        recreate_opensearch_index(client)
     except OpenSearchException:
         pass
     return client

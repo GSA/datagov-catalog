@@ -336,12 +336,6 @@ class OpenSearchInterface:
             retry_on_timeout=True,
         )
 
-    def recreate_index(self):
-        """Delete and recreate the index with the current mapping."""
-        if self.client.indices.exists(index=self.INDEX_NAME):
-            self.client.indices.delete(index=self.INDEX_NAME)
-        self._ensure_index()
-
     def _ensure_index(self):
         """Ensure that the named index named exists.
 

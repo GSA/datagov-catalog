@@ -9,6 +9,8 @@ from app import create_app
 from app.database import OpenSearchInterface
 from app.models import Dataset
 
+from ..opensearch_helpers import recreate_opensearch_index
+
 
 class TestOpenSearch:
     def test_bad_host_arguments(self):
@@ -620,13 +622,6 @@ class TestCaseInsensitiveKeywords:
     Tests for case-insensitive keyword filtering and aggregation.
     """
 
-    def _recreate_index(self, client: OpenSearchInterface) -> None:
-        """Drop and recreate the index to pick up the latest mapping."""
-        if client.client.indices.exists(index=client.INDEX_NAME):
-            client.client.indices.delete(index=client.INDEX_NAME)
-        body = {"mappings": client.MAPPINGS, "settings": client.SETTINGS}
-        client.client.indices.create(index=client.INDEX_NAME, body=body)
-
     def _make_mock_dataset(
         self,
         doc_id: str,
@@ -660,7 +655,7 @@ class TestCaseInsensitiveKeywords:
         Searching by lowercase keyword should match a dataset indexed with
         the same keyword in Title Case, and vice versa.
         """
-        self._recreate_index(opensearch_client)
+        recreate_opensearch_index(opensearch_client)
 
         with dbapp.app_context():
             dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
@@ -694,7 +689,7 @@ class TestCaseInsensitiveKeywords:
         Mixed-case filter values must still resolve to the correct
         document regardless of how the keyword was stored.
         """
-        self._recreate_index(opensearch_client)
+        recreate_opensearch_index(opensearch_client)
 
         with dbapp.app_context():
             dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
@@ -720,7 +715,7 @@ class TestCaseInsensitiveKeywords:
         Indexing 'environment' and 'Environment' across two datasets should
         produce a single aggregation bucket with a combined doc_count of 2.
         """
-        self._recreate_index(opensearch_client)
+        recreate_opensearch_index(opensearch_client)
 
         with dbapp.app_context():
             dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
@@ -755,7 +750,7 @@ class TestCaseInsensitiveKeywords:
         normalized value contains that substring, ordered by doc count descending.
         Unrelated keywords must not appear in the results.
         """
-        self._recreate_index(opensearch_client)
+        recreate_opensearch_index(opensearch_client)
 
         with dbapp.app_context():
             dbapp.config["SERVER_NAME"] = "0.0.0.0:8080"
