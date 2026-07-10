@@ -162,18 +162,18 @@ sequenceDiagram
     participant DB as OpenSearch
     participant Template as filter_sidebar.html
 
-    Browser->>Route: GET /?keyword=health&org_type=City+Government&q=water
-    Route->>Criteria: from_request_args(request.args, route_context=MAIN)
+    Browser->>Route: GET with keyword and org_type filters
+    Route->>Criteria: from_request_args with MAIN context
     Note over Criteria: Loop FILTERS where MAIN in parse_contexts
-    Criteria-->>Route: criteria (query, sort, filters dict)
+    Criteria-->>Route: criteria with query, sort, filters dict
 
     Route->>DB: search_datasets(criteria)
     DB->>Registry: build_filter_clauses(criteria)
-    Registry-->>DB: [term, nested, geo_shape, ...]
+    Registry-->>DB: term, nested, and geo_shape clauses
     DB-->>Route: SearchResult
 
     Route->>Registry: build_filter_sections(criteria, context)
-    Registry-->>Route: [{renderer, label, values, ...}, ...]
+    Registry-->>Route: list of filter section dicts
     Route->>Template: render_filter_sidebar(filter_sections=...)
     Template-->>Browser: HTML with generic checkbox/radio/keyword renderers
 ```
@@ -203,9 +203,14 @@ flowchart LR
         COLL[collection]
     end
 
-    MAIN --> KW & OT & GEO
-    API --> KW & GEO & COLL
-    ORG --> KW & GEO
+    MAIN --> KW
+    MAIN --> OT
+    MAIN --> GEO
+    API --> KW
+    API --> GEO
+    API --> COLL
+    ORG --> KW
+    ORG --> GEO
 
     style OT fill:#e8f1f8
     style COLL fill:#fde8e8
@@ -256,18 +261,19 @@ Filters that power autocomplete also declare aggregation hooks:
 ```mermaid
 flowchart TB
     subgraph keyword [Keyword filter responsibilities]
-        P[parse: get_list args keyword]
-        C[clause_builder: term keyword.normalized]
-        A[aggregation_builder: terms on keyword.raw]
-        S[section_builder: keywords + suggestions + counts]
-        U[to_query_pairs: repeat keyword=...]
+        P[parse get_list args keyword]
+        C[clause_builder term keyword.normalized]
+        A[aggregation_builder terms on keyword.raw]
+        S[section_builder keywords suggestions counts]
+        U[to_query_pairs repeat keyword params]
+        HF[Pagination HTMX hidden fields]
     end
 
     P --> SearchCriteria
     C --> OpenSearch
     A --> OpenSearch
     S --> Sidebar
-    U --> Pagination / HTMX / hidden fields
+    U --> HF
 ```
 
 ### Geography filter: multi-param, complex value
@@ -301,9 +307,9 @@ The **organization** filter accepts `org_slug` in the URL but OpenSearch needs t
 
 ```mermaid
 flowchart TD
-    FILTERS[(FILTERS tuple\nin __init__.py)]
+    FILTERS[(FILTERS tuple in init)]
 
-    FILTERS --> Parse[from_request_args\nparse each filter]
+    FILTERS --> Parse[from_request_args parse each filter]
     FILTERS --> Clauses[build_filter_clauses]
     FILTERS --> Aggs[build_aggregation_specs]
     FILTERS --> Sections[build_filter_sections]
@@ -311,11 +317,14 @@ flowchart TD
     FILTERS --> OpenAPI[_search_filter_query_fields]
 
     Parse --> SC[SearchCriteria]
-    SC --> Clauses & Aggs & Sections & Hidden
+    SC --> Clauses
+    SC --> Aggs
+    SC --> Sections
+    SC --> Hidden
     Clauses --> OS[(OpenSearch)]
     Sections --> UI[filter_sidebar.html]
     Hidden --> Forms[hidden form fields]
-    OpenAPI --> Docs[/search OpenAPI schema]
+    OpenAPI --> Docs[Search API OpenAPI schema]
 ```
 
 ---
@@ -374,7 +383,7 @@ flowchart LR
         extras[section_builder fields]
     end
 
-    section --> R{renderer?}
+    section --> R{renderer type}
     R -->|checkbox_group| CB[Generic checkbox fieldset]
     R -->|radio_group| RD[Generic radio fieldset]
     R -->|keyword| KW[keyword_filter macro]
@@ -416,7 +425,7 @@ flowchart TD
     A[1. Create app/search/filters/theme.py] --> B[2. Define FilterDefinition]
     B --> C[3. Implement parse, to_query_pairs, clause_builder]
     C --> D[4. Add section_builder + pick renderer]
-    D --> E[5. Import in filters/__init__.py → FILTERS tuple]
+    D --> E[5. Import in filters init FILTERS tuple]
     E --> F[6. Verify OpenSearch field exists]
     F --> G[7. Manual test + optional unit tests]
 
