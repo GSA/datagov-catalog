@@ -4,6 +4,7 @@
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_slug = dataset.slug %}
 {% set organization_title = organization.name %}
+{% set publisher_name = dataset.dcat.get('publisher') | dcat_publisher_name %}
 {% set page_title = organization_title ~ ' - ' ~ dataset_title %}
 
 {% block title %}{{ page_title }}{% endblock %}
@@ -30,7 +31,7 @@
         "basicPagesubType": "dataset",
         "Page_Type": "Dataset Page",
         "organization": "{{ organization.name if organization else 'Unknown' }}",
-        "publisher": "{{ dataset.dcat.get('publisher', {}).get('name') }}",
+        "publisher": "{{ publisher_name }}",
         "is_bot": is_bot
     });
 </script>
@@ -89,11 +90,11 @@
                 <h1 class="dataset-title">{{ dataset_title }}</h1>
 
                 <div class="dataset-meta">
-                    {% if dataset.dcat.get('publisher', {}).get('name') %}
-                    Published by <strong>{{ dataset.dcat.publisher.name }}</strong>
+                    {% if publisher_name %}
+                    Published by <strong>{{ publisher_name }}</strong>
                     {% endif %}
                     {% if organization %}
-                    {% if dataset.dcat.get('publisher', {}).get('name') %} | {% endif %}
+                    {% if publisher_name %} | {% endif %}
                     <a href="{{ url_for('main.organization_detail', slug=organization.slug) }}">{{ organization.name
                         }}</a>
                     {% endif %}
@@ -292,7 +293,12 @@
                                     <th scope="row">{{ key }}</th>
                                     <td>
                                         {% if key == 'landingPage' %}
-                                        <a href="{{ value }}" target="_blank" rel="noopener">{{ value }}</a>
+                                        {% set landing_page_url = value | dcat_value_uri %}
+                                        {% if landing_page_url %}
+                                        <a href="{{ landing_page_url }}" target="_blank" rel="noopener">{{ landing_page_url }}</a>
+                                        {% else %}
+                                        {{ rendered_value }}
+                                        {% endif %}
                                         {% elif rendered_value | is_json %}
                                         <pre class="json">{{ value | json_to_semantic_html | safe }}</pre>
                                         {% else %}

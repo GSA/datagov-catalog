@@ -3,8 +3,12 @@ import pytest
 from app.dcat_opensearch import (
     collection_uri_from_dcat,
     collection_uri_from_hit,
+    distribution_titles,
     identifier_id,
     normalize_identifier,
+    normalize_keywords,
+    normalize_publisher_name,
+    normalize_text,
     normalize_theme,
     theme_pref_labels,
 )
@@ -55,6 +59,61 @@ class TestNormalizeTheme:
             }
         ]
 
+    def test_single_concept_object(self):
+        dcat = {
+            "theme": {
+                "@id": "https://example.gov/concepts/geospatial",
+                "prefLabel": "Geospatial",
+            }
+        }
+        assert normalize_theme(dcat) == [
+            {
+                "@id": "https://example.gov/concepts/geospatial",
+                "prefLabel": "Geospatial",
+            }
+        ]
+
+    def test_concept_objects_keep_list_values(self):
+        dcat = {
+            "theme": [
+                {
+                    "@id": "https://example.gov/concepts/climate-science",
+                    "prefLabel": "Climate Science",
+                    "altLabel": ["Climatology", "Climate"],
+                    "notation": ["CLIM-SCI"],
+                    "definition": "The study of climate.",
+                    "inScheme": {"title": "Science Domains"},
+                }
+            ]
+        }
+        assert normalize_theme(dcat) == [
+            {
+                "@id": "https://example.gov/concepts/climate-science",
+                "prefLabel": "Climate Science",
+                "altLabel": ["Climatology", "Climate"],
+                "notation": ["CLIM-SCI"],
+                "definition": "The study of climate.",
+            }
+        ]
+
+
+class TestSearchFieldNormalizers:
+    def test_normalize_text_rejects_non_strings(self):
+        assert normalize_text("Dataset title") == "Dataset title"
+        assert normalize_text({"value": "Dataset title"}) == ""
+
+    def test_normalize_keywords_wraps_single_string(self):
+        assert normalize_keywords("climate") == ["climate"]
+
+    def test_normalize_publisher_name_falls_back_to_preflabel(self):
+        assert (
+            normalize_publisher_name({"prefLabel": "United States Census Bureau"})
+            == "United States Census Bureau"
+        )
+
+    def test_distribution_titles_extracts_non_empty_titles(self):
+        assert distribution_titles([{"title": "CSV"}, {"title": ""}, "skip"]) == ["CSV"]
+
 
 class TestReadHelpers:
     def test_identifier_id_from_string(self):
@@ -68,6 +127,7 @@ class TestReadHelpers:
         assert theme_pref_labels({"theme": [{"prefLabel": "Climate Science"}]}) == [
             "Climate Science"
         ]
+        assert theme_pref_labels({"prefLabel": "Geospatial"}) == ["Geospatial"]
 
     def test_collection_uri_from_dcat_uses_is_part_of(self):
         dcat = {

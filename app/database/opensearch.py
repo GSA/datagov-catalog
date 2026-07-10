@@ -17,7 +17,11 @@ from opensearchpy.exceptions import ConnectionTimeout
 
 from app.dcat_opensearch import (
     collection_uri_from_dcat,
+    distribution_titles,
     normalize_identifier,
+    normalize_keywords,
+    normalize_publisher_name,
+    normalize_text,
     normalize_theme,
     theme_pref_labels,
 )
@@ -559,23 +563,20 @@ class OpenSearchInterface:
         document = {
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
-            "title": dataset.dcat.get("title", ""),
+            "title": normalize_text(dataset.dcat.get("title")),
             "slug": dataset.slug,
             "last_harvested_date": dataset.last_harvested_date.isoformat(),
-            "description": dataset.dcat.get("description", ""),
-            "publisher": dataset.dcat.get("publisher", {}).get("name", ""),
+            "description": normalize_text(dataset.dcat.get("description")),
+            "publisher": normalize_publisher_name(dataset.dcat.get("publisher")),
             "dcat": normalized_dcat,
-            # Opensearch handles array-value properties
-            "keyword": dataset.dcat.get("keyword", []),
+            "keyword": normalize_keywords(dataset.dcat.get("keyword")),
             "theme": normalize_theme(dataset.dcat),
             "identifier": normalize_identifier(dataset.dcat),
             "has_spatial": has_spatial,
             "organization": dataset.organization.to_dict(),
-            "distribution_titles": [
-                dist["title"]
-                for dist in (dataset.dcat.get("distribution") or [])
-                if isinstance(dist, dict) and dist.get("title")
-            ],
+            "distribution_titles": distribution_titles(
+                dataset.dcat.get("distribution")
+            ),
             "popularity": (
                 dataset.popularity if dataset.popularity is not None else None
             ),

@@ -57,18 +57,18 @@ class _Any(Field):
 
 
 class Identifier(Schema):
-    id = String(data_key="@id")
+    id = String(attribute="@id", data_key="@id")
     notation = String()
     schemaAgency = String()
     version = String()
 
 
 class Concept(Schema):
-    id = String(data_key="@id")
+    id = String(attribute="@id", data_key="@id")
     prefLabel = String()
-    altLabel = String()
+    altLabel = _Any()
     definition = String()
-    notation = String()
+    notation = _Any()
 
 
 class Dataset(Schema):
@@ -80,7 +80,7 @@ class Dataset(Schema):
     harvest_record_raw = URL()
     harvest_record_transformed = URL()
     has_spatial = Boolean()
-    identifier = Nested(Identifier(), allow_none=True)
+    identifier = String(allow_none=True)
     keyword = List(String())
     last_harvested_date = Date()
     organization = Nested(Organization())

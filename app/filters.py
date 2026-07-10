@@ -9,6 +9,7 @@ from typing import Any, Union
 
 from bs4 import BeautifulSoup
 
+from app.dcat_opensearch import dcat_uri, normalize_identifier, normalize_publisher_name
 from app.static_assets import static_url
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
@@ -206,14 +207,25 @@ def format_icon_label(extension: str) -> str:
     return format_overlay_label(extension)
 
 
-def format_contact_point_email(email: str) -> Union[str, None]:
+def format_contact_point_email(email: str | dict) -> Union[str, None]:
     """Format a contact point email for display."""
+    email = dcat_uri(email) if isinstance(email, dict) else email
     if email:
         if ":" in email:
             # If the email is in the format "mailto:email", return only the email part
             return email.split(":")[-1].strip().lower()
-        return email.split().lower()
+        return email.strip().lower()
     return None
+
+
+def dcat_value_uri(value: Any) -> str | None:
+    """Return a usable URI from DCAT string-or-object values."""
+    return dcat_uri(value)
+
+
+def dcat_publisher_name(value: Any) -> str:
+    """Return a displayable publisher name from DCAT publisher shapes."""
+    return normalize_publisher_name(value)
 
 
 def is_bbox_string(value: Any) -> bool:
@@ -406,14 +418,17 @@ def jsonld_distributions(dcatus: dict):
         return output
 
     for dist in distributions:
-        if dist.get("downloadURL"):
+        if not isinstance(dist, dict):
+            continue
+        download_url = dcat_uri(dist.get("downloadURL"))
+        if download_url:
             output.append(
                 {
                     "@type": "DataDownload",
                     "encodingFormat": dist.get(
                         "mediaType"
                     ),  # required when downloadURL is present
-                    "contentUrl": dist.get("downloadURL"),
+                    "contentUrl": download_url,
                 }
             )
 
@@ -432,15 +447,15 @@ def dcatus_to_schema_org_jsonld(dcatus: dict):
         "@type": "Dataset",
         "name": dcatus.get("title"),  # required
         "description": dcatus.get("description"),  # required
-        "url": dcatus.get("landingPage", None),
-        "identifier": dcatus.get("identifier"),  # required
+        "url": dcat_uri(dcatus.get("landingPage")),
+        "identifier": normalize_identifier(dcatus),  # required
         "keywords": dcatus.get("keyword"),  # required
         "license": dcatus.get("license", None),
         "datePublished": dcatus.get("issued", None),
         "dateModified": dcatus.get("modified"),  # required
         "publisher": {
             "@type": "Organization",
-            "name": dcatus.get("publisher").get("name"),  # required
+            "name": normalize_publisher_name(dcatus.get("publisher")),  # required
         },
         "distribution": jsonld_distributions(dcatus),
     }
@@ -457,6 +472,8 @@ __all__ = [
     "format_icon_label",
     "format_overlay_label",
     "format_contact_point_email",
+    "dcat_value_uri",
+    "dcat_publisher_name",
     "remove_html_tags",
     "simplify_resource_type",
     "json_to_semantic_html",

@@ -3,7 +3,10 @@ from datetime import date, datetime
 import pytest
 
 from app.filters import (
+    dcat_publisher_name,
+    dcat_value_uri,
     dcatus_to_schema_org_jsonld,
+    format_contact_point_email,
     format_dcat_date,
     format_icon_class,
     format_icon_label,
@@ -76,6 +79,51 @@ def test_dcatus_to_schema_org_jsonld(dcatus_dataset):
     del dcatus_dataset["distribution"]
 
     assert dcatus_to_schema_org_jsonld(dcatus_dataset)["distribution"] == []
+
+
+def test_dcatus_to_schema_org_jsonld_handles_dcatus3_objects(dcatus_dataset):
+    dcatus_dataset["identifier"] = {
+        "@type": "Identifier",
+        "@id": "https://example.gov/datasets/one",
+    }
+    dcatus_dataset["landingPage"] = {
+        "@type": "Document",
+        "@id": "https://example.gov/datasets/one",
+    }
+    dcatus_dataset["publisher"] = {"prefLabel": "Example Publisher"}
+    dcatus_dataset["distribution"] = [
+        {
+            "downloadURL": {
+                "@type": "Document",
+                "@id": "https://example.gov/download.csv",
+            },
+            "mediaType": "text/csv",
+        }
+    ]
+
+    result = dcatus_to_schema_org_jsonld(dcatus_dataset)
+
+    assert result["identifier"] == "https://example.gov/datasets/one"
+    assert result["url"] == "https://example.gov/datasets/one"
+    assert result["publisher"]["name"] == "Example Publisher"
+    assert result["distribution"][0]["contentUrl"] == "https://example.gov/download.csv"
+
+
+def test_dcat_value_uri_reads_string_or_object():
+    assert dcat_value_uri("https://example.gov") == "https://example.gov"
+    assert dcat_value_uri({"@id": "https://example.gov"}) == "https://example.gov"
+
+
+def test_dcat_publisher_name_reads_pref_label():
+    assert dcat_publisher_name({"prefLabel": "Example Publisher"}) == (
+        "Example Publisher"
+    )
+
+
+def test_format_contact_point_email_reads_object_id():
+    assert format_contact_point_email({"@id": "mailto:DATA@EXAMPLE.GOV"}) == (
+        "data@example.gov"
+    )
 
 
 class TestSimplifyResourceType:

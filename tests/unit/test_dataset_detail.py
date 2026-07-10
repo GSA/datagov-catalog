@@ -431,6 +431,53 @@ class TestDatasetDetail:
         assert anchor.get("href") == landing_page_url
         assert anchor.get_text(strip=True) == landing_page_url
 
+    def test_metadata_landing_page_object_uses_id(
+        self, interface_with_dataset, db_client
+    ):
+        landing_page_url = "https://example.com/landing-page"
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {
+            **ds.dcat,
+            "landingPage": {"@type": "Document", "@id": landing_page_url},
+        }
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+        landing_page_row = next(
+            (
+                row
+                for row in soup.select("table.metadata-table tr")
+                if row.select_one("th").get_text(strip=True) == "landingPage"
+            ),
+            None,
+        )
+        assert landing_page_row is not None
+        anchor = landing_page_row.select_one("td a")
+        assert anchor is not None
+        assert anchor.get("href") == landing_page_url
+        assert anchor.get_text(strip=True) == landing_page_url
+
+    def test_pref_label_publisher_is_displayed(self, interface_with_dataset, db_client):
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {
+            **ds.dcat,
+            "publisher": {"@type": "Organization", "prefLabel": "DCAT 3 Publisher"},
+        }
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+        assert "Published by DCAT 3 Publisher" in soup.select_one(
+            ".dataset-meta"
+        ).get_text(" ", strip=True)
+
     def test_check_jsonld(self, interface_with_dataset, db_client):
 
         with patch("app.routes.interface", interface_with_dataset):

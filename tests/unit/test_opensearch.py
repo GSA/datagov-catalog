@@ -153,6 +153,42 @@ class TestOpenSearch:
             == "https://catalog.data.gov/dataset/object-series"
         )
 
+    def test_dataset_to_document_normalizes_dcatus3_catalog_sync_fields(
+        self, opensearch_client, mock_dataset_with_datetime
+    ):
+        mock_dataset_with_datetime.dcat["title"] = "Climate Observations"
+        mock_dataset_with_datetime.dcat["description"] = "Daily observations."
+        mock_dataset_with_datetime.dcat["publisher"] = {
+            "@type": "Organization",
+            "prefLabel": "National Climate Data Center",
+        }
+        mock_dataset_with_datetime.dcat["keyword"] = "climate"
+        mock_dataset_with_datetime.dcat["theme"] = [
+            {
+                "@id": "https://example.gov/concepts/climate-science",
+                "@type": "Concept",
+                "prefLabel": "Climate Science",
+                "altLabel": ["Climatology"],
+                "notation": ["CLIM-SCI"],
+                "definition": "The study of climate.",
+                "inScheme": {"title": "Science Domains"},
+            }
+        ]
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert document["publisher"] == "National Climate Data Center"
+        assert document["keyword"] == ["climate"]
+        assert document["theme"] == [
+            {
+                "@id": "https://example.gov/concepts/climate-science",
+                "prefLabel": "Climate Science",
+                "altLabel": ["Climatology"],
+                "notation": ["CLIM-SCI"],
+                "definition": "The study of climate.",
+            }
+        ]
+
     def test_is_part_of_supports_collection_filter(
         self, interface_with_dataset, opensearch_client
     ):
