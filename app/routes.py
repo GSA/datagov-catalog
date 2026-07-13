@@ -823,30 +823,6 @@ def organization_detail(slug: str):
     )
 
 
-def _is_dcat_3_0(dcat: dict) -> bool:
-    if "temporal" in dcat and isinstance(dcat["temporal"], list):
-        if len(dcat["temporal"]) > 0 and isinstance(dcat["temporal"][0], dict):
-            if "@type" in dcat["temporal"][0]:
-                return True
-
-    if "spatial" in dcat and isinstance(dcat["spatial"], list):
-        if len(dcat["spatial"]) > 0 and isinstance(dcat["spatial"][0], dict):
-            if "@type" in dcat["spatial"][0]:
-                return True
-
-    if "landingPage" in dcat and isinstance(dcat["landingPage"], dict):
-        if "@type" in dcat["landingPage"]:
-            return True
-
-    if "rights" in dcat and isinstance(dcat["rights"], list):
-        return True
-
-    if "accrualPeriodicity" in dcat:
-        return True
-
-    return False
-
-
 @main.route("/dataset/<slug_or_id>", methods=["GET"])
 def dataset_detail_by_slug_or_id(slug_or_id: str):
     """Display dataset detail page at its slug URL."""
