@@ -57,7 +57,9 @@ def test_dcat_3_0_normalized_fields(page):
         license_section.locator(".sidebar-section__value:has-text('creativecommons')")
     ).to_be_visible()
 
-    access_level_item = license_section.locator(".sidebar-section__item:has-text('Access Level')")
+    access_level_item = license_section.locator(
+        ".sidebar-section__item:has-text('Access Level')"
+    )
     expect(access_level_item.get_by_text("Access Level", exact=False)).to_be_visible()
     expect(access_level_item.locator(".sidebar-section__value")).to_have_text("public")
 
