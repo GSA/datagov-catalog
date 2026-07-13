@@ -2,7 +2,7 @@
 
 Search filters are registered in `app/search/filters/` and composed by the search registry in `app/search/registry.py`. A filter definition owns how a request parameter is parsed, how it is preserved in URLs, how it becomes an OpenSearch filter clause, how it appears in OpenAPI docs, and how it is rendered in the filter sidebar.
 
-The theme filter in `app/search/filters/theme.py` is a compact example:
+The hypothetical theme filter below (`app/search/filters/theme.py` does not exist yet) shows the pattern:
 
 ```python
 THEME_FILTER = FilterDefinition(

@@ -1,9 +1,7 @@
 {% from "components/filters/keyword_filter.html" import render_keyword_filter %}
 {% from "components/filters/publisher_filter.html" import render_publisher_filter %}
 {% from "components/filters/organization_autocomplete_filter.html" import render_organization_autocomplete_filter %}
-{% from "components/filters/organization_type_filter.html" import render_organization_type_filter %}
 {% from "components/filters/geography_filter.html" import render_geography_filter %}
-{% from "components/filters/spatial_filter.html" import render_spatial_filter %}
 {% from "components/filters/filter_accordion_section.html" import render_filter_accordion_section %}
 
 {% macro render_filter_mobile_trigger(filters_active=false) %}
@@ -24,44 +22,11 @@
 
 {% macro render_filter_sidebar(
     form_action,
-    query_value,
-    sort_value,
-    keywords,
-    suggested_keywords,
-    spatial_filter,
-    publisher=None,
-    suggested_publishers=None,
-    search_result_geometries=None,
-    spatial_geometry=None,
-    geography_label=none,
-    form_id='filter-form',
-    org_slug=None,
-    show_org_autocomplete=False,
-    show_org_type_filters=False,
-    org_types=None,
-    selected_organization=None,
-    suggested_organizations=None,
-    contextual_keyword_counts=None,
-    contextual_org_counts=None,
-    contextual_publisher_counts=None,
-    collection=None,
-    clear_filters_url=none,
-    filter_sections=None,
-    hidden_params=None
+    clear_filters_url,
+    filter_sections,
+    hidden_params
 ) %}
-{% if filter_sections is not none %}
 {% set filters_active = filter_sections | selectattr('is_active') | list | length > 0 %}
-{% else %}
-{% set filters_active = has_active_filters(
-    keywords=keywords,
-    org_types=org_types,
-    publisher=publisher,
-    org_slug=org_slug,
-    selected_organization=selected_organization,
-    spatial_filter=spatial_filter,
-    spatial_geometry=spatial_geometry
-) %}
-{% endif %}
 <div class="filter-sidebar">
     <div class="filter-sidebar__chrome">
         <div class="filter-sidebar__header">
@@ -85,23 +50,11 @@
         </div>
         <p class="filter-sidebar__hint font-body-2xs text-light margin-top-0 margin-bottom-0">Filter selections are applied on each click</p>
     </div>
-    <form class="usa-form margin-top-0" method="get" action="{{ form_action }}" id="{{ form_id }}">
-    {% if hidden_params is not none %}
+    <form class="usa-form margin-top-0" method="get" action="{{ form_action }}" id="filter-form">
     {% for name, value in hidden_params %}
     <input type="hidden" name="{{ name }}" value="{{ value }}">
     {% endfor %}
-    {% else %}
-    {% if collection %}
-    <input type="hidden" name="collection" value="{{ collection }}">
-    {% endif %}
-    <input type="hidden" name="q" value="{{ query_value }}">
-    <input type="hidden" name="sort" value="{{ sort_value }}">
-    {% if org_slug %}
-    <input type="hidden" name="org_slug" value="{{ org_slug }}">
-    {% endif %}
-    {% endif %}
 
-    {% if filter_sections is not none %}
     {% for section in filter_sections %}
         {% if section.renderer == 'geography' %}
         {{ render_geography_filter(section.search_result_geometries, spatial_geometry=section.spatial_geometry, geography_label=section.geography_label) }}
@@ -165,23 +118,6 @@
         {% endcall %}
         {% endif %}
     {% endfor %}
-    {% else %}
-    {{ render_geography_filter(search_result_geometries, spatial_geometry=spatial_geometry, geography_label=geography_label) }}
-    {{ render_keyword_filter(keywords, suggested_keywords, contextual_keyword_counts) }}
-
-    {% if show_org_autocomplete %}
-    {{ render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations,
-    contextual_org_counts) }}
-    {% endif %}
-
-    {% if show_org_type_filters %}
-    {{ render_organization_type_filter(org_types) }}
-    {% endif %}
-
-    {{ render_publisher_filter(publisher, suggested_publishers, contextual_publisher_counts) }}
-
-    {{ render_spatial_filter(spatial_filter) }}
-    {% endif %}
     </form>
 </div>
 {% endmacro %}

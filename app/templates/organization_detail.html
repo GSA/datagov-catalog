@@ -146,18 +146,6 @@
         {% set clear_filters_url = url_for('main.organization_detail', slug=organization_slug_or_id, q=dataset_search_query, sort=selected_sort) %}
         {{ render_filter_sidebar(
             form_action=url_for('main.organization_detail', slug=organization_slug_or_id),
-            query_value=dataset_search_query,
-            sort_value=selected_sort,
-            keywords=keywords,
-            suggested_keywords=suggested_keywords,
-            publisher=publisher,
-            suggested_publishers=suggested_publishers,
-            spatial_filter=spatial_filter,
-            search_result_geometries=search_result_geometries,
-            spatial_geometry=spatial_geometry,
-            geography_label=geography_label,
-            contextual_keyword_counts=contextual_keyword_counts,
-            contextual_publisher_counts=contextual_publisher_counts,
             clear_filters_url=clear_filters_url,
             filter_sections=filter_sections,
             hidden_params=filter_form_hidden_params
