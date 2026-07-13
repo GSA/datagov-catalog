@@ -54,8 +54,9 @@ def open_filter_sidebar(page: Page) -> None:
     """Ensure the filter sidebar panel is visible before interacting with controls."""
     panel = page.locator("#filter-sidebar-panel")
     panel.wait_for(state="attached")
-    toggle = page.get_by_role("button", name=re.compile(r"Show filters", re.I))
     if not panel.is_visible():
+        toggle = page.locator("#filter-mobile-toggle")
+        toggle.wait_for(state="attached")
         toggle.click()
     expect(panel).to_be_visible()
 
