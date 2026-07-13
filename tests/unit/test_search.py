@@ -2,33 +2,48 @@ import copy
 from datetime import datetime
 
 from app.database.opensearch import OpenSearchInterface
-from app.models import Dataset, HarvestRecord, Organization
+from app.models import Dataset, Organization
+from app.search import SearchCriteria
+from tests.helpers import add_dataset_with_harvest_record
 
 
-def _add_dataset_with_harvest_record(interface, dataset_data):
-    dataset_data["harvest_record_id"] = f"{dataset_data['id']}-harvest-record"
-    interface.db.add(
-        HarvestRecord(
-            id=dataset_data["harvest_record_id"],
-            harvest_source_id=dataset_data["harvest_source_id"],
-            harvest_job_id="1",
-            identifier=dataset_data["slug"],
-            source_raw=str(dataset_data["dcat"]),
-            source_transform=dataset_data["dcat"],
-        )
-    )
-    interface.db.add(Dataset(**dataset_data))
+def search_criteria(**kwargs):
+    filters = {}
+    if keywords := kwargs.pop("keywords", None):
+        filters["keyword"] = keywords
+    if org_id := kwargs.pop("org_id", None):
+        filters["organization"] = org_id
+    if org_types := kwargs.pop("org_types", None):
+        filters["org_type"] = org_types
+    if publisher := kwargs.pop("publisher", None):
+        filters["publisher"] = publisher
+    if spatial_filter := kwargs.pop("spatial_filter", None):
+        filters["spatial_data"] = spatial_filter
+    spatial_geometry = kwargs.pop("spatial_geometry", None)
+    if spatial_geometry is not None:
+        filters["geography"] = {
+            "geometry": spatial_geometry,
+            "within": kwargs.pop("spatial_within", True),
+            "label": None,
+        }
+    if collection := kwargs.pop("collection", None):
+        filters["collection"] = collection
+    return SearchCriteria.from_values(filters=filters, **kwargs)
 
 
 def test_search(interface_with_dataset):
-    result = interface_with_dataset.search_datasets("test")
+    result = interface_with_dataset.search_datasets(search_criteria(query="test"))
     assert len(result) > 0
 
-    result = interface_with_dataset.search_datasets("description")
+    result = interface_with_dataset.search_datasets(
+        search_criteria(query="description")
+    )
     assert len(result) > 0
 
     # no search results
-    result = interface_with_dataset.search_datasets("nonexistentword")
+    result = interface_with_dataset.search_datasets(
+        search_criteria(query="nonexistentword")
+    )
     assert len(result) == 0
 
 
@@ -36,24 +51,30 @@ def test_multiple(interface_with_dataset):
     """Test multiple search terms format."""
 
     # "test" and "description" are both in the source document
-    result = interface_with_dataset.search_datasets("test description")
+    result = interface_with_dataset.search_datasets(
+        search_criteria(query="test description")
+    )
     assert len(result) > 0
 
     # nonexistent isn't there so and should match nothing
-    result = interface_with_dataset.search_datasets("test nonexistentword")
+    result = interface_with_dataset.search_datasets(
+        search_criteria(query="test nonexistentword")
+    )
     assert len(result) == 0
 
 
 def test_search_popularity_sort(interface_with_dataset):
     """Search returns results when using the popularity sort."""
-    result = interface_with_dataset.search_datasets("test", sort_by="popularity")
+    result = interface_with_dataset.search_datasets(
+        search_criteria(query="test", sort_by="popularity")
+    )
     assert len(result) > 0
 
 
 def test_search_last_harvested_date_sort(interface_with_dataset):
     """Search returns results when using last harvested date sort."""
     result = interface_with_dataset.search_datasets(
-        "test", sort_by="last_harvested_date"
+        search_criteria(query="test", sort_by="last_harvested_date")
     )
     assert len(result) > 0
 
@@ -71,7 +92,7 @@ def test_last_harvested_date_sort_orders_results(interface_with_dataset):
     )
 
     latest_sorted = interface_with_dataset.search_datasets(
-        "", sort_by="last_harvested_date", per_page=200
+        search_criteria(query="", sort_by="last_harvested_date", per_page=200)
     )
     slugs = [dataset["slug"] for dataset in latest_sorted.results]
     assert "test-health-data" in slugs
@@ -91,9 +112,9 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         dataset_data["popularity"] = popularity
         dataset_data["dcat"]["title"] = title
         dataset_data["dcat"]["description"] = description
-        return dataset_data
+        return add_dataset_with_harvest_record(interface_with_dataset, dataset_data)
 
-    high_popularity_dataset = make_dataset(
+    make_dataset(
         "popularity-dataset",
         "popularity-dataset",
         10_000,
@@ -101,7 +122,7 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         "Contains the term test once for matching.",
     )
 
-    high_score_dataset = make_dataset(
+    make_dataset(
         "relevance-dataset",
         "relevance-dataset",
         5,
@@ -109,20 +130,18 @@ def test_popularity_sort_orders_results(interface_with_dataset):
         "This dataset says test more than the other: test test test.",
     )
 
-    _add_dataset_with_harvest_record(interface_with_dataset, high_popularity_dataset)
-    _add_dataset_with_harvest_record(interface_with_dataset, high_score_dataset)
     interface_with_dataset.db.commit()
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
     )
 
     relevance_sorted = interface_with_dataset.search_datasets(
-        "test", sort_by="relevance"
+        search_criteria(query="test", sort_by="relevance")
     )
     assert relevance_sorted.results[0]["slug"] == "relevance-dataset"
 
     popularity_sorted = interface_with_dataset.search_datasets(
-        "test", sort_by="popularity"
+        search_criteria(query="test", sort_by="popularity")
     )
     assert popularity_sorted.results[0]["slug"] == "popularity-dataset"
 
@@ -135,7 +154,7 @@ def test_search_with_keyword(interface_with_dataset):
         dataset_dict["slug"] = f"test-{i}"
         dataset_dict["dcat"]["title"] = f"test-{i}"
         dataset_dict["dcat"]["keyword"] = ["health", "education"]
-        _add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     # Index datasets in OpenSearch
@@ -143,7 +162,9 @@ def test_search_with_keyword(interface_with_dataset):
         interface_with_dataset.db.query(Dataset)
     )
     # Search by single keyword
-    result = interface_with_dataset.search_datasets(keywords=["health"])
+    result = interface_with_dataset.search_datasets(
+        search_criteria(keywords=["health"])
+    )
     assert len(result) > 0
     assert all(
         "health" in dataset.get("dcat", {}).get("keyword", [])
@@ -151,7 +172,9 @@ def test_search_with_keyword(interface_with_dataset):
     )
 
     # Search by multiple keywords
-    result = interface_with_dataset.search_datasets(keywords=["health", "education"])
+    result = interface_with_dataset.search_datasets(
+        search_criteria(keywords=["health", "education"])
+    )
     assert len(result) > 0
     assert all(
         "health" in dataset.get("dcat", {}).get("keyword", [])
@@ -160,7 +183,9 @@ def test_search_with_keyword(interface_with_dataset):
     )
 
     # Search by non-existent keyword
-    result = interface_with_dataset.search_datasets(keywords=["nonexistent"])
+    result = interface_with_dataset.search_datasets(
+        search_criteria(keywords=["nonexistent"])
+    )
     assert len(result) == 0
     assert result.results == []
 
@@ -195,7 +220,7 @@ def test_search_with_org_type_filters_by_organization_type(interface_with_datase
         "publisher": {"name": "City Agency"},
         "distribution": [],
     }
-    _add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
 
     dataset_dict["id"] = "state-type-dataset"
     dataset_dict["slug"] = "state-type-dataset"
@@ -206,14 +231,16 @@ def test_search_with_org_type_filters_by_organization_type(interface_with_datase
         "publisher": {"name": "State Agency"},
         "distribution": [],
     }
-    _add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
     )
 
-    result = interface_with_dataset.search_datasets(org_types=["City Government"])
+    result = interface_with_dataset.search_datasets(
+        search_criteria(org_types=["City Government"])
+    )
     slugs = {dataset["slug"] for dataset in result.results}
 
     assert "city-type-dataset" in slugs
@@ -226,8 +253,10 @@ def test_search_spatial_geometry(interface_with_dataset):
         interface_with_dataset.db.query(Dataset)
     )
     results = interface_with_dataset.search_datasets(
-        spatial_geometry={"type": "point", "coordinates": [-75, 40]},
-        spatial_within=False,
+        search_criteria(
+            spatial_geometry={"type": "point", "coordinates": [-75, 40]},
+            spatial_within=False,
+        )
     )
     assert len(results) > 0
 
@@ -316,7 +345,9 @@ class TestPhraseSearch:
         )
 
         # Search for exact phrase that exists in test data
-        result = interface_with_dataset.search_datasets('"Health Food"')
+        result = interface_with_dataset.search_datasets(
+            search_criteria(query='"Health Food"')
+        )
 
         # Should find results containing this phrase
         assert result.total >= 0
@@ -339,7 +370,9 @@ class TestPhraseSearch:
         org = interface_with_dataset.db.query(Dataset).first().organization
 
         # Search with phrase and org filter
-        result = interface_with_dataset.search_datasets('"test"', org_id=org.id)
+        result = interface_with_dataset.search_datasets(
+            search_criteria(query='"test"', org_id=org.id)
+        )
 
         # Should find at least the fixture dataset with "test" in title
         assert result.total > 0
@@ -360,7 +393,9 @@ class TestOrQuerySearch:
         )
 
         # Search for "health OR climate"
-        result = interface_with_dataset.search_datasets("health OR climate")
+        result = interface_with_dataset.search_datasets(
+            search_criteria(query="health OR climate")
+        )
 
         # Should return datasets with either "health" or "climate"
         assert result.total > 0
@@ -387,10 +422,14 @@ class TestOrQuerySearch:
         )
 
         # Search with OR
-        or_result = interface_with_dataset.search_datasets("health OR climate")
+        or_result = interface_with_dataset.search_datasets(
+            search_criteria(query="health OR climate")
+        )
 
         # Search with AND (implicit)
-        and_result = interface_with_dataset.search_datasets("health climate")
+        and_result = interface_with_dataset.search_datasets(
+            search_criteria(query="health climate")
+        )
 
         # OR should return equal or more results than AND
         assert or_result.total >= and_result.total
@@ -402,7 +441,9 @@ class TestOrQuerySearch:
         )
 
         # Test that quoted phrases work with OR
-        result = interface_with_dataset.search_datasets('"health food" OR education')
+        result = interface_with_dataset.search_datasets(
+            search_criteria(query='"health food" OR education')
+        )
 
         # Should work without errors
         assert result.total >= 0
@@ -414,7 +455,7 @@ class TestOrQuerySearch:
         )
 
         result = interface_with_dataset.search_datasets(
-            "health OR education", sort_by="popularity"
+            search_criteria(query="health OR education", sort_by="popularity")
         )
 
         # Should return results sorted by popularity
@@ -464,15 +505,17 @@ def test_distribution_title_search_returns_only_matching_dataset(
         ],
     }
 
-    _add_dataset_with_harvest_record(interface_with_dataset, dataset_a)
-    _add_dataset_with_harvest_record(interface_with_dataset, dataset_b)
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_a)
+    add_dataset_with_harvest_record(interface_with_dataset, dataset_b)
     interface_with_dataset.db.commit()
 
     interface_with_dataset.opensearch.index_datasets(
         interface_with_dataset.db.query(Dataset)
     )
 
-    result = interface_with_dataset.search_datasets("Rainfall Measurements Report")
+    result = interface_with_dataset.search_datasets(
+        search_criteria(query="Rainfall Measurements Report")
+    )
 
     assert result.total == 1
     assert result.results[0]["slug"] == "dist-dataset-a"

@@ -1,10 +1,8 @@
 from app.filter_helpers import (
     geography_active_summary,
-    has_active_filters,
     organization_active_summary,
     publisher_active_summary,
     selection_summary,
-    spatial_data_active_summary,
     truncate_summary,
 )
 
@@ -15,6 +13,19 @@ def test_selection_summary_single():
 
 def test_selection_summary_multiple():
     assert selection_summary(["health", "food"]) == "2 selected"
+
+
+def test_selection_summary_empty():
+    assert selection_summary(None) is None
+    assert selection_summary([]) is None
+
+
+def test_selection_summary_truncates_long_single_value():
+    assert selection_summary(["A" * 60]) == f"{'A' * 47}…"
+
+
+def test_selection_summary_does_not_truncate_count_label():
+    assert selection_summary(["a", "b", "c"]) == "3 selected"
 
 
 def test_organization_active_summary_from_object():
@@ -35,10 +46,6 @@ def test_geography_active_summary_without_label():
     assert geography_active_summary({"type": "Polygon"}, None) == "Area selected"
 
 
-def test_spatial_data_active_summary():
-    assert spatial_data_active_summary("geospatial") == "Geospatial only"
-
-
 def test_truncate_summary():
     assert truncate_summary("A" * 40, max_len=10) == "AAAAAAAAA…"
 
@@ -55,9 +62,3 @@ def test_truncate_summary_truncates_beyond_default():
 
 def test_publisher_active_summary():
     assert publisher_active_summary("EPA") == "EPA"
-
-
-def test_has_active_filters():
-    assert has_active_filters(keywords=["health"]) is True
-    assert has_active_filters() is False
-    assert has_active_filters(spatial_geometry={}) is True

@@ -7,7 +7,6 @@ TEMPLATE_FILTERS = (
     "organization_active_summary",
     "publisher_active_summary",
     "geography_active_summary",
-    "spatial_data_active_summary",
 )
 
 
@@ -58,32 +57,3 @@ def geography_active_summary(
     if geography_label:
         return truncate_summary(geography_label)
     return "Area selected"
-
-
-def spatial_data_active_summary(spatial_filter: str | None) -> str | None:
-    labels = {
-        "geospatial": "Geospatial only",
-        "non-geospatial": "Non-geospatial only",
-    }
-    return labels.get(spatial_filter or "")
-
-
-def has_active_filters(
-    *,
-    keywords=None,
-    org_types=None,
-    publisher=None,
-    org_slug=None,
-    selected_organization=None,
-    spatial_filter=None,
-    spatial_geometry=None,
-) -> bool:
-    return bool(
-        (keywords and len(keywords) > 0)
-        or (org_types and len(org_types) > 0)
-        or publisher
-        or org_slug
-        or selected_organization
-        or spatial_filter
-        or spatial_geometry is not None
-    )

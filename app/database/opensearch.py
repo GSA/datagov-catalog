@@ -25,8 +25,12 @@ from app.dcat_opensearch import (
     normalize_theme,
     theme_pref_labels,
 )
-
-from .constants import DEFAULT_PER_PAGE
+from app.search import (
+    SearchCriteria,
+    build_aggregation_specs,
+    build_filter_clauses,
+    parse_filter_aggregations,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,27 +105,7 @@ class SearchResult:
                 # no results in the list
                 search_after = None
 
-        raw_aggs = result_dict.get("aggregations")
-        aggregations = None
-        if raw_aggs is not None:
-            keyword_buckets = raw_aggs.get("unique_keywords", {}).get("buckets", [])
-            org_buckets = (
-                raw_aggs.get("organizations", {}).get("by_slug", {}).get("buckets", [])
-            )
-            publisher_buckets = raw_aggs.get("unique_publishers", {}).get("buckets", [])
-            aggregations = {
-                "keywords": [
-                    {"keyword": b["key"], "count": b["doc_count"]}
-                    for b in keyword_buckets
-                ],
-                "organizations": [
-                    {"slug": b["key"], "count": b["doc_count"]} for b in org_buckets
-                ],
-                "publishers": [
-                    {"name": b["key"], "count": b["doc_count"]}
-                    for b in publisher_buckets
-                ],
-            }
+        aggregations = parse_filter_aggregations(result_dict.get("aggregations"))
 
         return cls(
             total=total,
@@ -949,22 +933,8 @@ class OpenSearchInterface:
 
     def search(
         self,
-        query,
-        per_page=DEFAULT_PER_PAGE,
-        org_id=None,
+        criteria: SearchCriteria,
         search_after: list = None,
-        org_types=None,
-        publisher: str | None = None,
-        spatial_filter=None,
-        spatial_geometry=None,
-        spatial_within=True,
-        sort_by: str = "relevance",
-        keywords: list[str] = None,
-        include_aggregations: bool = False,
-        keyword_size: int = 100,
-        org_size: int = 100,
-        publisher_size: int = 100,
-        collection: str = None,
     ) -> SearchResult:
         """Search our index for a query string.
 
@@ -977,20 +947,7 @@ class OpenSearchInterface:
         - OR operator: food OR health
         - Combined: "poor food" OR health or "poor food" OR "electric vehicle"
 
-        If the org_id argument is given then we only return search results
-        that are in that organization.
-
-        spatial_filter can be "geospatial" or "non-geospatial" to filter
-        datasets by presence of spatial data.
-
-        spatial_geometry is a GeoJSON object which will be used to search for
-        datasets
-
-        spatial_within is a flag for how to interpret spatial_geometry. If
-        spatial_within is True then matching datasets must be completely
-        WITHIN the specified spatial_geometry. If spatial_within is False then
-        matching datasets only need to INTERSECT the specified
-        spatial_geometry.
+        Search filters are supplied through `criteria`.
 
         We pass the `after` argument through to OpenSearch. It should be the
         value of the last `_sort` field from a previous search result with the
@@ -1000,6 +957,12 @@ class OpenSearchInterface:
         aggregations are embedded in the same request and returned via
         `SearchResult.aggregations`.
         """
+        query = criteria.query
+        per_page = criteria.per_page
+        sort_by = criteria.sort_by
+        include_aggregations = criteria.include_aggregations
+        spatial_geometry = criteria.get_spatial_geometry()
+
         # Parse query for phrases and OR operators
         parsed_query = self._parse_search_query(query) if query else None
 
@@ -1060,68 +1023,7 @@ class OpenSearchInterface:
             "size": 0 if per_page == 0 else per_page + 1,
         }
 
-        # Build filter list for bool query
-        filters = []
-
-        if keywords:
-            for keyword in keywords:
-                filters.append({"term": {"keyword.normalized": keyword.lower()}})
-
-        if org_id is not None:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "organization",
-                        "query": {
-                            "term": {"organization.id": org_id},
-                        },
-                    },
-                }
-            )
-
-        if org_types is not None and len(org_types) > 0:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "organization",
-                        "query": {
-                            "terms": {"organization.organization_type": org_types},
-                        },
-                    },
-                }
-            )
-
-        if publisher:
-            filters.append({"term": {"publisher.normalized": publisher.lower()}})
-
-        # Add spatial filter
-        if spatial_filter == "geospatial":
-            filters.append({"term": {"has_spatial": True}})
-        elif spatial_filter == "non-geospatial":
-            filters.append({"term": {"has_spatial": False}})
-
-        # Add spatial_geojson filter
-        if spatial_geometry is not None:
-            filters.append(
-                {
-                    "geo_shape": {
-                        "spatial_shape": {
-                            "shape": spatial_geometry,
-                            "relation": "WITHIN" if spatial_within else "INTERSECTS",
-                        }
-                    }
-                }
-            )
-
-        if collection:
-            filters.append(
-                {
-                    "nested": {
-                        "path": "dcat",
-                        "query": {"term": {"dcat.isPartOf": collection}},
-                    }
-                }
-            )
+        filters = build_filter_clauses(criteria)
 
         # Apply filters if any exist
         if filters:
@@ -1139,37 +1041,7 @@ class OpenSearchInterface:
 
         # `keyword`, `organization`, and `publisher` aggregations for the chips
         if include_aggregations:
-            search_body["aggs"] = {
-                "unique_keywords": {
-                    "terms": {
-                        "field": "keyword.raw",
-                        "size": keyword_size,
-                        "min_doc_count": 1,
-                        "order": {"_count": "desc"},
-                    }
-                },
-                "organizations": {
-                    "nested": {"path": "organization"},
-                    "aggs": {
-                        "by_slug": {
-                            "terms": {
-                                "field": "organization.slug",
-                                "size": org_size,
-                                "min_doc_count": 1,
-                                "order": {"_count": "desc"},
-                            }
-                        }
-                    },
-                },
-                "unique_publishers": {
-                    "terms": {
-                        "field": "publisher.raw",
-                        "size": publisher_size,
-                        "min_doc_count": 1,
-                        "order": {"_count": "desc"},
-                    }
-                },
-            }
+            search_body["aggs"] = build_aggregation_specs(criteria)
 
         # print("QUERY:", search_body)
         result_dict = self.client.search(index=self.INDEX_NAME, body=search_body)

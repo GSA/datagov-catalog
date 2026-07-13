@@ -8,6 +8,24 @@ import app.database.opensearch as opensearch_module
 from app import create_app
 from app.database import OpenSearchInterface
 from app.models import Dataset
+from app.search import SearchCriteria
+
+
+def search_criteria(**kwargs):
+    filters = {}
+    if keywords := kwargs.pop("keywords", None):
+        filters["keyword"] = keywords
+    spatial_geometry = kwargs.pop("spatial_geometry", None)
+    if spatial_geometry is not None:
+        filters["geography"] = {
+            "geometry": spatial_geometry,
+            "within": kwargs.pop("spatial_within", True),
+            "label": None,
+        }
+    if collection := kwargs.pop("collection", None):
+        filters["collection"] = collection
+    return SearchCriteria.from_values(filters=filters, **kwargs)
+
 
 from ..opensearch_helpers import recreate_opensearch_index
 
@@ -26,7 +44,7 @@ class TestOpenSearch:
         dataset_iterator = interface_with_dataset.db.query(Dataset)
         opensearch_client.index_datasets(dataset_iterator)
         # the test dataset has title "test"
-        result_obj = opensearch_client.search("test")
+        result_obj = opensearch_client.search(search_criteria(query="test"))
         assert len(result_obj.results) > 0
 
     def test_index_and_search_other_fields(
@@ -35,7 +53,7 @@ class TestOpenSearch:
         dataset_iterator = interface_with_dataset.db.query(Dataset)
         opensearch_client.index_datasets(dataset_iterator)
         # One of the Americorps datasets has tnxs-meph in an identifier
-        result_obj = opensearch_client.search("tnxs-meph")
+        result_obj = opensearch_client.search(search_criteria(query="tnxs-meph"))
         assert len(result_obj.results) > 0
 
     def test_search_spatial_geometry_intersects(
@@ -45,9 +63,10 @@ class TestOpenSearch:
         opensearch_client.index_datasets(dataset_iterator)
         # This point is inside the polygon of the test dataset
         result_obj = opensearch_client.search(
-            "",
-            spatial_geometry={"type": "point", "coordinates": [-75, 40]},
-            spatial_within=False,
+            search_criteria(
+                spatial_geometry={"type": "point", "coordinates": [-75, 40]},
+                spatial_within=False,
+            )
         )
         assert len(result_obj.results) > 0
 
@@ -58,14 +77,15 @@ class TestOpenSearch:
         opensearch_client.index_datasets(dataset_iterator)
         # This polygon contains the whole test dataset (and planet)
         result_obj = opensearch_client.search(
-            "",
-            spatial_geometry={
-                "type": "polygon",
-                "coordinates": [
-                    [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]
-                ],
-            },
-            spatial_within=True,
+            search_criteria(
+                spatial_geometry={
+                    "type": "polygon",
+                    "coordinates": [
+                        [[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]
+                    ],
+                },
+                spatial_within=True,
+            )
         )
         assert len(result_obj.results) > 0
 
@@ -80,12 +100,12 @@ class TestOpenSearch:
             "coordinates": [[[-85, 30], [-85, 40], [-75, 40], [-75, 30], [-85, 30]]],
         }
         result_obj = opensearch_client.search(
-            "", spatial_geometry=polygon, spatial_within=True
+            search_criteria(spatial_geometry=polygon, spatial_within=True)
         )
         assert len(result_obj.results) == 0
 
         result_obj = opensearch_client.search(
-            "", spatial_geometry=polygon, spatial_within=False
+            search_criteria(spatial_geometry=polygon, spatial_within=False)
         )
         assert len(result_obj.results) > 0
 
@@ -94,7 +114,9 @@ class TestOpenSearch:
         opensearch_client.index_datasets(dataset_iterator)
 
         result_obj = opensearch_client.search(
-            "", collection="https://subdomain.domain/parent/example.shp.iso.xml"
+            search_criteria(
+                collection="https://subdomain.domain/parent/example.shp.iso.xml"
+            )
         )
         assert len(result_obj.results) == 2
 
@@ -744,15 +766,19 @@ class TestCaseInsensitiveKeywords:
             opensearch_client.index_datasets([dataset])
 
         # Filtering with the lowercase form must still find the document.
-        result_lower = opensearch_client.search("", keywords=["environment"])
+        result_lower = opensearch_client.search(
+            search_criteria(keywords=["environment"])
+        )
         assert len(result_lower.results) == 1
 
         # Filtering with the original Title Case form must also work.
-        result_title = opensearch_client.search("", keywords=["Environment"])
+        result_title = opensearch_client.search(
+            search_criteria(keywords=["Environment"])
+        )
         assert len(result_title.results) == 1
 
         # An unrelated keyword must return 0.
-        result_none = opensearch_client.search("", keywords=["unrelated"])
+        result_none = opensearch_client.search(search_criteria(keywords=["unrelated"]))
         assert len(result_none.results) == 0
 
     def test_keyword_filter_case_insensitive_mixed_case(
@@ -778,7 +804,7 @@ class TestCaseInsensitiveKeywords:
 
         # "ENVIRONMENT", "Environment", and "eNvIrOnMeNt" should all match.
         for variant in ("ENVIRONMENT", "Environment", "eNvIrOnMeNt"):
-            result = opensearch_client.search("", keywords=[variant])
+            result = opensearch_client.search(search_criteria(keywords=[variant]))
             assert len(result.results) == 1
 
     def test_get_unique_keywords_combines_case_variants(

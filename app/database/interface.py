@@ -20,6 +20,7 @@ from app.models import (
     Organization,
     db,
 )
+from app.search import SearchCriteria
 
 from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE
 from .opensearch import OpenSearchInterface, SearchResult
@@ -63,66 +64,21 @@ class CatalogDBInterface:
     def get_harvest_record(self, record_id: str) -> HarvestRecord | None:
         return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
-    def search_datasets(
-        self,
-        query: str = "",
-        keywords: list[str] = [],
-        per_page=DEFAULT_PER_PAGE,
-        org_id=None,
-        org_types=None,
-        publisher: str | None = None,
-        spatial_filter=None,
-        spatial_geometry=None,
-        spatial_within=True,
-        after=None,
-        sort_by="relevance",
-        include_aggregations: bool = False,
-        keyword_size: int = 100,
-        org_size: int = 100,
-        publisher_size: int = 100,
-        collection: str = None,
-        *args,
-        **kwargs,
-    ):
+    def search_datasets(self, criteria: SearchCriteria):
         """Text search for datasets from the OpenSearch index.
 
         The query is in OpenSearch's "multi_match" search format where it analyzes
         the text and matches against multiple fields.
 
-        per_page paginates results with this many entries. If org_id is
-        specified, only datasets for that organization are searched. after is
-        an encoded string that will be passed through to Opensearch for
-        accessing further pages. spatial_filter can be "geospatial" or
-        "non-geospatial" to filter by presence of spatial data.
-        spatial_geometry and spatial_within allow searching geographically for
-        datasets. See OpenSearchInterface.search for details.
-
-        When `include_aggregations` is True, keyword and organization
-        aggregations are embedded in the same OpenSearch request and
-        returned via `SearchResult.aggregations`.
+        `criteria` carries query text, filters, pagination, sorting, and optional
+        aggregation settings.
         """
-        if after is not None:
-            search_after = SearchResult.decode_search_after(after)
-        else:
-            search_after = None
-        return self.opensearch.search(
-            query,
-            keywords=keywords,
-            per_page=per_page,
-            org_id=org_id,
-            org_types=org_types,
-            publisher=publisher,
-            search_after=search_after,
-            spatial_filter=spatial_filter,
-            spatial_geometry=spatial_geometry,
-            spatial_within=spatial_within,
-            sort_by=sort_by,
-            include_aggregations=include_aggregations,
-            keyword_size=keyword_size,
-            org_size=org_size,
-            publisher_size=publisher_size,
-            collection=collection,
+        search_after = (
+            SearchResult.decode_search_after(criteria.after)
+            if criteria.after is not None
+            else None
         )
+        return self.opensearch.search(criteria, search_after=search_after)
 
     def get_document_by_slug(self, slug_name: str) -> list[dict]:
         """
@@ -166,13 +122,6 @@ class CatalogDBInterface:
             self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
             .filter(Locations.id == location_id)
             .first()
-        )
-
-    def _success_harvest_record_ids_query(self):
-        return (
-            self.db.query(HarvestRecord.id)
-            .filter(HarvestRecord.status == "success")
-            .order_by(HarvestRecord.id.asc())
         )
 
     def _organization_query(
@@ -272,37 +221,13 @@ class CatalogDBInterface:
     def list_datasets_for_organization(
         self,
         organization_id: str,
-        sort_by: str | None = "relevance",
-        dataset_search_query: str = "",
-        num_results=DEFAULT_PER_PAGE,
-        keywords: list[str] | None = None,
-        publisher: str | None = None,
-        spatial_filter: str | None = None,
-        spatial_geometry: dict | None = None,
-        spatial_within: bool = True,
-        include_aggregations: bool = False,
-        keyword_size: int = 100,
-        org_size: int = 100,
-        publisher_size: int = 100,
+        criteria: SearchCriteria,
     ) -> SearchResult:
         if not organization_id:
             return SearchResult.empty()
 
-        return self.search_datasets(
-            dataset_search_query,
-            keywords=keywords or [],
-            org_id=organization_id,
-            sort_by=sort_by,
-            per_page=num_results,
-            publisher=publisher,
-            spatial_filter=spatial_filter,
-            spatial_geometry=spatial_geometry,
-            spatial_within=spatial_within,
-            include_aggregations=include_aggregations,
-            keyword_size=keyword_size,
-            org_size=org_size,
-            publisher_size=publisher_size,
-        )
+        criteria.set_resolved_filter("organization", organization_id)
+        return self.search_datasets(criteria)
 
     def get_opensearch_org_dataset_counts(self, as_dict=False):
         """
