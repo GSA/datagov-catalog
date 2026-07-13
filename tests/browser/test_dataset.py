@@ -57,10 +57,9 @@ def test_dcat_3_0_normalized_fields(page):
         license_section.locator(".sidebar-section__value:has-text('creativecommons')")
     ).to_be_visible()
 
-    expect(license_section.get_by_text("Access Level", exact=False)).to_be_visible()
-    expect(
-        license_section.locator(".sidebar-section__value:has-text('public')")
-    ).to_be_visible()
+    access_level_item = license_section.locator(".sidebar-section__item:has-text('Access Level')")
+    expect(access_level_item.get_by_text("Access Level", exact=False)).to_be_visible()
+    expect(access_level_item.locator(".sidebar-section__value")).to_have_text("public")
 
     dataset_info_section = page.locator(
         ".sidebar-section:has-text('Dataset Information')"
@@ -80,7 +79,7 @@ def test_dcat_3_0_normalized_fields(page):
     ).to_be_visible()
     expect(
         dataset_info_section.locator(
-            ".sidebar-section__value:has-text('October 1, 2024')"
+            ".sidebar-section__value:has-text('October 01, 2024')"
         )
     ).to_be_visible()
 
@@ -99,7 +98,7 @@ def test_dcat_3_0_normalized_fields(page):
 
     metadata_table = page.locator(".metadata-table")
 
-    rights_row = metadata_table.locator("tr:has-text('rights')")
+    rights_row = metadata_table.locator("tr:has(th:text-is('rights'))")
     expect(rights_row.locator("td")).to_contain_text("public domain")
 
     temporal_row = metadata_table.locator("tr:has-text('temporal')")
