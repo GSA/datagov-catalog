@@ -313,6 +313,46 @@ def fixture_data(*, include_filter_demos: bool = False):
                 },
             ),
             dict(
+                id="test-health-data-record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="test-health-data",
+                source_raw='{"title": "Health and Medical Research Data"}',
+                source_transform={
+                    "title": "Health and Medical Research Data",
+                },
+            ),
+            dict(
+                id="test-climate-environment-record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="test-climate-environment",
+                source_raw='{"title": "Climate Change Environmental Data"}',
+                source_transform={
+                    "title": "Climate Change Environmental Data",
+                },
+            ),
+            dict(
+                id="test-education-schools-record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="test-education-schools",
+                source_raw='{"title": "Education and School Performance Data"}',
+                source_transform={
+                    "title": "Education and School Performance Data",
+                },
+            ),
+            dict(
+                id="test-technology-data-record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="test-technology-data",
+                source_raw='{"title": "Technology and Data Science Resources"}',
+                source_transform={
+                    "title": "Technology and Data Science Resources",
+                },
+            ),
+            dict(
                 id="parent_harvest_record",
                 harvest_source_id="1",
                 harvest_job_id="1",
@@ -381,7 +421,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                         }
                     ],
                 },
-                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_record_id="test-health-data-record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
@@ -418,7 +458,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                         }
                     ],
                 },
-                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_record_id="test-climate-environment-record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
@@ -447,7 +487,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                         }
                     ],
                 },
-                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_record_id="test-education-schools-record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
@@ -473,7 +513,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                         }
                     ],
                 },
-                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_record_id="test-technology-data-record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
@@ -499,7 +539,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                         }
                     ],
                 },
-                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_record_id="earth-keyword-record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
@@ -586,7 +626,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                         "hasEmail": "mailto:datagovsupport@gsa.gov",
                     },
                 },
-                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_record_id="earth-science-keyword-record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
@@ -604,7 +644,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                         "hasEmail": "mailto:datagovsupport@gsa.gov",
                     },
                 },
-                harvest_record_id=HARVEST_RECORD_ID,
+                harvest_record_id="earth-science-trees-keyword-record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
