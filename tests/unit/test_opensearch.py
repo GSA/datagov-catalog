@@ -10,6 +10,8 @@ from app.database import OpenSearchInterface
 from app.models import Dataset
 from app.search import SearchCriteria
 
+from ..opensearch_helpers import recreate_opensearch_index
+
 
 def search_criteria(**kwargs):
     filters = {}
@@ -25,9 +27,6 @@ def search_criteria(**kwargs):
     if collection := kwargs.pop("collection", None):
         filters["collection"] = collection
     return SearchCriteria.from_values(filters=filters, **kwargs)
-
-
-from ..opensearch_helpers import recreate_opensearch_index
 
 
 class TestOpenSearch:
@@ -225,7 +224,10 @@ class TestOpenSearch:
         )
 
         result_obj = opensearch_client.search(
-            "", collection="https://subdomain.domain/parent/example.shp.iso.xml"
+            search_criteria(
+                query="",
+                collection="https://subdomain.domain/parent/example.shp.iso.xml",
+            )
         )
         slugs = {doc["slug"] for doc in result_obj.results}
         assert "child-harvest-record" in slugs
