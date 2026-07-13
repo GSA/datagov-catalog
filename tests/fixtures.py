@@ -353,6 +353,36 @@ def fixture_data(*, include_filter_demos: bool = False):
                 },
             ),
             dict(
+                id="earth-keyword-record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="test-technology-data",
+                source_raw='{"title": "Technology and Data Science Resources"}',
+                source_transform={
+                    "title": "Technology and Data Science Resources",
+                },
+            ),
+            dict(
+                id="earth-science-keyword-record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="earth-keyword-dataset",
+                source_raw='{"title": "Earth Observation Dataset"}',
+                source_transform={
+                    "title": "Earth Observation Dataset",
+                },
+            ),
+            dict(
+                id="earth-science-trees-keyword-record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="earth-science-keyword-dataset",
+                source_raw='{"title": "Earth Science Dataset"}',
+                source_transform={
+                    "title": "Earth Science Dataset",
+                },
+            ),
+            dict(
                 id="parent_harvest_record",
                 harvest_source_id="1",
                 harvest_job_id="1",
