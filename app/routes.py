@@ -857,11 +857,7 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # set the type for google search json-ld
     dataset.dcat["@type"] = "dcat:Dataset"
 
-    # normalize DCAT 3.0 fields to 1.1 format for display
-    # check if dcat 3.0 before trying to normalize
-    is_dcat_3 = _is_dcat_3_0(dataset.dcat)
-    if is_dcat_3:
-        dataset.dcat = normalize_dcat_for_display(dataset.dcat)
+    dataset.dcat = normalize_dcat_for_display(dataset.dcat)
 
     return render_template(
         "dataset_detail.html",
