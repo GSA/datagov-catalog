@@ -927,7 +927,7 @@ class OpenSearchInterface:
         per_page = criteria.per_page
         sort_by = criteria.sort_by
         include_aggregations = criteria.include_aggregations
-        spatial_geometry = criteria.spatial_geometry
+        spatial_geometry = criteria.get_spatial_geometry()
 
         # Parse query for phrases and OR operators
         parsed_query = self._parse_search_query(query) if query else None

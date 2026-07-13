@@ -62,10 +62,10 @@ def _clause(criteria, value: dict) -> dict | None:
 
 
 def _section(criteria, context) -> dict:
+    geography = criteria.get_geography()
     return {
-        "spatial_geometry": criteria.spatial_geometry,
-        "spatial_within": criteria.spatial_within,
-        "geography_label": criteria.geography_label,
+        "spatial_geometry": geography.get("geometry"),
+        "geography_label": geography.get("label"),
         "search_result_geometries": context.get("search_result_geometries"),
     }
 

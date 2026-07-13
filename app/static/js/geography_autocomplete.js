@@ -1286,7 +1286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inputId: 'geography-input',
         suggestionsId: 'geography-suggestions',
         formId: 'filter-form',
-        mainSearchFormId: 'main-search-form', // NEW: main search form ID
+        mainSearchFormId: 'main-search-form',
         apiEndpoint: '/api/location',
         debounceDelay: 300
     });

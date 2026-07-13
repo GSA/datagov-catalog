@@ -34,12 +34,12 @@ def test_search_criteria_parses_registered_filters():
     )
 
     assert criteria.query == "water"
-    assert criteria.keywords == ["health", "education"]
-    assert criteria.org_types == ["City Government"]
-    assert criteria.publisher == "City Publisher"
-    assert criteria.org_slug == "city-example"
-    assert criteria.spatial_filter == "geospatial"
-    assert criteria.collection == "collection-id"
+    assert criteria.get_filter("keyword") == ["health", "education"]
+    assert criteria.get_filter("org_type") == ["City Government"]
+    assert criteria.get_filter("publisher") == "City Publisher"
+    assert criteria.get_filter("organization") == "city-example"
+    assert criteria.get_filter("spatial_data") == "geospatial"
+    assert criteria.get_filter("collection") == "collection-id"
     assert criteria.sort_by == "popularity"
 
 
@@ -126,6 +126,7 @@ def test_aggregation_specs_and_parsing_are_registry_owned():
     specs = build_aggregation_specs(criteria)
 
     assert set(specs) == {"unique_keywords", "organizations", "unique_publishers"}
+    assert specs["unique_keywords"]["terms"]["field"] == "keyword.normalized"
     assert specs["unique_keywords"]["terms"]["size"] == 5
 
     parsed = parse_filter_aggregations(
@@ -162,6 +163,37 @@ def test_fixed_option_sections_are_built_by_filter_definitions():
     assert by_name["spatial_data"]["field_name"] == "spatial_filter"
     assert by_name["spatial_data"]["value"] == "geospatial"
     assert by_name["spatial_data"]["active_summary"] == "Geospatial only"
+
+
+def test_geography_section_exposes_template_fields_only():
+    geometry = {"type": "Point", "coordinates": [-75, 40]}
+    criteria = SearchCriteria.from_values(
+        filters={
+            "geography": {
+                "geometry": geometry,
+                "within": False,
+                "label": "Example Place",
+            }
+        }
+    )
+
+    sections = build_filter_sections(
+        criteria,
+        route_context=MAIN_CONTEXT,
+        search_result_geometries=[geometry],
+    )
+    geography_section = next(
+        section for section in sections if section["name"] == "geography"
+    )
+
+    assert geography_section["spatial_geometry"] == geometry
+    assert geography_section["geography_label"] == "Example Place"
+    assert geography_section["search_result_geometries"] == [geometry]
+    assert "spatial_within" not in geography_section
+    # within is still preserved for query round-trips even though the section
+    # does not expose it to the template.
+    assert criteria.get_geography().get("within", True) is False
+    assert criteria.to_query_dict()["spatial_within"] == "false"
 
 
 def test_visible_filter_query_params_come_from_registered_sections():
@@ -203,7 +235,8 @@ def test_from_values_accepts_generic_filter_map():
     )
 
     assert criteria.query == "water"
-    assert criteria.keywords == ["health"]
-    assert criteria.collection == "collection-id"
-    assert criteria.spatial_geometry == {"type": "Point", "coordinates": [-75, 40]}
-    assert criteria.spatial_within is False
+    assert criteria.get_filter("keyword") == ["health"]
+    assert criteria.get_filter("collection") == "collection-id"
+    geography = criteria.get_geography()
+    assert geography.get("geometry") == {"type": "Point", "coordinates": [-75, 40]}
+    assert geography.get("within", True) is False

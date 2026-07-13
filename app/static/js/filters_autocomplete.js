@@ -51,8 +51,6 @@ class KeywordAutocomplete {
             } catch (e) {
                 console.error('Failed to parse contextual counts:', e);
             }
-        } else {
-            console.warn('No contextual counts data found in HTML');
         }
 
         this.init();
@@ -1106,7 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chipsContainerId: 'keyword-chips',
             suggestionsId: 'keyword-suggestions',
             formId: 'filter-form',
-            mainSearchFormId: 'main-search-form', // NEW: main search form ID
+            mainSearchFormId: 'main-search-form',
             apiEndpoint: '/api/keywords',
             debounceDelay: 300
         });

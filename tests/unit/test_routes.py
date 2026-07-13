@@ -244,8 +244,6 @@ def test_index_page_filters_by_org_slug(db_client):
     mock_interface.get_organization_by_slug.return_value = mock_org
     mock_interface.get_organizations.return_value = []
     mock_interface.total_datasets.return_value = 0
-    mock_interface.get_unique_keywords.return_value = []
-
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/?org_slug=test-org")
 
@@ -295,13 +293,12 @@ def test_index_page_shows_top_organizations(db_client):
             ],
         },
     )
-    mock_interface.get_unique_keywords.return_value = []
     mock_interface.total_datasets.return_value = 1
     top_orgs = [
         {
             "id": "org-1",
             "name": "Org One",
-            "dataset_count": 2345,
+            "dataset_count": 9999,
             "slug": "org-one",
             "organization_type": "Federal Government",
             "aliases": [],
@@ -309,7 +306,7 @@ def test_index_page_shows_top_organizations(db_client):
         {
             "id": "org-2",
             "name": "Org Two",
-            "dataset_count": 100,
+            "dataset_count": 8888,
             "slug": "org-two",
             "organization_type": "City Government",
             "aliases": [],
@@ -328,6 +325,9 @@ def test_index_page_shows_top_organizations(db_client):
     buttons = container.select("button[data-org-id]")
     assert len(buttons) == 2
     assert "Org One" in buttons[0].get_text(" ", strip=True)
+    # Suggestion enrichment must not mutate the source organization rows.
+    assert top_orgs[0]["dataset_count"] == 9999
+    assert top_orgs[1]["dataset_count"] == 8888
 
 
 def test_get_organizations_api_returns_data(db_client):
@@ -468,7 +468,6 @@ def test_index_spatial_geometry(interface_with_dataset, db_client):
 
 def test_index_includes_top_20_result_geometries_for_map(db_client):
     mock_interface = Mock()
-    mock_interface.get_unique_keywords.return_value = []
     mock_interface.get_organizations.return_value = []
 
     datasets = []
@@ -520,7 +519,6 @@ def test_index_includes_top_20_result_geometries_for_map(db_client):
 
 def test_index_omits_result_geometries_for_map_without_geography_filter(db_client):
     mock_interface = Mock()
-    mock_interface.get_unique_keywords.return_value = []
     mock_interface.get_organizations.return_value = []
     mock_interface.search_datasets.return_value = SearchResult(
         total=1,
@@ -563,7 +561,6 @@ def test_index_page_parses_spatial_within_param(db_client):
         search_after=None,
         aggregations={"keywords": [], "organizations": []},
     )
-    mock_interface.get_unique_keywords.return_value = []
     mock_interface.get_organizations.return_value = []
 
     polygon = {
@@ -589,8 +586,9 @@ def test_index_page_parses_spatial_within_param(db_client):
     assert kwargs == {}
     criteria = args[0]
     assert isinstance(criteria, SearchCriteria)
-    assert criteria.spatial_within is False
-    assert criteria.spatial_geometry == polygon
+    geography = criteria.get_geography()
+    assert geography.get("within", True) is False
+    assert geography.get("geometry") == polygon
 
 
 def test_search_api_parses_spatial_within_param(db_client):
@@ -620,8 +618,9 @@ def test_search_api_parses_spatial_within_param(db_client):
     assert kwargs == {}
     criteria = args[0]
     assert isinstance(criteria, SearchCriteria)
-    assert criteria.spatial_within is True
-    assert criteria.spatial_geometry == polygon
+    geography = criteria.get_geography()
+    assert geography.get("within", True) is True
+    assert geography.get("geometry") == polygon
 
 
 def test_organization_detail_parses_spatial_within_param(db_client):
@@ -643,7 +642,6 @@ def test_organization_detail_parses_spatial_within_param(db_client):
     mock_interface.list_datasets_for_organization.return_value = SearchResult(
         total=0, results=[], search_after=None
     )
-    mock_interface.get_unique_keywords.return_value = []
     mock_interface.get_opensearch_org_dataset_counts.return_value = {}
 
     polygon = {
@@ -667,8 +665,9 @@ def test_organization_detail_parses_spatial_within_param(db_client):
     assert args == ("org-1",)
     criteria = kwargs["criteria"]
     assert isinstance(criteria, SearchCriteria)
-    assert criteria.spatial_within is False
-    assert criteria.spatial_geometry == polygon
+    geography = criteria.get_geography()
+    assert geography.get("within", True) is False
+    assert geography.get("geometry") == polygon
 
 
 def test_organization_detail_includes_top_20_result_geometries_for_map(db_client):
@@ -687,7 +686,6 @@ def test_organization_detail_includes_top_20_result_geometries_for_map(db_client
     )()
     mock_interface = Mock()
     mock_interface.get_organization_by_slug.return_value = mock_org
-    mock_interface.get_unique_keywords.return_value = []
     mock_interface.get_opensearch_org_dataset_counts.return_value = {"test-org": 25}
 
     datasets = []
@@ -756,7 +754,6 @@ def test_organization_detail_omits_result_geometries_without_geography_filter(
     )()
     mock_interface = Mock()
     mock_interface.get_organization_by_slug.return_value = mock_org
-    mock_interface.get_unique_keywords.return_value = []
     mock_interface.get_opensearch_org_dataset_counts.return_value = {"test-org": 1}
     mock_interface.list_datasets_for_organization.return_value = SearchResult(
         total=1,
@@ -1035,8 +1032,6 @@ def test_resource_chip_defaults_to_html(db_client):
     """
 
     mock_interface = Mock()
-    mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
     mock_interface.get_organization_by_slug.return_value = None
     # set up a dataset with an unexpected file type
     mock_interface.search_datasets.return_value = SearchResult(
@@ -1088,8 +1083,6 @@ def test_resource_chip_defaults_to_html(db_client):
 
 def test_index_page_dataset_links_use_slug_not_id(db_client):
     mock_interface = Mock()
-    mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
     mock_interface.get_organization_by_slug.return_value = None
     mock_interface.search_datasets.return_value = SearchResult(
         total=1,
@@ -1156,7 +1149,6 @@ def test_index_page_includes_dataset_total(db_client, interface_with_dataset):
     # includes the dataset count
     dataset_total = soup.find("span", class_="text-heavy")
     assert dataset_total is not None
-    print(response.text)
     assert int(dataset_total.text) > 0
 
 
@@ -1490,11 +1482,6 @@ def test_index_page_lists_results_without_query(db_client):
     # keyword set to 10 just to make it make sense.
     mock_interface.count_all_datasets_in_search = 10
     mock_interface.search_datasets.return_value = mock_result
-    mock_interface.get_unique_keywords.return_value = [
-        {"keyword": "test", "count": 10},
-        {"keyword": "data", "count": 5},
-    ]
-    mock_interface.total.return_value = 1
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/")
@@ -1588,9 +1575,6 @@ def test_index_search_result_includes_published_on_in_metrics_line(db_client):
     mock_interface.search_datasets.return_value = SearchResult(
         total=1, results=[mock_dataset], search_after=None
     )
-    mock_interface.get_unique_keywords.return_value = []
-    mock_interface.get_top_organizations.return_value = []
-
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/?q=test")
 
@@ -2374,6 +2358,7 @@ def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
                 "keyword": ["health", "education"],
                 "spatial_filter": "geospatial",
                 "sort": "popularity",
+                "from_hint": "orghint",
             },
             headers={"HX-Request": "true"},
         )
@@ -2400,6 +2385,15 @@ def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
 
     # spatial_filter must be forwarded
     assert params.get("spatial_filter") == ["geospatial"]
+    assert params.get("from_hint") == ["orghint"]
+
+    dataset_items = soup.find_all("li", class_="usa-collection__item")
+    assert dataset_items
+    assert all(
+        "from_hint=orghint"
+        in item.find("a", href=lambda href: href and "/dataset/" in href).get("href")
+        for item in dataset_items
+    )
 
     # hx-push-url should also carry keywords correctly
     hx_push_url = load_more_button.get("hx-push-url")
@@ -2523,8 +2517,6 @@ def test_index_page_shows_advanced_search_tip_when_total_exceeds_10000(db_client
     )
     mock_interface.get_organizations.return_value = []
     mock_interface.total_datasets.return_value = 10000
-    mock_interface.get_unique_keywords.return_value = []
-
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/?q=climate")
 
@@ -2665,6 +2657,7 @@ class TestContextualKeywordSuggestions:
         self,
         contextual_keywords=None,
         contextual_orgs=None,
+        contextual_publishers=None,
         top_organizations=None,
         search_total=100,
     ):
@@ -2681,6 +2674,7 @@ class TestContextualKeywordSuggestions:
             aggregations={
                 "keywords": contextual_keywords or [],
                 "organizations": contextual_orgs or [],
+                "publishers": contextual_publishers or [],
             },
         )
         mock.get_organizations.return_value = top_organizations or []
@@ -2692,6 +2686,21 @@ class TestContextualKeywordSuggestions:
         """GET the index page with a patched interface."""
         with patch("app.routes.interface", mock_interface):
             return client.get("/", query_string=query_string or {})
+
+    def _parse_suggested_publishers(self, html: str) -> list[str]:
+        """Extract suggested publisher text values from the response HTML."""
+        soup = BeautifulSoup(html, "html.parser")
+        container = soup.find(id="suggested-publishers")
+        if not container:
+            return []
+        buttons = container.find_all("button", class_="tag-link--publisher")
+        publishers = []
+        for btn in buttons:
+            count_span = btn.find("span", class_="tag-link__count")
+            if count_span:
+                count_span.decompose()
+            publishers.append(btn.get_text(strip=True))
+        return publishers
 
     def _parse_suggested_keywords(self, html: str) -> list[str]:
         """Extract suggested keyword text values from the response HTML."""
@@ -2739,6 +2748,30 @@ class TestContextualKeywordSuggestions:
         assert "health" not in suggested
         assert "environment" in suggested
 
+    def test_selected_keyword_exclusion_is_case_insensitive(self, db_client):
+        """Selected keywords should exclude differently cased aggregation buckets."""
+        mock = self._make_mock_interface(
+            contextual_keywords=[
+                {"keyword": "Health", "count": 10},
+                {"keyword": "environment", "count": 5},
+            ]
+        )
+        response = self._get_index(db_client, mock, query_string={"keyword": "health"})
+        suggested = self._parse_suggested_keywords(response.data.decode())
+        assert suggested == ["environment"]
+
+    def test_selected_publisher_exclusion_is_case_insensitive(self, db_client):
+        """Selected publishers should exclude differently cased aggregation buckets."""
+        mock = self._make_mock_interface(
+            contextual_publishers=[
+                {"name": "EPA", "count": 10},
+                {"name": "NOAA", "count": 5},
+            ]
+        )
+        response = self._get_index(db_client, mock, query_string={"publisher": "epa"})
+        suggested = self._parse_suggested_publishers(response.data.decode())
+        assert suggested == ["NOAA"]
+
     def test_max_ten_suggestions(self, db_client):
         """Confirm only 10 keywords appear."""
         many_keywords = [{"keyword": f"kw-{i}", "count": 100 - i} for i in range(20)]
@@ -2746,6 +2779,19 @@ class TestContextualKeywordSuggestions:
         response = self._get_index(db_client, mock)
         suggested = self._parse_suggested_keywords(response.data.decode())
         assert len(suggested) <= 10
+
+    def test_malformed_keyword_aggregations_do_not_break_index(self, db_client):
+        """Malformed aggregation rows should be ignored, not crash the page."""
+        mock = self._make_mock_interface(
+            contextual_keywords=[
+                {"unexpected": "shape"},
+                "not-a-dict",
+                {"keyword": "environment", "count": 5},
+            ]
+        )
+        response = self._get_index(db_client, mock)
+        assert response.status_code == 200
+        assert self._parse_suggested_keywords(response.data.decode()) == ["environment"]
 
     def test_suggestions_ordered_by_count_desc(
         self, db_client, sample_contextual_keywords
@@ -2771,7 +2817,7 @@ def test_dataset_detail_tag_links_point_to_keyword_search(
     assert response.status_code == 200
 
     soup = BeautifulSoup(response.text, "html.parser")
-    tags_section = soup.select_one("section.usa-section div.tablet\:grid-col-6")
+    tags_section = soup.select_one(r"section.usa-section div.tablet\:grid-col-6")
     assert tags_section is not None
 
     tag_links = tags_section.find_all("a", class_="tag-link")

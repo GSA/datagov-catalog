@@ -20,7 +20,7 @@ def _clause(criteria, values: list[str]) -> list[dict]:
 def _aggregation(criteria) -> dict:
     return {
         "terms": {
-            "field": "keyword.raw",
+            "field": "keyword.normalized",
             "size": criteria.keyword_size,
             "min_doc_count": 1,
             "order": {"_count": "desc"},

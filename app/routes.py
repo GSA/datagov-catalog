@@ -6,7 +6,6 @@ from math import ceil
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
-from dotenv import load_dotenv
 from flask import (
     Blueprint,
     Response,
@@ -60,12 +59,6 @@ logger = logging.getLogger(__name__)
 
 main = Blueprint("main", __name__)
 api = APIBlueprint("api", __name__)
-
-# Login authentication
-load_dotenv()
-
-
-STATUS_STRINGS_ENUM = {404: "Not Found"}
 
 interface = CatalogDBInterface()
 
@@ -135,6 +128,32 @@ def _filter_parse_error_response(error: FilterParseError):
     )
 
 
+def _apply_search_sort(criteria: SearchCriteria) -> None:
+    criteria.sort_by = _normalize_sort(
+        criteria.sort_by, criteria.get_spatial_geometry()
+    )
+
+
+def _resolve_organization_filter(criteria: SearchCriteria):
+    org_slug_param = criteria.get_filter("organization") or ""
+    selected_organization = None
+    org_filter_id = None
+    if org_slug_param:
+        try:
+            selected_organization = interface.get_organization_by_slug(org_slug_param)
+        except Exception:
+            logger.exception(
+                "Failed to resolve organization", extra={"org": org_slug_param}
+            )
+        else:
+            org_filter_id = (
+                selected_organization.id if selected_organization else org_slug_param
+            )
+    if org_filter_id:
+        criteria.set_resolved_filter("organization", org_filter_id)
+    return selected_organization
+
+
 def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
     """Return up to `limit` GeoJSON geometries from search results."""
     shapes: list[dict] = []
@@ -150,6 +169,120 @@ def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
         if len(shapes) >= limit:
             break
     return shapes
+
+
+def _aggregation_count_maps(
+    aggregations: dict | None,
+) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+    aggs = aggregations or {}
+
+    def _counts(items, key_name: str) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for item in items:
+            try:
+                counts[item[key_name]] = item["count"]
+            except (KeyError, TypeError):
+                continue
+        return counts
+
+    return (
+        _counts(aggs.get("keywords", []), "keyword"),
+        _counts(aggs.get("organizations", []), "slug"),
+        _counts(aggs.get("publishers", []), "name"),
+    )
+
+
+def _filter_suggestion_context(
+    aggregations: dict | None,
+    criteria: SearchCriteria,
+    *,
+    include_organizations: bool = False,
+    exclude_org_slug: str = "",
+) -> dict:
+    aggs = aggregations or {}
+    keyword_counts, org_counts, publisher_counts = _aggregation_count_maps(aggs)
+    keywords = list(criteria.get_filter("keyword", []))
+    publisher = criteria.get_filter("publisher")
+    context = {
+        "contextual_keyword_counts": keyword_counts,
+        "contextual_publisher_counts": publisher_counts,
+        "suggested_keywords": _suggested_keyword_names(aggs, keywords),
+        "suggested_publishers": _suggested_publisher_names(aggs, publisher),
+    }
+    if include_organizations:
+        context["contextual_org_counts"] = org_counts
+        context["suggested_organizations"] = _suggested_organizations(
+            org_counts, exclude_slug=exclude_org_slug
+        )
+    return context
+
+
+def _suggested_keyword_names(
+    aggregations: dict, selected_keywords: list[str], *, limit: int = 10
+) -> list[str]:
+    selected = {str(keyword).lower() for keyword in selected_keywords}
+    keyword_items = []
+    for item in aggregations.get("keywords", []):
+        try:
+            keyword_items.append((item["count"], item["keyword"]))
+        except (KeyError, TypeError):
+            continue
+    keyword_items.sort(key=lambda item: item[0], reverse=True)
+    return [
+        keyword
+        for _count, keyword in keyword_items
+        if str(keyword).lower() not in selected
+    ][:limit]
+
+
+def _suggested_publisher_names(
+    aggregations: dict, selected_publisher: str | None, *, limit: int = 10
+) -> list[str]:
+    selected = selected_publisher.lower() if selected_publisher else None
+    publisher_items = []
+    for item in aggregations.get("publishers", []):
+        try:
+            publisher_items.append((item["count"], item["name"]))
+        except (KeyError, TypeError):
+            continue
+    publisher_items.sort(key=lambda item: item[0], reverse=True)
+    return [
+        name
+        for _count, name in publisher_items
+        if not selected or str(name).lower() != selected
+    ][:limit]
+
+
+def _suggested_organizations(
+    contextual_org_counts: dict[str, int],
+    *,
+    exclude_slug: str = "",
+    limit: int = 10,
+) -> list[dict]:
+    try:
+        org_suggestions = interface.get_organizations()
+        if not isinstance(org_suggestions, Iterable) or isinstance(
+            org_suggestions, (str, bytes)
+        ):
+            return []
+
+        enriched = []
+        for org in org_suggestions:
+            if not isinstance(org, dict):
+                continue
+            org_slug = org.get("slug")
+            if not org_slug or org_slug == exclude_slug:
+                continue
+            dataset_count = contextual_org_counts.get(org_slug, 0)
+            if dataset_count <= 0:
+                continue
+            enriched.append({**org, "dataset_count": dataset_count})
+
+        enriched.sort(key=lambda item: item.get("dataset_count", 0), reverse=True)
+        return enriched[:limit]
+    except Exception:
+        logger.exception("Failed to fetch suggested organizations")
+        return []
 
 
 def _get_sitemap_body_or_404(bucket: str, key: str) -> bytes:
@@ -213,45 +346,18 @@ def index():
         )
     except FilterParseError as error:
         return _filter_parse_error_response(error)
-    criteria.sort_by = _normalize_sort(criteria.sort_by, criteria.spatial_geometry)
+    _apply_search_sort(criteria)
 
     query = criteria.query
     num_results = criteria.per_page
-    org_slug_param = criteria.org_slug or ""
-    org_types = criteria.org_types
-    keywords = criteria.keywords
-    publisher = criteria.publisher
-    spatial_filter = criteria.spatial_filter
-    spatial_geometry = criteria.spatial_geometry
-    geography_label = criteria.geography_label
-    spatial_within = criteria.spatial_within
-    sort_by = criteria.sort_by
-    collection = criteria.collection
+    spatial_geometry = criteria.get_spatial_geometry()
+    collection = criteria.get_filter("collection")
 
     # Initialize empty results
     datasets: list[dict] = []
     result = None
     total = 0
-    suggested_keywords = []
-    suggested_organizations = []
-    selected_organization = None
-    org_filter_id = None
-
-    if org_slug_param:
-        try:
-            selected_organization = interface.get_organization_by_slug(org_slug_param)
-        except Exception:
-            logger.exception(
-                "Failed to resolve organization", extra={"org": org_slug_param}
-            )
-        else:
-            if selected_organization:
-                org_filter_id = selected_organization.id
-            else:
-                org_filter_id = org_slug_param
-
-    if org_filter_id:
-        criteria.set_resolved_filter("organization", org_filter_id)
+    selected_organization = _resolve_organization_filter(criteria)
 
     has_filters = criteria.has_active_filters(include_query=True)
 
@@ -270,86 +376,19 @@ def index():
         logger.exception("Dataset search failed", extra={"query": query})
     else:
         # Build dataset dictionaries with organization data
-        datasets = [each for each in result.results]
+        datasets = list(result.results)
 
     if result is not None:
         after = result.search_after_obscured()
     else:
         after = None
 
-    contextual_aggs = (
-        result.aggregations
-        if result is not None and result.aggregations is not None
-        else {"keywords": [], "organizations": [], "publishers": []}
+    suggestions = _filter_suggestion_context(
+        result.aggregations if result is not None else None,
+        criteria,
+        include_organizations=True,
+        exclude_org_slug=criteria.get_filter("organization") or "",
     )
-    contextual_keyword_counts = {
-        item["keyword"]: item["count"] for item in contextual_aggs.get("keywords", [])
-    }
-    contextual_org_counts = {
-        item["slug"]: item["count"] for item in contextual_aggs.get("organizations", [])
-    }
-    contextual_publisher_counts = {
-        item["name"]: item["count"] for item in contextual_aggs.get("publishers", [])
-    }
-
-    # Always compute suggested keywords from contextual aggregations,
-    # excluding any already-selected keywords so users can keep refining.
-    try:
-        keyword_items = sorted(
-            contextual_aggs.get("keywords", []),
-            key=lambda x: x["count"],
-            reverse=True,
-        )
-        selected_keyword_set = set(keywords)
-        suggested_keywords = [
-            item["keyword"]
-            for item in keyword_items
-            if item["keyword"] not in selected_keyword_set
-        ][:10]
-    except Exception:
-        logger.exception("Failed to fetch suggested keywords")
-
-    # Always compute suggested organizations from contextual aggregations,
-    # excluding the currently-selected organization.
-    try:
-        org_suggestions = interface.get_organizations()
-        # Tests and stubs may leave this as a Mock or another non-list value.
-        # Strings are iterable too, but neither case is usable as organization rows.
-        if not isinstance(org_suggestions, Iterable) or isinstance(
-            org_suggestions, (str, bytes)
-        ):
-            org_suggestions = []
-        # Add contextual counts to organizations
-        for org in org_suggestions:
-            org_slug = org.get("slug")
-            if org_slug:
-                org["dataset_count"] = contextual_org_counts.get(org_slug, 0)
-
-        # Filter to only orgs with counts > 0 and sort by count
-        org_suggestions = [
-            org for org in org_suggestions if org.get("dataset_count", 0) > 0
-        ]
-
-        # Exclude the already-selected organization from suggestions
-        if org_slug_param:
-            org_suggestions = [
-                org for org in org_suggestions if org.get("slug") != org_slug_param
-            ]
-
-        org_suggestions.sort(key=lambda x: x.get("dataset_count", 0), reverse=True)
-        suggested_organizations = org_suggestions[:10]
-    except Exception:
-        logger.exception("Failed to fetch suggested organizations")
-
-    suggested_publishers = [
-        item["name"]
-        for item in sorted(
-            contextual_aggs.get("publishers", []),
-            key=lambda x: x["count"],
-            reverse=True,
-        )
-        if item["name"] != publisher
-    ][:10]
 
     # Only emit a return-to-search hint when there is actual search or filter state.
     from_hint = hint_from_dict(request.args) if request.args else None
@@ -388,43 +427,20 @@ def index():
         "index.html",
         query=query,
         results_hint=num_results,
-        result_start_index=1,
         per_page=DEFAULT_PER_PAGE,
         after=after,
         datasets=datasets,
         total=total,
-        org_slug=(
-            selected_organization.slug if selected_organization else org_slug_param
-        ),
-        org_types=org_types,
-        keywords=keywords,
-        publisher=publisher,
-        sort_by=sort_by,
-        suggested_keywords=suggested_keywords,
-        suggested_organizations=suggested_organizations,
-        suggested_publishers=suggested_publishers,
-        spatial_filter=spatial_filter,
+        sort_by=criteria.sort_by,
         spatial_geometry=spatial_geometry,
-        geography_label=geography_label,
-        search_result_geometries=search_result_geometries,
-        spatial_within=spatial_within,
         from_hint=from_hint,
-        selected_organization=selected_organization,
-        contextual_keyword_counts=contextual_keyword_counts,
-        contextual_org_counts=contextual_org_counts,
-        contextual_publisher_counts=contextual_publisher_counts,
         collection_data=collection_data,
         filter_sections=build_filter_sections(
             criteria,
             route_context=MAIN_CONTEXT,
             selected_organization=selected_organization,
-            suggested_keywords=suggested_keywords,
-            suggested_organizations=suggested_organizations,
-            suggested_publishers=suggested_publishers,
-            contextual_keyword_counts=contextual_keyword_counts,
-            contextual_org_counts=contextual_org_counts,
-            contextual_publisher_counts=contextual_publisher_counts,
             search_result_geometries=search_result_geometries,
+            **suggestions,
         ),
         main_search_hidden_params=criteria.to_query_pairs(
             include_query=False,
@@ -467,10 +483,9 @@ def search(**kwargs):
         )
     except FilterParseError as error:
         return _filter_parse_error_response(error)
-    criteria.sort_by = _normalize_sort(criteria.sort_by, criteria.spatial_geometry)
+    _apply_search_sort(criteria)
 
     # missing query parameter searches for everything
-    query = criteria.query
     per_page = criteria.per_page
     if per_page is None or not 1 <= per_page <= SEARCH_API_MAX_PER_PAGE:
         return (
@@ -486,58 +501,28 @@ def search(**kwargs):
         )
     results_hint = criteria.results_hint
     from_hint = criteria.from_hint
-    org_slug_param = criteria.org_slug or ""
-    org_types = criteria.org_types
-    keywords = criteria.keywords
-    publisher = criteria.publisher
-    spatial_filter = criteria.spatial_filter
-    spatial_geometry = criteria.spatial_geometry
-    spatial_within = criteria.spatial_within
-    sort_by = criteria.sort_by
+    spatial_geometry = criteria.get_spatial_geometry()
 
-    selected_organization = None
-    org_filter_id = None
-    if org_slug_param:
-        try:
-            selected_organization = interface.get_organization_by_slug(org_slug_param)
-        except Exception:
-            logger.exception(
-                "Failed to resolve organization", extra={"org": org_slug_param}
-            )
-        else:
-            if selected_organization:
-                org_filter_id = selected_organization.id
-            else:
-                org_filter_id = org_slug_param
-    if org_filter_id:
-        criteria.set_resolved_filter("organization", org_filter_id)
-
-    # Use keyword search if keywords are provided
+    selected_organization = _resolve_organization_filter(criteria)
     result = interface.search_datasets(criteria)
 
     if htmx:
-        results = [each for each in result.results]
+        results = list(result.results)
         result_start_index = 1
         if results_hint and per_page:
             result_start_index = max(results_hint - per_page + 1, 1)
         if selected_organization:
-            # specified organization so give org results
             return render_template(
                 "components/dataset_results_organization.html",
-                dataset_search_query=query,
                 datasets=results,
                 per_page=per_page,
                 results_hint=results_hint,
                 result_start_index=result_start_index,
                 after=result.search_after_obscured(),
-                selected_sort=sort_by,
-                organization=selected_organization,
+                selected_sort=criteria.sort_by,
                 organization_slug_or_id=selected_organization.slug,
-                keywords=keywords,
-                spatial_filter=spatial_filter,
                 spatial_geometry=spatial_geometry,
-                spatial_within=spatial_within,
-                publisher=publisher,
+                from_hint=from_hint,
                 api_pagination_query_params={
                     **criteria.to_query_dict(include_query=True, include_sort=True),
                     "org_slug": selected_organization.slug,
@@ -550,23 +535,14 @@ def search(**kwargs):
             )
         return render_template(
             "components/dataset_results.html",
-            query=query,
             datasets=results,
             per_page=per_page,
             results_hint=results_hint,
             result_start_index=result_start_index,
             from_hint=from_hint,
             after=result.search_after_obscured(),
-            sort_by=sort_by,
-            org_types=org_types,
-            keywords=keywords,
-            org_slug=(
-                selected_organization.slug if selected_organization else org_slug_param
-            ),
-            spatial_filter=spatial_filter,
+            sort_by=criteria.sort_by,
             spatial_geometry=spatial_geometry,
-            spatial_within=spatial_within,
-            publisher=publisher,
             pagination_query_params=criteria.to_query_dict(
                 include_query=True,
                 include_sort=True,
@@ -575,7 +551,7 @@ def search(**kwargs):
 
     response_dict = {
         "results": [result for result in result.results],
-        "sort": sort_by,
+        "sort": criteria.sort_by,
     }
     if result.search_after is not None:
         response_dict["after"] = result.search_after_obscured()
@@ -728,25 +704,17 @@ def organization_detail(slug: str):
         )
     except FilterParseError as error:
         return _filter_parse_error_response(error)
-    criteria.sort_by = _normalize_sort(criteria.sort_by, criteria.spatial_geometry)
-    criteria.set_resolved_filter("organization", organization.id)
+    _apply_search_sort(criteria)
 
     dataset_search_query = criteria.query
     num_results = criteria.per_page
-    keywords = criteria.keywords
-    publisher = criteria.publisher
-    spatial_filter = criteria.spatial_filter
-    spatial_geometry = criteria.spatial_geometry
-    geography_label = criteria.geography_label
-    spatial_within = criteria.spatial_within
-    sort_by = criteria.sort_by
+    spatial_geometry = criteria.get_spatial_geometry()
 
     from_hint = None
     if request.args:
         hint_args = dict(request.args)
         hint_args["slug"] = request.path.split("/")[2]  # get the org slug
         from_hint = hint_from_dict(hint_args)
-    criteria.from_hint = from_hint
 
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
@@ -758,35 +726,10 @@ def organization_detail(slug: str):
         if spatial_geometry is not None
         else []
     )
-    contextual_aggs = dataset_result.aggregations or {
-        "keywords": [],
-        "organizations": [],
-        "publishers": [],
-    }
-    contextual_keyword_counts = {
-        item["keyword"]: item["count"] for item in contextual_aggs.get("keywords", [])
-    }
-    contextual_publisher_counts = {
-        item["name"]: item["count"] for item in contextual_aggs.get("publishers", [])
-    }
-    suggested_keywords = [
-        item["keyword"]
-        for item in sorted(
-            contextual_aggs.get("keywords", []),
-            key=lambda x: x["count"],
-            reverse=True,
-        )
-        if item["keyword"] not in set(keywords)
-    ][:10]
-    suggested_publishers = [
-        item["name"]
-        for item in sorted(
-            contextual_aggs.get("publishers", []),
-            key=lambda x: x["count"],
-            reverse=True,
-        )
-        if item["name"] != publisher
-    ][:10]
+    suggestions = _filter_suggestion_context(
+        dataset_result.aggregations,
+        criteria,
+    )
 
     slug_or_id = organization.slug or slug
 
@@ -804,30 +747,16 @@ def organization_detail(slug: str):
         after=after,
         per_page=DEFAULT_PER_PAGE,
         results_hint=num_results,
-        result_start_index=1,
         organization_slug_or_id=slug_or_id,
-        selected_sort=sort_by,
+        selected_sort=criteria.sort_by,
         dataset_search_query=dataset_search_query,
-        keywords=keywords,
-        publisher=publisher,
-        spatial_filter=spatial_filter,
         spatial_geometry=spatial_geometry,
-        geography_label=geography_label,
-        spatial_within=spatial_within,
-        search_result_geometries=search_result_geometries,
-        suggested_keywords=suggested_keywords,
-        suggested_publishers=suggested_publishers,
-        contextual_keyword_counts=contextual_keyword_counts,
-        contextual_publisher_counts=contextual_publisher_counts,
         from_hint=from_hint,
         filter_sections=build_filter_sections(
             criteria,
             route_context=ORGANIZATION_CONTEXT,
-            suggested_keywords=suggested_keywords,
-            suggested_publishers=suggested_publishers,
-            contextual_keyword_counts=contextual_keyword_counts,
-            contextual_publisher_counts=contextual_publisher_counts,
             search_result_geometries=search_result_geometries,
+            **suggestions,
         ),
         main_search_hidden_params=criteria.to_query_pairs(
             include_query=False,

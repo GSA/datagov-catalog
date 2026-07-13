@@ -50,7 +50,6 @@ def register_template_filters(app):
     for name in filter_helpers.TEMPLATE_FILTERS:
         app.add_template_filter(getattr(filter_helpers, name))
 
-    app.add_template_global(filter_helpers.has_active_filters, "has_active_filters")
     app.add_template_global(criteria_url_for, "criteria_url_for")
     app.add_template_global(static_url, "static_url")
 

@@ -124,13 +124,6 @@ class CatalogDBInterface:
             .first()
         )
 
-    def _success_harvest_record_ids_query(self):
-        return (
-            self.db.query(HarvestRecord.id)
-            .filter(HarvestRecord.status == "success")
-            .order_by(HarvestRecord.id.asc())
-        )
-
     def _organization_query(
         self, search: str | None = None, ignore_empty_orgs: bool = False
     ):

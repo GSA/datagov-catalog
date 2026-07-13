@@ -263,7 +263,7 @@ flowchart TB
     subgraph keyword [Keyword filter responsibilities]
         P[parse get_list args keyword]
         C[clause_builder term keyword.normalized]
-        A[aggregation_builder terms on keyword.raw]
+        A[aggregation_builder terms on keyword.normalized]
         S[section_builder keywords suggestions counts]
         U[to_query_pairs repeat keyword params]
         HF[Pagination HTMX hidden fields]

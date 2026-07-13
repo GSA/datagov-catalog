@@ -23,7 +23,6 @@ class SearchCriteria:
     keyword_size: int = 100
     org_size: int = 100
     publisher_size: int = 100
-    route_context: str = MAIN_CONTEXT
     filters: dict[str, Any] = field(default_factory=dict)
     resolved_filters: dict[str, Any] = field(default_factory=dict)
 
@@ -71,7 +70,6 @@ class SearchCriteria:
             keyword_size=keyword_size,
             org_size=org_size,
             publisher_size=publisher_size,
-            route_context=route_context,
             filters=filters,
         )
 
@@ -107,63 +105,18 @@ class SearchCriteria:
     def get_resolved_filter(self, name: str, default: Any = None) -> Any:
         return self.resolved_filters.get(name, self.filters.get(name, default))
 
-    def set_filter(self, name: str, value: Any) -> None:
-        if value is None or value == "" or value == []:
-            self.filters.pop(name, None)
-            self.resolved_filters.pop(name, None)
-            return
-        self.filters[name] = value
-
     def set_resolved_filter(self, name: str, value: Any) -> None:
         if value is None or value == "" or value == []:
             self.resolved_filters.pop(name, None)
             return
         self.resolved_filters[name] = value
 
-    @property
-    def keywords(self) -> list[str]:
-        return list(self.get_filter("keyword", []))
-
-    @property
-    def org_types(self) -> list[str]:
-        return list(self.get_filter("org_type", []))
-
-    @property
-    def publisher(self) -> str | None:
-        return self.get_filter("publisher")
-
-    @property
-    def org_slug(self) -> str | None:
-        return self.get_filter("organization")
-
-    @property
-    def spatial_filter(self) -> str | None:
-        return self.get_filter("spatial_data")
-
-    @property
-    def spatial_geometry(self) -> dict | None:
+    def get_geography(self) -> dict[str, Any]:
         geography = self.get_filter("geography")
-        if not geography:
-            return None
-        return geography.get("geometry")
+        return geography if isinstance(geography, dict) else {}
 
-    @property
-    def geography_label(self) -> str | None:
-        geography = self.get_filter("geography")
-        if not geography:
-            return None
-        return geography.get("label")
-
-    @property
-    def spatial_within(self) -> bool:
-        geography = self.get_filter("geography")
-        if not geography:
-            return True
-        return bool(geography.get("within", True))
-
-    @property
-    def collection(self) -> str | None:
-        return self.get_filter("collection")
+    def get_spatial_geometry(self) -> dict | None:
+        return self.get_geography().get("geometry")
 
     def has_active_filters(self, *, include_query: bool = False) -> bool:
         from app.search.registry import FILTERS

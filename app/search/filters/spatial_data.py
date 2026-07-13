@@ -28,8 +28,7 @@ def _clause(criteria, value: str) -> dict | None:
 def _section(criteria, context) -> dict:
     value = criteria.get_filter("spatial_data") or ""
     labels = {
-        "geospatial": "Geospatial only",
-        "non-geospatial": "Non-geospatial only",
+        option.value: option.label for option in SPATIAL_DATA_OPTIONS if option.value
     }
     return {
         "field_name": "spatial_filter",
