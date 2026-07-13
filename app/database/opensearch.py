@@ -1074,8 +1074,8 @@ class OpenSearchInterface:
         }
 
         normalized_keywords = [
-            keyword.strip().lower() 
-            for keyword in (keywords or []) 
+            keyword.strip().lower()
+            for keyword in (keywords or [])
             if keyword and keyword.strip()
         ]
 
@@ -1101,11 +1101,7 @@ class OpenSearchInterface:
                 for keyword in normalized_keywords
             ]
 
-            agg_body["query"] = {
-                "bool": {
-                    "filter": filters
-                }
-            }
+            agg_body["query"] = {"bool": {"filter": filters}}
 
         result = self.client.search(index=self.INDEX_NAME, body=agg_body)
         buckets = (

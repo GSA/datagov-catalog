@@ -2968,9 +2968,7 @@ def test_keywords_api_passes_selected_keywords_to_interface(db_client):
     ]
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get(
-            "/api/keywords?search=vol&size=10&keyword=census"
-        )
+        response = db_client.get("/api/keywords?search=vol&size=10&keyword=census")
 
     assert response.status_code == 200
     data = response.get_json()
