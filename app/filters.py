@@ -11,10 +11,7 @@ from bs4 import BeautifulSoup
 
 from app.dcat_normalizer import (
     normalize_access_rights,
-    normalize_accrual_periodicity,
     normalize_distribution_license,
-    normalize_issued,
-    normalize_modified,
     normalize_publisher_sub_org,
 )
 from app.static_assets import static_url
