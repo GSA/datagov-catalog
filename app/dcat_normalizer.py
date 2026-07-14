@@ -10,7 +10,7 @@ def normalize_rights(rights: Any) -> str | None:
     if isinstance(rights, str):
         return rights
 
-    if isinstance(rights, list) and len(rights) > 0:
+    if isinstance(rights, list):
         return rights[0]
 
     return None
