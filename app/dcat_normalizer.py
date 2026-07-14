@@ -10,6 +10,7 @@ def normalize_rights(rights: Any) -> str | None:
     if isinstance(rights, str):
         return rights
 
+    # get the rights as the first element if this comes as a list
     if isinstance(rights, list):
         return rights[0]
 
@@ -52,7 +53,8 @@ def normalize_temporal(temporal: Any) -> str | None:
     if isinstance(temporal, str):
         return temporal
 
-    if isinstance(temporal, list) and len(temporal) > 0:
+    if isinstance(temporal, list):
+        # get the period of temporal as the first element if this comes as a list
         period = temporal[0]
         if isinstance(period, dict):
             start = period.get("startDate")
