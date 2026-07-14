@@ -60,14 +60,13 @@ def test_dcat_3_0_normalized_fields(page):
     expect(publisher_meta).not_to_contain_text("Department of Sample Services")
 
     contact_section = page.locator(".sidebar-section:has-text('Contact')")
-    expect(contact_section.get_by_text("Name", exact=False)).to_be_visible()
-    expect(contact_section.locator(".sidebar-section__value")).to_contain_text(
-        "Jane Doe"
-    )
-    expect(contact_section.get_by_text("Email", exact=False)).to_be_visible()
-    expect(
-        contact_section.locator("a[href='mailto:jane.doe@example.gov']")
-    ).to_be_visible()
+    name_item = contact_section.locator(".sidebar-section__item:has-text('Name')")
+    expect(name_item.get_by_text("Name", exact=False)).to_be_visible()
+    expect(name_item.locator(".sidebar-section__value")).to_have_text("Jane Doe")
+
+    email_item = contact_section.locator(".sidebar-section__item:has-text('Email')")
+    expect(email_item.get_by_text("Email", exact=False)).to_be_visible()
+    expect(email_item.locator("a[href='mailto:jane.doe@example.gov']")).to_be_visible()
 
     license_section = page.locator(".sidebar-section:has-text('Access & Use')")
     expect(license_section.get_by_text("License", exact=False)).to_be_visible()
