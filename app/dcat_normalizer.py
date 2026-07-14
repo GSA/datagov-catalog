@@ -77,15 +77,21 @@ def normalize_spatial(spatial: Any) -> str | None:
     if isinstance(spatial, str):
         return spatial
 
-    if isinstance(spatial, list) and len(spatial) > 0:
+    # Handle both single dict and array of dicts (DCAT 3.0)
+    location = None
+    if isinstance(spatial, dict):
+        location = spatial
+    elif isinstance(spatial, list) and len(spatial) > 0:
         location = spatial[0]
-        if isinstance(location, dict):
-            if "prefLabel" in location:
-                return location["prefLabel"]
-            if "bbox" in location:
-                return location["bbox"]
-            if "geometry" in location:
-                return location["geometry"]
+
+    # Extract spatial value, prioritizing geometry over bbox over prefLabel
+    if isinstance(location, dict):
+        if "geometry" in location:
+            return location["geometry"]
+        if "bbox" in location:
+            return location["bbox"]
+        if "prefLabel" in location:
+            return location["prefLabel"]
 
     return None
 
