@@ -1,5 +1,6 @@
 import csv
 import json
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -259,6 +260,46 @@ def _add_filter_demo_data(fixture_dict):
                 "the_geom": _bbox_wkt(*bbox),
                 "type_order": type_order,
             }
+        )
+
+
+def _ensure_unique_dataset_harvest_records(fixture_dict):
+    """Keep fixture datasets compatible with Dataset.harvest_record_id uniqueness."""
+    seen_dataset_record_ids = set()
+    existing_record_ids = {record["id"] for record in fixture_dict["harvest_record"]}
+    harvest_job_id = fixture_dict["harvest_job"]["id"]
+
+    for dataset in fixture_dict["dataset"]:
+        record_id = dataset["harvest_record_id"]
+        if record_id not in seen_dataset_record_ids:
+            seen_dataset_record_ids.add(record_id)
+            continue
+
+        unique_record_id = str(
+            uuid.uuid5(uuid.NAMESPACE_URL, f"datagov-catalog-test:{dataset['id']}")
+        )
+        suffix = 2
+        while unique_record_id in existing_record_ids:
+            unique_record_id = str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    f"datagov-catalog-test:{dataset['id']}:{suffix}",
+                )
+            )
+            suffix += 1
+
+        dataset["harvest_record_id"] = unique_record_id
+        seen_dataset_record_ids.add(unique_record_id)
+        existing_record_ids.add(unique_record_id)
+        fixture_dict["harvest_record"].append(
+            dict(
+                id=unique_record_id,
+                harvest_source_id=dataset["harvest_source_id"],
+                harvest_job_id=harvest_job_id,
+                identifier=dataset["dcat"].get("identifier", dataset["slug"]),
+                source_raw=json.dumps(dataset["dcat"]),
+                source_transform=dataset["dcat"],
+            )
         )
 
 
@@ -913,4 +954,5 @@ def fixture_data(*, include_filter_demos: bool = False):
             last_harvested_date = DEFAULT_LAST_HARVESTED_DATE
         row[6] = last_harvested_date
         fixture_dict["dataset"].append(dict(zip(fields, row)))
+    _ensure_unique_dataset_harvest_records(fixture_dict)
     return fixture_dict

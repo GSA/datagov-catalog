@@ -63,12 +63,7 @@
 
 
   <section class="organization-datasets">
-    {% set filters_active = has_active_filters(
-        keywords=keywords,
-        publisher=publisher,
-        spatial_filter=spatial_filter,
-        spatial_geometry=spatial_geometry
-    ) %}
+    {% set filters_active = filter_sections | selectattr('is_active') | list | length > 0 %}
     <div class="catalog-layout margin-top-2">
       <div class="catalog-layout__primary">
       <div class="catalog-layout__search">
@@ -78,16 +73,9 @@
                     <label class="usa-sr-only" for="search-query">Search within organization</label>
                     <input class="usa-input margin-0" id="search-query" name="q" type="text" value="{{ dataset_search_query }}"
                         placeholder="Search datasets..." autofocus>
-                    {% for keyword in keywords %}
-                    <input type="hidden" name="keyword" value="{{ keyword }}">
+                    {% for name, value in main_search_hidden_params %}
+                    <input type="hidden" name="{{ name }}" value="{{ value }}">
                     {% endfor %}
-                    {% if publisher %}
-                    <input type="hidden" name="publisher" value="{{ publisher }}">
-                    {% endif %}
-                    {% if spatial_filter %}
-                    <input type="hidden" name="spatial_filter" value="{{ spatial_filter }}">
-                    {% endif %}
-                    <input type="hidden" name="sort" value="{{ selected_sort }}">
                 </div>
                 <div class="grid-col-auto">
                     <button type="submit" class="usa-button margin-0">
@@ -108,7 +96,7 @@
       <div class="catalog-layout__results">
         {% if datasets %}
         {% call render_results_toolbar(selected_sort, spatial_geometry is not none) %}
-          {% if dataset_search_query or keywords or publisher or spatial_filter or spatial_geometry %}
+          {% if dataset_search_query or filters_active %}
           <p class="text-base-dark margin-bottom-0">
             {% if num_matches < 2 %}
                 Found <strong>{{ num_matches }}</strong> dataset matching
@@ -117,7 +105,7 @@
             {% else %}
                 Found over <strong>{{ num_matches }}</strong> datasets matching
             {% endif %}
-            {% if dataset_search_query and (keywords or publisher or spatial_filter or spatial_geometry) %} "{{ dataset_search_query }}" and filters.
+            {% if dataset_search_query and filters_active %} "{{ dataset_search_query }}" and filters.
             {% elif dataset_search_query %} "{{ dataset_search_query }}".
             {% else %} filters.
             {% endif %}
@@ -158,19 +146,9 @@
         {% set clear_filters_url = url_for('main.organization_detail', slug=organization_slug_or_id, q=dataset_search_query, sort=selected_sort) %}
         {{ render_filter_sidebar(
             form_action=url_for('main.organization_detail', slug=organization_slug_or_id),
-            query_value=dataset_search_query,
-            sort_value=selected_sort,
-            keywords=keywords,
-            suggested_keywords=suggested_keywords,
-            publisher=publisher,
-            suggested_publishers=suggested_publishers,
-            spatial_filter=spatial_filter,
-            search_result_geometries=search_result_geometries,
-            spatial_geometry=spatial_geometry,
-            geography_label=geography_label,
-            contextual_keyword_counts=contextual_keyword_counts,
-            contextual_publisher_counts=contextual_publisher_counts,
-            clear_filters_url=clear_filters_url
+            clear_filters_url=clear_filters_url,
+            filter_sections=filter_sections,
+            hidden_params=filter_form_hidden_params
         ) }}
       </aside>
     </div>

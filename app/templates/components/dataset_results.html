@@ -15,53 +15,12 @@
     {% if after %}
     <div id="replaceMe">
     {% set new_results = results_hint + per_page %}
+    {% set base_params = pagination_query_params if pagination_query_params is defined else {} %}
     <button class="usa-button margin-top-2"
-        {% if from_hint %}
-          hx-get="{{ url_for('api.search', 
-              q=query, 
-              per_page=per_page, 
-              after=after, 
-              results=new_results,
-              sort=sort_by,
-              org_slug=org_slug,
-              org_type=org_types,
-              keyword=keywords,
-              publisher=publisher,
-              spatial_filter=spatial_filter,
-              spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
-              spatial_within=spatial_within if spatial_geometry else none,
-              from_hint=from_hint
-          ) }}"
-        {% else %}
-          hx-get="{{ url_for('api.search', 
-              q=query, 
-              per_page=per_page, 
-              after=after, 
-              results=new_results,
-              sort=sort_by,
-              org_slug=org_slug,
-              org_type=org_types,
-              keyword=keywords,
-              publisher=publisher,
-              spatial_filter=spatial_filter,
-              spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
-              spatial_within=spatial_within if spatial_geometry else none,
-          ) }}"
-        {% endif %}
+        hx-get="{{ criteria_url_for('api.search', base_params, per_page=per_page, after=after, results=new_results, from_hint=from_hint) }}"
         hx-target="#replaceMe"
         hx-swap="outerHTML"
-        hx-push-url="{{ url_for('main.index', 
-            q=query, 
-            results=new_results,
-            sort=sort_by,
-            org_slug=org_slug,
-            org_type=org_types,
-            keyword=keywords,
-            publisher=publisher,
-            spatial_filter=spatial_filter,
-            spatial_geometry=spatial_geometry|tojson if spatial_geometry else none,
-            spatial_within=spatial_within if spatial_geometry else none,
-        ) }}"
+        hx-push-url="{{ criteria_url_for('main.index', base_params, results=new_results) }}"
         hx-trigger="click">
         Show more results
     </button>

@@ -148,8 +148,10 @@
         }
 
         autoSubmit.init(form);
-        attachInputAutoSubmit(form, ['input[name="org_type"]']);
-        attachInputAutoSubmit(form, ['input[name="spatial_filter"]']);
+        attachInputAutoSubmit(form, [
+            'input[type="checkbox"]',
+            'input[type="radio"]',
+        ]);
 
         const sortSelect = document.getElementById('sort-select');
         if (sortSelect && sortSelect.form === form) {

@@ -18,6 +18,7 @@ from apiflask.fields import (
 from apiflask.validators import Length, Range
 
 from app.database.constants import SEARCH_API_MAX_PER_PAGE
+from app.search import API_CONTEXT, FILTERS, ApiQueryParam
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
 ORGANIZATION_TYPE_ENUM = PyEnum(
@@ -26,9 +27,6 @@ ORGANIZATION_TYPE_ENUM = PyEnum(
 SORT_BY_ENUM = PyEnum(
     "SortBy",
     [(a, a) for a in ("relevance", "popularity", "distance", "last_harvested_date")],
-)
-SPATIAL_FILTER_ENUM = PyEnum(
-    "SpatialFilter", [(a, a) for a in ("geospatial", "non-geospatial")]
 )
 
 
@@ -82,26 +80,59 @@ class SearchResults(Schema):
     after = String(required=False)
 
 
-class SearchQuery(Schema):
-    q = String()
-    sort = Enum(SORT_BY_ENUM)
-    per_page = Integer(
-        validate=Range(min=1, max=SEARCH_API_MAX_PER_PAGE),
-        metadata={
-            "description": (
-                f"Number of results per page. Must be between 1 and "
-                f"{SEARCH_API_MAX_PER_PAGE}."
-            )
-        },
-    )
-    org_slug = String()
-    org_type = Enum(ORGANIZATION_TYPE_ENUM)
-    keyword = List(String())
-    publisher = String()
-    after = String()
-    spatial_filter = Enum(SPATIAL_FILTER_ENUM)
-    spatial_feature = GeoJson()
-    spatial_within = Boolean()
+def _api_enum(name: str, values: tuple[str, ...]):
+    return PyEnum(name, [(value, value) for value in values])
+
+
+def _api_query_field(param: ApiQueryParam):
+    if param.enum_values:
+        field = Enum(
+            _api_enum(f"{param.name.title().replace('_', '')}Param", param.enum_values)
+        )
+    elif param.field_type == "boolean":
+        field = Boolean()
+    elif param.field_type == "json_string":
+        field = String(
+            metadata={"description": "URL-encoded JSON value, such as GeoJSON."}
+        )
+    else:
+        field = String()
+
+    if param.repeated:
+        return List(field)
+    return field
+
+
+def _search_filter_query_fields():
+    fields = {}
+    for definition in FILTERS:
+        if API_CONTEXT not in definition.parse_contexts:
+            continue
+        for param in definition.api_query_params:
+            fields[param.name] = _api_query_field(param)
+    return fields
+
+
+def _build_search_query_schema():
+    fields = {
+        "q": String(),
+        "sort": Enum(SORT_BY_ENUM),
+        "per_page": Integer(
+            validate=Range(min=1, max=SEARCH_API_MAX_PER_PAGE),
+            metadata={
+                "description": (
+                    f"Number of results per page. Must be between 1 and "
+                    f"{SEARCH_API_MAX_PER_PAGE}."
+                )
+            },
+        ),
+        "after": String(),
+    }
+    fields.update(_search_filter_query_fields())
+    return type("SearchQuery", (Schema,), fields)
+
+
+SearchQuery = _build_search_query_schema()
 
 
 class KeywordsQuery(Schema):
