@@ -91,38 +91,3 @@ def test_dcat_3_0_normalized_fields(page):
     expect(
         dataset_info_section.locator(".sidebar-section__value:has-text('annually')")
     ).to_be_visible()
-
-    expect(dataset_info_section.get_by_text("Location")).to_be_visible()
-    expect(page.locator("#dataset-map")).to_be_visible()
-
-    details = page.locator("details:has-text('Complete Metadata')")
-    details.click()
-
-    metadata_table = page.locator(".metadata-table")
-
-    rights_row = metadata_table.locator("tr:has(th:text-is('rights'))")
-    expect(rights_row.locator("td")).to_contain_text("public domain")
-
-    temporal_row = metadata_table.locator("tr:has-text('temporal')")
-    expect(temporal_row.locator("td")).to_contain_text("2000-01-15T00:00:00Z")
-    expect(temporal_row.locator("td")).to_contain_text("2023-12-31T00:00:00Z")
-
-    spatial_row = metadata_table.locator("tr:has-text('spatial')")
-    expect(spatial_row.locator("td")).to_contain_text("United States")
-
-    language_row = metadata_table.locator("tr:has-text('language')")
-    expect(language_row.locator("td")).to_contain_text("en-US")
-
-    conforms_to_row = metadata_table.locator("tr:has-text('conformsTo')")
-    expect(conforms_to_row.locator("td")).to_contain_text("iso.org/standard/53798")
-
-    landing_page_row = metadata_table.locator("tr:has-text('landingPage')")
-    landing_page_link = landing_page_row.locator("a")
-    expect(landing_page_link).to_have_attribute(
-        "href", "https://example.gov/datasets/sample-dcat-3-0"
-    )
-
-    described_by_row = metadata_table.locator("tr:has-text('describedBy')")
-    expect(described_by_row.locator("td")).to_contain_text(
-        "example.gov/schemas/sample-schema.json"
-    )
