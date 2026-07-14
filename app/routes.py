@@ -871,15 +871,14 @@ def get_keywords_api(**kwargs):
         )
     except Exception:
         logger.exception("Failed to fetch keywords")
-        return (
-            jsonify(
-                {
-                    "error": "Failed to fetch keywords",
-                    "message": INTERNAL_ERROR_MESSAGE,
-                }
-            ),
-            500,
+        response = jsonify(
+            {
+                "error": "Failed to fetch keywords",
+                "message": INTERNAL_ERROR_MESSAGE,
+            }
         )
+        response.status_code = 500
+        return response
 
 
 @api.route("/api/organizations", methods=["GET"])
@@ -1015,15 +1014,14 @@ def get_locations_api(**kwargs):
         )
     except Exception:
         logger.exception("Failed to fetch locations")
-        return (
-            jsonify(
-                {
-                    "error": "Failed to fetch locations",
-                    "message": INTERNAL_ERROR_MESSAGE,
-                }
-            ),
-            400,
+        response = jsonify(
+            {
+                "error": "Failed to fetch locations",
+                "message": INTERNAL_ERROR_MESSAGE,
+            }
         )
+        response.status_code = 400
+        return response
 
 
 @api.get("/api/location/<location_id>")
