@@ -2,8 +2,10 @@ import pytest
 
 from app.static_assets import (
     DEFAULT_ASSET_VERSION,
+    candidate_static_filenames,
     get_asset_version,
     static_url,
+    strip_any_asset_version,
     unversion_static_filename,
     versioned_static_filename,
 )
@@ -67,3 +69,34 @@ def test_versioned_static_asset_request_serves_on_disk_file(app):
     response = app.test_client().get("/js/datetime.8eb9d3e.js")
 
     assert response.status_code == 200
+
+
+def test_strip_any_asset_version_removes_previous_deploy_hash():
+    assert (
+        strip_any_asset_version("js/filter_sidebar_toggle.fb2ef32.js")
+        == "js/filter_sidebar_toggle.js"
+    )
+    assert (
+        strip_any_asset_version("assets/htmx/htmx.min.oldhash.js")
+        == "assets/htmx/htmx.min.js"
+    )
+
+
+def test_candidate_static_filenames_prefer_current_then_fallback():
+    assert candidate_static_filenames("js/datetime.oldhash.js", "8eb9d3e") == [
+        "js/datetime.oldhash.js",
+        "js/datetime.js",
+    ]
+    assert candidate_static_filenames("js/datetime.8eb9d3e.js", "8eb9d3e") == [
+        "js/datetime.js",
+        "js/datetime.8eb9d3e.js",
+    ]
+
+
+def test_previous_asset_version_request_still_serves_on_disk_file(app):
+    app.config["ASSET_VERSION"] = "8eb9d3e"
+
+    response = app.test_client().get("/js/datetime.fb2ef32.js")
+
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/javascript")

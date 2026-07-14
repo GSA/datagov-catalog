@@ -44,6 +44,35 @@ def unversion_static_filename(filename: str, version: str) -> str:
     return filename
 
 
+def strip_any_asset_version(filename: str) -> str:
+    """Strip any final version-like segment before the file extension.
+
+    Used as a fallback so requests with a previous deploy's ASSET_VERSION still
+    resolve during rolling deploys and while HTML responses remain cached.
+    """
+    path, extension = os.path.splitext(filename)
+    if not extension:
+        return filename
+
+    base, separator, maybe_version = path.rpartition(".")
+    if separator and base and ASSET_VERSION_PATTERN.fullmatch(maybe_version):
+        return f"{base}{extension}"
+    return filename
+
+
+def candidate_static_filenames(filename: str, version: str) -> list[str]:
+    """Return on-disk filename candidates for a possibly versioned request."""
+    candidates: list[str] = []
+    for candidate in (
+        unversion_static_filename(filename, version),
+        filename,
+        strip_any_asset_version(filename),
+    ):
+        if candidate not in candidates:
+            candidates.append(candidate)
+    return candidates
+
+
 def static_url(filename: str) -> str:
     """Return a static asset URL with the cache-bust version in the filename."""
     version = validate_asset_version(
