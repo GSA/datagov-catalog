@@ -28,24 +28,18 @@ HSTS_HEADER = f"max-age={HSTS_MAX_AGE_SECONDS}; includeSubDomains; preload"
 
 class VersionedStaticAPIFlask(APIFlask):
     def send_static_file(self, filename):
-        from werkzeug.exceptions import NotFound
-
         from .static_assets import (
             DEFAULT_ASSET_VERSION,
-            candidate_static_filenames,
+            resolve_on_disk_static_filename,
             validate_asset_version,
         )
 
         version = validate_asset_version(
             self.config.get("ASSET_VERSION", DEFAULT_ASSET_VERSION)
         )
-        last_error = None
-        for candidate in candidate_static_filenames(filename, version):
-            try:
-                return super().send_static_file(candidate)
-            except NotFound as error:
-                last_error = error
-        raise last_error or NotFound()
+        return super().send_static_file(
+            resolve_on_disk_static_filename(filename, version)
+        )
 
 
 def register_template_filters(app):

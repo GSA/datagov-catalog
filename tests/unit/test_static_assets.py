@@ -2,11 +2,9 @@ import pytest
 
 from app.static_assets import (
     DEFAULT_ASSET_VERSION,
-    candidate_static_filenames,
     get_asset_version,
+    resolve_on_disk_static_filename,
     static_url,
-    strip_any_asset_version,
-    unversion_static_filename,
     versioned_static_filename,
 )
 
@@ -21,7 +19,10 @@ def test_get_asset_version_falls_back_to_dev_when_env_unset(monkeypatch):
     assert get_asset_version() == DEFAULT_ASSET_VERSION
 
 
-@pytest.mark.parametrize("asset_version", ["../secret", "abc/123", "abc.123", ""])
+@pytest.mark.parametrize(
+    "asset_version",
+    ["../secret", "abc/123", "abc.123", "", "oldhash", "ABCDEF1", "abc12345"],
+)
 def test_static_url_rejects_unsafe_asset_version(app, asset_version):
     app.config["ASSET_VERSION"] = asset_version
 
@@ -59,8 +60,33 @@ def test_versioned_static_filename_maps_back_to_on_disk_filename():
     versioned_filename = versioned_static_filename(filename, "8eb9d3e")
 
     assert versioned_filename == "assets/htmx/htmx.min.8eb9d3e.js"
-    assert unversion_static_filename(versioned_filename, "8eb9d3e") == filename
-    assert unversion_static_filename(filename, "8eb9d3e") == filename
+    assert resolve_on_disk_static_filename(versioned_filename, "8eb9d3e") == filename
+    assert resolve_on_disk_static_filename(filename, "8eb9d3e") == filename
+
+
+def test_resolve_strips_deploy_hex_but_not_min():
+    assert (
+        resolve_on_disk_static_filename("js/filter_sidebar_toggle.fb2ef32.js")
+        == "js/filter_sidebar_toggle.js"
+    )
+    assert (
+        resolve_on_disk_static_filename("assets/htmx/htmx.min.fb2ef32.js")
+        == "assets/htmx/htmx.min.js"
+    )
+    assert (
+        resolve_on_disk_static_filename("assets/htmx/htmx.min.js")
+        == "assets/htmx/htmx.min.js"
+    )
+    assert (
+        resolve_on_disk_static_filename("js/datetime.oldhash.js")
+        == "js/datetime.oldhash.js"
+    )
+
+
+def test_resolve_strips_local_dev_version():
+    assert (
+        resolve_on_disk_static_filename("js/datetime.dev.js", "dev") == "js/datetime.js"
+    )
 
 
 def test_versioned_static_asset_request_serves_on_disk_file(app):
@@ -71,28 +97,6 @@ def test_versioned_static_asset_request_serves_on_disk_file(app):
     assert response.status_code == 200
 
 
-def test_strip_any_asset_version_removes_previous_deploy_hash():
-    assert (
-        strip_any_asset_version("js/filter_sidebar_toggle.fb2ef32.js")
-        == "js/filter_sidebar_toggle.js"
-    )
-    assert (
-        strip_any_asset_version("assets/htmx/htmx.min.oldhash.js")
-        == "assets/htmx/htmx.min.js"
-    )
-
-
-def test_candidate_static_filenames_prefer_current_then_fallback():
-    assert candidate_static_filenames("js/datetime.oldhash.js", "8eb9d3e") == [
-        "js/datetime.oldhash.js",
-        "js/datetime.js",
-    ]
-    assert candidate_static_filenames("js/datetime.8eb9d3e.js", "8eb9d3e") == [
-        "js/datetime.js",
-        "js/datetime.8eb9d3e.js",
-    ]
-
-
 def test_previous_asset_version_request_still_serves_on_disk_file(app):
     app.config["ASSET_VERSION"] = "8eb9d3e"
 
@@ -100,3 +104,11 @@ def test_previous_asset_version_request_still_serves_on_disk_file(app):
 
     assert response.status_code == 200
     assert response.content_type.startswith("text/javascript")
+
+
+def test_non_hex_version_suffix_does_not_resolve_to_on_disk_file(app):
+    app.config["ASSET_VERSION"] = "8eb9d3e"
+
+    response = app.test_client().get("/js/datetime.oldhash.js")
+
+    assert response.status_code == 404
