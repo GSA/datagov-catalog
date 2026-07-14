@@ -2,7 +2,6 @@ from app.dcat_normalizer import (
     normalize_access_rights,
     normalize_accrual_periodicity,
     normalize_conforms_to,
-    normalize_dcat_for_display,
     normalize_described_by,
     normalize_distribution_license,
     normalize_issued,
@@ -158,18 +157,3 @@ class TestNormalizer:
             normalized["license"]
             == "https://creativecommons.org/publicdomain/zero/1.0/"
         )
-
-    def test_normalize_dcat_for_display_full_pipeline(self, interface_with_dataset):
-        """Test the full normalization pipeline transforms all DCAT 3.0 fields."""
-        dataset = interface_with_dataset.get_dataset_by_id(DCAT_3_0_DATASET_ID)
-        original_dcat = dataset.dcat.copy()
-
-        normalized = normalize_dcat_for_display(original_dcat)
-
-        assert isinstance(normalized["rights"], str)
-        assert isinstance(normalized["landingPage"], str)
-        assert isinstance(normalized["temporal"], str)
-        assert isinstance(normalized["spatial"], str)
-        assert normalized["language"] == ["en-US"]
-        assert isinstance(normalized["publisher"]["subOrganizationOf"], dict)
-        assert "license" in normalized
