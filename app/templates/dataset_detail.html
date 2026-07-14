@@ -89,9 +89,8 @@
                 <h1 class="dataset-title">{{ dataset_title }}</h1>
 
                 <div class="dataset-meta">
-                    {% set normalized_publisher_name = dataset.dcat.get('publisher') | normalize_publisher_name %}
-                    {% if normalized_publisher_name %}
-                    Published by <strong>{{ normalized_publisher_name }}</strong>
+                    {% if normalized_dcat.publisher and normalized_dcat.publisher.get('name') %}
+                    Published by <strong>{{ normalized_dcat.publisher.name }}</strong>
                     {% endif %}
                     {% if organization %}
                     {% if dataset.dcat.get('publisher', {}).get('name') %} | {% endif %}
@@ -338,19 +337,17 @@
                 <div class="sidebar-section">
                     <h3 class="sidebar-section__heading">Access & Use</h3>
 
-                    {% set normalized_license = dataset.dcat | normalize_license %}
-                    {% if normalized_license %}
+                    {% if normalized_dcat.license %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">License</div>
-                        <div class="sidebar-section__value">{{ normalized_license }}</div>
+                        <div class="sidebar-section__value">{{ normalized_dcat.license }}</div>
                     </div>
                     {% endif %}
 
-                    {% set normalized_access_level = dataset.dcat | normalize_access_level %}
-                    {% if normalized_access_level %}
+                    {% if normalized_dcat.accessLevel %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Access Level</div>
-                        <div class="sidebar-section__value">{{ normalized_access_level }}</div>
+                        <div class="sidebar-section__value">{{ normalized_dcat.accessLevel }}</div>
                     </div>
                     {% endif %}
                 </div>
