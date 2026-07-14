@@ -33,6 +33,7 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
+from .dcat_normalizer import normalize_dcat_for_display
 from .search import (
     API_CONTEXT,
     MAIN_CONTEXT,
@@ -813,6 +814,9 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
 
     # set the type for google search json-ld
     dataset.dcat["@type"] = "dcat:Dataset"
+
+    # normalize DCAT 3.0 fields to 1.1 format for display
+    dataset.dcat = normalize_dcat_for_display(dataset.dcat)
 
     return render_template(
         "dataset_detail.html",
