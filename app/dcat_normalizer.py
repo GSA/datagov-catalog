@@ -109,8 +109,6 @@ def normalize_conforms_to(conforms_to: Any) -> str | list[str] | None:
         for item in conforms_to:
             if isinstance(item, dict) and "identifier" in item:
                 identifiers.append(item["identifier"])
-            elif isinstance(item, str):
-                identifiers.append(item)
 
         if len(identifiers) == 1:
             return identifiers[0]
