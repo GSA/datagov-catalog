@@ -9,6 +9,14 @@ from typing import Any, Union
 
 from bs4 import BeautifulSoup
 
+from app.dcat_normalizer import (
+    normalize_access_rights,
+    normalize_accrual_periodicity,
+    normalize_distribution_license,
+    normalize_issued,
+    normalize_modified,
+    normalize_publisher_sub_org,
+)
 from app.static_assets import static_url
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
@@ -446,6 +454,38 @@ def dcatus_to_schema_org_jsonld(dcatus: dict):
     }
 
 
+def normalize_publisher_name(publisher: Any) -> str:
+    """Extract publisher name, normalizing DCAT 3.0 nested subOrganizationOf."""
+    if not publisher:
+        return ""
+
+    if isinstance(publisher, str):
+        return publisher
+
+    if isinstance(publisher, dict):
+        normalized = normalize_publisher_sub_org(publisher)
+        return normalized.get("name", "")
+
+    return ""
+
+
+def normalize_license(dcat: dict) -> str | None:
+    """Get license, promoting from first distribution if needed (DCAT 3.0)."""
+    if not isinstance(dcat, dict):
+        return None
+
+    normalized = normalize_distribution_license(dcat)
+    return normalized.get("license")
+
+
+def normalize_access_level(dcat: dict) -> str | None:
+    """Get accessLevel, normalizing from accessRights if needed (DCAT 3.0)."""
+    if not isinstance(dcat, dict):
+        return None
+
+    return normalize_access_rights(dcat.get("accessRights"), dcat.get("accessLevel"))
+
+
 __all__ = [
     "usa_icon",
     "format_dcat_value",
@@ -464,4 +504,7 @@ __all__ = [
     "parse_datetime",
     "format_dcat_date",
     "dcatus_to_schema_org_jsonld",
+    "normalize_publisher_name",
+    "normalize_license",
+    "normalize_access_level",
 ]
