@@ -49,7 +49,25 @@ def test_dcat_3_0_normalized_fields(page):
         "DCAT-US 3.0 Test Dataset"
     )
 
-    expect(page.locator(".dataset-meta")).to_contain_text("Sample Federal Agency")
+    description_section = page.locator(".dataset-description")
+    expect(description_section).to_contain_text(
+        "This is a sample dataset using DCAT-US 3.0 schema"
+    )
+
+    publisher_meta = page.locator(".dataset-meta")
+    expect(publisher_meta).to_contain_text("Sample Federal Agency")
+    expect(publisher_meta).not_to_contain_text("subOrganizationOf")
+    expect(publisher_meta).not_to_contain_text("Department of Sample Services")
+
+    contact_section = page.locator(".sidebar-section:has-text('Contact')")
+    expect(contact_section.get_by_text("Name", exact=False)).to_be_visible()
+    expect(contact_section.locator(".sidebar-section__value")).to_contain_text(
+        "Jane Doe"
+    )
+    expect(contact_section.get_by_text("Email", exact=False)).to_be_visible()
+    expect(
+        contact_section.locator("a[href='mailto:jane.doe@example.gov']")
+    ).to_be_visible()
 
     license_section = page.locator(".sidebar-section:has-text('Access & Use')")
     expect(license_section.get_by_text("License", exact=False)).to_be_visible()
@@ -91,3 +109,37 @@ def test_dcat_3_0_normalized_fields(page):
     expect(
         dataset_info_section.locator(".sidebar-section__value:has-text('annually')")
     ).to_be_visible()
+
+    resources_section = page.locator(".resources-section")
+    expect(resources_section.get_by_text("3 resources available")).to_be_visible()
+
+    csv_resource = resources_section.locator(".resources-list__item").filter(
+        has_text="Sample CSV Data File"
+    )
+    expect(csv_resource).to_be_visible()
+    expect(csv_resource.locator(".resources-list__format")).to_have_text("CSV")
+    expect(
+        csv_resource.locator("a[href='https://example.gov/data/sample-data.csv']")
+    ).to_be_visible()
+
+    json_resource = resources_section.locator(".resources-list__item").filter(
+        has_text="Sample JSON Data File"
+    )
+    expect(json_resource).to_be_visible()
+    expect(json_resource.locator(".resources-list__format")).to_have_text("JSON")
+
+    api_resource = resources_section.locator(".resources-list__item").filter(
+        has_text="Sample API Endpoint"
+    )
+    expect(api_resource).to_be_visible()
+    expect(api_resource.locator(".resources-list__format")).to_have_text("API")
+
+    tags_section = page.locator(
+        "text=Click any tag below to search for similar datasets"
+    )
+    expect(tags_section).to_be_visible()
+    expect(page.locator("a[href='/?keyword=sample']")).to_be_visible()
+    expect(page.locator("a[href='/?keyword=testing']")).to_be_visible()
+    expect(page.locator("a[href='/?keyword=dcat-us-3.0']")).to_be_visible()
+    expect(page.locator("a[href='/?keyword=climate']")).to_be_visible()
+    expect(page.locator("a[href='/?keyword=environment']")).to_be_visible()
