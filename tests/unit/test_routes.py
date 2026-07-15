@@ -19,6 +19,12 @@ from tests.fixtures import HARVEST_RECORD_ID
 from tests.helpers import add_dataset_with_harvest_record
 
 
+def internal_error_message():
+    from app.routes import INTERNAL_ERROR_MESSAGE
+
+    return INTERNAL_ERROR_MESSAGE
+
+
 def test_static_asset_cache_duration_by_environment():
     production_app = create_app("production")
     local_app = create_app("local")
@@ -136,6 +142,22 @@ def test_dataset_slug_api_endpoint(db_client, interface_with_dataset):
     assert len(response.json["results"]) == 0
 
 
+def test_dataset_slug_api_endpoint_hides_internal_exception(db_client):
+    mock_interface = Mock()
+    mock_interface.get_document_by_slug.side_effect = Exception(
+        "some internal error containing sensitive information"
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/dataset/test-health-data")
+
+    assert response.status_code == 500
+    assert response.json == {
+        "error": "Failed to fetch document by slug",
+        "message": internal_error_message(),
+    }
+
+
 def test_location_search_api_endpoint(interface_with_location, db_client):
     with patch("app.routes.interface", interface_with_location):
         response = db_client.get(
@@ -147,6 +169,23 @@ def test_location_search_api_endpoint(interface_with_location, db_client):
     assert response.json["size"] == 1
     assert "display_name" in response.json["locations"][0]
     assert "id" in response.json["locations"][0]
+
+
+def test_location_search_api_endpoint_hides_internal_exception(db_client):
+    mock_interface = Mock()
+    mock_interface.search_locations.side_effect = Exception(
+        "some internal error containing sensitive information"
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/locations/search", query_string={"q": "x"})
+
+    assert response.status_code == 400
+    assert response.json == {
+        "error": "Failed to fetch locations",
+        "message": internal_error_message(),
+    }
+    assert "some internal error containing sensitive information" not in response.text
 
 
 def test_location_api_by_id(interface_with_location, db_client):
@@ -404,7 +443,9 @@ def test_get_organizations_api_returns_data(db_client):
 
 def test_get_organizations_api_handles_errors(db_client):
     mock_interface = Mock()
-    mock_interface.get_organizations.side_effect = Exception("boom")
+    mock_interface.get_organizations.side_effect = Exception(
+        "some internal error containing sensitive information"
+    )
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/api/organizations")
@@ -412,6 +453,24 @@ def test_get_organizations_api_handles_errors(db_client):
     assert response.status_code == 500
     data = response.get_json()
     assert data["error"] == "Failed to fetch organizations"
+    assert data["message"] == internal_error_message()
+    assert "some internal error containing sensitive information" not in response.text
+
+
+def test_get_publishers_api_handles_errors(db_client):
+    mock_interface = Mock()
+    mock_interface.get_top_publishers.side_effect = Exception(
+        "some internal error containing sensitive information"
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/publishers")
+
+    assert response.status_code == 500
+    data = response.get_json()
+    assert data["error"] == "Failed to fetch publishers"
+    assert data["message"] == internal_error_message()
+    assert "some internal error containing sensitive information" not in response.text
 
 
 def test_get_opensearch_health_api_returns_data(db_client):
@@ -434,7 +493,9 @@ def test_get_opensearch_health_api_handles_errors(db_client):
     mock_interface.opensearch = Mock()
     mock_interface.opensearch.client = Mock()
     mock_interface.opensearch.client.cluster = Mock()
-    mock_interface.opensearch.client.cluster.health.side_effect = Exception("boom")
+    mock_interface.opensearch.client.cluster.health.side_effect = Exception(
+        "secret opensearch failure"
+    )
 
     with patch("app.routes.interface", mock_interface):
         response = db_client.get("/api/opensearch/health")
@@ -443,6 +504,8 @@ def test_get_opensearch_health_api_handles_errors(db_client):
     data = response.get_json()
     assert data["status"] == "unknown"
     assert data["error"] == "Failed to fetch OpenSearch cluster health"
+    assert data["message"] == internal_error_message()
+    assert "secret opensearch failure" not in response.text
 
 
 def test_get_stats_api_returns_data(db_client):
@@ -461,6 +524,22 @@ def test_get_stats_api_returns_data(db_client):
     assert data["results"]["datasets"] == 123456
     assert data["results"]["datasetsWithIsPartOf"] == 789
     mock_interface.get_stats.assert_called_once_with()
+
+
+def test_get_stats_api_handles_errors(db_client):
+    mock_interface = Mock()
+    mock_interface.get_stats.side_effect = Exception(
+        "some internal error containing sensitive information"
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/stats")
+
+    assert response.status_code == 500
+    data = response.get_json()
+    assert data["error"] == "Failed to fetch stats"
+    assert data["message"] == internal_error_message()
+    assert "some internal error containing sensitive information" not in response.text
 
 
 def test_search_api_spatial_geometry(interface_with_dataset, db_client):
@@ -2912,3 +2991,20 @@ def test_keywords_api_passes_search_param_to_interface(db_client):
     mock_interface.get_unique_keywords.assert_called_once_with(
         size=10, min_doc_count=1, search="earth science"
     )
+
+
+def test_keywords_api_hides_internal_exception(db_client):
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.side_effect = Exception(
+        "some internal error containing sensitive information"
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?size=10")
+
+    assert response.status_code == 500
+    assert response.json == {
+        "error": "Failed to fetch keywords",
+        "message": internal_error_message(),
+    }
+    assert "some internal error containing sensitive information" not in response.text

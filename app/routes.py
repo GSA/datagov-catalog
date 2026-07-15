@@ -33,6 +33,11 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
+from .dcat_normalizer import (
+    normalize_access_rights,
+    normalize_distribution_license,
+    normalize_publisher_sub_org,
+)
 from .search import (
     API_CONTEXT,
     MAIN_CONTEXT,
@@ -56,6 +61,8 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 
 main = Blueprint("main", __name__)
 api = APIBlueprint("api", __name__)
@@ -814,12 +821,24 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # set the type for google search json-ld
     dataset.dcat["@type"] = "dcat:Dataset"
 
+    # Create normalized DCAT dict for template filters
+    # This provides a copy with DCAT 3.0 fields normalized for display
+    # while keeping the original dataset.dcat intact for Complete Metadata
+    normalized_dcat = {
+        "publisher": normalize_publisher_sub_org(dataset.dcat.get("publisher", {})),
+        "license": normalize_distribution_license(dataset.dcat).get("license"),
+        "accessLevel": normalize_access_rights(
+            dataset.dcat.get("accessRights"), dataset.dcat.get("accessLevel")
+        ),
+    }
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
         organization=org,
         from_dict=from_dict,
         collection_data=collection_data,
+        normalized_dcat=normalized_dcat,
     )
 
 
@@ -867,8 +886,16 @@ def get_keywords_api(**kwargs):
                 "min_count": min_count,
             }
         )
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch keywords", "message": str(e)}), 500
+    except Exception:
+        logger.exception("Failed to fetch keywords")
+        response = jsonify(
+            {
+                "error": "Failed to fetch keywords",
+                "message": INTERNAL_ERROR_MESSAGE,
+            }
+        )
+        response.status_code = 500
+        return response
 
 
 @api.route("/api/organizations", methods=["GET"])
@@ -885,9 +912,13 @@ def get_organizations_api(**kwargs):
                 "total": len(organizations),
             }
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Failed to fetch organizations")
         response = jsonify(
-            {"error": "Failed to fetch organizations", "message": str(e)}
+            {
+                "error": "Failed to fetch organizations",
+                "message": INTERNAL_ERROR_MESSAGE,
+            }
         )
         response.status_code = 500
         return response
@@ -907,8 +938,14 @@ def get_publishers_api(**kwargs):
                 "total": len(publishers),
             }
         )
-    except Exception as e:
-        response = jsonify({"error": "Failed to fetch publishers", "message": str(e)})
+    except Exception:
+        logger.exception("Failed to fetch publishers")
+        response = jsonify(
+            {
+                "error": "Failed to fetch publishers",
+                "message": INTERNAL_ERROR_MESSAGE,
+            }
+        )
         response.status_code = 500
         return response
 
@@ -922,13 +959,13 @@ def get_opensearch_health_api():
         health = interface.opensearch.client.cluster.health()
         status = health.get("status") if isinstance(health, dict) else None
         return jsonify({"status": status})
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to fetch OpenSearch cluster health")
         response = jsonify(
             {
                 "status": "unknown",
                 "error": "Failed to fetch OpenSearch cluster health",
-                "message": str(e),
+                "message": INTERNAL_ERROR_MESSAGE,
             }
         )
         response.status_code = 500
@@ -943,9 +980,11 @@ def get_stats_api():
     try:
         stats = interface.get_stats()
         return jsonify(stats)
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to fetch stats")
-        response = jsonify({"error": "Failed to fetch stats", "message": str(e)})
+        response = jsonify(
+            {"error": "Failed to fetch stats", "message": INTERNAL_ERROR_MESSAGE}
+        )
         response.status_code = 500
         return response
 
@@ -990,8 +1029,16 @@ def get_locations_api(**kwargs):
                 "size": size,
             }
         )
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch locations", "message": str(e)}), 400
+    except Exception:
+        logger.exception("Failed to fetch locations")
+        response = jsonify(
+            {
+                "error": "Failed to fetch locations",
+                "message": INTERNAL_ERROR_MESSAGE,
+            }
+        )
+        response.status_code = 400
+        return response
 
 
 @api.get("/api/location/<location_id>")
@@ -1031,10 +1078,13 @@ def get_document_by_dataset_slug(slug_or_id: str):
         if document.total == 0:
             response.status_code = 404
 
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to fetch document by slug")
         response = jsonify(
-            {"error": "Failed to fetch document by slug", "message": str(e)}
+            {
+                "error": "Failed to fetch document by slug",
+                "message": INTERNAL_ERROR_MESSAGE,
+            }
         )
         response.status_code = 500
 
