@@ -1084,7 +1084,8 @@ class OpenSearchInterface:
             terms_clause["include"] = f".*{escaped}.*"
 
         if normalized_keywords:
-            terms_clause["exclude"] = normalized_keywords
+            escaped_keywords = [re.escape(k) for k in normalized_keywords]
+            terms_clause["exclude"] = f"^(?:{'|'.join(escaped_keywords)})$"
 
         agg_body = {
             "size": 0,  # Don't return documents, just aggregations
