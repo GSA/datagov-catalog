@@ -33,6 +33,11 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
+from .dcat_normalizer import (
+    normalize_access_rights,
+    normalize_distribution_license,
+    normalize_publisher_sub_org,
+)
 from .search import (
     API_CONTEXT,
     MAIN_CONTEXT,
@@ -816,12 +821,24 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # set the type for google search json-ld
     dataset.dcat["@type"] = "dcat:Dataset"
 
+    # Create normalized DCAT dict for template filters
+    # This provides a copy with DCAT 3.0 fields normalized for display
+    # while keeping the original dataset.dcat intact for Complete Metadata
+    normalized_dcat = {
+        "publisher": normalize_publisher_sub_org(dataset.dcat.get("publisher", {})),
+        "license": normalize_distribution_license(dataset.dcat).get("license"),
+        "accessLevel": normalize_access_rights(
+            dataset.dcat.get("accessRights"), dataset.dcat.get("accessLevel")
+        ),
+    }
+
     return render_template(
         "dataset_detail.html",
         dataset=dataset,
         organization=org,
         from_dict=from_dict,
         collection_data=collection_data,
+        normalized_dcat=normalized_dcat,
     )
 
 
