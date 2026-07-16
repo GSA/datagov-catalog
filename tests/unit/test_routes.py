@@ -2960,6 +2960,23 @@ def test_keywords_api_passes_search_param_to_interface(db_client):
     )
 
 
+def test_keywords_api_hides_internal_exception(db_client):
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.side_effect = Exception(
+        "some internal error containing sensitive information"
+    )
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?size=10")
+
+    assert response.status_code == 500
+    assert response.json == {
+        "error": "Failed to fetch keywords",
+        "message": internal_error_message(),
+    }
+    assert "some internal error containing sensitive information" not in response.text
+
+
 def test_keywords_api_passes_selected_keywords_to_interface(db_client):
     """Selected keywords should narrow autocomplete suggestions to compatible terms."""
     mock_interface = Mock()
@@ -2981,18 +2998,23 @@ def test_keywords_api_passes_selected_keywords_to_interface(db_client):
     )
 
 
-def test_keywords_api_hides_internal_exception(db_client):
+def test_keywords_api_returns_200_with_empty_results(db_client):
+    """GET /api/keywords returns 200 with empty results when no keywords match."""
     mock_interface = Mock()
-    mock_interface.get_unique_keywords.side_effect = Exception(
-        "some internal error containing sensitive information"
-    )
+    mock_interface.get_unique_keywords.return_value = []
 
     with patch("app.routes.interface", mock_interface):
-        response = db_client.get("/api/keywords?size=10")
+        response = db_client.get("/api/keywords?keyword=census&keyword=volunteer")
 
-    assert response.status_code == 500
-    assert response.json == {
-        "error": "Failed to fetch keywords",
-        "message": internal_error_message(),
-    }
-    assert "some internal error containing sensitive information" not in response.text
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert data["keywords"] == []
+    assert data["total"] == 0
+
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=100,
+        min_doc_count=1,
+        search=None,
+        keywords=["census", "volunteer"],
+    )

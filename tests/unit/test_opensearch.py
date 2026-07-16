@@ -117,6 +117,47 @@ class TestOpenSearch:
         )
         assert len(result_obj.results) == 2
 
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {},  # omit keywords entirely
+            {"keywords": None},
+            {"keywords": []},
+        ],
+        ids=["omit", "none", "empty_list"],
+    )
+    def test_get_unique_keywords_no_keywords_variants_equivalent(
+        self, interface_with_dataset, opensearch_client, kwargs
+    ):
+        dataset_iterator = interface_with_dataset.db.query(Dataset)
+        opensearch_client.index_datasets(dataset_iterator)
+
+        baseline = opensearch_client.get_unique_keywords(search=None)
+        baseline_values = [item["keyword"] for item in baseline]
+
+        result = opensearch_client.get_unique_keywords(search=None, **kwargs)
+        result_values = [item["keyword"] for item in result]
+
+        assert result_values == baseline_values
+
+    def test_get_unique_keywords_escapes_keyword_metacharacters_in_exclude_regex(
+        self, opensearch_client, monkeypatch
+    ):
+        captured = {}
+
+        def fake_search(*, index, body):
+            captured["body"] = body
+            return {"aggregations": {"unique_keywords": {"buckets": []}}}
+
+        monkeypatch.setattr(opensearch_client.client, "search", fake_search)
+
+        opensearch_client.get_unique_keywords(
+            keywords=["census(2020)", "foo|bar", "a.b"]
+        )
+
+        terms = captured["body"]["aggs"]["unique_keywords"]["terms"]
+        assert terms["exclude"] == f"^(?:census\(2020\)|foo\|bar|a\.b)$"
+
 
 class TestDcatDateNormalization:
     """Test suite for _normalize_dcat_dates method."""
