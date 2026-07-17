@@ -156,7 +156,7 @@ class TestOpenSearch:
         )
 
         terms = captured["body"]["aggs"]["unique_keywords"]["terms"]
-        assert terms["exclude"] == f"^(?:census\(2020\)|foo\|bar|a\.b)$"
+        assert terms["exclude"] == "^(?:census\(2020\)|foo\|bar|a\.b)$"
 
 
 class TestDcatDateNormalization:
