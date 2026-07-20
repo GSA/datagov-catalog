@@ -152,8 +152,7 @@ _DEMO_DATASETS = [
         "nonprofit-redcross",
         (-118.50, 33.90, -118.10, 34.20),
     ),
-    # Overlapping-map-badge regression fixtures (see #6169). These two share
-    # an identical bbox so their map badges land on the exact same point.
+    # Identical bboxes, so their map badges land on the exact same point.
     (
         "denver-building-permits",
         "Denver Building Permit Applications",
@@ -170,8 +169,8 @@ _DEMO_DATASETS = [
         "city-denver",
         (-105.05, 39.60, -104.75, 39.90),
     ),
-    # Tightly clustered but distinct bboxes: badges overlap when zoomed out,
-    # but separate once the user zooms in far enough.
+    # Distinct but tightly clustered bboxes, close enough to overlap when
+    # zoomed out.
     (
         "austin-traffic-counts",
         "Austin Traffic Count Stations",
