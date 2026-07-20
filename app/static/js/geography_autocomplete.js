@@ -531,8 +531,7 @@ class GeographyAutocomplete {
           maxZoom: 19,
           attribution: OSM_ATTRIBUTION
         }).addTo(this.mapPanelMap);
-        // Which rank badges overlap depends on zoom, so re-cluster them
-        // whenever the view settles instead of only at initial render.
+        // Badge overlap depends on zoom, so re-cluster on zoomend.
         this.mapPanelMap.on('zoomend', () => {
           this.mapPanelResultsLayer = this._renderSearchResultsLayer(
             this.mapPanelMap,
@@ -916,14 +915,10 @@ class GeographyAutocomplete {
     }
 
     _buildRankClusterMarkers(map, rankEntries, rankIconForLabel) {
-      // Badges anchor to a bounding box's NW corner, so two datasets whose
-      // boxes overlap can anchor at (or very near) the same point and stack
-      // exactly on top of each other. "Overlapping" is a screen-space
-      // question that changes with zoom, so cluster by pixel distance
-      // rather than by lat/lng, and merge each cluster into one label.
+      // Cluster by pixel distance, not lat/lng, since overlap is a
+      // screen-space question that changes with zoom.
       if (typeof map.getZoom !== 'function' || map.getZoom() === undefined) {
-        // Map has no view yet (setView/fitBounds hasn't run); can't project
-        // lat/lng to pixels. The caller re-renders once a view is set.
+        // No view yet, so lat/lng can't be projected to pixels.
         return rankEntries.map((entry) =>
           L.marker(entry.anchorLatLng, {
             icon: rankIconForLabel(this._rankClusterLabel([entry.rank])),
