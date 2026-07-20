@@ -531,14 +531,6 @@ class GeographyAutocomplete {
           maxZoom: 19,
           attribution: OSM_ATTRIBUTION
         }).addTo(this.mapPanelMap);
-        // Which rank badges overlap depends on zoom, so re-cluster them
-        // whenever the view settles instead of only at initial render.
-        this.mapPanelMap.on('zoomend', () => {
-          this.mapPanelResultsLayer = this._renderSearchResultsLayer(
-            this.mapPanelMap,
-            this.mapPanelResultsLayer
-          );
-        });
       }
       this.mapPanelResultsLayer = this._renderSearchResultsLayer(
         this.mapPanelMap,
@@ -904,59 +896,6 @@ class GeographyAutocomplete {
       }
     }
 
-    _rankClusterLabel(ranks) {
-      const sorted = ranks.slice().sort((a, b) => a - b);
-      const MAX_LISTED = 3;
-      if (sorted.length <= MAX_LISTED) {
-        return `#${sorted.join(', #')}`;
-      }
-      const shown = sorted.slice(0, MAX_LISTED - 1);
-      const remaining = sorted.length - shown.length;
-      return `#${shown.join(', #')} +${remaining} more`;
-    }
-
-    _buildRankClusterMarkers(map, rankEntries, rankIconForLabel) {
-      // Badges anchor to a bounding box's NW corner, so two datasets whose
-      // boxes overlap can anchor at (or very near) the same point and stack
-      // exactly on top of each other. "Overlapping" is a screen-space
-      // question that changes with zoom, so cluster by pixel distance
-      // rather than by lat/lng, and merge each cluster into one label.
-      if (typeof map.getZoom !== 'function' || map.getZoom() === undefined) {
-        // Map has no view yet (setView/fitBounds hasn't run); can't project
-        // lat/lng to pixels. The caller re-renders once a view is set.
-        return rankEntries.map((entry) =>
-          L.marker(entry.anchorLatLng, {
-            icon: rankIconForLabel(this._rankClusterLabel([entry.rank])),
-            interactive: false,
-            keyboard: false,
-            bubblingMouseEvents: false,
-            zIndexOffset: 1000
-          })
-        );
-      }
-      const CLUSTER_PIXEL_RADIUS = 24;
-      const clusters = [];
-      rankEntries.forEach((entry) => {
-        const point = map.latLngToContainerPoint(entry.anchorLatLng);
-        const cluster = clusters.find((existing) => point.distanceTo(existing.point) <= CLUSTER_PIXEL_RADIUS);
-        if (cluster) {
-          cluster.ranks.push(entry.rank);
-        } else {
-          clusters.push({ point, anchorLatLng: entry.anchorLatLng, ranks: [entry.rank] });
-        }
-      });
-      return clusters.map((cluster) => {
-        const label = this._rankClusterLabel(cluster.ranks);
-        return L.marker(cluster.anchorLatLng, {
-          icon: rankIconForLabel(label),
-          interactive: false,
-          keyboard: false,
-          bubblingMouseEvents: false,
-          zIndexOffset: 1000
-        });
-      });
-    }
-
     _renderSearchResultsLayer(map, existingLayer) {
       if (!map || typeof L === 'undefined') return existingLayer;
       if (existingLayer) {
@@ -977,7 +916,12 @@ class GeographyAutocomplete {
       if (!this.searchResultGeometries || !this.searchResultGeometries.length) {
         return null;
       }
-      const rankEntries = [];
+      const rankMarkers = [];
+      const rankLabelForFeature = function (feature) {
+        const rank = feature && feature.properties ? feature.properties.rank : null;
+        if (typeof rank !== 'number') return null;
+        return `#${rank}`;
+      };
       const rankAnchorForLayer = function (featureLayer) {
         if (featureLayer && typeof featureLayer.getBounds === 'function') {
           const bounds = featureLayer.getBounds();
@@ -1012,13 +956,21 @@ class GeographyAutocomplete {
           return { color: '#eb5f07', weight: 1.5, fillColor: '#f2938c', fillOpacity: 0.08 };
         },
         onEachFeature: function (feature, featureLayer) {
-          const rank = feature && feature.properties ? feature.properties.rank : null;
-          if (typeof rank !== 'number' || !featureLayer) {
+          const rankLabel = rankLabelForFeature(feature);
+          if (!rankLabel || !featureLayer) {
             return;
           }
           const anchorLatLng = rankAnchorForLayer(featureLayer);
           if (!anchorLatLng) return;
-          rankEntries.push({ rank, anchorLatLng });
+          rankMarkers.push(
+            L.marker(anchorLatLng, {
+              icon: rankIconForLabel(rankLabel),
+              interactive: false,
+              keyboard: false,
+              bubblingMouseEvents: false,
+              zIndexOffset: 1000
+            })
+          );
         },
         pointToLayer: function (_feature, latlng) {
           return L.circleMarker(latlng, {
@@ -1031,7 +983,6 @@ class GeographyAutocomplete {
           });
         }
       });
-      const rankMarkers = this._buildRankClusterMarkers(map, rankEntries, rankIconForLabel);
       const layer = L.featureGroup([geometryLayer, ...rankMarkers]).addTo(map);
       if (typeof geometryLayer.bringToBack === 'function') {
         geometryLayer.bringToBack();
