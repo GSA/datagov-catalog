@@ -914,9 +914,46 @@ class GeographyAutocomplete {
       return `#${shown.join(', #')} +${remaining} more`;
     }
 
+    _measureLabelSize(map, label) {
+      // Merging is driven by rendered label size, so cache measurements
+      // (many badges share the same short "#N" text).
+      if (!this._labelSizeCache) {
+        this._labelSizeCache = new Map();
+      }
+      if (this._labelSizeCache.has(label)) {
+        return this._labelSizeCache.get(label);
+      }
+      // Measure inside the map's own container so the badge's actual CSS
+      // (scoped under .geography-map-expanded-panel) applies.
+      const mapContainer = typeof map.getContainer === 'function' ? map.getContainer() : document.body;
+      const container = document.createElement('div');
+      container.className = 'geography-map-result-rank-marker';
+      container.style.position = 'absolute';
+      container.style.visibility = 'hidden';
+      container.style.left = '-9999px';
+      container.style.top = '-9999px';
+      const span = document.createElement('span');
+      span.className = 'geography-map-result-rank-label';
+      span.textContent = label;
+      container.appendChild(span);
+      mapContainer.appendChild(container);
+      const rect = span.getBoundingClientRect();
+      mapContainer.removeChild(container);
+      const size = { width: rect.width, height: rect.height };
+      this._labelSizeCache.set(label, size);
+      return size;
+    }
+
+    _labelRectsOverlap(a, b) {
+      return (
+        a.point.x < b.point.x + b.size.width &&
+        a.point.x + a.size.width > b.point.x &&
+        a.point.y < b.point.y + b.size.height &&
+        a.point.y + a.size.height > b.point.y
+      );
+    }
+
     _buildRankClusterMarkers(map, rankEntries, rankIconForLabel) {
-      // Cluster by pixel distance, not lat/lng, since overlap is a
-      // screen-space question that changes with zoom.
       if (typeof map.getZoom !== 'function' || map.getZoom() === undefined) {
         // No view yet, so lat/lng can't be projected to pixels.
         return rankEntries.map((entry) =>
@@ -929,27 +966,52 @@ class GeographyAutocomplete {
           })
         );
       }
-      const CLUSTER_PIXEL_RADIUS = 24;
-      const clusters = [];
-      rankEntries.forEach((entry) => {
+      // Badges vary a lot in rendered width ("#3" vs. "#3, #7 +4 more"), so
+      // merge based on whether their actual label boxes would overlap on
+      // screen, not a fixed distance between anchor points.
+      let clusters = rankEntries.map((entry) => {
         const point = map.latLngToContainerPoint(entry.anchorLatLng);
-        const cluster = clusters.find((existing) => point.distanceTo(existing.point) <= CLUSTER_PIXEL_RADIUS);
-        if (cluster) {
-          cluster.ranks.push(entry.rank);
-        } else {
-          clusters.push({ point, anchorLatLng: entry.anchorLatLng, ranks: [entry.rank] });
-        }
+        const label = this._rankClusterLabel([entry.rank]);
+        return {
+          anchorLatLng: entry.anchorLatLng,
+          point,
+          ranks: [entry.rank],
+          label,
+          size: this._measureLabelSize(map, label)
+        };
       });
-      return clusters.map((cluster) => {
-        const label = this._rankClusterLabel(cluster.ranks);
-        return L.marker(cluster.anchorLatLng, {
-          icon: rankIconForLabel(label),
+      let merged = true;
+      while (merged) {
+        merged = false;
+        for (let i = 0; i < clusters.length && !merged; i++) {
+          for (let j = i + 1; j < clusters.length; j++) {
+            if (!this._labelRectsOverlap(clusters[i], clusters[j])) continue;
+            const combinedRanks = clusters[i].ranks.concat(clusters[j].ranks);
+            const primary = clusters[i].ranks[0] <= clusters[j].ranks[0] ? clusters[i] : clusters[j];
+            const label = this._rankClusterLabel(combinedRanks);
+            const next = clusters.filter((_, index) => index !== i && index !== j);
+            next.push({
+              anchorLatLng: primary.anchorLatLng,
+              point: primary.point,
+              ranks: combinedRanks,
+              label,
+              size: this._measureLabelSize(map, label)
+            });
+            clusters = next;
+            merged = true;
+            break;
+          }
+        }
+      }
+      return clusters.map((cluster) =>
+        L.marker(cluster.anchorLatLng, {
+          icon: rankIconForLabel(cluster.label),
           interactive: false,
           keyboard: false,
           bubblingMouseEvents: false,
           zIndexOffset: 1000
-        });
-      });
+        })
+      );
     }
 
     _renderSearchResultsLayer(map, existingLayer) {
