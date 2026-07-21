@@ -6,7 +6,12 @@ from uuid import uuid4
 
 from bs4 import BeautifulSoup
 
-from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
+from app import (
+    HTML_ERROR_MAX_AGE_SECONDS,
+    HTML_PAGE_MAX_AGE_SECONDS,
+    STATIC_ASSET_MAX_AGE_SECONDS,
+    create_app,
+)
 from app.database.opensearch import SearchResult
 from app.models import Dataset, Organization
 from app.search import SearchCriteria
@@ -52,12 +57,40 @@ def test_html_pages_set_one_hour_cache_duration_in_production():
     mock_interface.get_organizations.return_value = []
 
     with patch("app.routes.interface", mock_interface):
-        for path in ["/", "/openapi/docs", "/does-not-exist"]:
+        for path in ["/", "/openapi/docs"]:
             response = client.get(path)
 
+            assert response.status_code == 200
             assert response.cache_control.public
             assert response.cache_control.max_age == HTML_PAGE_MAX_AGE_SECONDS
             assert response.cache_control.must_revalidate
+
+
+def test_html_error_pages_use_short_cache_duration_in_production():
+    production_app = create_app("production")
+    client = production_app.test_client()
+
+    response = client.get("/does-not-exist")
+
+    assert response.status_code == 404
+    assert response.cache_control.public
+    assert response.cache_control.max_age == HTML_ERROR_MAX_AGE_SECONDS
+    assert response.cache_control.must_revalidate
+    assert not response.cache_control.no_store
+
+
+def test_missing_versioned_static_asset_uses_short_html_error_cache():
+    production_app = create_app("production")
+    production_app.config["ASSET_VERSION"] = "8eb9d3e"
+
+    response = production_app.test_client().get("/js/definitely-missing.8eb9d3e.js")
+
+    assert response.status_code == 404
+    assert "text/html" in (response.content_type or "")
+    assert response.cache_control.public
+    assert response.cache_control.max_age == HTML_ERROR_MAX_AGE_SECONDS
+    assert response.cache_control.must_revalidate
+    assert not response.cache_control.no_store
 
 
 def test_html_pages_do_not_set_cache_duration_in_local():

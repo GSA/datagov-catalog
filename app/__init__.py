@@ -19,6 +19,9 @@ load_dotenv()
 htmx = None
 STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 HTML_PAGE_MAX_AGE_SECONDS = 60 * 60
+# Short positive TTL for HTML errors: long enough to absorb bot/miss stampedes,
+# short enough that a deploy-time asset 404 cannot pin a .js URL for an hour.
+HTML_ERROR_MAX_AGE_SECONDS = 60
 HSTS_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 HSTS_HEADER = f"max-age={HSTS_MAX_AGE_SECONDS}; includeSubDomains; preload"
 
@@ -27,14 +30,16 @@ class VersionedStaticAPIFlask(APIFlask):
     def send_static_file(self, filename):
         from .static_assets import (
             DEFAULT_ASSET_VERSION,
-            unversion_static_filename,
+            resolve_on_disk_static_filename,
             validate_asset_version,
         )
 
         version = validate_asset_version(
             self.config.get("ASSET_VERSION", DEFAULT_ASSET_VERSION)
         )
-        return super().send_static_file(unversion_static_filename(filename, version))
+        return super().send_static_file(
+            resolve_on_disk_static_filename(filename, version)
+        )
 
 
 def register_template_filters(app):
@@ -116,6 +121,15 @@ def create_app(config_name: str = "local") -> APIFlask:
 
         content_type = response.content_type or ""
         if not content_type.startswith("text/html"):
+            return response
+
+        # Keep HTML errors briefly cacheable (not no-store/0): protects origin
+        # from miss stampedes, but a deploy-time asset 404 must not stick at a
+        # .js/.css URL for the full HTML page TTL.
+        if response.status_code >= 400:
+            response.cache_control.public = True
+            response.cache_control.max_age = HTML_ERROR_MAX_AGE_SECONDS
+            response.cache_control.must_revalidate = True
             return response
 
         if response.cache_control.max_age is not None:

@@ -6,16 +6,19 @@ import re
 from flask import current_app, url_for
 
 DEFAULT_ASSET_VERSION = "dev"
-ASSET_VERSION_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
+# Must stay in sync with .github/scripts/compute-asset-version.sh (sha256 prefix).
+DEPLOY_ASSET_VERSION_PATTERN = re.compile(r"^[0-9a-f]{7}$")
 
 
 def validate_asset_version(version: str) -> str:
     """Return a filename-safe static asset version."""
-    if not ASSET_VERSION_PATTERN.fullmatch(version):
-        raise ValueError(
-            "ASSET_VERSION must contain only letters, numbers, underscores, or hyphens"
-        )
-    return version
+    if version == DEFAULT_ASSET_VERSION or DEPLOY_ASSET_VERSION_PATTERN.fullmatch(
+        version
+    ):
+        return version
+    raise ValueError(
+        "ASSET_VERSION must be 'dev' or a 7-character lowercase hex digest"
+    )
 
 
 def get_asset_version() -> str:
@@ -32,15 +35,28 @@ def versioned_static_filename(filename: str, version: str) -> str:
     return f"{filename}.{version}"
 
 
-def unversion_static_filename(filename: str, version: str) -> str:
-    """Return the on-disk filename for a versioned static asset request."""
-    path, extension = os.path.splitext(filename)
-    version_suffix = f".{version}"
+def resolve_on_disk_static_filename(
+    filename: str, version: str = DEFAULT_ASSET_VERSION
+) -> str:
+    """Map a versioned static URL path to the on-disk filename.
 
-    if extension and path.endswith(version_suffix):
-        return f"{path[: -len(version_suffix)]}{extension}"
-    if not extension and filename.endswith(version_suffix):
-        return filename[: -len(version_suffix)]
+    Strips a final segment before the extension when it is either the current
+    ASSET_VERSION (e.g. local ``dev``) or a 7-character lowercase hex deploy
+    hash. That covers the current deploy and prior deploys still referenced by
+    cached HTML, without guessing at tokens like ``min``.
+    """
+    path, extension = os.path.splitext(filename)
+    if not extension:
+        return filename
+
+    base, separator, maybe_version = path.rpartition(".")
+    if not separator or not base:
+        return filename
+
+    if maybe_version == version or DEPLOY_ASSET_VERSION_PATTERN.fullmatch(
+        maybe_version
+    ):
+        return f"{base}{extension}"
     return filename
 
 

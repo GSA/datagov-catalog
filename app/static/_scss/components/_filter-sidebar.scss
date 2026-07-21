@@ -244,6 +244,13 @@
         overflow: visible;
     }
 
+    // Desktop filters must remain visible even if the toggle script fails to
+    // load (e.g. cached HTML 404 during an ASSET_VERSION rollout). The [hidden]
+    // attribute is only for the mobile drawer initial state.
+    .filter-sidebar-panel[hidden] {
+        display: block !important;
+    }
+
     .filter-sidebar-panel,
     .filter-sidebar,
     .filter-sidebar > .usa-form {
