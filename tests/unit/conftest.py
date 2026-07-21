@@ -116,11 +116,6 @@ def interface(session) -> Generator[CatalogDBInterface]:
 
 
 @pytest.fixture
-def harvest_interface(catalog_interface):
-    return HarvesterDBInterface(session=catalog_interface.db)
-
-
-@pytest.fixture
 def opensearch_writer(interface):
     return OpenSearchWriter(interface.opensearch)
 

@@ -60,24 +60,6 @@ def _normalize_last_harvested(value):
     return dt.isoformat(timespec="milliseconds")
 
 
-def _normalize_mapping_for_comparison(value):
-    """Normalize mapping defaults omitted by OpenSearch responses."""
-    if isinstance(value, dict):
-        normalized = {
-            key: _normalize_mapping_for_comparison(item) for key, item in value.items()
-        }
-        if normalized.get("search_analyzer") is not None and normalized.get(
-            "search_analyzer"
-        ) == normalized.get("analyzer"):
-            normalized.pop("search_analyzer")
-        return normalized
-
-    if isinstance(value, list):
-        return [_normalize_mapping_for_comparison(item) for item in value]
-
-    return value
-
-
 def register_commands(app):
     app.register_blueprint(search)
     app.register_blueprint(sitemap)
@@ -167,7 +149,6 @@ def compare_opensearch(sample_size: int, update: bool, force_update: bool):
     os_reader = OpenSearchReader(os_client)
 
     db_interface = CatalogDBInterface(db.session)
-    reharvest = {}
 
     click.echo("Collecting dataset IDs from DB...")
     db_rows = db_interface.db.query(Dataset.id, Dataset.last_harvested_date).all()
@@ -262,10 +243,6 @@ def compare_opensearch(sample_size: int, update: bool, force_update: bool):
                 sample_size=sample_size,
                 log_all_errors=True,
             )
-    # print the harvest sources with datasets that couldn't sync with opensearch
-    click.echo("Harvest sources not synced with opensearch...")
-    for harvest_source_id, harvest_source_name in reharvest.items():
-        click.echo(f"{harvest_source_id} {harvest_source_name}")
 
     if extra:
         click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
