@@ -1,3 +1,6 @@
+from unittest.mock import Mock
+
+
 def test_get_organizations_includes_zero_dataset_orgs_with_opensearch_counts(
     interface_with_organization, monkeypatch
 ):
@@ -65,3 +68,36 @@ def test_get_top_publishers_returns_top_100(interface_with_dataset, monkeypatch)
         {"name": "Agency Alpha", "count": 1},
         {"name": "Agency Beta", "count": 1},
     ]
+
+
+def test_interface_get_unique_keywords_defaults_keywords_none(
+    interface_with_harvest_record,
+):
+    interface = interface_with_harvest_record
+    interface.opensearch.get_unique_keywords = Mock(return_value=[])
+
+    interface.get_unique_keywords(size=10, min_doc_count=1, search="vol")
+
+    interface.opensearch.get_unique_keywords.assert_called_once_with(
+        size=10,
+        min_doc_count=1,
+        search="vol",
+        keywords=None,
+    )
+
+
+def test_interface_get_unique_keywords_forwards_keywords(interface_with_harvest_record):
+    interface = interface_with_harvest_record
+    interface.opensearch = Mock()
+    interface.opensearch.get_unique_keywords.return_value = []
+
+    interface.get_unique_keywords(
+        size=10, min_doc_count=1, search="vol", keywords=["census", "volunteer"]
+    )
+
+    interface.opensearch.get_unique_keywords.assert_called_once_with(
+        size=10,
+        min_doc_count=1,
+        search="vol",
+        keywords=["census", "volunteer"],
+    )

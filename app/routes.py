@@ -866,6 +866,7 @@ def get_keywords_api(**kwargs):
     size = request.args.get("size", 100, type=int)
     min_count = request.args.get("min_count", 1, type=int)
     search = request.args.get("search", None)
+    selected_keywords = request.args.getlist("keyword")
 
     # Validate parameters
     # Between 1 and 1000
@@ -875,7 +876,10 @@ def get_keywords_api(**kwargs):
 
     try:
         keywords = interface.get_unique_keywords(
-            size=size, min_doc_count=min_count, search=search
+            size=size,
+            min_doc_count=min_count,
+            search=search,
+            keywords=selected_keywords or None,
         )
 
         return jsonify(

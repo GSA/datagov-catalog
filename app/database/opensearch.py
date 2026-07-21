@@ -1051,7 +1051,9 @@ class OpenSearchInterface:
 
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=1)
 
-    def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
+    def get_unique_keywords(
+        self, size=100, min_doc_count=1, search=None, keywords=None
+    ) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
 
@@ -1059,6 +1061,10 @@ class OpenSearchInterface:
         that case variants such as "Environment" and "environment" are counted
         as a single bucket. The returned ``keyword`` value is the lowercased
         canonical form.
+
+        When keywords are provided, the aggregation is restricted to documents
+        that already match those selected keywords, which means the returned
+        suggestions are compatible with the active filter set.
         """
         terms_clause = {
             "field": "keyword.normalized",
@@ -1067,9 +1073,19 @@ class OpenSearchInterface:
             "order": {"_count": "desc"},
         }
 
+        normalized_keywords = [
+            keyword.strip().lower()
+            for keyword in (keywords or [])
+            if keyword and keyword.strip()
+        ]
+
         if search:
             escaped = re.escape(search.lower())
             terms_clause["include"] = f".*{escaped}.*"
+
+        if normalized_keywords:
+            escaped_keywords = [re.escape(k) for k in normalized_keywords]
+            terms_clause["exclude"] = f"^(?:{'|'.join(escaped_keywords)})$"
 
         agg_body = {
             "size": 0,  # Don't return documents, just aggregations
@@ -1079,6 +1095,14 @@ class OpenSearchInterface:
                 }
             },
         }
+
+        if normalized_keywords:
+            filters = [
+                {"term": {"keyword.normalized": keyword}}
+                for keyword in normalized_keywords
+            ]
+
+            agg_body["query"] = {"bool": {"filter": filters}}
 
         result = self.client.search(index=self.INDEX_NAME, body=agg_body)
         buckets = (
