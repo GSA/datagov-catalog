@@ -64,6 +64,8 @@ _DEMO_ORGS = [
     ("univ-michigan", "University of Michigan", "university-of-michigan", "University"),
     ("tribe-navajo", "Navajo Nation", "navajo-nation", "Tribal"),
     ("nonprofit-redcross", "American Red Cross", "american-red-cross", "Non-Profit"),
+    ("city-denver", "City of Denver", "city-of-denver", "City Government"),
+    ("city-austin", "City of Austin", "city-of-austin", "City Government"),
 ]
 
 # Demo datasets. Each falls inside one of the demo locations so the "within"
@@ -149,6 +151,56 @@ _DEMO_DATASETS = [
         "American Red Cross",
         "nonprofit-redcross",
         (-118.50, 33.90, -118.10, 34.20),
+    ),
+    # identical bboxes
+    (
+        "denver-building-permits",
+        "Denver Building Permit Applications",
+        ["permits", "construction"],
+        "Denver Community Planning and Development",
+        "city-denver",
+        (-105.05, 39.60, -104.75, 39.90),
+    ),
+    (
+        "denver-zoning-map",
+        "Denver Zoning Map Overlay",
+        ["zoning", "planning"],
+        "Denver Community Planning and Development",
+        "city-denver",
+        (-105.05, 39.60, -104.75, 39.90),
+    ),
+    # tightly clustered bboxes
+    (
+        "austin-traffic-counts",
+        "Austin Traffic Count Stations",
+        ["transportation", "traffic"],
+        "Austin Transportation Department",
+        "city-austin",
+        (-97.85, 30.20, -97.75, 30.30),
+    ),
+    (
+        "austin-bikeshare-stations",
+        "Austin Bikeshare Station Locations",
+        ["transportation", "cycling"],
+        "Austin Transportation Department",
+        "city-austin",
+        (-97.84, 30.21, -97.74, 30.31),
+    ),
+    (
+        "austin-pothole-reports",
+        "Austin Pothole Repair Requests",
+        ["infrastructure", "roads"],
+        "Austin Public Works Department",
+        "city-austin",
+        (-97.83, 30.19, -97.73, 30.29),
+    ),
+    (
+        "austin-streetlight-outages",
+        "Austin Streetlight Outage Reports",
+        ["infrastructure", "utilities"],
+        "Austin Public Works Department",
+        "city-austin",
+        (-97.86, 30.22, -97.76, 30.32),
     ),
 ]
 

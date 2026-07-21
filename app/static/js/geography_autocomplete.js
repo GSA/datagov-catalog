@@ -531,6 +531,12 @@ class GeographyAutocomplete {
           maxZoom: 19,
           attribution: OSM_ATTRIBUTION
         }).addTo(this.mapPanelMap);
+        this.mapPanelMap.on('zoomend', () => {
+          this.mapPanelResultsLayer = this._renderSearchResultsLayer(
+            this.mapPanelMap,
+            this.mapPanelResultsLayer
+          );
+        });
       }
       this.mapPanelResultsLayer = this._renderSearchResultsLayer(
         this.mapPanelMap,
@@ -896,6 +902,90 @@ class GeographyAutocomplete {
       }
     }
 
+    _rankClusterLabel(ranks) {
+      const sorted = ranks.slice().sort((a, b) => a - b);
+      const MAX_LISTED = 3;
+      if (sorted.length <= MAX_LISTED) {
+        return `#${sorted.join(', #')}`;
+      }
+      const shown = sorted.slice(0, MAX_LISTED - 1);
+      const remaining = sorted.length - shown.length;
+      return `#${shown.join(', #')} +${remaining} more`;
+    }
+
+    _estimateLabelSize(label) {
+      const CHAR_WIDTH_PX = 8;
+      const PADDING_PX = 16;
+      const LABEL_HEIGHT_PX = 22;
+      return { width: label.length * CHAR_WIDTH_PX + PADDING_PX, height: LABEL_HEIGHT_PX };
+    }
+
+    _labelRectsOverlap(a, b) {
+      return (
+        a.point.x < b.point.x + b.size.width &&
+        a.point.x + a.size.width > b.point.x &&
+        a.point.y < b.point.y + b.size.height &&
+        a.point.y + a.size.height > b.point.y
+      );
+    }
+
+    _buildRankClusterMarkers(map, rankEntries, rankIconForLabel) {
+      if (typeof map.getZoom !== 'function' || map.getZoom() === undefined) {
+        return rankEntries.map((entry) =>
+          L.marker(entry.anchorLatLng, {
+            icon: rankIconForLabel(this._rankClusterLabel([entry.rank])),
+            interactive: false,
+            keyboard: false,
+            bubblingMouseEvents: false,
+            zIndexOffset: 1000
+          })
+        );
+      }
+      let clusters = rankEntries.map((entry) => {
+        const point = map.latLngToContainerPoint(entry.anchorLatLng);
+        const label = this._rankClusterLabel([entry.rank]);
+        return {
+          anchorLatLng: entry.anchorLatLng,
+          point,
+          ranks: [entry.rank],
+          label,
+          size: this._estimateLabelSize(label)
+        };
+      });
+      let merged = true;
+      while (merged) {
+        merged = false;
+        for (let i = 0; i < clusters.length && !merged; i++) {
+          for (let j = i + 1; j < clusters.length; j++) {
+            if (!this._labelRectsOverlap(clusters[i], clusters[j])) continue;
+            const combinedRanks = clusters[i].ranks.concat(clusters[j].ranks);
+            const primary = clusters[i].ranks[0] <= clusters[j].ranks[0] ? clusters[i] : clusters[j];
+            const label = this._rankClusterLabel(combinedRanks);
+            const next = clusters.filter((_, index) => index !== i && index !== j);
+            next.push({
+              anchorLatLng: primary.anchorLatLng,
+              point: primary.point,
+              ranks: combinedRanks,
+              label,
+              size: this._estimateLabelSize(label)
+            });
+            clusters = next;
+            merged = true;
+            break;
+          }
+        }
+      }
+      return clusters.map((cluster) =>
+        L.marker(cluster.anchorLatLng, {
+          icon: rankIconForLabel(cluster.label),
+          interactive: false,
+          keyboard: false,
+          bubblingMouseEvents: false,
+          zIndexOffset: 1000
+        })
+      );
+    }
+
     _renderSearchResultsLayer(map, existingLayer) {
       if (!map || typeof L === 'undefined') return existingLayer;
       if (existingLayer) {
@@ -916,12 +1006,7 @@ class GeographyAutocomplete {
       if (!this.searchResultGeometries || !this.searchResultGeometries.length) {
         return null;
       }
-      const rankMarkers = [];
-      const rankLabelForFeature = function (feature) {
-        const rank = feature && feature.properties ? feature.properties.rank : null;
-        if (typeof rank !== 'number') return null;
-        return `#${rank}`;
-      };
+      const rankEntries = [];
       const rankAnchorForLayer = function (featureLayer) {
         if (featureLayer && typeof featureLayer.getBounds === 'function') {
           const bounds = featureLayer.getBounds();
@@ -956,21 +1041,13 @@ class GeographyAutocomplete {
           return { color: '#eb5f07', weight: 1.5, fillColor: '#f2938c', fillOpacity: 0.08 };
         },
         onEachFeature: function (feature, featureLayer) {
-          const rankLabel = rankLabelForFeature(feature);
-          if (!rankLabel || !featureLayer) {
+          const rank = feature && feature.properties ? feature.properties.rank : null;
+          if (typeof rank !== 'number' || !featureLayer) {
             return;
           }
           const anchorLatLng = rankAnchorForLayer(featureLayer);
           if (!anchorLatLng) return;
-          rankMarkers.push(
-            L.marker(anchorLatLng, {
-              icon: rankIconForLabel(rankLabel),
-              interactive: false,
-              keyboard: false,
-              bubblingMouseEvents: false,
-              zIndexOffset: 1000
-            })
-          );
+          rankEntries.push({ rank, anchorLatLng });
         },
         pointToLayer: function (_feature, latlng) {
           return L.circleMarker(latlng, {
@@ -983,6 +1060,7 @@ class GeographyAutocomplete {
           });
         }
       });
+      const rankMarkers = this._buildRankClusterMarkers(map, rankEntries, rankIconForLabel);
       const layer = L.featureGroup([geometryLayer, ...rankMarkers]).addTo(map);
       if (typeof geometryLayer.bringToBack === 'function') {
         geometryLayer.bringToBack();
