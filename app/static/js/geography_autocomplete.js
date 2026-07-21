@@ -913,30 +913,11 @@ class GeographyAutocomplete {
       return `#${shown.join(', #')} +${remaining} more`;
     }
 
-    _measureLabelSize(map, label) {
-      if (!this._labelSizeCache) {
-        this._labelSizeCache = new Map();
-      }
-      if (this._labelSizeCache.has(label)) {
-        return this._labelSizeCache.get(label);
-      }
-      const mapContainer = typeof map.getContainer === 'function' ? map.getContainer() : document.body;
-      const container = document.createElement('div');
-      container.className = 'geography-map-result-rank-marker';
-      container.style.position = 'absolute';
-      container.style.visibility = 'hidden';
-      container.style.left = '-9999px';
-      container.style.top = '-9999px';
-      const span = document.createElement('span');
-      span.className = 'geography-map-result-rank-label';
-      span.textContent = label;
-      container.appendChild(span);
-      mapContainer.appendChild(container);
-      const rect = span.getBoundingClientRect();
-      mapContainer.removeChild(container);
-      const size = { width: rect.width, height: rect.height };
-      this._labelSizeCache.set(label, size);
-      return size;
+    _estimateLabelSize(label) {
+      const CHAR_WIDTH_PX = 8;
+      const PADDING_PX = 16;
+      const LABEL_HEIGHT_PX = 22;
+      return { width: label.length * CHAR_WIDTH_PX + PADDING_PX, height: LABEL_HEIGHT_PX };
     }
 
     _labelRectsOverlap(a, b) {
@@ -968,7 +949,7 @@ class GeographyAutocomplete {
           point,
           ranks: [entry.rank],
           label,
-          size: this._measureLabelSize(map, label)
+          size: this._estimateLabelSize(label)
         };
       });
       let merged = true;
@@ -986,7 +967,7 @@ class GeographyAutocomplete {
               point: primary.point,
               ranks: combinedRanks,
               label,
-              size: this._measureLabelSize(map, label)
+              size: this._estimateLabelSize(label)
             });
             clusters = next;
             merged = true;
