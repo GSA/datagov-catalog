@@ -152,7 +152,7 @@ _DEMO_DATASETS = [
         "nonprofit-redcross",
         (-118.50, 33.90, -118.10, 34.20),
     ),
-    # Identical bboxes, so their map badges land on the exact same point.
+    # identical bboxes
     (
         "denver-building-permits",
         "Denver Building Permit Applications",
@@ -169,8 +169,7 @@ _DEMO_DATASETS = [
         "city-denver",
         (-105.05, 39.60, -104.75, 39.90),
     ),
-    # Distinct but tightly clustered bboxes, close enough to overlap when
-    # zoomed out.
+    # tightly clustered bboxes
     (
         "austin-traffic-counts",
         "Austin Traffic Count Stations",

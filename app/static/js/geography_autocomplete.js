@@ -531,7 +531,6 @@ class GeographyAutocomplete {
           maxZoom: 19,
           attribution: OSM_ATTRIBUTION
         }).addTo(this.mapPanelMap);
-        // Badge overlap depends on zoom, so re-cluster on zoomend.
         this.mapPanelMap.on('zoomend', () => {
           this.mapPanelResultsLayer = this._renderSearchResultsLayer(
             this.mapPanelMap,
@@ -915,16 +914,12 @@ class GeographyAutocomplete {
     }
 
     _measureLabelSize(map, label) {
-      // Merging is driven by rendered label size, so cache measurements
-      // (many badges share the same short "#N" text).
       if (!this._labelSizeCache) {
         this._labelSizeCache = new Map();
       }
       if (this._labelSizeCache.has(label)) {
         return this._labelSizeCache.get(label);
       }
-      // Measure inside the map's own container so the badge's actual CSS
-      // (scoped under .geography-map-expanded-panel) applies.
       const mapContainer = typeof map.getContainer === 'function' ? map.getContainer() : document.body;
       const container = document.createElement('div');
       container.className = 'geography-map-result-rank-marker';
@@ -955,7 +950,6 @@ class GeographyAutocomplete {
 
     _buildRankClusterMarkers(map, rankEntries, rankIconForLabel) {
       if (typeof map.getZoom !== 'function' || map.getZoom() === undefined) {
-        // No view yet, so lat/lng can't be projected to pixels.
         return rankEntries.map((entry) =>
           L.marker(entry.anchorLatLng, {
             icon: rankIconForLabel(this._rankClusterLabel([entry.rank])),
@@ -966,9 +960,6 @@ class GeographyAutocomplete {
           })
         );
       }
-      // Badges vary a lot in rendered width ("#3" vs. "#3, #7 +4 more"), so
-      // merge based on whether their actual label boxes would overlap on
-      // screen, not a fixed distance between anchor points.
       let clusters = rankEntries.map((entry) => {
         const point = map.latLngToContainerPoint(entry.anchorLatLng);
         const label = this._rankClusterLabel([entry.rank]);
