@@ -11,20 +11,7 @@ from app.search.filters.base import (
 
 def _clause(criteria, value: str) -> dict:
     normalized_value = (value or "").strip().lower()
-    return {
-        "bool": {
-            "should": [
-                {"term": {"access_level": normalized_value}},
-                {
-                    "nested": {
-                        "path": "dcat",
-                        "query": {"term": {"dcat.accessLevel": normalized_value}},
-                    }
-                },
-            ],
-            "minimum_should_match": 1,
-        }
-    }
+    return {"term": {"access_level": normalized_value}}
 
 
 ACCESS_LEVEL_FILTER = FilterDefinition(
