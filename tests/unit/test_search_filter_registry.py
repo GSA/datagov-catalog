@@ -50,8 +50,9 @@ def test_access_level_filter_parses_and_builds_clause():
     )
 
     assert criteria.get_filter("access_level") == "non-public"
+
     clauses = build_filter_clauses(criteria)
-    assert clauses[0]["bool"]["should"][0] == {"term": {"access_level": "non-public"}}
+    assert clauses == [{"term": {"access_level": "non-public"}}]
 
 
 def test_search_criteria_rejects_malformed_spatial_geometry():
