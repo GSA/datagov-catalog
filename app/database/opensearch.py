@@ -15,6 +15,7 @@ from haversine import Unit, haversine
 from opensearchpy import AWSV4SignerAuth, OpenSearch, RequestsHttpConnection, helpers
 from opensearchpy.exceptions import ConnectionTimeout
 
+from app.dcat_normalizer import normalize_access_rights
 from app.search import (
     SearchCriteria,
     build_aggregation_specs,
@@ -175,6 +176,7 @@ class OpenSearchInterface:
                     "modified": {"type": "keyword"},  # Ensure modified is always text
                     "issued": {"type": "keyword"},  # Also ensure issued is text
                     "isPartOf": {"type": "keyword"},
+                    "accessLevel": {"type": "keyword"},
                 },
             },
             "description": {
@@ -194,6 +196,7 @@ class OpenSearchInterface:
                     },
                 },
             },
+            "access_level": {"type": "keyword"},
             "keyword": {
                 "type": "text",
                 "analyzer": TEXT_ANALYZER,
@@ -505,6 +508,12 @@ class OpenSearchInterface:
         # Normalize DCAT dates to ensure they're strings
         normalized_dcat = self._normalize_dcat_dates(dataset.dcat)
 
+        access_level = normalize_access_rights(
+            dataset.dcat.get("accessRights"), dataset.dcat.get("accessLevel")
+        )
+        if access_level is not None:
+            access_level = str(access_level).strip().lower() or None
+
         spatial_centroid = self._geometry_centroid(dataset.translated_spatial)
 
         document = {
@@ -515,6 +524,7 @@ class OpenSearchInterface:
             "last_harvested_date": dataset.last_harvested_date.isoformat(),
             "description": dataset.dcat.get("description", ""),
             "publisher": dataset.dcat.get("publisher", {}).get("name", ""),
+            "access_level": access_level,
             "dcat": normalized_dcat,
             # Opensearch handles array-value properties
             "keyword": dataset.dcat.get("keyword", []),

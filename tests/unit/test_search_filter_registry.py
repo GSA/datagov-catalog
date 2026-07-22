@@ -43,6 +43,17 @@ def test_search_criteria_parses_registered_filters():
     assert criteria.sort_by == "popularity"
 
 
+def test_access_level_filter_parses_and_builds_clause():
+    criteria = SearchCriteria.from_request_args(
+        MultiDict([("access_level", "non-public")]),
+        route_context=API_CONTEXT,
+    )
+
+    assert criteria.get_filter("access_level") == "non-public"
+    clauses = build_filter_clauses(criteria)
+    assert clauses[0]["bool"]["should"][0] == {"term": {"access_level": "non-public"}}
+
+
 def test_search_criteria_rejects_malformed_spatial_geometry():
     with pytest.raises(FilterParseError) as excinfo:
         SearchCriteria.from_request_args(

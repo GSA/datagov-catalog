@@ -1,3 +1,4 @@
+from app.search.filters.access_level import ACCESS_LEVEL_FILTER
 from app.search.filters.base import (
     API_CONTEXT,
     MAIN_CONTEXT,
@@ -30,4 +31,5 @@ FILTERS = (
     PUBLISHER_FILTER,
     SPATIAL_DATA_FILTER,
     COLLECTION_FILTER,
+    ACCESS_LEVEL_FILTER,
 )
