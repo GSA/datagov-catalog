@@ -4,7 +4,6 @@ from datetime import date, datetime
 from unittest.mock import Mock
 
 import pytest
-from datagov_data_access.db.interfaces.harvest import HarvesterDBInterface
 from datagov_data_access.search.config import INDEX_NAME
 from datagov_data_access.search.writer import OpenSearchWriter
 from dotenv import load_dotenv
