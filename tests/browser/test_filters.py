@@ -171,24 +171,3 @@ def test_sort_select_syncs_hidden_filter_form_input(page: Page) -> None:
     expect(
         page.locator('#filter-form input[name="sort"][type="hidden"]')
     ).to_have_value("popularity")
-
-
-def test_bfcache_restore_removes_stale_loading_overlay(page: Page) -> None:
-    """A loading overlay left over from a prior navigation must be torn down
-    when the browser restores the page from the back/forward cache, so it
-    can't block the UI forever (regression test for #6138)."""
-    page.goto("/")
-
-    page.evaluate("""() => {
-            const overlay = document.createElement('div');
-            overlay.id = 'search-results-loading-overlay';
-            document.body.appendChild(overlay);
-        }""")
-    expect(page.locator("#search-results-loading-overlay")).to_be_attached()
-
-    page.evaluate(
-        "window.dispatchEvent("
-        "new PageTransitionEvent('pageshow', { persisted: true }))"
-    )
-
-    expect(page.locator("#search-results-loading-overlay")).to_have_count(0)

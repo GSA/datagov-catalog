@@ -16,7 +16,7 @@ export SPACE_NAME=$(echo "$VCAP_APPLICATION" | jq -r '.space_name')
 
 echo "Setting up proxy in $APP_NAME on $SPACE_NAME"
 
-# sitemap config
+# sitemap config 
 export S3_URL=$(vcap_get_service s3 .credentials.endpoint)
 export S3_BUCKET=$(vcap_get_service s3 .credentials.bucket)
 
@@ -26,8 +26,3 @@ PROXY_USER=$(vcap_get_service secrets .credentials.PROXY_USER)
 PROXY_PASSWORD=$(openssl passwd -apr1 "$(vcap_get_service secrets .credentials.PROXY_PASSWORD)")
 echo "$PROXY_USER:$PROXY_PASSWORD" > ${HOME}/etc/nginx/.htpasswd
 
-# Egress proxy variables
-export EGRESS_HOST_AND_PORT=$(echo $proxy_url | cut -d @ -f 2)
-
-proxy_auth=$(echo $proxy_url | cut -d / -f 3 | cut -d @ -f 1)
-export EGRESS_BASIC_AUTH_BASE64=$(echo $proxy_auth | base64 -w 0)
