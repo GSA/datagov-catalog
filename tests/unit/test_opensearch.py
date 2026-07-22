@@ -496,6 +496,7 @@ class TestOpenSearchMappings:
         assert "dcat" in mappings["properties"]
         assert mappings["properties"]["dcat"]["type"] == "nested"
         assert "properties" in mappings["properties"]["dcat"]
+        assert mappings["properties"]["dcat"]["dynamic"] is False
 
         dcat_properties = mappings["properties"]["dcat"]["properties"]
         assert "modified" in dcat_properties
@@ -508,6 +509,19 @@ class TestOpenSearchMappings:
 
         assert "issued" in dcat_properties
         assert dcat_properties["issued"]["type"] == "keyword"
+
+    def test_dcat_access_level_field_mapping(self):
+        """Test that DCAT accessLevel is mapped as a keyword type."""
+        mappings = OpenSearchInterface.MAPPINGS
+        dcat_properties = mappings["properties"]["dcat"]["properties"]
+
+        assert dcat_properties["accessLevel"]["type"] == "keyword"
+
+    def test_access_level_field_mapping(self):
+        """Test that the normalized access level field is mapped as keyword."""
+        mappings = OpenSearchInterface.MAPPINGS
+
+        assert mappings["properties"]["access_level"]["type"] == "keyword"
 
     def test_other_mappings_unchanged(self):
         """Test that other field mappings are preserved."""
