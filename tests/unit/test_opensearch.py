@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import date, datetime
 from unittest.mock import Mock
 
@@ -426,6 +427,58 @@ def test_dataset_to_document_omits_harvest_record_transformed_without_payload(
         assert "harvest_record_transformed" not in document
 
 
+def test_dataset_to_document_sets_access_level(
+    dbapp, opensearch_client, mock_dataset_with_datetime, dcatus_dataset
+):
+    with dbapp.app_context():
+        mock_dataset_with_datetime.dcat = deepcopy(dcatus_dataset)
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert document["access_level"] == "restricted public"
+
+
+def test_dataset_to_document_normalizes_access_level(
+    dbapp, opensearch_client, mock_dataset_with_datetime, dcatus_dataset
+):
+    with dbapp.app_context():
+        dcat = deepcopy(dcatus_dataset)
+        dcat["accessLevel"] = " Restricted Public "
+        mock_dataset_with_datetime.dcat = dcat
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert document["access_level"] == "restricted public"
+
+
+def test_dataset_to_document_falls_back_to_access_rights(
+    dbapp, opensearch_client, mock_dataset_with_datetime, dcatus_dataset
+):
+    with dbapp.app_context():
+        dcat = deepcopy(dcatus_dataset)
+        dcat.pop("accessLevel", None)
+        dcat["accessRights"] = "non-public"
+        mock_dataset_with_datetime.dcat = dcat
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert document["access_level"] == "non-public"
+
+
+def test_dataset_to_document_prefers_access_level_over_access_rights(
+    dbapp, opensearch_client, mock_dataset_with_datetime, dcatus_dataset
+):
+    with dbapp.app_context():
+        dcat = deepcopy(dcatus_dataset)
+        dcat["accessLevel"] = "restricted public"
+        dcat["accessRights"] = "public"
+        mock_dataset_with_datetime.dcat = dcat
+
+        document = opensearch_client.dataset_to_document(mock_dataset_with_datetime)
+
+        assert document["access_level"] == "restricted public"
+
+
 def test_geometry_centroid_from_polygon():
     geometry = {
         "type": "Polygon",
@@ -509,13 +562,6 @@ class TestOpenSearchMappings:
 
         assert "issued" in dcat_properties
         assert dcat_properties["issued"]["type"] == "keyword"
-
-    def test_dcat_access_level_field_mapping(self):
-        """Test that DCAT accessLevel is mapped as a keyword type."""
-        mappings = OpenSearchInterface.MAPPINGS
-        dcat_properties = mappings["properties"]["dcat"]["properties"]
-
-        assert dcat_properties["accessLevel"]["type"] == "keyword"
 
     def test_access_level_field_mapping(self):
         """Test that the normalized access level field is mapped as keyword."""

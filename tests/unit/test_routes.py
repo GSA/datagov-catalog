@@ -702,6 +702,15 @@ def test_search_api_parses_spatial_within_param(db_client):
     assert geography.get("geometry") == polygon
 
 
+def test_search_api_filters_by_access_level(db_client):
+    response = db_client.get("/search?access_level=restricted public")
+    assert response.status_code == 200
+
+    data = response.get_json()
+    assert len(data["results"]) > 0
+    assert all(r["access_level"] == "restricted public" for r in data["results"])
+
+
 def test_organization_detail_parses_spatial_within_param(db_client):
     mock_org = type(
         "Org",

@@ -177,7 +177,6 @@ class OpenSearchInterface:
                     "modified": {"type": "keyword"},  # Ensure modified is always text
                     "issued": {"type": "keyword"},  # Also ensure issued is text
                     "isPartOf": {"type": "keyword"},
-                    "accessLevel": {"type": "keyword"},
                 },
             },
             "description": {
