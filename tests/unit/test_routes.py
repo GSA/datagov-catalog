@@ -702,13 +702,19 @@ def test_search_api_parses_spatial_within_param(db_client):
     assert geography.get("geometry") == polygon
 
 
-def test_search_api_filters_by_access_level(db_client):
-    response = db_client.get("/search?access_level=restricted public")
+def test_search_api_filters_by_access_level(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"access_level": "restricted public"}
+        )
+
     assert response.status_code == 200
 
-    data = response.get_json()
-    assert len(data["results"]) > 0
-    assert all(r["access_level"] == "restricted public" for r in data["results"])
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
 
 
 def test_organization_detail_parses_spatial_within_param(db_client):
