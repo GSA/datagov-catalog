@@ -1,14 +1,17 @@
 import os
+from collections.abc import Generator
 from datetime import date, datetime
 from unittest.mock import Mock
 
 import pytest
+from datagov_data_access.search.config import INDEX_NAME
+from datagov_data_access.search.writer import OpenSearchWriter
 from dotenv import load_dotenv
-from opensearchpy import OpenSearchException
+from opensearchpy.exceptions import NotFoundError
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
-from app.database import CatalogDBInterface, OpenSearchInterface
+from app.database import CatalogDBInterface
 from app.models import (
     Dataset,
     HarvestJob,
@@ -85,15 +88,35 @@ def session(dbapp):
 
 
 @pytest.fixture
-def interface(session) -> CatalogDBInterface:
+def interface(session) -> Generator[CatalogDBInterface]:
     interface = CatalogDBInterface(session=session)
-    # best effort to clear the opensearch index
-    try:
-        interface.opensearch.delete_all_datasets()
-    except OpenSearchException:
-        pass
 
+    def clean():
+        client = interface.opensearch.client
+
+        try:
+            if client.indices.exists(index=INDEX_NAME):
+                client.delete_by_query(
+                    index=INDEX_NAME,
+                    body={"query": {"match_all": {}}},
+                    conflicts="proceed",
+                    refresh=True,
+                    wait_for_completion=True,
+                )
+                client.indices.refresh(index=INDEX_NAME)
+        except NotFoundError:
+            pass
+
+    clean()
     yield interface
+    clean()
+
+    interface.opensearch.client.close()
+
+
+@pytest.fixture
+def opensearch_writer(interface):
+    return OpenSearchWriter(interface.opensearch)
 
 
 @pytest.fixture
@@ -140,21 +163,16 @@ def interface_with_harvest_record(interface_with_harvest_job, fixture_data):
 
 
 @pytest.fixture
-def interface_with_dataset(interface_with_harvest_record, fixture_data):
+def interface_with_dataset(
+    interface_with_harvest_record, fixture_data, opensearch_writer
+):
     # add generic dataset record
     for dataset_data in fixture_data["dataset"]:
         interface_with_harvest_record.db.add(Dataset(**dataset_data))
     interface_with_harvest_record.db.commit()
-    interface_with_harvest_record.opensearch.index_datasets(
-        interface_with_harvest_record.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_harvest_record.db.query(Dataset))
 
     yield interface_with_harvest_record
-
-
-@pytest.fixture
-def opensearch_client():
-    return OpenSearchInterface(test_host="localhost")
 
 
 @pytest.fixture
@@ -253,31 +271,6 @@ def mock_dataset_with_spatial(mock_organization):
     mock_dataset.popularity = 200
     mock_dataset.organization = mock_organization
     return mock_dataset
-
-
-@pytest.fixture
-def mock_opensearch_client():
-    """Mock OpenSearchInterface client for command testing."""
-    client = Mock()
-    client.INDEX_NAME = "datasets"
-    client.client = Mock()
-    client.client.indices = Mock()
-    client.client.indices.delete = Mock()
-    client.client.indices.get_mapping = Mock(
-        return_value={
-            "datasets": {
-                "mappings": {
-                    "properties": {"keyword": {"fields": {"raw": {"type": "keyword"}}}}
-                }
-            }
-        }
-    )
-    client.delete_all_datasets = Mock()
-    client._ensure_index = Mock()
-    client._refresh = Mock()
-    client.index_datasets = Mock(return_value=(100, 0, []))
-    client.count_all_datasets = Mock(return_value=100)
-    return client
 
 
 @pytest.fixture

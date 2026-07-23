@@ -747,6 +747,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "keyword": ["health", "food"],
                     "modified": "2026-03-04",
                     "publisher": {"name": "test child publisher"},
+                    "landingPage": "https://example.gov/datasets/sample-dcat-3-0",
                     "contactPoint": {
                         "fn": "Not provided - Contact data.gov",
                         "hasEmail": "mailto:datagovsupport@gsa.gov",

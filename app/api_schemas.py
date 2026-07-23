@@ -16,9 +16,9 @@ from apiflask.fields import (
     String,
 )
 from apiflask.validators import Length, Range
+from datagov_data_access.db.interfaces.catalog import SEARCH_API_MAX_PER_PAGE
+from datagov_data_access.search.queries import API_CONTEXT, FILTERS, ApiQueryParam
 
-from app.database.constants import SEARCH_API_MAX_PER_PAGE
-from app.search import API_CONTEXT, FILTERS, ApiQueryParam
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
 ORGANIZATION_TYPE_ENUM = PyEnum(
