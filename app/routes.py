@@ -6,6 +6,15 @@ from math import ceil
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
+from datagov_data_access.search.queries import (
+    API_CONTEXT,
+    MAIN_CONTEXT,
+    ORGANIZATION_CONTEXT,
+    FilterParseError,
+    SearchCriteria,
+    build_filter_sections,
+    visible_filter_query_params,
+)
 from flask import (
     Blueprint,
     Response,
@@ -16,6 +25,8 @@ from flask import (
     request,
     url_for,
 )
+
+from app.models import db
 
 from . import htmx
 from .api_schemas import (
@@ -38,15 +49,6 @@ from .dcat_normalizer import (
     normalize_distribution_license,
     normalize_publisher_sub_org,
 )
-from .search import (
-    API_CONTEXT,
-    MAIN_CONTEXT,
-    ORGANIZATION_CONTEXT,
-    FilterParseError,
-    SearchCriteria,
-    build_filter_sections,
-    visible_filter_query_params,
-)
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -67,7 +69,7 @@ INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 main = Blueprint("main", __name__)
 api = APIBlueprint("api", __name__)
 
-interface = CatalogDBInterface()
+interface = CatalogDBInterface(db.session)
 
 
 def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):

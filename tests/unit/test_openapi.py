@@ -1,12 +1,10 @@
 """Test OpenAPI paths."""
 
 from bs4 import BeautifulSoup
-
-from app.search import API_CONTEXT, FILTERS
+from datagov_data_access.search.queries import API_CONTEXT, FILTERS
 
 
 class TestOpenAPI:
-
     def test_openapi_json(self, db_client):
         """The OpenAPI spec can be downloaded."""
         resp = db_client.get("/openapi.json")

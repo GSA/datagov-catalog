@@ -4,12 +4,13 @@ from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, quote, urlparse
 from uuid import uuid4
 
+import pytest
 from bs4 import BeautifulSoup
+from datagov_data_access.search.queries.criteria import SearchCriteria
+from datagov_data_access.search.reader import SearchResult
 
 from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
-from app.database.opensearch import SearchResult
 from app.models import Dataset, Organization
-from app.search import SearchCriteria
 from tests.fixtures import HARVEST_RECORD_ID
 from tests.helpers import add_dataset_with_harvest_record
 
@@ -165,11 +166,9 @@ def test_location_api_by_id(interface_with_location, db_client):
     assert "coordinates" in response.json["geometry"]
 
 
-def test_search_api_endpoint(interface_with_dataset, db_client):
+def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_writer):
     # search relies on Opensearch now
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
@@ -178,15 +177,16 @@ def test_search_api_endpoint(interface_with_dataset, db_client):
 
 
 def test_search_api_response_containes_harvest_record_url(
-    interface_with_dataset, db_client
+    interface_with_dataset, db_client, opensearch_writer
 ):
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test"})
     assert response.status_code == 200
     harvest_record_url = response.json["results"][0]["harvest_record"]
+
+    # db_client.application.config['SERVER_NAME']
+
     assert harvest_record_url.startswith("http://0.0.0.0:8080/harvest_record/")
     assert response.json["results"][0]["harvest_record_raw"] == (
         f"{harvest_record_url}/raw"
@@ -196,7 +196,7 @@ def test_search_api_response_containes_harvest_record_url(
     )
 
 
-def test_search_api_pagination(interface_with_dataset, db_client):
+def test_search_api_pagination(interface_with_dataset, db_client, opensearch_writer):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
     for i in range(10):
         dataset_dict["id"] = str(i)
@@ -205,9 +205,7 @@ def test_search_api_pagination(interface_with_dataset, db_client):
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
     # search relies on Opensearch now
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test", "per_page": "5"})
         assert len(response.json["results"]) == 5
@@ -226,7 +224,9 @@ def test_search_api_rejects_too_large_per_page(db_client):
     assert response.json["message"] == "per_page must be between 1 and 1000"
 
 
-def test_search_api_paginate_after(interface_with_dataset, db_client):
+def test_search_api_paginate_after(
+    interface_with_dataset, db_client, opensearch_writer
+):
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
     for i in range(10):
         dataset_dict["id"] = str(i)
@@ -235,9 +235,7 @@ def test_search_api_paginate_after(interface_with_dataset, db_client):
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
     # search relies on Opensearch now
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/search", query_string={"q": "test", "per_page": "1"})
         previous_slug = response.json["results"][0]["slug"]
@@ -509,10 +507,11 @@ def test_get_stats_api_handles_errors(db_client):
     assert "some internal error containing sensitive information" not in response.text
 
 
-def test_search_api_spatial_geometry(interface_with_dataset, db_client):
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+def test_search_api_spatial_geometry(
+    interface_with_dataset, db_client, opensearch_writer
+):
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
+
     polygon = {
         "type": "polygon",
         "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
@@ -526,10 +525,8 @@ def test_search_api_spatial_geometry(interface_with_dataset, db_client):
         assert len(response.json["results"]) >= 1
 
 
-def test_index_spatial_geometry(interface_with_dataset, db_client):
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+def test_index_spatial_geometry(interface_with_dataset, db_client, opensearch_writer):
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
     polygon = {
         "type": "polygon",
         "coordinates": [[[-180, -90], [180, -90], [180, 90], [-180, 90], [-180, -90]]],
@@ -903,7 +900,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 59"
+    assert datasets_text == "Datasets: 60"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -952,7 +949,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 59"
+    assert overview_items[1].text.strip() == "Total datasets: 60"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -1047,6 +1044,7 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
     assert soup.find("div", {"id": "filter-organization-autocomplete"}) is None
 
 
+@pytest.mark.usefixtures("interface_with_dataset")
 def test_index_page_renders(db_client):
     """
     Test that the index page loads correctly and contains the search form.
@@ -1669,7 +1667,9 @@ def test_index_search_result_includes_published_on_in_metrics_line(db_client):
     )
 
 
-def test_index_pagination_preserves_query_params(interface_with_dataset, db_client):
+def test_index_pagination_preserves_query_params(
+    interface_with_dataset, db_client, opensearch_writer
+):
     """Test that pagination links preserve query and filter parameters."""
     # Create multiple datasets for pagination
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -1678,9 +1678,7 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
         dataset_dict["slug"] = f"test-{i}"
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?q=test&sort=relevance")
@@ -1696,7 +1694,7 @@ def test_index_pagination_preserves_query_params(interface_with_dataset, db_clie
     assert "sort=relevance" in href
 
 
-def test_index_search_results_arg(interface_with_dataset, db_client):
+def test_index_search_results_arg(interface_with_dataset, db_client, opensearch_writer):
     """Results controls how many results show up on the page."""
     # Create multiple datasets for pagination
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -1705,9 +1703,7 @@ def test_index_search_results_arg(interface_with_dataset, db_client):
         dataset_dict["slug"] = f"test-{i}"
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?q=test&results=7")
@@ -1974,7 +1970,7 @@ class TestKeywordSearch:
     """Test keyword search functionality on index page."""
 
     def test_single_keyword_filter_shows_matching_datasets(
-        self, interface_with_dataset, db_client
+        self, interface_with_dataset, db_client, opensearch_writer
     ):
         """Test filtering by a single keyword returns matching datasets."""
         dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -1987,9 +1983,7 @@ class TestKeywordSearch:
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
-        )
+        opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/?keyword=health")
 
@@ -2001,12 +1995,10 @@ class TestKeywordSearch:
         assert len(dataset_items) > 0
 
     def test_multiple_keywords_filter_shows_matching_datasets(
-        self, interface_with_dataset, db_client
+        self, interface_with_dataset, db_client, opensearch_writer
     ):
         """Test filtering by multiple keywords returns datasets with all keywords."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
-        )
+        opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/?keyword=health&keyword=education")
@@ -2022,12 +2014,10 @@ class TestKeywordSearch:
         assert len(dataset_items) > 0
 
     def test_nonexistent_keyword_returns_no_results(
-        self, interface_with_dataset, db_client
+        self, interface_with_dataset, db_client, opensearch_writer
     ):
         """Test that filtering by a non-existent keyword returns no results."""
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
-        )
+        opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/?keyword=nonexistentkeyword")
@@ -2048,7 +2038,7 @@ class TestPublisherSearch:
     """Test publisher filter functionality on index page."""
 
     def test_publisher_filter_shows_matching_datasets(
-        self, interface_with_dataset, db_client
+        self, interface_with_dataset, db_client, opensearch_writer
     ):
         dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
 
@@ -2073,9 +2063,7 @@ class TestPublisherSearch:
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
         interface_with_dataset.db.commit()
 
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
-        )
+        opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/?publisher=Agency Alpha")
@@ -2096,7 +2084,7 @@ class TestOrganizationTypeSearch:
     """Test organization type filter functionality on index page."""
 
     def test_org_type_filter_shows_matching_datasets(
-        self, interface_with_dataset, db_client
+        self, interface_with_dataset, db_client, opensearch_writer
     ):
         interface_with_dataset.db.add(
             Organization(
@@ -2140,9 +2128,7 @@ class TestOrganizationTypeSearch:
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
         interface_with_dataset.db.commit()
 
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
-        )
+        opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/?org_type=City+Government")
@@ -2163,7 +2149,7 @@ class TestGeospatialSearch:
     """Test geospatial search functionality on index page."""
 
     def test_geospatial_filter_shows_dcat_spatial_datasets(
-        self, interface_with_dataset, db_client
+        self, interface_with_dataset, db_client, opensearch_writer
     ):
         """
         Test that geospatial filter returns datasets with spatial data in DCAT.
@@ -2175,9 +2161,7 @@ class TestGeospatialSearch:
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
-        )
+        opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/?q=test&spatial_filter=geospatial")
@@ -2217,7 +2201,7 @@ class TestGeospatialSearch:
         assert len(dataset_items) > 0
 
     def test_non_geospatial_filter_shows_only_non_spatial_datasets(
-        self, interface_with_dataset, db_client
+        self, interface_with_dataset, db_client, opensearch_writer
     ):
         """Test that non-geospatial filter returns only datasets without spatial data."""
         # Ensure test dataset has no spatial data
@@ -2227,9 +2211,7 @@ class TestGeospatialSearch:
         interface_with_dataset.db.commit()
 
         # Index datasets in OpenSearch
-        interface_with_dataset.opensearch.index_datasets(
-            interface_with_dataset.db.query(Dataset)
-        )
+        opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/?q=test&spatial_filter=non-geospatial")
@@ -2247,7 +2229,9 @@ class TestGeospatialSearch:
         assert len(dataset_items) > 0
 
 
-def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
+def test_htmx_load_more_preserves_filters(
+    interface_with_dataset, db_client, opensearch_writer
+):
     """Test that HTMX 'Show more results' button preserves all filter parameters."""
     # Create enough datasets to trigger pagination
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
@@ -2262,9 +2246,7 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     interface_with_dataset.db.commit()
 
     # Index datasets in OpenSearch
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
     with patch("app.routes.interface", interface_with_dataset):
         # Initial search with filters
@@ -2321,7 +2303,9 @@ def test_htmx_load_more_preserves_filters(interface_with_dataset, db_client):
     assert push_params.get("publisher") == ["Test Publisher"]
 
 
-def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client):
+def test_htmx_load_more_with_multiple_keywords(
+    interface_with_dataset, db_client, opensearch_writer
+):
     """Test that multiple keywords are preserved in the load more button."""
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
     for i in range(25):
@@ -2334,9 +2318,7 @@ def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(
@@ -2365,7 +2347,9 @@ def test_htmx_load_more_with_multiple_keywords(interface_with_dataset, db_client
     assert set(params.get("keyword", [])) == {"health", "education"}
 
 
-def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_client):
+def test_htmx_load_more_with_multiple_org_types(
+    interface_with_dataset, db_client, opensearch_writer
+):
     """Test that multiple organization types are preserved in the load more button."""
     dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
     for i in range(25):
@@ -2374,9 +2358,7 @@ def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_clien
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
 
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(
@@ -2406,7 +2388,7 @@ def test_htmx_load_more_with_multiple_org_types(interface_with_dataset, db_clien
 
 
 def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
-    interface_with_dataset, db_client
+    interface_with_dataset, db_client, opensearch_writer
 ):
     """
     HTMX 'Show more' on /organization page must carry keywords
@@ -2424,9 +2406,7 @@ def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
         add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
 
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(
@@ -2499,7 +2479,9 @@ def test_index_search_message_with_query_only(interface_with_dataset, db_client)
     assert "and filters" not in text
 
 
-def test_index_search_message_with_query_and_filters(interface_with_dataset, db_client):
+def test_index_search_message_with_query_and_filters(
+    interface_with_dataset, db_client, opensearch_writer
+):
     """Test that search message displays both query and filters when both are present."""
     # Add dataset with keywords for filtering
     from app.models import Dataset
@@ -2514,9 +2496,7 @@ def test_index_search_message_with_query_and_filters(interface_with_dataset, db_
     }
     add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?q=test&keyword=health")
@@ -2532,7 +2512,9 @@ def test_index_search_message_with_query_and_filters(interface_with_dataset, db_
     assert 'matching "test" and filters.' in text
 
 
-def test_index_search_message_with_filters_only(interface_with_dataset, db_client):
+def test_index_search_message_with_filters_only(
+    interface_with_dataset, db_client, opensearch_writer
+):
     """Test that search message displays filters only when no query is present."""
     # Add dataset with keywords for filtering
     from app.models import Dataset
@@ -2547,9 +2529,7 @@ def test_index_search_message_with_filters_only(interface_with_dataset, db_clien
     }
     add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
     interface_with_dataset.db.commit()
-    interface_with_dataset.opensearch.index_datasets(
-        interface_with_dataset.db.query(Dataset)
-    )
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
 
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?keyword=environment")
