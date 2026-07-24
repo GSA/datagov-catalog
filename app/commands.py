@@ -1,18 +1,17 @@
 import os
 import posixpath
-import time
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from typing import Iterable, Optional
 from urllib.parse import urlparse
 
 import click
+from datagov_data_access.search.client import OpenSearchClient
+from datagov_data_access.search.reader import OpenSearchReader
+from datagov_data_access.search.writer import OpenSearchWriter
 from flask import Blueprint
-from opensearchpy.exceptions import ConnectionTimeout, OpenSearchException
-from opensearchpy.helpers import scan
-from sqlalchemy.exc import OperationalError
 
-from .database import CatalogDBInterface, OpenSearchInterface
+from .database import CatalogDBInterface
 from .models import (
     Dataset,
     HarvestJob,
@@ -33,6 +32,32 @@ sitemap = Blueprint("sitemap", __name__)
 testdata = Blueprint("testdata", __name__)
 
 BASE_URL = os.getenv("SITEMAP_BASE_URL", "http://localhost:8080").rstrip("/")
+
+
+def _normalize_last_harvested(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if cleaned.endswith("Z"):
+            cleaned = cleaned[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(cleaned)
+        except ValueError:
+            return cleaned
+    else:
+        return str(value)
+
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    dt = dt.replace(microsecond=(dt.microsecond // 1000) * 1000)
+    return dt.isoformat(timespec="milliseconds")
 
 
 def register_commands(app):
@@ -57,7 +82,7 @@ def load_test_data(clear):
     from tests.fixtures import fixture_data
 
     fixture = fixture_data(include_filter_demos=True)
-    interface = CatalogDBInterface()
+    interface = CatalogDBInterface(db.session)
 
     if clear:
         click.echo("Dropping all database tables...")
@@ -97,212 +122,6 @@ def load_test_data(clear):
         raise
 
 
-@search.cli.command("sync")
-@click.argument("dataset_id_or_slug", required=False)
-@click.option("--start-page", help="Number of page to start on", default=1)
-@click.option("--per_page", help="Number of datasets per page", default=100)
-@click.option(
-    "--recreate-index",
-    is_flag=True,
-    help="Delete and recreate index with new schema",
-    default=False,
-)
-def sync_opensearch(
-    dataset_id_or_slug: Optional[str] = None,
-    start_page: int = 1,
-    per_page: int = 100,
-    recreate_index: bool = False,
-):
-    """Sync datasets to the OpenSearch system.
-
-    Provide a DATASET_ID_OR_SLUG argument to reindex a single dataset without
-    touching the rest of the index.
-
-    Use --recreate-index flag when you've updated the schema (e.g., added keyword.raw field)
-    to delete the old index and create a new one with the updated mapping.
-
-    Retries added for when we may have multiple jobs running and causes the sync to break.
-    There are 3 exponential retries, the initial retry being 2 seconds.
-    """
-
-    # Retry configuration
-    max_retries = 3
-    retry_delay = 2.0
-    opensearch_errors = []
-
-    client = OpenSearchInterface.from_environment()
-    interface = CatalogDBInterface()
-
-    # get the count of datasets before new indexing
-    pre_os_dataset_count = client.count_all_datasets()
-
-    if dataset_id_or_slug:
-        interface = CatalogDBInterface()
-        if recreate_index:
-            raise click.ClickException(
-                "Cannot use --recreate-index when syncing a single dataset."
-            )
-
-        dataset = interface.get_dataset_by_id(dataset_id_or_slug)
-        if dataset is None:
-            dataset = interface.get_dataset_by_slug(dataset_id_or_slug)
-
-        if dataset is None:
-            raise click.ClickException(
-                f"Dataset '{dataset_id_or_slug}' was not found by id or slug."
-            )
-
-        click.echo(
-            f"Indexing dataset {dataset.id} (slug: {dataset.slug}) into OpenSearch..."
-        )
-        succeeded, failed, errors = client.index_datasets([dataset])
-
-        if failed:
-            raise click.ClickException(
-                f"Failed to index dataset {dataset.id}; see logs for details."
-            )
-
-        click.echo("Dataset indexed successfully.")
-        return
-
-    # empty the index and then refill it
-    # THIS WILL CAUSE INCONSISTENT SEARCH RESULTS DURING THE PROCESS
-
-    if recreate_index:
-        click.echo("Deleting entire index to recreate with new schema...")
-        try:
-            client.client.indices.delete(index=client.INDEX_NAME)
-            click.echo("Index deleted")
-        except Exception as e:
-            click.echo(f"Could not delete index (may not exist): {e}")
-
-        # Recreate with new schema
-        click.echo("Creating index with new schema...")
-        client._ensure_index()
-        click.echo("Index created with updated mapping")
-
-        # Verify the new mapping
-        mapping = client.client.indices.get_mapping(index=client.INDEX_NAME)
-        keyword_mapping = mapping[client.INDEX_NAME]["mappings"]["properties"].get(
-            "keyword", {}
-        )
-        has_raw = "fields" in keyword_mapping and "raw" in keyword_mapping["fields"]
-        if has_raw:
-            click.echo("Verified: keyword.raw field exists in new mapping")
-        else:
-            click.echo(
-                "Warning: keyword.raw field not found in mapping - aggregations may not work"
-            )
-    else:
-        click.echo("Emptying dataset index (keeping existing schema)...")
-        client.delete_all_datasets()
-
-    click.echo("Indexing...")
-
-    # do our own pagination of the dataset query before calling into the
-    # index_datasets method
-    total_pages = Dataset.query.paginate(per_page=per_page).pages
-    click.echo(f"Indexing {total_pages} pages of datasets...")
-
-    try:
-        # page numbers are 1-indexed
-        for i in range(start_page, total_pages + 1):
-            retry_count = 0
-            last_exception = None
-
-            while retry_count <= max_retries:
-                try:
-                    # Get the paginated dataset query
-                    paginated_datasets = Dataset.query.paginate(
-                        page=i, per_page=per_page
-                    )
-
-                    # Index the datasets
-                    succeeded, failed, errors = client.index_datasets(
-                        paginated_datasets, refresh_after=False
-                    )
-                    # add errors to render later
-                    opensearch_errors.extend(errors)
-                    # Success - break out of retry loop
-                    click.echo(
-                        f"Indexed page {i}/{total_pages} with {succeeded} successes and {failed} errors."
-                    )
-                    break
-
-                except (OpenSearchException, ConnectionTimeout, OperationalError) as e:
-                    last_exception = e
-                    retry_count += 1
-
-                    error_type = type(e).__name__
-
-                    # Check if this is a PostgreSQL serialization failure
-                    # Safely convert exception to string
-                    try:
-                        error_str = str(e)
-                    except Exception:
-                        error_str = repr(e)
-
-                    is_serialization_error = (
-                        isinstance(e, OperationalError)
-                        and "conflict with recovery" in error_str
-                    )
-
-                    if retry_count <= max_retries:
-                        # Calculate exponential backoff delay
-                        wait_time = retry_delay * (2 ** (retry_count - 1))
-
-                        click.echo(
-                            f"Page {i}/{total_pages}: {error_type} - "
-                            f"{'Database serialization conflict' if is_serialization_error else 'Error'} "
-                            f"(attempt {retry_count}/{max_retries + 1}). "
-                            f"Retrying in {wait_time:.1f} seconds..."
-                        )
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        # Max retries exceeded
-                        try:
-                            error_msg = str(last_exception)
-                        except Exception:
-                            error_msg = repr(last_exception)
-                        click.echo(
-                            f"Page {i}/{total_pages}: Failed after {max_retries + 1} attempts. "
-                            f"Last error: {error_type} - {error_msg[:200] if error_msg else 'Unknown error'}"
-                        )
-                        # Exit with error code
-                        raise click.ClickException(
-                            f"Sync failed after {max_retries + 1} attempts"
-                        )
-
-        click.echo("Refreshing index...")
-        client._refresh()
-        click.echo("Sync was successful")
-    except click.ClickException:
-        # Re-raise Click exceptions (these exit cleanly with proper exit code)
-        raise
-    except Exception as e:
-        # Catch any other unexpected errors
-        click.echo(f"Unexpected error during sync: {type(e).__name__}")
-        raise click.ClickException(f"Sync failed: {type(e).__name__}")
-
-    click.echo("=" * 20 + "STATS" + "=" * 20)
-    click.echo(f"Total Datasets in Database: {interface.total_datasets()}")
-    click.echo(f"Total Datasets in Index Before Sync: {pre_os_dataset_count}")
-    click.echo(f"Total Datasets in Index After Sync: {client.count_all_datasets()}")
-    click.echo(f"Recreate Index: {recreate_index}")
-    click.echo(f"Total Errors: {len(opensearch_errors)}")
-    if opensearch_errors:
-        click.echo("=" * 20 + "ERRORS" + "=" * 20)
-        for opensearch_error in opensearch_errors:
-            click.echo(
-                f"Dataset ID: {opensearch_error.get("dataset_id")}, "
-                f"Status Code: {opensearch_error.get("status_code")}, "
-                f"Error Type: {opensearch_error.get("error_type")}, "
-                f"Error Reason: {opensearch_error.get("error_reason")}, "
-                f"Caused By: {opensearch_error.get("caused_by")}"
-            )
-
-
 @search.cli.command("compare")
 @click.option(
     "--sample-size",
@@ -324,117 +143,29 @@ def sync_opensearch(
     help="Re-index all datasets from DB regardless of last_harvested_date.",
 )
 def compare_opensearch(sample_size: int, update: bool, force_update: bool):
-    """Report (and optionally update) dataset ID discrepancies between DB and OpenSearch."""
+    """Report and optionally repair DB/OpenSearch dataset discrepancies."""
+    os_client = OpenSearchClient.from_environment()
+    os_writer = OpenSearchWriter(os_client)
+    os_reader = OpenSearchReader(os_client)
 
-    interface = CatalogDBInterface()
-    client = OpenSearchInterface.from_environment()
-    reharvest = {}
+    db_interface = CatalogDBInterface(db.session)
 
-    def normalize_last_harvested(value):
-        if value is None:
-            return None
-        if isinstance(value, datetime):
-            dt = value
-        elif isinstance(value, str):
-            cleaned = value.strip()
-            if not cleaned:
-                return None
-            if cleaned.endswith("Z"):
-                cleaned = cleaned[:-1] + "+00:00"
-            try:
-                dt = datetime.fromisoformat(cleaned)
-            except ValueError:
-                return cleaned
-        else:
-            return str(value)
-
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        else:
-            dt = dt.astimezone(timezone.utc)
-        # Normalize to milliseconds to match OpenSearch docvalue precision.
-        dt = dt.replace(microsecond=(dt.microsecond // 1000) * 1000)
-        return dt.isoformat(timespec="milliseconds")
-
-    def index_dataset_batches(
-        dataset_ids: list[str], intro_message: str, log_all_errors=False
-    ):
-        click.echo(intro_message)
-        batch_size = 1000
-        total_batches = (len(dataset_ids) + batch_size - 1) // batch_size
-        total_indexed = 0
-        total_skipped = 0
-
-        for batch_number, batch_ids in enumerate(
-            (
-                dataset_ids[i : i + batch_size]
-                for i in range(0, len(dataset_ids), batch_size)
-            ),
-            start=1,
-        ):
-            click.echo(
-                f"  Batch {batch_number}/{total_batches}: indexing {len(batch_ids)} dataset(s)…"
-            )
-            datasets = (
-                interface.db.query(Dataset).filter(Dataset.id.in_(batch_ids)).all()
-            )
-
-            found_ids = {
-                dataset.id: [dataset.harvest_source.id, dataset.harvest_source.name]
-                for dataset in datasets
-            }
-            skipped = [
-                dataset_id for dataset_id in batch_ids if dataset_id not in found_ids
-            ]
-            total_skipped += len(skipped)
-
-            if skipped:
-                click.echo(
-                    "    Warning: Skipping missing DB IDs: "
-                    + ", ".join(skipped[:sample_size])
-                )
-
-            if datasets:
-                succeeded, failed, errors = client.index_datasets(
-                    datasets, refresh_after=False
-                )
-                total_indexed += succeeded
-                if failed:
-                    click.echo(
-                        f"    Warning: {failed} dataset(s) failed to index in this batch."
-                    )
-                    if log_all_errors:
-                        for error in errors:
-                            dataset_id = error.get("dataset_id")
-                            if dataset_id is not None:
-                                harvest_source = found_ids[dataset_id]
-                                # doesn't matter if we reassign. it's the same key: value pair
-                                reharvest[harvest_source[0]] = harvest_source[1]
-                            click.echo(error)
-
-            else:
-                click.echo("    No datasets found for this batch; skipping.")
-
-        click.echo(
-            f"Indexed {total_indexed} datasets. Skipped {total_skipped} missing DB rows."
-        )
-
-    click.echo("Collecting dataset IDs from DB…")
-    db_rows = interface.db.query(Dataset.id, Dataset.last_harvested_date).all()
+    click.echo("Collecting dataset IDs from DB...")
+    db_rows = db_interface.db.query(Dataset.id, Dataset.last_harvested_date).all()
     db_last_harvested = {
-        dataset_id: normalize_last_harvested(last_harvested)
+        dataset_id: _normalize_last_harvested(last_harvested)
         for dataset_id, last_harvested in db_rows
     }
     db_ids = set(db_last_harvested)
     click.echo(f"Database datasets: {len(db_ids)}")
 
-    click.echo("Collecting document IDs from OpenSearch…")
+    click.echo("Collecting document IDs from OpenSearch...")
     os_docs = {}
-    for hit in scan(
-        client.client,
-        index=client.INDEX_NAME,
+
+    for hit in os_reader.scan_index(
+        index_name=os_client.INDEX_NAME,
         size=200,
-        _source=False,
+        source=False,
         stored_fields=[],
         docvalue_fields=["last_harvested_date"],
     ):
@@ -444,7 +175,7 @@ def compare_opensearch(sample_size: int, update: bool, force_update: bool):
             last_harvested = fields["last_harvested_date"][0]
         elif hit.get("_source"):
             last_harvested = hit["_source"].get("last_harvested_date")
-        os_docs[hit["_id"]] = normalize_last_harvested(last_harvested)
+        os_docs[hit["_id"]] = _normalize_last_harvested(last_harvested)
 
     os_ids = set(os_docs)
     click.echo(f"OpenSearch documents: {len(os_ids)}")
@@ -460,20 +191,16 @@ def compare_opensearch(sample_size: int, update: bool, force_update: bool):
     updated_ids = [dataset_id for dataset_id, _, _ in updated_details]
 
     click.echo(f"Missing in OpenSearch (should be indexed): {len(missing)}")
-    if missing:
-        click.echo("Example missing IDs: " + ", ".join(missing[:sample_size]))
-    else:
-        click.echo("Example missing IDs: none")
-
-    click.echo(f"Extra in OpenSearch (should be deleted): {len(extra)}")
-    if extra:
-        click.echo("Example extra IDs: " + ", ".join(extra[:sample_size]))
-    else:
-        click.echo("Example extra IDs: none")
-
     click.echo(
-        "Updated in OpenSearch (last_harvested_date differs): "
-        f"{len(updated_details)}"
+        "Example missing IDs: "
+        + (", ".join(missing[:sample_size]) if missing else "none")
+    )
+    click.echo(f"Extra in OpenSearch (should be deleted): {len(extra)}")
+    click.echo(
+        "Example extra IDs: " + (", ".join(extra[:sample_size]) if extra else "none")
+    )
+    click.echo(
+        f"Updated in OpenSearch (last_harvested_date differs): {len(updated_details)}"
     )
     if updated_details:
         sample_entries = [
@@ -486,41 +213,36 @@ def compare_opensearch(sample_size: int, update: bool, force_update: bool):
 
     if force_update:
         update = True
-
     if not update:
         return
 
-    click.echo("\nUpdating discrepancies…")
-
+    click.echo("\nUpdating discrepancies...")
     force_reindex_ids = sorted(db_ids) if force_update else []
     if force_reindex_ids:
-        index_dataset_batches(
+        os_writer.index_dataset_batches(
             force_reindex_ids,
-            (
-                "Force re-indexing "
-                f"{len(force_reindex_ids)} datasets regardless of last_harvested_date…"
-            ),
+            f"Force re-indexing {len(force_reindex_ids)} datasets...",
+            db_interface,
+            sample_size=sample_size,
             log_all_errors=True,
         )
     else:
         if missing:
-            index_dataset_batches(
+            os_writer.index_dataset_batches(
                 missing,
-                f"Indexing {len(missing)} missing datasets…",
+                f"Indexing {len(missing)} missing datasets...",
+                db_interface,
+                sample_size=sample_size,
                 log_all_errors=True,
             )
-
         if updated_ids:
-            index_dataset_batches(
+            os_writer.index_dataset_batches(
                 updated_ids,
-                f"Re-indexing {len(updated_ids)} updated datasets…",
+                f"Re-indexing {len(updated_ids)} updated datasets...",
+                db_interface,
+                sample_size=sample_size,
                 log_all_errors=True,
             )
-
-    # print the harvest sources with datasets that couldn't sync with opensearch
-    click.echo("Harvest sources not synced with opensearch...")
-    for harvest_source_id, harvest_source_name in reharvest.items():
-        click.echo(f"{harvest_source_id} {harvest_source_name}")
 
     if extra:
         click.echo(f"Deleting {len(extra)} extra documents from OpenSearch…")
@@ -536,7 +258,7 @@ def compare_opensearch(sample_size: int, update: bool, force_update: bool):
             )
             for doc_id in batch_ids:
                 try:
-                    client.client.delete(index=client.INDEX_NAME, id=doc_id)
+                    os_client.client.delete(index=os_client.INDEX_NAME, id=doc_id)
                     deleted += 1
                 except Exception as exc:  # pragma: no cover - best-effort cleanup
                     click.echo(f"    Failed to delete document {doc_id}: {exc}")
@@ -545,7 +267,7 @@ def compare_opensearch(sample_size: int, update: bool, force_update: bool):
 
     if missing or extra or updated_ids or force_reindex_ids:
         click.echo("Refreshing OpenSearch index…")
-        client._refresh()
+        os_writer._refresh()
         click.echo("Done.")
     else:
         click.echo("Nothing to update; datasets and index are already in sync.")
@@ -630,7 +352,7 @@ def sitemap_generate(chunk_size: int):
     """
     s3, bucket, prefix, index_key = _s3_client_and_config()
 
-    dbi = CatalogDBInterface()
+    dbi = CatalogDBInterface(db.session)
 
     total = dbi.db.query(Dataset).count()
     total_chunks = (total + chunk_size - 1) // chunk_size if total else 0
