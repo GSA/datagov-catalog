@@ -277,10 +277,10 @@ class TestDatasetDetail:
 
         # Leaflet assets (conditionally included)
         leaflet_css = soup.find(
-            "link", href=versioned_asset_url("css/vendor/leaflet.css")
+            "link", href=versioned_asset_url("assets/leaflet/leaflet.css")
         )
         leaflet_js = soup.find(
-            "script", src=versioned_asset_url("js/vendor/leaflet.js")
+            "script", src=versioned_asset_url("assets/leaflet/leaflet.js")
         )
         view_js = soup.find("script", src=versioned_asset_url("js/view_bbox_map.js"))
         assert leaflet_css is not None
@@ -313,10 +313,10 @@ class TestDatasetDetail:
         assert json.loads(geometry_attr) == ds.translated_spatial
 
         leaflet_css = soup.find(
-            "link", href=versioned_asset_url("css/vendor/leaflet.css")
+            "link", href=versioned_asset_url("assets/leaflet/leaflet.css")
         )
         leaflet_js = soup.find(
-            "script", src=versioned_asset_url("js/vendor/leaflet.js")
+            "script", src=versioned_asset_url("assets/leaflet/leaflet.js")
         )
         view_js = soup.find("script", src=versioned_asset_url("js/view_bbox_map.js"))
         assert leaflet_css is not None
@@ -342,11 +342,12 @@ class TestDatasetDetail:
 
         # No Leaflet assets
         assert (
-            soup.find("link", href=versioned_asset_url("css/vendor/leaflet.css"))
+            soup.find("link", href=versioned_asset_url("assets/leaflet/leaflet.css"))
             is None
         )
         assert (
-            soup.find("script", src=versioned_asset_url("js/vendor/leaflet.js")) is None
+            soup.find("script", src=versioned_asset_url("assets/leaflet/leaflet.js"))
+            is None
         )
         assert (
             soup.find("script", src=versioned_asset_url("js/view_bbox_map.js")) is None
