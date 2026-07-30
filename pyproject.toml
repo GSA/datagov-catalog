@@ -39,7 +39,7 @@ packages = [
 
 [tool.poetry.group.dev.dependencies]
 black = "^26.5.1"
-ruff = "^0.15.21"
+ruff = "0.15.21"
 isort = "^8.0.1"
 beautifulsoup4 = "^4.15.0"
 moto = {version = ">=5.2.2,<6.0.0", extras = ["s3"]}
