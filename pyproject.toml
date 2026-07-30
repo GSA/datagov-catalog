@@ -28,7 +28,7 @@ dependencies = [
     "requests (>=2.33.0,<3.0.0)",
     "urllib3 (>=2.7.0,<3.0.0)",
     "soupsieve (>=2.8.4,<3.0.0)",
-    "datagov-data-access @ git+https://github.com/GSA/datagov_data_access.git@1.1.0",
+    "datagov-data-access @ git+https://github.com/GSA/datagov_data_access.git@1.2.0",
 
 ]
 
