@@ -511,7 +511,7 @@ ssh = ["bcrypt (>=3.1.5)"]
 
 [[package]]
 name = "datagov-data-access"
-version = "1.1.0"
+version = "1.2.1"
 description = ""
 optional = false
 python-versions = "<4,>=3.10"
@@ -530,8 +530,8 @@ sqlalchemy = ">=2.0.51,<3.0.0"
 [package.source]
 type = "git"
 url = "https://github.com/GSA/datagov_data_access.git"
-reference = "1.1.0"
-resolved_reference = "36d144076d61051c921007ff91eb1ff5f8b749e3"
+reference = "1.2.1"
+resolved_reference = "41bdc79d2ccbeaff9a29229544a56ba8093aa45d"
 
 [[package]]
 name = "dnspython"
@@ -2233,4 +2233,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = "<4.0,>=3.12"
-content-hash = "4dda3a16d57bd9ef551033e5edb7eaa4c5e343aa1e4c1381175373eb3781d3e6"
+content-hash = "d7ccf56d0c0e6439835d1e59cfd7077ac032f867f33dbb8b1d79135879bf9e4a"
