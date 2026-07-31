@@ -480,7 +480,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                 harvest_source_id="1",
                 harvest_job_id="1",
                 identifier="https://subdomain.domain/parent/example.shp.iso.xml",
-                source_raw='{"title": "Parent Harvest Record": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_raw='{"title": "Parent Harvest Record", "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
                 source_transform={
                     "title": "Parent Harvest Record",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
