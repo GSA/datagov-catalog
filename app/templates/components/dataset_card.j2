@@ -32,7 +32,7 @@
           <div class="display-flex flex-align-center flex-wrap margin-bottom-05 organization-datasets__heading">
               {% if is_parent %}
                 <div class="margin-bottom-1 usa-tag bg-base collection-tag">
-                  <i class="collection-icon"></i>
+                  <i class="collection-icon" aria-hidden="true"></i>
                   <span>Collection</span>
                 </div>
               {% endif %}
@@ -51,7 +51,8 @@
                       {{ dataset_title }}
                   </a>
                   {% if view_count is not none and view_count >= 100 %}
-                    <i class="fa-solid fa-arrow-trend-up"></i>
+                    <i class="fa-solid fa-arrow-trend-up" aria-hidden="true" title="Trending"></i>
+                    <span class="usa-sr-only">Trending</span>
                   {% endif %}
               </h3>
           </div>

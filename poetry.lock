@@ -61,6 +61,24 @@ tests = ["apispec[marshmallow,yaml]", "openapi-spec-validator (==0.7.2)", "pytes
 yaml = ["PyYAML (>=3.10)"]
 
 [[package]]
+name = "axe-playwright-python"
+version = "0.1.8"
+description = "Automated web accessibility testing using axe-core engine and Playwright."
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "axe_playwright_python-0.1.8-py3-none-any.whl", hash = "sha256:fdd263c998388f1a8e67cad02677e612d946248bd44d163be5e8650ea31f95f8"},
+    {file = "axe_playwright_python-0.1.8.tar.gz", hash = "sha256:97de160210fd5ce51e552d21d3b0a1cabb850235942737643ee3b9398de81a47"},
+]
+
+[package.dependencies]
+playwright = ">=1.36.0"
+
+[package.extras]
+dev = ["black (==23.7.0)", "flit", "mkdocs (==1.4.3)", "mkdocs-material (==9.1.19)", "mkdocstrings (==0.22.0)", "pre-commit (==3.3.3)", "pytest (==7.4.0)", "pytest-asyncio (==0.21.1)", "pytest-cov (==4.1.0)", "pytest-playwright (==0.3.3)", "ruff (==0.0.280)"]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.15.0"
 description = "Screen-scraping library"
@@ -2233,4 +2251,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = "<4.0,>=3.12"
-content-hash = "4dda3a16d57bd9ef551033e5edb7eaa4c5e343aa1e4c1381175373eb3781d3e6"
+content-hash = "615dd03177a9f5fdd893ebb88256c8852275f43bb3ff61a458c83d236787fb2f"
