@@ -1,0 +1,35 @@
+# Keep the build context small and keep host-only state out of the image.
+#
+# Deliberately NOT ignored, because the image needs them:
+#   tests/    -- app/commands.py imports tests.fixtures for `flask testdata`,
+#                and the DEV image runs tests/unit for the harvester contract test
+#   proxy/    -- tests/unit/test_security_headers.py reads proxy/nginx*.conf
+#   app/static/js/ -- served directly; two tests request those files
+
+.git
+.gitignore
+
+# ~270MB of npm trees; static assets are built in CI before the image is used
+node_modules
+app/static/node_modules
+
+# Host virtualenvs -- the image installs into the system interpreter
+.venv
+.poetry
+
+# Caches and local test output
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+test-results
+playwright-report
+e2e-report
+
+# Local secrets/config: conftest.py calls load_dotenv(), so a stray .env
+# baked into the image could silently override compose-provided env.
+.env
+
+.DS_Store

@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 from dotenv import load_dotenv
 from opensearchpy.exceptions import NotFoundError
+from sqlalchemy import text
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
@@ -57,10 +58,27 @@ def app():
 @pytest.fixture(autouse=True)
 def dbapp(app):
     with app.app_context():
-        # clear the database completely
-        db.drop_all()
-        # Make the tables from the models schema
-        db.create_all()
+        if os.getenv("CATALOG_TEST_EXTERNAL_SCHEMA"):
+            # The schema was created by datagov-harvester's migrations, which is
+            # the whole point of the contract test -- recreating it from our own
+            # models would test nothing. Clear the rows and leave the DDL (and
+            # alembic_version, which is not in db.metadata) alone.
+            #
+            # Drop the scoped session first: app.routes holds a module-level
+            # CatalogDBInterface(db.session), and an idle-in-transaction backend
+            # would block TRUNCATE's ACCESS EXCLUSIVE lock.
+            db.session.remove()
+            tables = ", ".join(f'"{t.name}"' for t in db.metadata.sorted_tables)
+            with db.engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+            ) as conn:
+                # One statement so all locks are taken atomically.
+                conn.execute(text(f"TRUNCATE TABLE {tables} CASCADE"))
+        else:
+            # clear the database completely
+            db.drop_all()
+            # Make the tables from the models schema
+            db.create_all()
         yield app
 
 
