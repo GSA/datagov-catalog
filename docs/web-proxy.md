@@ -22,7 +22,7 @@ As noted in the comment, serving the tiles images this way means they will be ca
 
 ## Current setup:
 
-nginx
+The current setup works because the ingress proxy (nginx) is hosted within a space with "public-egress" ASG.
 
 ```mermaid
 C4Context
@@ -46,7 +46,11 @@ C4Context
 ```
 ## Desired setup:
 We want the space with the catalog server (and its nginx proxy) in a restricted egress space. To do that, we need to send those openmaptiles.org requests through an egress proxy.
-We could accomplish this in one of a few ways.
+
+We could accomplish this in one of a few ways. In each of these, we would:
+ - Change the ASG of the space `datagov.catalog` is in to "trusted-local-egress"
+ - Add an egress proxy app. That app would be configured in exactly the same way as every other egress proxy the Data.gov system uses; we just need to make sure to add `tiles.openstreetmap.gov` to the allow list.
+ - Launch the egress app in the existing `env-egress` space, which has the `public-egress` ASG.
 
 ### Approach 1: Ingress proxy app -> Egress proxy
 
@@ -99,6 +103,7 @@ In this scenario, `datagov-catalog-proxy` would pass openstreetmap requests to `
 Pros:
  - No new app created
  - Uses existing flask application (`datagov-catalog`)
+
 Cons:
  - Increases load on `datagov-catalog` (is this a concern?)
 
