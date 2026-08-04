@@ -6,9 +6,6 @@ from typing import Iterable, Optional
 from urllib.parse import urlparse
 
 import click
-from datagov_data_access.search.client import OpenSearchClient
-from datagov_data_access.search.reader import OpenSearchReader
-from datagov_data_access.search.writer import OpenSearchWriter
 from flask import Blueprint
 
 from .database import CatalogDBInterface
@@ -141,7 +138,23 @@ def load_test_data(clear):
     help="Re-index all datasets from DB regardless of last_harvested_date.",
 )
 def compare_opensearch(sample_size: int, update: bool, force_update: bool):
-    """Report and optionally repair DB/OpenSearch dataset discrepancies."""
+    """Report and optionally repair DB/OpenSearch dataset discrepancies.
+
+    Dev/local-only: this is catalog's only OpenSearch write path, used to
+    seed a local index via `make load-test-data`. It depends on
+    datagov-data-access, which is a dev-only dependency (catalog itself is
+    read-only in production).
+    """
+    try:
+        from datagov_data_access.search.client import OpenSearchClient
+        from datagov_data_access.search.reader import OpenSearchReader
+        from datagov_data_access.search.writer import OpenSearchWriter
+    except ImportError as exc:
+        raise click.ClickException(
+            "`flask search compare` needs datagov-data-access, which is a "
+            "dev-only dependency. Install it with `poetry install --with dev`."
+        ) from exc
+
     os_client = OpenSearchClient.from_environment()
     os_writer = OpenSearchWriter(os_client)
     os_reader = OpenSearchReader(os_client)
