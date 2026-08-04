@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
+from datagov_data_access.search.reader import SearchResult
 
 from app.utils import hint_from_dict
 from tests.fixtures import DATASET_ID, DEFAULT_LAST_HARVESTED_DATE
@@ -560,7 +561,9 @@ class TestDatasetDetail:
 
         with patch("app.routes.interface", interface_with_dataset):
             with patch("app.routes.interface.search_datasets") as mock_search:
-                mock_search.return_value = {"total": 2, "datasets": []}
+                mock_search.return_value = SearchResult(
+                    total=2, results=[], search_after=None
+                )
                 response = db_client.get("/dataset/test")
 
         assert response.status_code == 200
@@ -588,7 +591,9 @@ class TestDatasetDetail:
 
         with patch("app.routes.interface", interface_with_dataset):
             with patch("app.routes.interface.search_datasets") as mock_search:
-                mock_search.return_value = {"total": 3, "datasets": []}
+                mock_search.return_value = SearchResult(
+                    total=3, results=[], search_after=None
+                )
                 response = db_client.get("/dataset/test")
 
         assert response.status_code == 200
