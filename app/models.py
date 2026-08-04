@@ -14,15 +14,6 @@ from datagov_data_access.db.models import (
     Organization,
     ResourceViewCount,
 )
-from datagov_data_access.shared.constants import (
-    FREQUENCY_VALUES,
-    JOB_STATUS_VALUES,
-    NOTIFICATION_FREQUENCY_VALUES,
-    ORGANIZATION_TYPE_VALUES,
-    SCHEMA_TYPE_VALUES,
-    SEVERITY_VALUES,
-    SOURCE_TYPE_VALUES,
-)
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy(model_class=Base)
