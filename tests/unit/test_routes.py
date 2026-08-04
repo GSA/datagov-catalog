@@ -6,11 +6,11 @@ from uuid import uuid4
 
 import pytest
 from bs4 import BeautifulSoup
-from datagov_data_access.search.queries.criteria import SearchCriteria
-from datagov_data_access.search.reader import SearchResult
 
 from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
 from app.models import Dataset, Organization
+from app.search.queries.criteria import SearchCriteria
+from app.search.reader import SearchResult
 from tests.fixtures import HARVEST_RECORD_ID
 from tests.helpers import add_dataset_with_harvest_record
 

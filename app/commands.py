@@ -6,15 +6,11 @@ from typing import Iterable, Optional
 from urllib.parse import urlparse
 
 import click
-from datagov_data_access.search.client import OpenSearchClient
-from datagov_data_access.search.reader import OpenSearchReader
-from datagov_data_access.search.writer import OpenSearchWriter
 from flask import Blueprint
 
 from .database import CatalogDBInterface
 from .models import (
     Dataset,
-    HarvestJob,
     HarvestRecord,
     HarvestSource,
     Locations,
@@ -79,6 +75,10 @@ def load_test_data(clear):
 
     Use --clear flag to drop all tables and recreate them before loading data.
     """
+    # Import before db.create_all() below so its table is registered on
+    # app.models.Base's metadata in time to be created. See
+    # tests/fixture_models.py for why this write-only model exists.
+    from tests.fixture_models import HarvestJobFixtureModel
     from tests.fixtures import fixture_data
 
     fixture = fixture_data(include_filter_demos=True)
@@ -107,7 +107,9 @@ def load_test_data(clear):
         interface.db.add(HarvestSource(**fixture["harvest_source"]))
         for extra_source in fixture.get("extra_harvest_source", []):
             interface.db.add(HarvestSource(**extra_source))
-        interface.db.add(HarvestJob(**fixture["harvest_job"]))
+        interface.db.add(
+            HarvestJobFixtureModel(id="1", harvest_source_id="1", status="complete")
+        )
         for record in fixture["harvest_record"]:
             interface.db.add(HarvestRecord(**record))
         for data in fixture["dataset"]:
@@ -143,7 +145,16 @@ def load_test_data(clear):
     help="Re-index all datasets from DB regardless of last_harvested_date.",
 )
 def compare_opensearch(sample_size: int, update: bool, force_update: bool):
-    """Report and optionally repair DB/OpenSearch dataset discrepancies."""
+    """Report and optionally repair DB/OpenSearch dataset discrepancies.
+
+    This is catalog's only OpenSearch write path, used to seed a local index
+    via `make load-test-data`. Catalog itself is read-only in production;
+    this command exists purely for dev/CI use.
+    """
+    from app.search.client import OpenSearchClient
+    from app.search.reader import OpenSearchReader
+    from app.search.writer import OpenSearchWriter
+
     os_client = OpenSearchClient.from_environment()
     os_writer = OpenSearchWriter(os_client)
     os_reader = OpenSearchReader(os_client)

@@ -6,15 +6,6 @@ from math import ceil
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
-from datagov_data_access.search.queries import (
-    API_CONTEXT,
-    MAIN_CONTEXT,
-    ORGANIZATION_CONTEXT,
-    FilterParseError,
-    SearchCriteria,
-    build_filter_sections,
-    visible_filter_query_params,
-)
 from flask import (
     Blueprint,
     Response,
@@ -27,6 +18,15 @@ from flask import (
 )
 
 from app.models import db
+from app.search import (
+    API_CONTEXT,
+    MAIN_CONTEXT,
+    ORGANIZATION_CONTEXT,
+    FilterParseError,
+    SearchCriteria,
+    build_filter_sections,
+    visible_filter_query_params,
+)
 
 from . import htmx
 from .api_schemas import (
