@@ -1,7 +1,7 @@
 """Database helpers for the catalog application."""
 
-# CatalogDBInterface sets up its own opensearch reader instance
-from datagov_data_access.db.interfaces.catalog import (
+# CatalogDBInterface lazily sets up its own opensearch reader instance
+from .interface import (
     DEFAULT_PAGE,
     DEFAULT_PER_PAGE,
     SEARCH_API_MAX_PER_PAGE,
