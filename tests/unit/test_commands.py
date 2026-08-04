@@ -39,16 +39,16 @@ class TestCompareCommand:
         writer_mock.delete = Mock()
 
         monkeypatch.setattr(
-            "app.commands.OpenSearchClient.from_environment",
+            "app.search.client.OpenSearchClient.from_environment",
             lambda: os_client,
         )
         monkeypatch.setattr(
-            "app.commands.OpenSearchWriter",
+            "app.search.writer.OpenSearchWriter",
             lambda *args, **kwargs: writer_mock,
         )
 
         monkeypatch.setattr(
-            "app.commands.OpenSearchReader.scan_index",
+            "app.search.reader.OpenSearchReader.scan_index",
             lambda *args, **kwargs: iter(hits),
         )
         return os_client, writer_mock

@@ -239,7 +239,9 @@ _DEMO_LOCATIONS = [
 
 def _add_filter_demo_data(fixture_dict):
     """Append demo orgs, harvest sources, datasets, and locations in place."""
-    job_id = fixture_dict["harvest_job"]["id"]
+    # harvest_job_id has no FK constraint (catalog never writes harvest_job
+    # rows); this is just a stand-in value shared by the demo harvest records.
+    job_id = "1"
     fixture_dict.setdefault("extra_harvest_source", [])
 
     for org_id, name, slug, org_type in _DEMO_ORGS:
@@ -319,7 +321,7 @@ def _ensure_unique_dataset_harvest_records(fixture_dict):
     """Keep fixture datasets compatible with Dataset.harvest_record_id uniqueness."""
     seen_dataset_record_ids = set()
     existing_record_ids = {record["id"] for record in fixture_dict["harvest_record"]}
-    harvest_job_id = fixture_dict["harvest_job"]["id"]
+    harvest_job_id = "1"
 
     for dataset in fixture_dict["dataset"]:
         record_id = dataset["harvest_record_id"]
@@ -382,7 +384,6 @@ def fixture_data(*, include_filter_demos: bool = False):
             source_type="document",
             notification_frequency="always",
         ),
-        "harvest_job": dict(id="1", harvest_source_id="1", status="complete"),
         "harvest_record": [
             dict(
                 id=HARVEST_RECORD_ID,
@@ -480,7 +481,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                 harvest_source_id="1",
                 harvest_job_id="1",
                 identifier="https://subdomain.domain/parent/example.shp.iso.xml",
-                source_raw='{"title": "Parent Harvest Record": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_raw='{"title": "Parent Harvest Record", "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
                 source_transform={
                     "title": "Parent Harvest Record",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
@@ -974,7 +975,7 @@ def fixture_data(*, include_filter_demos: bool = False):
     fields = datasets[0]
     org_id = fixture_dict["organization"][0]["id"]
     harvest_source_id = fixture_dict["harvest_source"]["id"]
-    harvest_job_id = fixture_dict["harvest_job"]["id"]
+    harvest_job_id = "1"
 
     for row in datasets[1:]:
         slug = row[0]
