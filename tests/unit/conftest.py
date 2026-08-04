@@ -7,6 +7,7 @@ import pytest
 from dotenv import load_dotenv
 from opensearchpy.exceptions import NotFoundError
 from sqlalchemy import text
+from sqlalchemy.engine.interfaces import BindTyping
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
@@ -52,6 +53,20 @@ def app():
     Used by default and one for the whole test session"""
     app = create_app()
     app.debug = True
+
+    if os.getenv("CATALOG_TEST_EXTERNAL_SCHEMA"):
+        # app/models.py types the enum-backed columns as String so a value
+        # harvester adds can't raise LookupError on read. The psycopg dialect
+        # then renders a `::VARCHAR` bind cast, which Postgres rejects when
+        # *writing* to a real enum column ("column is of type X but expression
+        # is of type character varying").
+        #
+        # Catalog never writes in production, so this only affects fixture
+        # inserts against harvester's real migrated schema. Drop bind casts for
+        # this run rather than changing the models, which production depends on.
+        with app.app_context():
+            db.engine.dialect.bind_typing = BindTyping.NONE
+
     yield app
 
 
