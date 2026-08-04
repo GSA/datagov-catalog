@@ -67,17 +67,10 @@ jobs:
       - name: Run Pytest
         run: make test-ci
 
-      - name: Verify production boots without dev-only deps
+      - name: Verify production boots without dev deps
         run: |
-          poetry install --without dev,container-dev --sync
-          poetry run python -c "
-          import app.routes, app.commands, app.models
-          try:
-              import datagov_data_access.search  # noqa: F401
-              raise SystemExit('datagov_data_access is usable without the container-dev group')
-          except ImportError:
-              pass  # expected: only an empty namespace stub remains, not the real package
-          "
+          poetry install --without dev --sync
+          poetry run python -c "import app.routes, app.commands, app.models"
           poetry install
 
       - name: Check for OpenSearch mappings drift vs harvester

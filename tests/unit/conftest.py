@@ -4,7 +4,6 @@ from datetime import date, datetime
 from unittest.mock import Mock
 
 import pytest
-from datagov_data_access.search.writer import OpenSearchWriter
 from dotenv import load_dotenv
 from opensearchpy.exceptions import NotFoundError
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -20,8 +19,11 @@ from app.models import (
     db,
 )
 from app.search.config import INDEX_NAME
+from app.search.writer import OpenSearchWriter
 
+from ..fixture_models import HarvestJobFixtureModel
 from ..fixtures import fixture_data as build_fixture_data
+from ..harvester_snapshot import load_opensearch_snapshot, load_postgres_snapshot
 
 
 @pytest.fixture
@@ -119,6 +121,20 @@ def opensearch_writer(interface):
 
 
 @pytest.fixture
+def interface_with_harvester_snapshot(interface) -> Generator[CatalogDBInterface]:
+    """Load the real harvester snapshot (see tests/data/harvester_snapshot/).
+
+    Opt-in, not part of the default fixture chain: most tests build their own
+    precise, hand-authored rows (interface_with_dataset et al). This exists for
+    tests that specifically want to exercise catalog's reads against real
+    harvester-shaped rows and OpenSearch documents, not synthetic ones.
+    """
+    load_postgres_snapshot(interface.db.connection().connection.driver_connection)
+    load_opensearch_snapshot(interface.opensearch.client)
+    yield interface
+
+
+@pytest.fixture
 def interface_with_location(interface, fixture_data):
     for location_data in fixture_data["locations"]:
         interface.db.add(Locations(**location_data))
@@ -144,14 +160,28 @@ def interface_with_harvest_source(interface_with_organization, fixture_data):
 
 
 @pytest.fixture
-def interface_with_harvest_record(interface_with_harvest_source, fixture_data):
+def interface_with_harvest_job(interface_with_harvest_source, fixture_data):
+    # app.models has no HarvestJob (catalog never reads it), but harvester's
+    # real schema still enforces harvest_record.harvest_job_id as a non-null
+    # FK to harvest_job.id. Every harvest_job_id fixtures.py/helpers.py use is
+    # the literal "1", tied to harvest_source "1" -- see
+    # tests/fixture_models.py for why this row has to exist at all.
+    interface_with_harvest_source.db.add(
+        HarvestJobFixtureModel(id="1", harvest_source_id="1", status="complete")
+    )
+    interface_with_harvest_source.db.commit()
+    yield interface_with_harvest_source
+
+
+@pytest.fixture
+def interface_with_harvest_record(interface_with_harvest_job, fixture_data):
     harvest_records = fixture_data["harvest_record"]
     if isinstance(harvest_records, dict):
         harvest_records = [harvest_records]
     for harvest_record in harvest_records:
-        interface_with_harvest_source.db.add(HarvestRecord(**harvest_record))
-    interface_with_harvest_source.db.commit()
-    yield interface_with_harvest_source
+        interface_with_harvest_job.db.add(HarvestRecord(**harvest_record))
+    interface_with_harvest_job.db.commit()
+    yield interface_with_harvest_job
 
 
 @pytest.fixture

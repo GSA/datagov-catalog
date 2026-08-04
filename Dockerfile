@@ -15,14 +15,6 @@ RUN rm -rf /app/.venv
 
 RUN poetry install --without=dev --no-root
 
-# datagov-data-access is a dev-only dependency of the app itself (catalog is
-# read-only in production) but the local/CI container still needs it to run
-# `flask search compare` and `flask testdata load_test_data` against a local
-# OpenSearch, via `make load-test-data`. It's kept in its own group,
-# separate from `dev`, because `dev` also carries playwright, which has no
-# musl/Alpine wheels and can't install in this image.
-RUN poetry install --without=dev --with=container-dev --no-root
-
 ARG DEV
 
 RUN if [ $DEV ]; \

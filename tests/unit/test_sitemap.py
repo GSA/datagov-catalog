@@ -40,6 +40,7 @@ def test_sitemap_generate_uploads_files(
         Organization,
         db,
     )
+    from tests.fixture_models import HarvestJobFixtureModel
 
     with app.app_context():
         db.session.add(
@@ -59,6 +60,11 @@ def test_sitemap_generate_uploads_files(
                 schema_type="dcatus1.1: non-federal",
                 source_type="document",
                 notification_frequency="always",
+            )
+        )
+        db.session.add(
+            HarvestJobFixtureModel(
+                id="job-cli", harvest_source_id="hs1", status="complete"
             )
         )
         db.session.add(

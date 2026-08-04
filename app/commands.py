@@ -75,6 +75,10 @@ def load_test_data(clear):
 
     Use --clear flag to drop all tables and recreate them before loading data.
     """
+    # Import before db.create_all() below so its table is registered on
+    # app.models.Base's metadata in time to be created. See
+    # tests/fixture_models.py for why this write-only model exists.
+    from tests.fixture_models import HarvestJobFixtureModel
     from tests.fixtures import fixture_data
 
     fixture = fixture_data(include_filter_demos=True)
@@ -103,6 +107,9 @@ def load_test_data(clear):
         interface.db.add(HarvestSource(**fixture["harvest_source"]))
         for extra_source in fixture.get("extra_harvest_source", []):
             interface.db.add(HarvestSource(**extra_source))
+        interface.db.add(
+            HarvestJobFixtureModel(id="1", harvest_source_id="1", status="complete")
+        )
         for record in fixture["harvest_record"]:
             interface.db.add(HarvestRecord(**record))
         for data in fixture["dataset"]:
@@ -140,20 +147,13 @@ def load_test_data(clear):
 def compare_opensearch(sample_size: int, update: bool, force_update: bool):
     """Report and optionally repair DB/OpenSearch dataset discrepancies.
 
-    Dev/local-only: this is catalog's only OpenSearch write path, used to
-    seed a local index via `make load-test-data`. It depends on
-    datagov-data-access, which is a dev-only dependency (catalog itself is
-    read-only in production).
+    This is catalog's only OpenSearch write path, used to seed a local index
+    via `make load-test-data`. Catalog itself is read-only in production;
+    this command exists purely for dev/CI use.
     """
-    try:
-        from datagov_data_access.search.client import OpenSearchClient
-        from datagov_data_access.search.reader import OpenSearchReader
-        from datagov_data_access.search.writer import OpenSearchWriter
-    except ImportError as exc:
-        raise click.ClickException(
-            "`flask search compare` needs datagov-data-access, which is a "
-            "dev-only dependency. Install it with `poetry install --with dev`."
-        ) from exc
+    from app.search.client import OpenSearchClient
+    from app.search.reader import OpenSearchReader
+    from app.search.writer import OpenSearchWriter
 
     os_client = OpenSearchClient.from_environment()
     os_writer = OpenSearchWriter(os_client)

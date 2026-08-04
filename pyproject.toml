@@ -47,15 +47,6 @@ pytest = ">=9.1.1,<10.0.0"
 pytest-playwright = "^0.8.0"
 playwright = "^1.61.0"
 
-# Not used at runtime by the app itself -- only by `flask search compare`
-# (catalog's OpenSearch write path, used to seed local/CI OpenSearch from
-# fixture data) and by tests/unit/conftest.py's OpenSearchWriter. Kept in
-# its own group, separate from `dev`, because `dev` also carries playwright,
-# which has no musl/Alpine wheels and can't install inside the app
-# container's image (see Dockerfile).
-[tool.poetry.group.container-dev.dependencies]
-datagov-data-access = {git = "https://github.com/GSA/datagov_data_access.git", tag = "1.1.0"}
-
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
