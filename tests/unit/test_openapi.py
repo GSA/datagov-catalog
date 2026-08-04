@@ -1,7 +1,8 @@
 """Test OpenAPI paths."""
 
 from bs4 import BeautifulSoup
-from datagov_data_access.search.queries import API_CONTEXT, FILTERS
+
+from app.search.queries import API_CONTEXT, FILTERS
 
 
 class TestOpenAPI:
