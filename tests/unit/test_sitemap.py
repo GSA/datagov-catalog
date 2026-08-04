@@ -35,7 +35,6 @@ def test_sitemap_generate_uploads_files(
     # Ensure at least one dataset is visible to the CLI's default DB session
     from app.models import (
         Dataset,
-        HarvestJob,
         HarvestRecord,
         HarvestSource,
         Organization,
@@ -60,13 +59,6 @@ def test_sitemap_generate_uploads_files(
                 schema_type="dcatus1.1: non-federal",
                 source_type="document",
                 notification_frequency="always",
-            )
-        )
-        db.session.add(
-            HarvestJob(
-                id="job-cli",
-                harvest_source_id="hs1",
-                status="complete",
             )
         )
         db.session.add(

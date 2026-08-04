@@ -14,7 +14,6 @@ from flask import Blueprint
 from .database import CatalogDBInterface
 from .models import (
     Dataset,
-    HarvestJob,
     HarvestRecord,
     HarvestSource,
     Locations,
@@ -107,7 +106,6 @@ def load_test_data(clear):
         interface.db.add(HarvestSource(**fixture["harvest_source"]))
         for extra_source in fixture.get("extra_harvest_source", []):
             interface.db.add(HarvestSource(**extra_source))
-        interface.db.add(HarvestJob(**fixture["harvest_job"]))
         for record in fixture["harvest_record"]:
             interface.db.add(HarvestRecord(**record))
         for data in fixture["dataset"]:

@@ -62,25 +62,6 @@ Organization.source_count = column_property(
 )
 
 
-class HarvestJob(Base):
-    __tablename__ = "harvest_job"
-
-    harvest_source_id = Column(String(36), index=True)
-    status = Column(String, index=True)
-    job_type = Column(String(20), default="harvest")
-    date_created = Column(DateTime, index=True, default=func.statement_timestamp())
-    date_finished = Column(DateTime)
-    records_total = Column(Integer, default=0)
-    records_added = Column(Integer, default=0)
-    records_updated = Column(Integer, default=0)
-    records_deleted = Column(Integer, default=0)
-    records_errored = Column(Integer, default=0)
-    records_warned = Column(Integer, default=0)
-    records_ignored = Column(Integer, default=0)
-    records_validated = Column(Integer, default=0)
-    dcatus_catalog = Column(JSONB)
-
-
 class HarvestRecord(Base):
     __tablename__ = "harvest_record"
 

@@ -13,7 +13,6 @@ from app import create_app
 from app.database import CatalogDBInterface
 from app.models import (
     Dataset,
-    HarvestJob,
     HarvestRecord,
     HarvestSource,
     Locations,
@@ -145,21 +144,14 @@ def interface_with_harvest_source(interface_with_organization, fixture_data):
 
 
 @pytest.fixture
-def interface_with_harvest_job(interface_with_harvest_source, fixture_data):
-    interface_with_harvest_source.db.add(HarvestJob(**fixture_data["harvest_job"]))
-    interface_with_harvest_source.db.commit()
-    yield interface_with_harvest_source
-
-
-@pytest.fixture
-def interface_with_harvest_record(interface_with_harvest_job, fixture_data):
+def interface_with_harvest_record(interface_with_harvest_source, fixture_data):
     harvest_records = fixture_data["harvest_record"]
     if isinstance(harvest_records, dict):
         harvest_records = [harvest_records]
     for harvest_record in harvest_records:
-        interface_with_harvest_job.db.add(HarvestRecord(**harvest_record))
-    interface_with_harvest_job.db.commit()
-    yield interface_with_harvest_job
+        interface_with_harvest_source.db.add(HarvestRecord(**harvest_record))
+    interface_with_harvest_source.db.commit()
+    yield interface_with_harvest_source
 
 
 @pytest.fixture
