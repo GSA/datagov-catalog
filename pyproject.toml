@@ -44,6 +44,13 @@ isort = "^8.0.1"
 beautifulsoup4 = "^4.15.0"
 moto = {version = ">=5.2.2,<6.0.0", extras = ["s3"]}
 pytest = ">=9.1.1,<10.0.0"
+
+# Split out of `dev` so the Alpine-based app image can install the test
+# dependencies it needs: playwright publishes no musllinux wheel and no sdist,
+# so `poetry install --with=dev` cannot resolve on musl. See the Dockerfile's
+# `--without=browser`. This group is not optional, so a plain `poetry install`
+# still gives developers and CI the browser tooling.
+[tool.poetry.group.browser.dependencies]
 pytest-playwright = "^0.8.0"
 playwright = "^1.61.0"
 

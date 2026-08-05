@@ -6,6 +6,8 @@ from unittest.mock import Mock
 import pytest
 from dotenv import load_dotenv
 from opensearchpy.exceptions import NotFoundError
+from sqlalchemy import text
+from sqlalchemy.engine.interfaces import BindTyping
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
@@ -51,16 +53,62 @@ def app():
     Used by default and one for the whole test session"""
     app = create_app()
     app.debug = True
+
+    if os.getenv("CATALOG_TEST_EXTERNAL_SCHEMA"):
+        # app/models.py types the enum-backed columns as String so a value
+        # harvester adds can't raise LookupError on read. The psycopg dialect
+        # then renders a `::VARCHAR` bind cast, which Postgres rejects when
+        # *writing* to a real enum column ("column is of type X but expression
+        # is of type character varying").
+        #
+        # Catalog never writes in production, so this only affects fixture
+        # inserts against harvester's real migrated schema. Drop bind casts for
+        # this run rather than changing the models, which production depends on.
+        with app.app_context():
+            db.engine.dialect.bind_typing = BindTyping.NONE
+
     yield app
 
 
 @pytest.fixture(autouse=True)
 def dbapp(app):
     with app.app_context():
-        # clear the database completely
-        db.drop_all()
-        # Make the tables from the models schema
-        db.create_all()
+        if os.getenv("CATALOG_TEST_EXTERNAL_SCHEMA"):
+            # The schema was created by datagov-harvester's migrations, which is
+            # the whole point of the contract test -- recreating it from our own
+            # models would test nothing. Clear the rows and leave the DDL (and
+            # alembic_version, which is not in db.metadata) alone.
+            #
+            # Drop the scoped session first: app.routes holds a module-level
+            # CatalogDBInterface(db.session), and an idle-in-transaction backend
+            # would block TRUNCATE's ACCESS EXCLUSIVE lock.
+            db.session.remove()
+            tables = ", ".join(f'"{t.name}"' for t in db.metadata.sorted_tables)
+            with db.engine.connect().execution_options(
+                isolation_level="AUTOCOMMIT"
+            ) as conn:
+                # One statement so all locks are taken atomically.
+                conn.execute(text(f"TRUNCATE TABLE {tables} CASCADE"))
+        else:
+            # Catalog owns no migrations, so its own database never has an
+            # alembic_version table. If one is here, we're pointed at harvester's
+            # database and CATALOG_TEST_EXTERNAL_SCHEMA should have been set --
+            # stop rather than drop the migrated schema and rebuild it from
+            # app/models.py, which would silently defeat the contract test.
+            if db.session.execute(
+                text("SELECT to_regclass('public.alembic_version')")
+            ).scalar():
+                pytest.exit(
+                    "Refusing to run: this database has an alembic_version table, "
+                    "so it was provisioned by datagov-harvester's migrations. Set "
+                    "CATALOG_TEST_EXTERNAL_SCHEMA=1 to test against it, or point "
+                    "DATABASE_URI at catalog's own database.",
+                    returncode=1,
+                )
+            # clear the database completely
+            db.drop_all()
+            # Make the tables from the models schema
+            db.create_all()
         yield app
 
 
