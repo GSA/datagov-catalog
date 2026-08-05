@@ -15,7 +15,7 @@ HAS_DOWNLOAD_OPTIONS = (
     FilterOption(
         value="true",
         label="Only show datasets with a downloadable file",
-        input_id="filter-has-download",
+        input_id="filter-has-download-checkbox",
     ),
 )
 
