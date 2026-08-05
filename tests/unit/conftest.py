@@ -90,6 +90,21 @@ def dbapp(app):
                 # One statement so all locks are taken atomically.
                 conn.execute(text(f"TRUNCATE TABLE {tables} CASCADE"))
         else:
+            # Catalog owns no migrations, so its own database never has an
+            # alembic_version table. If one is here, we're pointed at harvester's
+            # database and CATALOG_TEST_EXTERNAL_SCHEMA should have been set --
+            # stop rather than drop the migrated schema and rebuild it from
+            # app/models.py, which would silently defeat the contract test.
+            if db.session.execute(
+                text("SELECT to_regclass('public.alembic_version')")
+            ).scalar():
+                pytest.exit(
+                    "Refusing to run: this database has an alembic_version table, "
+                    "so it was provisioned by datagov-harvester's migrations. Set "
+                    "CATALOG_TEST_EXTERNAL_SCHEMA=1 to test against it, or point "
+                    "DATABASE_URI at catalog's own database.",
+                    returncode=1,
+                )
             # clear the database completely
             db.drop_all()
             # Make the tables from the models schema

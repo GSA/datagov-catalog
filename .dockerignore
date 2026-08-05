@@ -17,13 +17,16 @@ app/static/node_modules
 .venv
 .poetry
 
-# Caches and local test output
-__pycache__
-*.py[cod]
-.pytest_cache
-.ruff_cache
-.coverage
-htmlcov
+# Caches and local test output.
+# Note these patterns match context-root-relative paths, so unlike .gitignore a
+# bare `__pycache__` would only match one at the context root. `**/` is required
+# to catch nested ones.
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.coverage
+**/htmlcov
 test-results
 playwright-report
 e2e-report
@@ -32,4 +35,4 @@ e2e-report
 # baked into the image could silently override compose-provided env.
 .env
 
-.DS_Store
+**/.DS_Store
