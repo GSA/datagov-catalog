@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
-from datagov_data_access.search.reader import SearchResult
 
+from app.search.reader import SearchResult
 from app.utils import hint_from_dict
 from tests.fixtures import DATASET_ID, DEFAULT_LAST_HARVESTED_DATE
 
