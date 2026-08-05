@@ -190,6 +190,8 @@
                 </div>
                 {% endif %}
 
+                {% set collection_total = collection_data.get('count') - 1 %}
+                {% if dataset.dcat.get('keyword') or collection_total > 0 %}
                 <h2 class="text-primary-darker margin-bottom-1">Find Related Datasets</h2>
                 <section class="usa-section bg-base-lightest radius-lg padding-3 margin-top-4">
 
@@ -244,7 +246,6 @@
                         </div>
                         {% endif %}
 
-                        {% set collection_total = collection_data.get('count') - 1 %}
                         {% if collection_total > 0 %}
                         <div class="tablet:grid-col-6 collection-tooltip">
                         <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
@@ -277,6 +278,7 @@
 
                     </div>
                 </section>
+                {% endif %}
 
                 <details class="margin-bottom-3 margin-top-3">
                     <summary>
