@@ -26,4 +26,4 @@ EXPOSE 8080
 ENV FLASK_APP=run.py
 
 # Run run.py when the container launches
-CMD ["/bin/sh", "-c", "flask db upgrade && flask run --host=0.0.0.0 --port=8080"]
+CMD ["/bin/sh", "-c", "flask run --host=0.0.0.0 --port=8080"]
