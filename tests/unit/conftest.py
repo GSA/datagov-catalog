@@ -21,11 +21,11 @@ from app.models import (
     db,
 )
 from app.search.config import INDEX_NAME
-from app.search.writer import OpenSearchWriter
 
 from ..fixture_models import HarvestJobFixtureModel
 from ..fixtures import fixture_data as build_fixture_data
 from ..harvester_snapshot import load_opensearch_snapshot, load_postgres_snapshot
+from ..writer_provider import resolve_writer_class
 
 
 @pytest.fixture
@@ -163,9 +163,20 @@ def interface(session) -> Generator[CatalogDBInterface]:
     interface.opensearch.client.close()
 
 
+@pytest.fixture(scope="session")
+def writer_class():
+    """The OpenSearchWriter implementation this run indexes through.
+
+    Catalog's own by default; harvester's when HARVESTER_SEARCH_PATH is set, which
+    is what makes datagov-harvester's contract test a real check rather than a
+    closed loop. See tests/writer_provider.py.
+    """
+    return resolve_writer_class()
+
+
 @pytest.fixture
-def opensearch_writer(interface):
-    return OpenSearchWriter(interface.opensearch)
+def opensearch_writer(interface, writer_class):
+    return writer_class(interface.opensearch)
 
 
 @pytest.fixture
