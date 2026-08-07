@@ -50,11 +50,6 @@ def test_sitemap_generate_uploads_files(
                 slug="cli-org",
             )
         )
-        # Parents before children, one flush per level: app/models.py declares no
-        # ForeignKey, so SQLAlchemy can't dependency-sort these INSERTs. Against
-        # catalog's own FK-less schema the order is irrelevant; harvester's real
-        # schema (which the contract test runs against) enforces every level.
-        db.session.flush()
         db.session.add(
             HarvestSource(
                 id="hs1",
@@ -72,7 +67,6 @@ def test_sitemap_generate_uploads_files(
                 id="job-cli", harvest_source_id="hs1", status="complete"
             )
         )
-        db.session.flush()
         db.session.add(
             HarvestRecord(
                 id="hr1",
@@ -81,7 +75,6 @@ def test_sitemap_generate_uploads_files(
                 identifier="cli-test",
             )
         )
-        db.session.flush()
         db.session.add(
             Dataset(
                 id="cli-ds",
