@@ -13,15 +13,12 @@ RUN pip install poetry
 RUN poetry config virtualenvs.create false
 RUN rm -rf /app/.venv 
 
-RUN poetry install --without=dev --without=browser --no-root
+RUN poetry install --without=dev --no-root
 
 ARG DEV
 
-# `browser` stays excluded: playwright has no musllinux wheel. The DEV image is
-# used to run tests/unit (which needs no browser) against another repo's
-# services -- see datagov-harvester's catalog contract test.
 RUN if [ $DEV ]; \
-    then poetry install --without=browser; \
+    then poetry install --with=dev; \
     fi
 
 EXPOSE 8080

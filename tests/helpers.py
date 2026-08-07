@@ -24,12 +24,6 @@ def add_dataset_with_harvest_record(interface, dataset_data):
             source_transform=dcat,
         )
     )
-    # Flush the parent before adding the child. app/models.py declares no
-    # ForeignKey, so SQLAlchemy can't dependency-sort these INSERTs; against
-    # catalog's own FK-less schema the order doesn't matter, but harvester's real
-    # schema enforces dataset.harvest_record_id -> harvest_record.id, and the
-    # contract test (GSA/data.gov#6210) runs these fixtures against that schema.
-    interface.db.flush()
 
     dataset = Dataset(**dataset_data)
     interface.db.add(dataset)
