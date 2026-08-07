@@ -31,7 +31,7 @@ def _section(criteria, context) -> dict:
     return {
         "field_name": "has_download",
         "values": ["true"] if value else [],
-        "subtitle": "Limit results to datasets with a direct data download",
+        "subtitle": "Datasets with direct data download",
         "section_id": "filter-has-download",
         "button_id": "has-download-label",
         "active_summary": HAS_DOWNLOAD_OPTIONS[0].label if value else None,
