@@ -27,7 +27,9 @@ PROXY_PASSWORD=$(openssl passwd -apr1 "$(vcap_get_service secrets .credentials.P
 echo "$PROXY_USER:$PROXY_PASSWORD" > ${HOME}/etc/nginx/.htpasswd
 
 # Egress proxy variables
-export EGRESS_HOST_AND_PORT=$(echo $proxy_url | cut -d @ -f 2)
+# export EGRESS_HOST_AND_PORT=$(echo $proxy_url | cut -d @ -f 2)
+export EGRESS_HOST=$(echo $proxy_url | cut -d @ -f 2 | cut -d : -f 1)
+export EGRESS_PORT=$(echo $proxy_url | cut -d : -f 4)
+export EGRESS_AUTH=$(echo $proxy_url | cut -d / -f 3 | cut -d @ -f 1)
 
-proxy_auth=$(echo $proxy_url | cut -d / -f 3 | cut -d @ -f 1)
-export EGRESS_BASIC_AUTH_BASE64=$(echo $proxy_auth | base64 -w 0)
+# export EGRESS_BASIC_AUTH_BASE64=$(echo $proxy_auth | base64 -w 0)
