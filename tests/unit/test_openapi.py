@@ -2,11 +2,10 @@
 
 from bs4 import BeautifulSoup
 
-from app.search import API_CONTEXT, FILTERS
+from app.search.queries import API_CONTEXT, FILTERS
 
 
 class TestOpenAPI:
-
     def test_openapi_json(self, db_client):
         """The OpenAPI spec can be downloaded."""
         resp = db_client.get("/openapi.json")

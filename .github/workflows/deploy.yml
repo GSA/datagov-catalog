@@ -17,11 +17,17 @@ jobs:
     name: Python Lint
     steps:
       - uses: actions/checkout@v7
-      - uses: chartboost/ruff-action@v1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VERSION }}
+      - run: pipx install poetry
+      - run: poetry install --only dev
+      - run: poetry run ruff check .
 
   deploy-staging:
     name: deploy to staging space
     environment: staging
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - name: Check out the code

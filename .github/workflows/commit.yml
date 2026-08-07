@@ -67,6 +67,23 @@ jobs:
       - name: Run Pytest
         run: make test-ci
 
+      - name: Verify production boots without dev deps
+        run: |
+          poetry install --without dev --sync
+          poetry run python -c "import app.routes, app.commands, app.models"
+          poetry install
+
+      - name: Check for OpenSearch mappings drift vs harvester
+        continue-on-error: true
+        run: |
+          if curl -sf -o /tmp/harvester-mappings.py \
+              https://raw.githubusercontent.com/GSA/datagov-harvester/main/search/mappings.py; then
+            diff <(tail -n +2 /tmp/harvester-mappings.py) <(tail -n +2 app/search/mappings.py) || \
+              echo "::warning::app/search/mappings.py has drifted from harvester's vendored copy. See GSA/data.gov#6210."
+          else
+            echo "harvester/search/mappings.py not found on main yet (GSA/data.gov#6209 not merged); skipping."
+          fi
+
   test-browser:
     environment: development
     runs-on: ubuntu-latest

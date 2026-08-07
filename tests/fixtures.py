@@ -64,6 +64,8 @@ _DEMO_ORGS = [
     ("univ-michigan", "University of Michigan", "university-of-michigan", "University"),
     ("tribe-navajo", "Navajo Nation", "navajo-nation", "Tribal"),
     ("nonprofit-redcross", "American Red Cross", "american-red-cross", "Non-Profit"),
+    ("city-denver", "City of Denver", "city-of-denver", "City Government"),
+    ("city-austin", "City of Austin", "city-of-austin", "City Government"),
 ]
 
 # Demo datasets. Each falls inside one of the demo locations so the "within"
@@ -150,6 +152,56 @@ _DEMO_DATASETS = [
         "nonprofit-redcross",
         (-118.50, 33.90, -118.10, 34.20),
     ),
+    # identical bboxes
+    (
+        "denver-building-permits",
+        "Denver Building Permit Applications",
+        ["permits", "construction"],
+        "Denver Community Planning and Development",
+        "city-denver",
+        (-105.05, 39.60, -104.75, 39.90),
+    ),
+    (
+        "denver-zoning-map",
+        "Denver Zoning Map Overlay",
+        ["zoning", "planning"],
+        "Denver Community Planning and Development",
+        "city-denver",
+        (-105.05, 39.60, -104.75, 39.90),
+    ),
+    # tightly clustered bboxes
+    (
+        "austin-traffic-counts",
+        "Austin Traffic Count Stations",
+        ["transportation", "traffic"],
+        "Austin Transportation Department",
+        "city-austin",
+        (-97.85, 30.20, -97.75, 30.30),
+    ),
+    (
+        "austin-bikeshare-stations",
+        "Austin Bikeshare Station Locations",
+        ["transportation", "cycling"],
+        "Austin Transportation Department",
+        "city-austin",
+        (-97.84, 30.21, -97.74, 30.31),
+    ),
+    (
+        "austin-pothole-reports",
+        "Austin Pothole Repair Requests",
+        ["infrastructure", "roads"],
+        "Austin Public Works Department",
+        "city-austin",
+        (-97.83, 30.19, -97.73, 30.29),
+    ),
+    (
+        "austin-streetlight-outages",
+        "Austin Streetlight Outage Reports",
+        ["infrastructure", "utilities"],
+        "Austin Public Works Department",
+        "city-austin",
+        (-97.86, 30.22, -97.76, 30.32),
+    ),
 ]
 
 # Demo locations whose geometry covers the demo datasets above.
@@ -187,7 +239,9 @@ _DEMO_LOCATIONS = [
 
 def _add_filter_demo_data(fixture_dict):
     """Append demo orgs, harvest sources, datasets, and locations in place."""
-    job_id = fixture_dict["harvest_job"]["id"]
+    # harvest_job_id has no FK constraint (catalog never writes harvest_job
+    # rows); this is just a stand-in value shared by the demo harvest records.
+    job_id = "1"
     fixture_dict.setdefault("extra_harvest_source", [])
 
     for org_id, name, slug, org_type in _DEMO_ORGS:
@@ -267,7 +321,7 @@ def _ensure_unique_dataset_harvest_records(fixture_dict):
     """Keep fixture datasets compatible with Dataset.harvest_record_id uniqueness."""
     seen_dataset_record_ids = set()
     existing_record_ids = {record["id"] for record in fixture_dict["harvest_record"]}
-    harvest_job_id = fixture_dict["harvest_job"]["id"]
+    harvest_job_id = "1"
 
     for dataset in fixture_dict["dataset"]:
         record_id = dataset["harvest_record_id"]
@@ -330,7 +384,6 @@ def fixture_data(*, include_filter_demos: bool = False):
             source_type="document",
             notification_frequency="always",
         ),
-        "harvest_job": dict(id="1", harvest_source_id="1", status="complete"),
         "harvest_record": [
             dict(
                 id=HARVEST_RECORD_ID,
@@ -428,7 +481,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                 harvest_source_id="1",
                 harvest_job_id="1",
                 identifier="https://subdomain.domain/parent/example.shp.iso.xml",
-                source_raw='{"title": "Parent Harvest Record": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_raw='{"title": "Parent Harvest Record", "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
                 source_transform={
                     "title": "Parent Harvest Record",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
@@ -747,6 +800,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "keyword": ["health", "food"],
                     "modified": "2026-03-04",
                     "publisher": {"name": "test child publisher"},
+                    "landingPage": "https://example.gov/datasets/sample-dcat-3-0",
                     "contactPoint": {
                         "fn": "Not provided - Contact data.gov",
                         "hasEmail": "mailto:datagovsupport@gsa.gov",
@@ -921,7 +975,7 @@ def fixture_data(*, include_filter_demos: bool = False):
     fields = datasets[0]
     org_id = fixture_dict["organization"][0]["id"]
     harvest_source_id = fixture_dict["harvest_source"]["id"]
-    harvest_job_id = fixture_dict["harvest_job"]["id"]
+    harvest_job_id = "1"
 
     for row in datasets[1:]:
         slug = row[0]

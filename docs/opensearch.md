@@ -10,6 +10,8 @@ documents and respond to search queries. Search results are collected up from
 nodes and returned in response to queries from the API. We use Opensearch from
 AWS brokered to us via Cloud.gov <https://docs.cloud.gov/platform/services/aws-elasticsearch/>.
 
+The opensearch functionality used in this app has been migrated to our [data-access](https://github.com/GSA/datagov-databases) repository but the initial entry points have remained the same (e.g. `CatalogDBInterface` is still accessible via `/app/database/__init__.py`) to limit file changes because of import statements. That could be a further improvement.
+
 ## Limitations
 
 Because it is a distributed system, Opensearch needs to store the search

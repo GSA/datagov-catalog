@@ -1,12 +1,15 @@
 """Database helpers for the catalog application."""
 
-from .constants import DEFAULT_PAGE, DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE
-from .interface import CatalogDBInterface
-from .opensearch import OpenSearchInterface
+# CatalogDBInterface lazily sets up its own opensearch reader instance
+from .interface import (
+    DEFAULT_PAGE,
+    DEFAULT_PER_PAGE,
+    SEARCH_API_MAX_PER_PAGE,
+    CatalogDBInterface,
+)
 
 __all__ = [
     "CatalogDBInterface",
-    "OpenSearchInterface",
     DEFAULT_PER_PAGE,
     DEFAULT_PAGE,
     SEARCH_API_MAX_PER_PAGE,
