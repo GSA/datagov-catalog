@@ -14,6 +14,7 @@ from app.search.queries.filters.organization_type import (
 )
 from app.search.queries.filters.publisher import PUBLISHER_FILTER
 from app.search.queries.filters.spatial_data import SPATIAL_DATA_FILTER
+from app.search.queries.filters.theme import THEME_FILTER
 
 __all__ = [
     "API_CONTEXT",
@@ -32,4 +33,5 @@ FILTERS = (
     PUBLISHER_FILTER,
     SPATIAL_DATA_FILTER,
     COLLECTION_FILTER,
+    THEME_FILTER,
 )
