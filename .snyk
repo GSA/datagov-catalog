@@ -2,5 +2,10 @@
 version: v1.25.0
 language-settings:
   python: "3.12"
-ignore: {}
+ignore:
+  'SNYK-JS-LEAFLET-16427276':
+    - '*':
+        reason: 'Acknowledged vulnerability - accepting risk until leaflet fix version is released'
+        Link to issue: https://github.com/GSA/data.gov/issues/6229
+        expires: '2027-08-12T00:00:00.000Z'
 patch: {}
