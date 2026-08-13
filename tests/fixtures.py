@@ -246,7 +246,14 @@ def _add_filter_demo_data(fixture_dict):
 
     for org_id, name, slug, org_type in _DEMO_ORGS:
         fixture_dict["organization"].append(
-            dict(id=org_id, name=name, slug=slug, organization_type=org_type)
+            dict(
+                id=org_id,
+                name=name,
+                slug=slug,
+                organization_type=org_type,
+                code_repo_url=None,
+                code_repo_exempt=False,
+            )
         )
         fixture_dict["extra_harvest_source"].append(
             dict(
@@ -366,12 +373,16 @@ def fixture_data(*, include_filter_demos: bool = False):
                 slug="test-org",
                 organization_type="Federal Government",
                 aliases=["aliasonly"],
+                code_repo_url=None,
+                code_repo_exempt=False,
             ),
             dict(
                 id="2",
                 name="test org filtered",
                 slug="test-org-filtered",
                 organization_type="Federal Government",
+                code_repo_url=None,
+                code_repo_exempt=False,
             ),
         ],
         "harvest_source": dict(

@@ -378,6 +378,8 @@ def test_get_organizations_api_returns_data(db_client):
             "organization_type": "Federal Government",
             "aliases": ["Org 1"],
             "source_count": 1,
+            "code_repo_url": None,
+            "code_repo_exempt": False,
         },
         {
             "id": "org-2",
@@ -387,6 +389,8 @@ def test_get_organizations_api_returns_data(db_client):
             "organization_type": "City Government",
             "aliases": [],
             "source_count": 0,
+            "code_repo_url": None,
+            "code_repo_exempt": False,
         },
     ]
 
