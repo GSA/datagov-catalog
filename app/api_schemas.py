@@ -63,6 +63,7 @@ class Dataset(Schema):
     harvest_record_raw = URL()
     harvest_record_transformed = URL()
     has_spatial = Boolean()
+    has_download = Boolean()
     identifier = String()
     keyword = List(String())
     last_harvested_date = Date()
