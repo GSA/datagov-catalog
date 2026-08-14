@@ -90,6 +90,7 @@ class Dataset(Base):
     harvest_record_id = Column(String(36), index=True, unique=True)
     popularity = Column(Integer, server_default="0")
     last_harvested_date = Column(DateTime, index=True)
+    type = Column(String, index=True)
 
     organization = relationship(
         "Organization",

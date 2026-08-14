@@ -806,7 +806,19 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
 
     # collections
     collection_data = {"name": None, "count": 0}
-    if "isPartOf" in dataset.dcat:
+    if dataset.type == "data_series":
+        # A DatasetSeries has no isPartOf of its own; its members instead
+        # carry isPartOf == the series' own identifier. count is bumped by
+        # one so the template's "- 1" (which normally excludes the current
+        # dataset from its own collection) yields the true member count.
+        series_identifier = dataset.dcat.get("identifier")
+        if series_identifier:
+            result = interface.search_datasets(
+                SearchCriteria.from_values(filters={"collection": series_identifier})
+            )
+            collection_data["name"] = series_identifier
+            collection_data["count"] = result.total + 1
+    elif "isPartOf" in dataset.dcat:
         result = interface.search_datasets(
             SearchCriteria.from_values(filters={"collection": dataset.dcat["isPartOf"]})
         )
