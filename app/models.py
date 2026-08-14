@@ -37,7 +37,7 @@ class Organization(Base):
     organization_type = Column(String)
 
     code_repo_url = Column(String)
-    code_repo_exempt = Column(Boolean)
+    code_repo_exempt = Column(Boolean, default=False)
 
     aliases = Column(ARRAY(String))
 
