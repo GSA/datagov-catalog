@@ -832,9 +832,6 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     from_hint = request.args.get("from_hint")
     from_dict = dict_from_hint(from_hint)
 
-    # set the type for google search json-ld
-    dataset.dcat["@type"] = "dcat:Dataset"
-
     # Create normalized DCAT dict for template filters
     # This provides a copy with DCAT 3.0 fields normalized for display
     # while keeping the original dataset.dcat intact for Complete Metadata
