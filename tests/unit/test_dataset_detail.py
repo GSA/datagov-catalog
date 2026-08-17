@@ -426,6 +426,17 @@ class TestDatasetDetail:
         )
         assert collection_link is not None
 
+        # Complete Metadata must show the series' real @type, not a
+        # hardcoded "dcat:Dataset" overwrite (regression: routes.py used to
+        # force dataset.dcat["@type"] = "dcat:Dataset" for every record).
+        metadata_table = soup.select_one("table.metadata-table")
+        type_row = next(
+            row
+            for row in metadata_table.select("tr")
+            if row.select_one("th").get_text(strip=True) == "@type"
+        )
+        assert type_row.select_one("td").get_text(strip=True) == "DatasetSeries"
+
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
         Test that the landingPage key in the Complete Metadata section

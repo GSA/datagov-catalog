@@ -958,6 +958,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                 slug="annual-report-series",
                 type="data_series",
                 dcat={
+                    "@type": "DatasetSeries",
                     "title": "Annual Report Series",
                     "description": "A series of annual reports, one dataset per year.",
                     "identifier": "https://example.gov/series/annual-report",
