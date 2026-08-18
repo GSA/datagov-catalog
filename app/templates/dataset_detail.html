@@ -3,6 +3,7 @@
 
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_slug = dataset.slug %}
+{% set type_label = {'data_series': 'Series', 'data_service': 'Service'}.get(dataset.type, 'Dataset') %}
 {% set organization_title = organization.name %}
 {% set page_title = organization_title ~ ' - ' ~ dataset_title %}
 
@@ -102,7 +103,7 @@
                     {% endif %}
                     {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
                     {% if modified_dt %}
-                    | Dataset Last Updated: <strong>{{ modified_dt | format_dcat_date }}</strong>
+                    | {{ type_label }} Last Updated: <strong>{{ modified_dt | format_dcat_date }}</strong>
                     {% endif %}
                 </div>
 
@@ -357,12 +358,12 @@
 
                 <!-- Dataset Information -->
                 <div class="sidebar-section">
-                    <h3 class="sidebar-section__heading">Dataset Information</h3>
+                    <h3 class="sidebar-section__heading">{{ type_label }} Information</h3>
 
                     {% set issued_dt = dataset.dcat.get('issued') | parse_datetime %}
                     {% if issued_dt %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Dataset First Published</div>
+                        <div class="sidebar-section__label">{{ type_label }} First Published</div>
                         <div class="sidebar-section__value">
                             {{ issued_dt | format_dcat_date }}
                         </div>
@@ -372,7 +373,7 @@
                     {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
                     {% if modified_dt %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Dataset Last Updated</div>
+                        <div class="sidebar-section__label">{{ type_label }} Last Updated</div>
                         <div class="sidebar-section__value">
                             {{ modified_dt | format_dcat_date }}
                         </div>
