@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from bs4 import BeautifulSoup
 
+from app.search.reader import SearchResult
 from app.utils import hint_from_dict
 from tests.fixtures import DATASET_ID, DEFAULT_LAST_HARVESTED_DATE
 
@@ -398,6 +399,44 @@ class TestDatasetDetail:
         )
         assert collection_link is not None
 
+    def test_dataset_series_detail_page(self, interface_with_dataset, db_client):
+        """A DCAT-US 3.0 DatasetSeries persists as a Dataset row (type=
+        "data_series") with no distribution/publisher of its own. Its detail
+        page must render without error and link to its member dataset(s) via
+        the same collection lookup used for isPartOf, keyed by the series'
+        own identifier rather than an isPartOf it doesn't have."""
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/annual-report-series")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        h1 = soup.select_one("main#content h1.dataset-title").text
+        assert h1 == "Annual Report Series"
+
+        # No distributions on a series: no resources section, no crash.
+        assert soup.select_one("div.resources-section") is None
+
+        collection_count = soup.select_one("div.text-base-dark")
+        assert collection_count is not None
+        assert collection_count.text.strip() == "Includes 1 related dataset"
+
+        collection_link = soup.select_one(
+            "a[href='/?collection=https://example.gov/series/annual-report']"
+        )
+        assert collection_link is not None
+
+        # Complete Metadata must show the series' real @type, not a
+        # hardcoded "dcat:Dataset" overwrite (regression: routes.py used to
+        # force dataset.dcat["@type"] = "dcat:Dataset" for every record).
+        metadata_table = soup.select_one("table.metadata-table")
+        type_row = next(
+            row
+            for row in metadata_table.select("tr")
+            if row.select_one("th").get_text(strip=True) == "@type"
+        )
+        assert type_row.select_one("td").get_text(strip=True) == "DatasetSeries"
+
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
         Test that the landingPage key in the Complete Metadata section
@@ -501,3 +540,109 @@ class TestDatasetDetail:
         meta_bar = soup.select_one(".dataset-meta")
         assert meta_bar is not None
         assert expected_display in meta_bar.get_text(" ", strip=True)
+
+    def test_related_datasets_section_hidden_when_no_keywords_or_collection(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        The "Find Related Datasets" section should not appear when the dataset
+        has neither keywords nor a collection (isPartOf).
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {k: v for k, v in ds.dcat.items() if k not in ["keyword", "isPartOf"]}
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        related_section = soup.find("h2", string="Find Related Datasets")
+        assert related_section is None
+
+    def test_related_datasets_section_shown_when_has_keywords(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        The "Find Related Datasets" section should appear when the dataset
+        has keywords, even without a collection.
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {k: v for k, v in ds.dcat.items() if k != "isPartOf"}
+        ds.dcat["keyword"] = ["environment", "climate"]
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        related_section = soup.find("h2", string="Find Related Datasets")
+        assert related_section is not None
+
+        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        assert tags_heading is not None
+
+    def test_related_datasets_section_shown_when_has_collection(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        The "Find Related Datasets" section should appear when the dataset
+        is part of a collection, even without keywords.
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {k: v for k, v in ds.dcat.items() if k != "keyword"}
+        ds.dcat["isPartOf"] = "https://example.com/collection/test-collection"
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            with patch("app.routes.interface.search_datasets") as mock_search:
+                mock_search.return_value = SearchResult(
+                    total=2, results=[], search_after=None
+                )
+                response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        related_section = soup.find("h2", string="Find Related Datasets")
+        assert related_section is not None
+
+        collection_heading = soup.find(
+            "h4", string=lambda s: s and "Explore Collection" in s
+        )
+        assert collection_heading is not None
+
+    def test_related_datasets_section_shown_when_has_both(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        The "Find Related Datasets" section should appear when the dataset
+        has both keywords and a collection.
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat["keyword"] = ["environment", "climate"]
+        ds.dcat["isPartOf"] = "https://example.com/collection/test-collection"
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            with patch("app.routes.interface.search_datasets") as mock_search:
+                mock_search.return_value = SearchResult(
+                    total=3, results=[], search_after=None
+                )
+                response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        related_section = soup.find("h2", string="Find Related Datasets")
+        assert related_section is not None
+
+        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        collection_heading = soup.find(
+            "h4", string=lambda s: s and "Explore Collection" in s
+        )
+        assert tags_heading is not None
+        assert collection_heading is not None

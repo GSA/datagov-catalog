@@ -190,6 +190,8 @@
                 </div>
                 {% endif %}
 
+                {% set collection_total = collection_data.get('count') - 1 %}
+                {% if dataset.dcat.get('keyword') or collection_total > 0 %}
                 <h2 class="text-primary-darker margin-bottom-1">Find Related Datasets</h2>
                 <section class="usa-section bg-base-lightest radius-lg padding-3 margin-top-4">
 
@@ -244,7 +246,6 @@
                         </div>
                         {% endif %}
 
-                        {% set collection_total = collection_data.get('count') - 1 %}
                         {% if collection_total > 0 %}
                         <div class="tablet:grid-col-6 collection-tooltip">
                         <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
@@ -277,6 +278,7 @@
 
                     </div>
                 </section>
+                {% endif %}
 
                 <details class="margin-bottom-3 margin-top-3">
                     <summary>
@@ -317,12 +319,13 @@
                         Have questions or suggestions about this dataset? Reach out to the contact below.
                     </p>
 
+                    {% set contact_point = dataset.dcat.get('contactPoint') or {} %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Name</div>
-                        <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
+                        <div class="sidebar-section__value">{{ contact_point.get('fn') }}</div>
                     </div>
 
-                    {% set email = dataset.dcat.contactPoint.hasEmail | format_contact_point_email %}
+                    {% set email = contact_point.get('hasEmail') | format_contact_point_email %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Email</div>
                         <div class="sidebar-section__value">

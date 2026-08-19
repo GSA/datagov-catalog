@@ -6,15 +6,6 @@ from math import ceil
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
-from datagov_data_access.search.queries import (
-    API_CONTEXT,
-    MAIN_CONTEXT,
-    ORGANIZATION_CONTEXT,
-    FilterParseError,
-    SearchCriteria,
-    build_filter_sections,
-    visible_filter_query_params,
-)
 from flask import (
     Blueprint,
     Response,
@@ -27,6 +18,15 @@ from flask import (
 )
 
 from app.models import db
+from app.search import (
+    API_CONTEXT,
+    MAIN_CONTEXT,
+    ORGANIZATION_CONTEXT,
+    FilterParseError,
+    SearchCriteria,
+    build_filter_sections,
+    visible_filter_query_params,
+)
 
 from . import htmx
 from .api_schemas import (
@@ -806,7 +806,19 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
 
     # collections
     collection_data = {"name": None, "count": 0}
-    if "isPartOf" in dataset.dcat:
+    if dataset.type == "data_series":
+        # A DatasetSeries has no isPartOf of its own; its members instead
+        # carry isPartOf == the series' own identifier. count is bumped by
+        # one so the template's "- 1" (which normally excludes the current
+        # dataset from its own collection) yields the true member count.
+        series_identifier = dataset.dcat.get("identifier")
+        if series_identifier:
+            result = interface.search_datasets(
+                SearchCriteria.from_values(filters={"collection": series_identifier})
+            )
+            collection_data["name"] = series_identifier
+            collection_data["count"] = result.total + 1
+    elif "isPartOf" in dataset.dcat:
         result = interface.search_datasets(
             SearchCriteria.from_values(filters={"collection": dataset.dcat["isPartOf"]})
         )
@@ -819,9 +831,6 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # Use from_hint to construct an arguments dict
     from_hint = request.args.get("from_hint")
     from_dict = dict_from_hint(from_hint)
-
-    # set the type for google search json-ld
-    dataset.dcat["@type"] = "dcat:Dataset"
 
     # Create normalized DCAT dict for template filters
     # This provides a copy with DCAT 3.0 fields normalized for display
