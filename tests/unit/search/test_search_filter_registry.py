@@ -1,0 +1,38 @@
+from app.search.queries import (
+    MAIN_CONTEXT,
+    SearchCriteria,
+    build_filter_clauses,
+    build_filter_sections,
+    visible_filter_query_params,
+)
+
+
+def test_has_download_filter_parses_and_builds_clause():
+    criteria = SearchCriteria.from_request_args(
+        {"has_download": "true"}, route_context=MAIN_CONTEXT
+    )
+
+    assert criteria.get_filter("has_download") is True
+    assert {"term": {"has_download": True}} in build_filter_clauses(criteria)
+
+
+def test_has_download_filter_defaults_to_inactive():
+    criteria = SearchCriteria.from_request_args({}, route_context=MAIN_CONTEXT)
+
+    assert criteria.get_filter("has_download") is None
+    assert build_filter_clauses(criteria) == []
+
+
+def test_has_download_section_is_built_when_active():
+    criteria = SearchCriteria.from_values(filters={"has_download": True})
+
+    sections = build_filter_sections(criteria, route_context=MAIN_CONTEXT)
+    by_name = {section["name"]: section for section in sections}
+
+    assert by_name["has_download"]["field_name"] == "has_download"
+    assert by_name["has_download"]["values"] == ["true"]
+    assert by_name["has_download"]["active_summary"] is not None
+
+
+def test_has_download_is_a_visible_main_context_query_param():
+    assert "has_download" in visible_filter_query_params(MAIN_CONTEXT)
