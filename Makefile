@@ -34,14 +34,17 @@ test:
 test-pa11y: ## Runs accessibility tests with pa11y-ci (requires running app)
 	npm run test:pa11y
 
+test-axe: ## Runs axe-core accessibility checks (requires running app w/ test data)
+	poetry run pytest --browser chromium -m accessibility tests/browser/
+
 load-test-data: ## Loads test fixture data into the database
 	docker compose exec app flask testdata load_test_data --clear
 	docker compose exec app flask search compare --update
 
-test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests with test data loaded
+test-a11y-with-data: up load-test-data test-pa11y test-axe ## Runs accessibility tests with test data loaded
 
-test-browser:
-	poetry run pytest --browser chromium --browser firefox --browser webkit tests/browser/
+test-browser: ## Runs blocking browser tests (accessibility checks are advisory; see test-axe)
+	poetry run pytest --browser chromium --browser firefox --browser webkit -m "not accessibility" tests/browser/
 
 test-browser-with-data: up load-test-data test-browser ## Runs accessibility tests with test data loaded
 

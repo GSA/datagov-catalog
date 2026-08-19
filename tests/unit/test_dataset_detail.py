@@ -437,6 +437,56 @@ class TestDatasetDetail:
         )
         assert type_row.select_one("td").get_text(strip=True) == "DatasetSeries"
 
+        # Sidebar labels read "Series", not the hardcoded "Dataset".
+        sidebar_headings = {
+            h.get_text(strip=True) for h in soup.select("h3.sidebar-section__heading")
+        }
+        assert "Series Information" in sidebar_headings
+        assert "Dataset Information" not in sidebar_headings
+
+    def test_data_service_detail_page(self, interface_with_dataset, db_client):
+        """A DCAT-US 3.0 DataService persists as a Dataset row (type=
+        "data_service") with no distribution/publisher of its own. Its
+        detail page must render without error and link to the dataset(s)
+        it serves via the same collection lookup used for isPartOf, keyed
+        by the service's own identifier rather than an isPartOf it
+        doesn't have."""
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/climate-data-service")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        h1 = soup.select_one("main#content h1.dataset-title").text
+        assert h1 == "Climate Data Service"
+
+        # No distributions on a service: no resources section, no crash.
+        assert soup.select_one("div.resources-section") is None
+
+        collection_count = soup.select_one("div.text-base-dark")
+        assert collection_count is not None
+        assert collection_count.text.strip() == "Includes 1 related dataset"
+
+        collection_link = soup.select_one(
+            "a[href='/?collection=https://example.gov/services/climate']"
+        )
+        assert collection_link is not None
+
+        metadata_table = soup.select_one("table.metadata-table")
+        type_row = next(
+            row
+            for row in metadata_table.select("tr")
+            if row.select_one("th").get_text(strip=True) == "@type"
+        )
+        assert type_row.select_one("td").get_text(strip=True) == "DataService"
+
+        # Sidebar labels read "Service", not the hardcoded "Dataset".
+        sidebar_headings = {
+            h.get_text(strip=True) for h in soup.select("h3.sidebar-section__heading")
+        }
+        assert "Service Information" in sidebar_headings
+        assert "Dataset Information" not in sidebar_headings
+
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
         Test that the landingPage key in the Complete Metadata section
@@ -582,7 +632,7 @@ class TestDatasetDetail:
         related_section = soup.find("h2", string="Find Related Datasets")
         assert related_section is not None
 
-        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        tags_heading = soup.find("h3", string=lambda s: s and "Search by Tags" in s)
         assert tags_heading is not None
 
     def test_related_datasets_section_shown_when_has_collection(
@@ -611,7 +661,7 @@ class TestDatasetDetail:
         assert related_section is not None
 
         collection_heading = soup.find(
-            "h4", string=lambda s: s and "Explore Collection" in s
+            "h3", string=lambda s: s and "Explore Collection" in s
         )
         assert collection_heading is not None
 
@@ -640,9 +690,9 @@ class TestDatasetDetail:
         related_section = soup.find("h2", string="Find Related Datasets")
         assert related_section is not None
 
-        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        tags_heading = soup.find("h3", string=lambda s: s and "Search by Tags" in s)
         collection_heading = soup.find(
-            "h4", string=lambda s: s and "Explore Collection" in s
+            "h3", string=lambda s: s and "Explore Collection" in s
         )
         assert tags_heading is not None
         assert collection_heading is not None
