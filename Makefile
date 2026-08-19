@@ -43,8 +43,11 @@ load-test-data: ## Loads test fixture data into the database
 
 test-a11y-with-data: up load-test-data test-pa11y test-axe ## Runs accessibility tests with test data loaded
 
+# CI skips webkit: Linux WebKitGTK needs apt libs that stall on Azure mirrors.
+BROWSER_ARGS ?= --browser chromium --browser firefox --browser webkit
+
 test-browser: ## Runs blocking browser tests (accessibility checks are advisory; see test-axe)
-	poetry run pytest --browser chromium --browser firefox --browser webkit -m "not accessibility" tests/browser/
+	poetry run pytest $(BROWSER_ARGS) -m "not accessibility" tests/browser/
 
 test-browser-with-data: up load-test-data test-browser ## Runs accessibility tests with test data loaded
 

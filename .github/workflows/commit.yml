@@ -109,9 +109,13 @@ jobs:
           poetry env use ${{ env.PY_VERSION }}
           poetry install
 
+      # Skip --with-deps: ubuntu-latest already has Chromium/Firefox libs, and
+      # apt font downloads from Azure mirrors can stall for tens of minutes.
+      # WebKit is omitted here: it needs GTK4/GStreamer/flite that those same
+      # mirrors would have to download. See GSA/datagov-harvester#872.
       - name: Install playwright
         run: |
-          poetry run playwright install --with-deps chromium firefox webkit
+          poetry run playwright install --only-shell chromium firefox
 
       - name: Build static files
         run: make install-static
@@ -126,6 +130,8 @@ jobs:
         run: sleep 10
 
       - name: Run Playwright tests
+        env:
+          BROWSER_ARGS: --browser chromium --browser firefox
         run: make test-browser-with-data
 
       - name: Tear down services
