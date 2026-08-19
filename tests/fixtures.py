@@ -953,6 +953,37 @@ def fixture_data(*, include_filter_demos: bool = False):
                     ],
                 },
             ),
+            dict(
+                id="dataset-series-1",
+                slug="annual-report-series",
+                type="data_series",
+                dcat={
+                    "@type": "DatasetSeries",
+                    "title": "Annual Report Series",
+                    "description": "A series of annual reports, one dataset per year.",
+                    "identifier": "https://example.gov/series/annual-report",
+                },
+                harvest_record_id="annual_report_series_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="dataset-series-member-1",
+                slug="annual-report-2024",
+                type="dataset",
+                dcat={
+                    "title": "Annual Report 2024",
+                    "description": "The 2024 annual report.",
+                    "identifier": "https://example.gov/datasets/annual-report-2024",
+                    "isPartOf": "https://example.gov/series/annual-report",
+                    "publisher": {"name": "Test Agency"},
+                },
+                harvest_record_id="annual_report_2024_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
         ],
         "locations": [
             {
