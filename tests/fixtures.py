@@ -984,6 +984,38 @@ def fixture_data(*, include_filter_demos: bool = False):
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
             ),
+            dict(
+                id="data-service-1",
+                slug="climate-data-service",
+                type="data_service",
+                dcat={
+                    "@type": "DataService",
+                    "title": "Climate Data Service",
+                    "description": "A service serving climate datasets.",
+                    "identifier": "https://example.gov/services/climate",
+                    "endpointURL": ["https://api.example.gov/climate/v1"],
+                },
+                harvest_record_id="climate_data_service_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="data-service-served-1",
+                slug="climate-dataset-served",
+                type="dataset",
+                dcat={
+                    "title": "Climate Dataset Served",
+                    "description": "A dataset served by the climate data service.",
+                    "identifier": "https://example.gov/datasets/climate-served",
+                    "isPartOf": "https://example.gov/services/climate",
+                    "publisher": {"name": "Test Agency"},
+                },
+                harvest_record_id="climate_dataset_served_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
         ],
         "locations": [
             {

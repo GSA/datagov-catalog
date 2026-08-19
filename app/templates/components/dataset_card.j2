@@ -3,6 +3,8 @@
 {% macro dataset_card(dataset, from_hint='', result_number=None, sort_value=None, allow_distance=false, is_parent=false) -%}
 {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
 {% set is_series = dataset.get('type') == 'data_series' %}
+{% set is_service = dataset.get('type') == 'data_service' %}
+{% set type_label = {'data_series': 'Series', 'data_service': 'Service'}.get(dataset.get('type'), 'Dataset') %}
 {% set dataset_title = dataset_meta.get('title') or dataset.get('slug') or dataset.get('id') %}
 {% set dataset_slug = dataset.get('slug') %}
 {% set updated_display = dataset_meta.get('modified') | parse_datetime %}
@@ -41,6 +43,11 @@
                   <i class="collection-icon" aria-hidden="true"></i>
                   <span>Series</span>
                 </div>
+              {% elif is_service %}
+                <div class="margin-bottom-1 usa-tag bg-base collection-tag">
+                  <i class="collection-icon"></i>
+                  <span>Service</span>
+                </div>
               {% endif %}
 
               <h3 class="usa-collection__heading margin-0">
@@ -72,7 +79,7 @@
               </li>
               {% if updated_display %}
               <li class="usa-collection__meta-item">
-                  <strong>Dataset Last Updated:</strong> {{ updated_display | format_dcat_date or 'Not available' }}
+                  <strong>{{ type_label }} Last Updated:</strong> {{ updated_display | format_dcat_date or 'Not available' }}
               </li>
               {% endif %}
           </ul>
