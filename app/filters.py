@@ -438,14 +438,14 @@ def dcatus_to_schema_org_jsonld(dcatus: dict):
         "name": dcatus.get("title"),  # required
         "description": dcatus.get("description"),  # required
         "url": dcatus.get("landingPage", None),
-        "identifier": dcatus.get("identifier"),  # required
-        "keywords": dcatus.get("keyword"),  # required
+        "identifier": dcatus.get("identifier"),  # recommended
+        "keywords": dcatus.get("keyword"),  # recommended
         "license": dcatus.get("license", None),
         "datePublished": dcatus.get("issued", None),
-        "dateModified": dcatus.get("modified"),  # required
+        "dateModified": dcatus.get("modified"),
         "publisher": {
             "@type": "Organization",
-            "name": (dcatus.get("publisher") or {}).get("name"),  # required
+            "name": (dcatus.get("publisher") or {}).get("name"),
         },
         "distribution": jsonld_distributions(dcatus),
     }
