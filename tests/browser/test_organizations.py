@@ -71,3 +71,47 @@ def test_organization_detail_return_to_search_results(page, base_url):
     expect(page).to_have_url(
         f"{base_url.rstrip('/')}/organization/test-org?q=2020&sort=relevance"
     )
+
+
+def test_organization_detail_shows_code_repo_url_when_present(page):
+    """Test that organization detail page shows repository link when URL is set."""
+    page.goto("/organization/gsa")
+
+    # Verify the Source Code Repository link is visible
+    repo_link = page.locator('a[href="https://github.com/GSA"]')
+    expect(repo_link).to_be_visible()
+
+    # Verify the link text shows the URL
+    expect(repo_link).to_have_text("https://github.com/GSA")
+
+    # Verify the link has correct security attributes
+    expect(repo_link).to_have_attribute("target", "_blank")
+    expect(repo_link).to_have_attribute("rel", "noopener noreferrer")
+
+    # Verify the label is present
+    expect(page.locator("text=Source Code Repository:")).to_be_visible()
+
+
+def test_organization_detail_hides_code_repo_url_when_not_set(page):
+    """Test that organization detail page does NOT show repository field when URL is not set."""
+    page.goto("/organization/no-repo-agency")
+
+    # Verify the Source Code Repository label is NOT present
+    expect(page.locator("text=Source Code Repository:")).not_to_be_visible()
+
+
+def test_organization_detail_code_repo_link_opens_in_new_tab(page, context):
+    """Test that clicking the repository link opens GitHub in a new tab."""
+    page.goto("/organization/nasa")
+
+    # Verify the NASA repo link is visible
+    repo_link = page.locator('a[href="https://github.com/nasa"]')
+    expect(repo_link).to_be_visible()
+
+    # Listen for new page (tab) to open
+    with context.expect_page() as new_page_info:
+        repo_link.click()
+
+    # Verify new tab opened with correct URL
+    new_page = new_page_info.value
+    expect(new_page).to_have_url(re.compile(r"github\.com/nasa"))
