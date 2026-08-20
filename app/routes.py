@@ -1265,10 +1265,6 @@ def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
 
-    from app.dev_routes import register_dev_routes
-
-    register_dev_routes(app)
-
     if app.config.get("IS_LOCAL"):
         app.add_url_rule(
             "/style-guide/icons",

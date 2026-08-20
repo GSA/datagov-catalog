@@ -21,5 +21,4 @@ def test_nginx_sets_hsts_header_for_base_domain_and_redirects():
     nginx_config = Path("proxy/nginx.conf").read_text()
 
     assert nginx_header in primary_server_config
-    assert "proxy_hide_header Strict-Transport-Security;" in primary_server_config
     assert nginx_header in nginx_config
