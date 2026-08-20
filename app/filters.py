@@ -277,6 +277,8 @@ def remove_html_tags(text: str) -> str:
     """
     removes html tags from [text]
     """
+    if not isinstance(text, str):
+        return ""
     soup = BeautifulSoup(text, "html.parser")
     return soup.get_text()
 
