@@ -3104,16 +3104,7 @@ def test_code_page_displays_only_federal_orgs(db_client, interface_with_organiza
 
 def test_code_page_displays_repo_url_as_link(db_client, interface_with_organization):
     """Test organization with repo URL displays as clickable link."""
-    org = Organization(
-        id="gsa",
-        name="GSA",
-        slug="gsa",
-        organization_type="Federal Government",
-        code_repo_url="https://github.com/GSA",
-    )
-    interface_with_organization.db.add(org)
-    interface_with_organization.db.commit()
-
+    # GSA already exists in fixtures with code_repo_url, so we can just check it
     with patch("app.routes.interface", interface_with_organization):
         response = db_client.get("/code")
 
@@ -3201,22 +3192,14 @@ def test_code_page_sorts_orgs_alphabetically(db_client, interface_with_organizat
 
 def test_code_page_links_to_org_detail_pages(db_client, interface_with_organization):
     """Test organization names link to their detail pages."""
-    org = Organization(
-        id="gsa",
-        name="GSA",
-        slug="gsa",
-        organization_type="Federal Government",
-    )
-    interface_with_organization.db.add(org)
-    interface_with_organization.db.commit()
-
+    # GSA already exists in fixtures, so we can just check it
     with patch("app.routes.interface", interface_with_organization):
         response = db_client.get("/code")
 
     soup = BeautifulSoup(response.data.decode(), "html.parser")
     org_link = soup.find("a", href="/organization/gsa")
     assert org_link is not None
-    assert "GSA" in org_link.text
+    assert "General Services Administration" in org_link.text
 
 
 def test_code_page_includes_share_it_act_context(db_client):
