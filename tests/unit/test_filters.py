@@ -25,6 +25,10 @@ def test_lt_or_gt_not_removed():
     assert remove_html_tags("in x < 0, but also y > 0") == "in x < 0, but also y > 0"
 
 
+def test_remove_html_tags_none_returns_empty_string():
+    assert remove_html_tags(None) == ""
+
+
 def test_dcatus_to_schema_org_jsonld(dcatus_dataset):
     assert dcatus_to_schema_org_jsonld(dcatus_dataset) == {
         "@context": "https://schema.org/",
