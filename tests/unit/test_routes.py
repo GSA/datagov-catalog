@@ -1489,16 +1489,7 @@ def test_organization_detail_hides_code_repo_url_when_empty_string(
 
 def test_gsa_organization_displays_github_link(db_client, interface_with_organization):
     """Test GSA organization shows GitHub repository link (acceptance test)."""
-    # Add GSA organization with repo URL
-    org = Organization(
-        id="gsa",
-        name="GSA",
-        slug="gsa",
-        code_repo_url="https://github.com/GSA",
-    )
-    interface_with_organization.db.add(org)
-    interface_with_organization.db.commit()
-
+    # GSA organization already exists in fixtures with code_repo_url
     with patch("app.routes.interface", interface_with_organization):
         response = db_client.get("/organization/gsa")
 
