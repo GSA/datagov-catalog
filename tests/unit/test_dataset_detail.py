@@ -632,7 +632,7 @@ class TestDatasetDetail:
         related_section = soup.find("h2", string="Find Related Datasets")
         assert related_section is not None
 
-        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        tags_heading = soup.find("h3", string=lambda s: s and "Search by Tags" in s)
         assert tags_heading is not None
 
     def test_related_datasets_section_shown_when_has_collection(
@@ -661,7 +661,7 @@ class TestDatasetDetail:
         assert related_section is not None
 
         collection_heading = soup.find(
-            "h4", string=lambda s: s and "Explore Collection" in s
+            "h3", string=lambda s: s and "Explore Collection" in s
         )
         assert collection_heading is not None
 
@@ -690,9 +690,9 @@ class TestDatasetDetail:
         related_section = soup.find("h2", string="Find Related Datasets")
         assert related_section is not None
 
-        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        tags_heading = soup.find("h3", string=lambda s: s and "Search by Tags" in s)
         collection_heading = soup.find(
-            "h4", string=lambda s: s and "Explore Collection" in s
+            "h3", string=lambda s: s and "Explore Collection" in s
         )
         assert tags_heading is not None
         assert collection_heading is not None
