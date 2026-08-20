@@ -211,6 +211,25 @@ def format_icon_label(extension: str) -> str:
     return format_overlay_label(extension)
 
 
+def first_contact_point(contact_point: Any) -> dict:
+    """
+    Normalize a DCAT contactPoint value to a single vcard:Contact dict.
+
+    Dataset.contactPoint is a single object, but DataService.contactPoint
+    is defined as an array of objects (DCAT-US 3.0), so callers that only
+    display one contact need the first entry either way.
+    """
+    if isinstance(contact_point, Mapping):
+        return contact_point
+    if isinstance(contact_point, Sequence) and not isinstance(
+        contact_point, (str, bytes)
+    ):
+        for item in contact_point:
+            if isinstance(item, Mapping):
+                return item
+    return {}
+
+
 def format_contact_point_email(email: str) -> Union[str, None]:
     """Format a contact point email for display."""
     if email:
@@ -496,6 +515,7 @@ __all__ = [
     "format_icon_label",
     "format_overlay_label",
     "format_contact_point_email",
+    "first_contact_point",
     "remove_html_tags",
     "simplify_resource_type",
     "json_to_semantic_html",
