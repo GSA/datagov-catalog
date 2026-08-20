@@ -994,6 +994,12 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "description": "A service serving climate datasets.",
                     "identifier": "https://example.gov/services/climate",
                     "endpointURL": ["https://api.example.gov/climate/v1"],
+                    "contactPoint": [
+                        {
+                            "fn": "Climate API Support",
+                            "hasEmail": "mailto:climate-api@example.gov",
+                        }
+                    ],
                 },
                 harvest_record_id="climate_data_service_record",
                 harvest_source_id="1",
