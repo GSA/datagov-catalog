@@ -1,11 +1,11 @@
 import json
 import logging
-import requests
 from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
 from xml.etree import ElementTree
 
+import requests
 from apiflask import APIBlueprint
 from flask import (
     Blueprint,
