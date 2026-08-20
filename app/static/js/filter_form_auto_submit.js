@@ -57,6 +57,13 @@
         document.body.appendChild(overlay);
     }
 
+    function removeResultsLoadingOverlay() {
+        const overlay = document.getElementById('search-results-loading-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+
     const autoSubmit = {
         form: null,
         init(form) {
@@ -140,6 +147,16 @@
             input.addEventListener('change', () => autoSubmit.request());
         });
     }
+
+    window.addEventListener('pageshow', (event) => {
+        // On back/forward navigation, browsers may restore the page from the
+        // bfcache instead of reloading it. That snapshot includes the overlay
+        // we appended right before the previous navigation, so it never gets
+        // torn down by DOMContentLoaded and blocks the UI forever.
+        if (event.persisted) {
+            removeResultsLoadingOverlay();
+        }
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
         const form = document.getElementById('filter-form');

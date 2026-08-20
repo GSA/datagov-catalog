@@ -17,8 +17,8 @@ from apiflask.fields import (
 )
 from apiflask.validators import Length, Range
 
-from app.database.constants import SEARCH_API_MAX_PER_PAGE
-from app.search import API_CONTEXT, FILTERS, ApiQueryParam
+from app.database import SEARCH_API_MAX_PER_PAGE
+from app.search.queries import API_CONTEXT, FILTERS, ApiQueryParam
 from shared.constants import ORGANIZATION_TYPE_VALUES
 
 ORGANIZATION_TYPE_ENUM = PyEnum(
@@ -63,6 +63,7 @@ class Dataset(Schema):
     harvest_record_raw = URL()
     harvest_record_transformed = URL()
     has_spatial = Boolean()
+    has_download = Boolean()
     identifier = String()
     keyword = List(String())
     last_harvested_date = Date()

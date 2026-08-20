@@ -17,6 +17,17 @@ from flask import (
     url_for,
 )
 
+from app.models import db
+from app.search import (
+    API_CONTEXT,
+    MAIN_CONTEXT,
+    ORGANIZATION_CONTEXT,
+    FilterParseError,
+    SearchCriteria,
+    build_filter_sections,
+    visible_filter_query_params,
+)
+
 from . import htmx
 from .api_schemas import (
     KeywordsQuery,
@@ -38,15 +49,6 @@ from .dcat_normalizer import (
     normalize_distribution_license,
     normalize_publisher_sub_org,
 )
-from .search import (
-    API_CONTEXT,
-    MAIN_CONTEXT,
-    ORGANIZATION_CONTEXT,
-    FilterParseError,
-    SearchCriteria,
-    build_filter_sections,
-    visible_filter_query_params,
-)
 from .sitemap_s3 import (
     SitemapS3ConfigError,
     create_sitemap_s3_client,
@@ -67,7 +69,7 @@ INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 main = Blueprint("main", __name__)
 api = APIBlueprint("api", __name__)
 
-interface = CatalogDBInterface()
+interface = CatalogDBInterface(db.session)
 
 
 def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int = 2):
@@ -804,7 +806,20 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
 
     # collections
     collection_data = {"name": None, "count": 0}
-    if "isPartOf" in dataset.dcat:
+    if dataset.type in ("data_series", "data_service"):
+        # A DatasetSeries/DataService has no isPartOf of its own; its
+        # members instead carry isPartOf == its own identifier. count is
+        # bumped by one so the template's "- 1" (which normally excludes
+        # the current dataset from its own collection) yields the true
+        # member count.
+        parent_identifier = dataset.dcat.get("identifier")
+        if parent_identifier:
+            result = interface.search_datasets(
+                SearchCriteria.from_values(filters={"collection": parent_identifier})
+            )
+            collection_data["name"] = parent_identifier
+            collection_data["count"] = result.total + 1
+    elif "isPartOf" in dataset.dcat:
         result = interface.search_datasets(
             SearchCriteria.from_values(filters={"collection": dataset.dcat["isPartOf"]})
         )
@@ -817,9 +832,6 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # Use from_hint to construct an arguments dict
     from_hint = request.args.get("from_hint")
     from_dict = dict_from_hint(from_hint)
-
-    # set the type for google search json-ld
-    dataset.dcat["@type"] = "dcat:Dataset"
 
     # Create normalized DCAT dict for template filters
     # This provides a copy with DCAT 3.0 fields normalized for display

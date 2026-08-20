@@ -3,6 +3,7 @@
 
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_slug = dataset.slug %}
+{% set type_label = {'data_series': 'Series', 'data_service': 'Service'}.get(dataset.type, 'Dataset') %}
 {% set organization_title = organization.name %}
 {% set page_title = organization_title ~ ' - ' ~ dataset_title %}
 
@@ -76,7 +77,7 @@
         {% if from_dict %}
         {% set endpoint = 'main.organization_detail' if 'slug' in from_dict else 'main.index' %}
         <a href="{{ url_for(endpoint, **from_dict) }}" class="return-link">
-            <i class="fa-solid fa-arrow-left"></i>
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             Return to search results
         </a>
         {% endif %}
@@ -102,7 +103,7 @@
                     {% endif %}
                     {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
                     {% if modified_dt %}
-                    | Dataset Last Updated: <strong>{{ modified_dt | format_dcat_date }}</strong>
+                    | {{ type_label }} Last Updated: <strong>{{ modified_dt | format_dcat_date }}</strong>
                     {% endif %}
                 </div>
 
@@ -190,6 +191,8 @@
                 </div>
                 {% endif %}
 
+                {% set collection_total = collection_data.get('count') - 1 %}
+                {% if dataset.dcat.get('keyword') or collection_total > 0 %}
                 <h2 class="text-primary-darker margin-bottom-1">Find Related Datasets</h2>
                 <section class="usa-section bg-base-lightest radius-lg padding-3 margin-top-4">
 
@@ -199,9 +202,9 @@
                         <div class="tablet:grid-col-6">
                         <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
 
-                            <h4 class="margin-top-0 display-flex flex-align-center">
+                            <h3 class="margin-top-0 display-flex flex-align-center">
                             Search by Tags
-                            </h4>
+                            </h3>
 
                             <p class="text-base margin-top-1 margin-bottom-2">
                             Click any tag below to search for similar datasets
@@ -244,15 +247,14 @@
                         </div>
                         {% endif %}
 
-                        {% set collection_total = collection_data.get('count') - 1 %}
                         {% if collection_total > 0 %}
                         <div class="tablet:grid-col-6 collection-tooltip">
                         <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
 
                             <div class="display-flex">
-                                <h4 class="margin-top-0 display-flex flex-align-center">
+                                <h3 class="margin-top-0 display-flex flex-align-center">
                                 Explore Collection
-                                </h4>
+                                </h3>
                                 <button
                                     type="button"
                                     class="usa-tooltip usa-button--unstyled"
@@ -277,6 +279,7 @@
 
                     </div>
                 </section>
+                {% endif %}
 
                 <details class="margin-bottom-3 margin-top-3">
                     <summary>
@@ -317,12 +320,13 @@
                         Have questions or suggestions about this dataset? Reach out to the contact below.
                     </p>
 
+                    {% set contact_point = dataset.dcat.get('contactPoint') | first_contact_point %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Name</div>
-                        <div class="sidebar-section__value">{{ dataset.dcat.contactPoint.fn }}</div>
+                        <div class="sidebar-section__value">{{ contact_point.get('fn') }}</div>
                     </div>
 
-                    {% set email = dataset.dcat.contactPoint.hasEmail | format_contact_point_email %}
+                    {% set email = contact_point.get('hasEmail') | format_contact_point_email %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Email</div>
                         <div class="sidebar-section__value">
@@ -354,12 +358,12 @@
 
                 <!-- Dataset Information -->
                 <div class="sidebar-section">
-                    <h3 class="sidebar-section__heading">Dataset Information</h3>
+                    <h3 class="sidebar-section__heading">{{ type_label }} Information</h3>
 
                     {% set issued_dt = dataset.dcat.get('issued') | parse_datetime %}
                     {% if issued_dt %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Dataset First Published</div>
+                        <div class="sidebar-section__label">{{ type_label }} First Published</div>
                         <div class="sidebar-section__value">
                             {{ issued_dt | format_dcat_date }}
                         </div>
@@ -369,7 +373,7 @@
                     {% set modified_dt = dataset.dcat.get('modified') | parse_datetime %}
                     {% if modified_dt %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Dataset Last Updated</div>
+                        <div class="sidebar-section__label">{{ type_label }} Last Updated</div>
                         <div class="sidebar-section__value">
                             {{ modified_dt | format_dcat_date }}
                         </div>
@@ -432,8 +436,8 @@
 {{ super() }}
 <script src="{{ static_url('js/dataset_tags.js') }}"></script>
 {% if dataset.translated_spatial %}
-<link rel="stylesheet" href="{{ static_url('css/vendor/leaflet.css') }}" />
-<script src="{{ static_url('js/vendor/leaflet.js') }}"></script>
+<link rel="stylesheet" href="{{ static_url('assets/leaflet/leaflet.css') }}" />
+<script src="{{ static_url('assets/leaflet/leaflet.js') }}"></script>
 <script src="{{ static_url('js/view_bbox_map.js') }}"></script>
 </script>
 {% endif %}

@@ -1,135 +1,59 @@
-# NOTE: Keep this file in sync between datagov-harvester and datagov-catalog
+"""Local, read-only models for the tables catalog actually queries.
+
+Slimmed from datagov_data_access.db.models (the harvester-owned schema) as
+part of GSA/data.gov#6211. Foreign keys, check constraints, and Postgres
+Enum types are deliberately dropped: catalog never writes to these tables,
+so FKs/constraints buy nothing, and an Enum whose value set drifts from
+harvester's raises LookupError on *read* for any row using the new value.
+Columns are otherwise kept in full to preserve Base.to_dict() output shape.
+"""
 
 import uuid
-from typing import Optional
 
 from flask_sqlalchemy import SQLAlchemy
 from geoalchemy2 import Geometry
-from sqlalchemy import (
-    CheckConstraint,
-    Column,
-    Enum,
-    Index,
-    String,
-    UniqueConstraint,
-    func,
-    select,
-    text,
-)
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, DateTime, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import DeclarativeBase, backref, column_property
-
-from shared.constants import (
-    FREQUENCY_VALUES,
-    JOB_STATUS_VALUES,
-    NOTIFICATION_FREQUENCY_VALUES,
-    ORGANIZATION_TYPE_VALUES,
-    SCHEMA_TYPE_VALUES,
-    SEVERITY_VALUES,
-    SOURCE_TYPE_VALUES,
-)
+from sqlalchemy.orm import DeclarativeBase, backref, column_property, relationship
+from sqlalchemy.sql import select
 
 
 class Base(DeclarativeBase):
-    __abstract__ = True  # Indicates that this class should not be created as a table
+    __abstract__ = True
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
-# For ref: https://stackoverflow.com/questions/22698478/what-is-the-difference-between-the-declarative-base-and-db-model
-db = SQLAlchemy(model_class=Base)
-
-
-class Error(db.Model):
-    __abstract__ = True
-    date_created = db.Column(db.DateTime, default=func.statement_timestamp())
-    type = db.Column(db.String)
-    message = db.Column(db.String)
-
-
-class Organization(db.Model):
+class Organization(Base):
     __tablename__ = "organization"
-    __table_args__ = (UniqueConstraint("slug", name="uq_organization_slug"),)
 
-    name = db.Column(db.String, nullable=False, index=True)
-    logo = db.Column(db.String)
-    description = db.Column(db.Text)
-    slug = db.Column(db.String(100), nullable=False)
-    organization_type = db.Column(
-        Enum(
-            *ORGANIZATION_TYPE_VALUES,
-            name="organization_type_enum",
-            create_constraint=True,
-        )
-    )
-    aliases = db.Column(db.ARRAY(db.String))
-    sources = db.relationship(
-        "HarvestSource",
-        backref=backref("org", lazy="joined"),
-        cascade="all, delete-orphan",
-        lazy=True,
-    )
+    name = Column(String, nullable=False, index=True)
+    logo = Column(String)
+    description = Column(Text)
+    slug = Column(String(100), nullable=False)
+    organization_type = Column(String)
+    aliases = Column(ARRAY(String))
 
 
-class HarvestSource(db.Model):
+class HarvestSource(Base):
+    """Only exists for Organization.source_count and the /api/stats count."""
+
     __tablename__ = "harvest_source"
-    __table_args__ = (
-        CheckConstraint(
-            "(collection_parent_url IS NULL"
-            " AND source_type <> 'waf-collection')"
-            " OR (collection_parent_url IS NOT NULL"
-            " AND source_type = 'waf-collection')",
-            name="wafcollectionparenturl",
-        ),
-        Index("ix_harvest_source_organization_id", "organization_id"),
-    )
 
-    organization_id = db.Column(
-        db.String(36), db.ForeignKey("organization.id"), nullable=False
-    )
-    name = db.Column(db.String, nullable=False)
-    url = db.Column(db.String, nullable=False, unique=True)
-    notification_emails = db.Column(db.ARRAY(db.String))
-    frequency = db.Column(
-        Enum(
-            *FREQUENCY_VALUES,
-            name="frequency",
-        ),
-        nullable=False,
-        index=True,
-    )
-    schema_type = db.Column(
-        db.Enum(
-            *SCHEMA_TYPE_VALUES,
-            name="schema_type",
-        ),
-        nullable=False,
-    )
-
-    source_type = db.Column(
-        db.Enum(*SOURCE_TYPE_VALUES, name="source_type"), nullable=False
-    )
-    jobs = db.relationship(
-        "HarvestJob",
-        backref=backref("source", lazy="joined"),
-        cascade="all, delete-orphan",
-        lazy=True,
-    )
-    notification_frequency = db.Column(
-        db.Enum(
-            *NOTIFICATION_FREQUENCY_VALUES,
-            name="notification_frequency",
-        ),
-        nullable=False,
-    )
-    collection_parent_url = db.Column(db.String)
+    organization_id = Column(String(36), index=True)
+    name = Column(String)
+    url = Column(String)
+    notification_emails = Column(ARRAY(String))
+    frequency = Column(String)
+    schema_type = Column(String)
+    source_type = Column(String)
+    notification_frequency = Column(String)
+    collection_parent_url = Column(String)
 
 
-# to avoid moving models around adding this here since it references
-# 2 models (Organization & HarvestSource)
 Organization.source_count = column_property(
     select(func.count(HarvestSource.id))
     .where(HarvestSource.organization_id == Organization.id)
@@ -138,210 +62,65 @@ Organization.source_count = column_property(
 )
 
 
-class HarvestJob(db.Model):
-    __tablename__ = "harvest_job"
-
-    harvest_source_id = db.Column(
-        db.String(36), db.ForeignKey("harvest_source.id"), nullable=False
-    )
-
-    status = db.Column(
-        Enum(
-            *JOB_STATUS_VALUES,
-            name="job_status",
-        ),
-        nullable=False,
-        index=True,
-    )
-    job_type = db.Column(db.String(20), default="harvest")
-    date_created = db.Column(
-        db.DateTime, index=True, default=func.statement_timestamp()
-    )
-    date_finished = db.Column(db.DateTime)
-    records_total = db.Column(db.Integer, default=0)
-    records_added = db.Column(db.Integer, default=0)
-    records_updated = db.Column(db.Integer, default=0)
-    records_deleted = db.Column(db.Integer, default=0)
-    records_errored = db.Column(db.Integer, default=0)
-    records_ignored = db.Column(db.Integer, default=0)
-    records_validated = db.Column(db.Integer, default=0)
-    errors = db.relationship(
-        "HarvestJobError",
-        backref=backref("job", lazy="joined"),
-        cascade="all, delete-orphan",
-        lazy=True,
-    )
-    records = db.relationship(
-        "HarvestRecord", backref="job", cascade="all, delete-orphan", lazy=True
-    )
-    record_errors = db.relationship(
-        "HarvestRecordError", backref="job", cascade="all, delete-orphan", lazy=True
-    )
-
-
-class HarvestRecord(db.Model):
+class HarvestRecord(Base):
     __tablename__ = "harvest_record"
 
-    identifier = db.Column(db.String, nullable=False)
-    harvest_job_id = db.Column(
-        db.String(36), db.ForeignKey("harvest_job.id"), nullable=False
-    )
-    harvest_source_id = db.Column(
-        db.String(36), db.ForeignKey("harvest_source.id"), nullable=False
-    )
-    source_hash = db.Column(db.String)
-    source_raw = db.Column(db.String)
-    source_transform = db.Column(JSONB)
-    date_created = db.Column(
-        db.DateTime, index=True, default=func.statement_timestamp()
-    )
-    date_finished = db.Column(db.DateTime, index=True)
-    ckan_id = db.Column(db.String, index=True)
-    action = db.Column(
-        Enum("create", "update", "delete", name="record_action"), index=True
-    )
-    # Parent information isn't in source_raw for XML records
-    parent_identifier = db.Column(db.String)
-    status = db.Column(
-        Enum("error", "success", "dataset_pending", name="record_status"), index=True
-    )
-    errors = db.relationship("HarvestRecordError", backref="record", lazy=True)
-
-    __table_args__ = (
-        Index("ix_harvest_record_harvest_job_id", "harvest_job_id"),
-        Index(
-            "ix_harvest_record_source_identifier_created_success",
-            harvest_source_id,
-            identifier,
-            date_created.desc(),
-            postgresql_where=text("status = 'success'"),
-            postgresql_include=["action"],
-        ),
-    )
-
-    @property
-    def dataset_slug(self) -> Optional[str]:
-        dataset = getattr(self, "dataset", None)
-        if dataset is None:
-            return None
-        return dataset.slug
+    identifier = Column(String, nullable=False)
+    harvest_job_id = Column(String(36), index=True)
+    harvest_source_id = Column(String(36), index=True)
+    source_hash = Column(String)
+    source_raw = Column(String)
+    source_transform = Column(JSONB)
+    date_created = Column(DateTime, index=True, default=func.statement_timestamp())
+    date_finished = Column(DateTime, index=True)
+    ckan_id = Column(String, index=True)
+    action = Column(String, index=True)
+    parent_identifier = Column(String)
+    status = Column(String, index=True)
 
 
-class Dataset(db.Model):
+class Dataset(Base):
     __tablename__ = "dataset"
 
-    # Base has a string `id` column that is uuid by default
+    slug = Column(String, nullable=False, index=True, unique=True)
+    dcat = Column(MutableDict.as_mutable(JSONB), nullable=False)
+    translated_spatial = Column(JSONB)
+    organization_id = Column(String(36), index=True)
+    harvest_source_id = Column(String(36), index=True)
+    harvest_record_id = Column(String(36), index=True, unique=True)
+    popularity = Column(Integer, server_default="0")
+    last_harvested_date = Column(DateTime, index=True)
+    type = Column(String, index=True)
 
-    # slug is the string that we use in a URL for this dataset
-    slug = db.Column(db.String, nullable=False, index=True, unique=True)
-
-    # This is all of the details of the dataset in DCAT schema in a JSON column
-    # make it mutable so that in-place mutations (e.g.,
-    # dcat["spatial"] = "...", for tests) are tracked
-    dcat = db.Column(MutableDict.as_mutable(JSONB), nullable=False)
-    translated_spatial = db.Column(JSONB)
-
-    organization_id = db.Column(
-        db.String(36),
-        db.ForeignKey("organization.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-
-    harvest_source_id = db.Column(
-        db.String(36),
-        db.ForeignKey("harvest_source.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-
-    harvest_record_id = db.Column(
-        db.String(36),
-        db.ForeignKey("harvest_record.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-        unique=True,
-    )
-
-    popularity = db.Column(db.Integer, server_default="0")
-    last_harvested_date = db.Column(db.DateTime, index=True)
-
-    organization = db.relationship(
+    organization = relationship(
         "Organization",
         backref=backref("datasets", lazy=True),
+        primaryjoin="Dataset.organization_id == Organization.id",
+        foreign_keys=[organization_id],
         lazy="joined",
+        viewonly=True,
     )
 
-    harvest_source = db.relationship(
-        "HarvestSource",
-        backref=backref("datasets", lazy=True),
-        lazy="joined",
-    )
-
-    harvest_record = db.relationship(
+    # Not read anywhere in catalog's own code, but needed for
+    # dataset.harvest_record.source_transform in the (still library-owned,
+    # unvendored) OpenSearch write path used by tests and `flask search compare`.
+    harvest_record = relationship(
         "HarvestRecord",
-        backref=backref("dataset", uselist=False, lazy=True),
-        lazy="joined",
+        primaryjoin="Dataset.harvest_record_id == HarvestRecord.id",
+        foreign_keys=[harvest_record_id],
         uselist=False,
+        viewonly=True,
     )
 
 
-class DatasetViewCount(db.Model):
-    __tablename__ = "dataset_view_count"
-
-    dataset_slug = db.Column(db.String(100), nullable=False, unique=True, index=True)
-    view_count = db.Column(db.Integer, nullable=False, default=0)
-
-
-class ResourceViewCount(db.Model):
-    __tablename__ = "resource_view_count"
-    # url from Google Analytics resource path is truncated to 100 characters
-    resource_url = db.Column(db.String(100), nullable=False, unique=True, index=True)
-    view_count = db.Column(db.Integer, nullable=False, default=0)
-
-
-class HarvestJobError(Error):
-    __tablename__ = "harvest_job_error"
-
-    harvest_job_id = db.Column(
-        db.String(36), db.ForeignKey("harvest_job.id"), nullable=False
-    )
-
-    __table_args__ = (Index("ix_harvest_job_error_harvest_job_id", "harvest_job_id"),)
-
-
-class HarvestRecordError(Error):
-    __tablename__ = "harvest_record_error"
-
-    harvest_record_id = db.Column(
-        db.String, db.ForeignKey("harvest_record.id"), nullable=True
-    )
-    harvest_job_id = db.Column(
-        db.String(36), db.ForeignKey("harvest_job.id"), nullable=False
-    )
-    severity = db.Column(
-        db.Enum(*SEVERITY_VALUES, name="error_severity"),
-        nullable=False,
-        server_default="error",
-    )
-
-    __table_args__ = (
-        Index("ix_hre_job_id", "harvest_job_id"),
-        Index("ix_harvest_record_error_harvest_record_id", "harvest_record_id"),
-    )
-
-
-class HarvestUser(db.Model):
-    __tablename__ = "harvest_user"
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    name = db.Column(db.String(120), nullable=True)
-    ssoid = db.Column(db.String(200), unique=True, nullable=True)
-
-
-class Locations(db.Model):
+class Locations(Base):
     __tablename__ = "locations"
-    name = db.Column(db.String)
-    type = db.Column(db.String)
-    display_name = db.Column(db.String)
-    the_geom = db.Column(Geometry(geometry_type="MULTIPOLYGON"))
-    type_order = db.Column(db.Integer)
+
+    name = Column(String)
+    type = Column(String)
+    display_name = Column(String)
+    the_geom = Column(Geometry(geometry_type="MULTIPOLYGON"))
+    type_order = Column(Integer)
+
+
+db = SQLAlchemy(model_class=Base)
