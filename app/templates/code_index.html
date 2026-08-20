@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Federal Agency Source Code Repositories - Data.gov{% endblock %}
+
+{% block content %}
+<div class="grid-container">
+  <div class="grid-row">
+    <div class="grid-col-12">
+      <h1>Federal Agency Source Code Repositories</h1>
+
+      <div class="usa-prose margin-top-2 margin-bottom-4">
+        <p>
+          The <a href="https://www.congress.gov/bill/118th-congress/house-bill/9566" target="_blank" rel="noopener noreferrer">SHARE IT Act</a>
+          (Public Law 118-187) requires federal agencies to make their source code repositories publicly discoverable.
+          This page displays the compliance status for all federal agencies reporting to Data.gov.
+        </p>
+        <p>
+          <strong>Status meanings:</strong>
+        </p>
+        <ul>
+          <li><strong>Repository URL:</strong> Agency has reported their source code repository location</li>
+          <li><strong>Exempt:</strong> Agency has an OMB-approved exemption from the SHARE IT Act requirement</li>
+          <li><strong>Not yet reported:</strong> Agency has not yet provided repository information to Data.gov</li>
+        </ul>
+      </div>
+
+      <table class="usa-table usa-table--striped" aria-label="Federal agency source code repositories">
+        <thead>
+          <tr>
+            <th scope="col">Agency</th>
+            <th scope="col">Source Code Repository</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for org in organizations %}
+          <tr>
+            <td>
+              <a href="{{ url_for('main.organization_detail', slug=org.slug) }}">
+                {{ org.name }}
+              </a>
+            </td>
+            <td>
+              {% if org.code_repo_url %}
+                <a href="{{ org.code_repo_url }}" target="_blank" rel="noopener noreferrer">
+                  {{ org.code_repo_url }}
+                </a>
+              {% elif org.code_repo_exempt %}
+                <span class="text-base">Exempt</span>
+              {% else %}
+                <span class="text-base-light">Not yet reported</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if organizations|length == 0 %}
+      <p class="text-base-light margin-top-4">No federal agencies found.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
