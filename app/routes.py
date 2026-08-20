@@ -340,6 +340,9 @@ def proxy_maptiles(z, x, y):
 
     requests.get automatically uses the egress proxy if it is
     specified as HTTPS_PROXY or https_proxy in the os environment.
+
+    Openstreetmap policies for tile use:
+    https://operations.osmfoundation.org/policies/tiles/
     """
     try:
         upstream = requests.get(
