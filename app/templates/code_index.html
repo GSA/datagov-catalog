@@ -24,7 +24,7 @@
         </ul>
       </div>
 
-      <table class="usa-table usa-table--striped" aria-label="Federal agency source code repositories">
+      <table class="usa-table" aria-label="Federal agency source code repositories">
         <thead>
           <tr>
             <th scope="col">Agency</th>
@@ -33,7 +33,7 @@
         </thead>
         <tbody>
           {% for org in organizations %}
-          <tr>
+          <tr style="background-color: white;">
             <td>
               <a href="{{ url_for('main.organization_detail', slug=org.slug) }}">
                 {{ org.name }}
@@ -45,9 +45,9 @@
                   {{ org.code_repo_url }}
                 </a>
               {% elif org.code_repo_exempt %}
-                <span class="text-base">Exempt</span>
+                <span style="color: black;">Exempt</span>
               {% else %}
-                <span class="text-base-light">Not yet reported</span>
+                <span style="color: black;">Not yet reported</span>
               {% endif %}
             </td>
           </tr>
