@@ -1427,6 +1427,114 @@ def test_organization_detail_displays_no_datasets_on_search(
     assert len(items) == 0
 
 
+def test_organization_detail_displays_code_repo_url_when_present(
+    db_client, interface_with_organization
+):
+    """Test organization detail page shows repository link when URL is set."""
+    # Add organization with code_repo_url
+    org = Organization(
+        id="test-org-with-repo",
+        name="Test Agency With Repo",
+        slug="test-agency-with-repo",
+        code_repo_url="https://github.com/test-agency",
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/test-agency-with-repo")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Source Code Repository" in html
+    assert "https://github.com/test-agency" in html
+    assert 'target="_blank"' in html
+    assert 'rel="noopener noreferrer"' in html
+
+
+def test_organization_detail_hides_code_repo_url_when_null(
+    db_client, interface_with_organization
+):
+    """Test organization detail page does NOT show repository field when URL is null."""
+    # Organization fixture already has code_repo_url=None by default
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Source Code Repository" not in html
+
+
+def test_organization_detail_hides_code_repo_url_when_empty_string(
+    db_client, interface_with_organization
+):
+    """Test organization detail page does NOT show repository field when URL is empty string."""
+    # Add organization with empty code_repo_url
+    org = Organization(
+        id="test-org-empty-repo",
+        name="Test Agency Empty Repo",
+        slug="test-agency-empty-repo",
+        code_repo_url="",
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/test-agency-empty-repo")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Source Code Repository" not in html
+
+
+def test_gsa_organization_displays_github_link(db_client, interface_with_organization):
+    """Test GSA organization shows GitHub repository link (acceptance test)."""
+    # Add GSA organization with repo URL
+    org = Organization(
+        id="gsa",
+        name="GSA",
+        slug="gsa",
+        code_repo_url="https://github.com/GSA",
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/gsa")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Source Code Repository" in html
+    assert 'href="https://github.com/GSA"' in html
+
+
+def test_organization_detail_does_not_display_code_repo_exempt(
+    db_client, interface_with_organization
+):
+    """Test organization detail page does NOT show code_repo_exempt flag."""
+    # Add organization with both fields
+    org = Organization(
+        id="test-org-both-fields",
+        name="Test Agency Both Fields",
+        slug="test-agency-both-fields",
+        code_repo_url="https://github.com/test-agency",
+        code_repo_exempt=True,
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/test-agency-both-fields")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    # URL should be visible
+    assert "Source Code Repository" in html
+    # But exempt flag should NOT be visible
+    assert "exempt" not in html.lower()
+    assert "OMB" not in html
+
+
 def test_index_page_has_filters_sidebar(db_client):
     """Test that the index page contains the filters sidebar."""
     response = db_client.get("/")
@@ -2628,7 +2736,7 @@ def test_index_collection(interface_with_dataset, db_client):
         == "/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
     )
     assert (
-        collection_card_view_badge.select_one("button.collection-card__collection-link")
+        collection_card_view_badge.select_one("a.collection-card__collection-link")
         is not None
     )
 
