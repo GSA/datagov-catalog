@@ -48,11 +48,9 @@ def test_return_to_search_results(page):
     expect(page.get_by_role("heading", level=1)).to_have_text(
         "Segal AmeriCorps Education Award Payments by State"
     )
-    expect(
-        page.get_by_role("link", name="\uf060 Return to search results")
-    ).to_be_visible()
+    expect(page.get_by_role("link", name="Return to search results")).to_be_visible()
 
-    page.get_by_role("link", name="\uf060 Return to search results").click()
+    page.get_by_role("link", name="Return to search results").click()
     # back on the search page with same number of results
     expect(page.locator("#search-results div.usa-prose p:first-child")).to_contain_text(
         "Found 8 datasets matching "
