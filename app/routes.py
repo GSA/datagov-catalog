@@ -333,19 +333,21 @@ def sitemap_chunk(index: int) -> Response:
 
 @main.route("/maptiles/<int:z>/<int:x>/<int:y>.png")
 def proxy_maptiles(z, x, y):
-    """ Retrieve maptiles from tiles.openstreetmap.org.
+    """Retrieve maptiles from tiles.openstreetmap.org.
 
-        This provides a same-origin /maptiles path so the CSP stays
-        locked down, and enables our CDN to cache the map tile images.
+    This provides a same-origin /maptiles path so the CSP stays
+    locked down, and enables our CDN to cache the map tile images.
 
-        requests.get automatically uses the egress proxy if it is
-        specified as HTTPS_PROXY or https_proxy in the os environment.
+    requests.get automatically uses the egress proxy if it is
+    specified as HTTPS_PROXY or https_proxy in the os environment.
     """
     try:
         upstream = requests.get(
             f"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            headers={"User-Agent": "Data.gov datalog (+https://catalog.data.gov; contact: datagovhelp@gsa.gov)",
-                     "Referer": request.referrer},
+            headers={
+                "User-Agent": "Data.gov datalog (+https://catalog.data.gov; contact: datagovhelp@gsa.gov)",
+                "Referer": request.referrer,
+            },
             timeout=10,
         )
     except requests.RequestException as exc:
@@ -356,7 +358,11 @@ def proxy_maptiles(z, x, y):
         upstream.content,
         status=upstream.status_code,
         content_type=upstream.headers.get("Content-Type", "image/png"),
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={
+            "Cache-Control": upstream.headers.get(
+                "Cache-Control", "public, max-age=86400"
+            )
+        },
     )
 
 
