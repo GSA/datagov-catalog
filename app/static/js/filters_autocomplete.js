@@ -369,6 +369,7 @@ class OrganizationAutocomplete {
         this.suggestedContainerId = options.suggestedContainerId || 'suggested-organizations';
 
         this.input = document.getElementById(this.inputId);
+        this.inputHint = document.getElementById(`${this.inputId}-hint`);
         this.chipsContainer = document.getElementById(this.chipsContainerId);
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
         this.form = document.getElementById(this.formId);
@@ -636,6 +637,7 @@ class OrganizationAutocomplete {
         this.renderChip(this.selectedOrganization);
         this.syncHiddenInputs();
         this.hideSuggestedOrganizations();
+        this.hideInput();
 
         if (!silent) {
             requestFilterFormSubmit(this.form);
@@ -688,6 +690,7 @@ class OrganizationAutocomplete {
         this.chipsContainer.innerHTML = '';
         this.syncHiddenInputs();
         this.showSuggestedOrganizations();
+        this.showInput();
         requestFilterFormSubmit(this.form);
     }
 
@@ -768,6 +771,21 @@ class OrganizationAutocomplete {
             this.suggestedContainer.style.display = 'block';
         }
     }
+
+    hideInput() {
+        this.input.classList.add('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Remove the filter to search again';
+        }
+        this.hideSuggestions();
+    }
+
+    showInput() {
+        this.input.classList.remove('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Start typing to select an organization';
+        }
+    }
 }
 
 class PublisherAutocomplete {
@@ -782,6 +800,7 @@ class PublisherAutocomplete {
         this.suggestedContainerId = options.suggestedContainerId || 'suggested-publishers';
 
         this.input = document.getElementById(this.inputId);
+        this.inputHint = document.getElementById(`${this.inputId}-hint`);
         this.chipsContainer = document.getElementById(this.chipsContainerId);
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
         this.form = document.getElementById(this.formId);
@@ -988,6 +1007,7 @@ class PublisherAutocomplete {
         this.renderChip(name);
         this.syncHiddenInputs();
         this.hideSuggestedPublishers();
+        this.hideInput();
 
         if (!silent) {
             requestFilterFormSubmit(this.form);
@@ -1022,6 +1042,7 @@ class PublisherAutocomplete {
         this.chipsContainer.innerHTML = '';
         this.syncHiddenInputs();
         this.showSuggestedPublishers();
+        this.showInput();
         requestFilterFormSubmit(this.form);
     }
 
@@ -1097,6 +1118,21 @@ class PublisherAutocomplete {
     showSuggestedPublishers() {
         if (this.suggestedContainer && !this.selectedPublisher) {
             this.suggestedContainer.style.display = 'block';
+        }
+    }
+
+    hideInput() {
+        this.input.classList.add('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Remove the filter to search again';
+        }
+        this.hideSuggestions();
+    }
+
+    showInput() {
+        this.input.classList.remove('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Start typing to select a publisher';
         }
     }
 }
