@@ -320,7 +320,7 @@
                         Have questions or suggestions about this dataset? Reach out to the contact below.
                     </p>
 
-                    {% set contact_point = dataset.dcat.get('contactPoint') or {} %}
+                    {% set contact_point = dataset.dcat.get('contactPoint') | first_contact_point %}
                     <div class="sidebar-section__item">
                         <div class="sidebar-section__label">Name</div>
                         <div class="sidebar-section__value">{{ contact_point.get('fn') }}</div>
