@@ -4,6 +4,7 @@ import pytest
 
 from app.filters import (
     dcatus_to_schema_org_jsonld,
+    first_contact_point,
     format_dcat_date,
     format_icon_class,
     format_icon_label,
@@ -27,6 +28,26 @@ def test_lt_or_gt_not_removed():
 
 def test_remove_html_tags_none_returns_empty_string():
     assert remove_html_tags(None) == ""
+
+
+class TestFirstContactPoint:
+    """DataService.contactPoint is an array (DCAT-US 3.0); Dataset.contactPoint
+    is a single object. Callers that only display one contact need this
+    normalized regardless of which shape they got."""
+
+    def test_dict_passthrough(self):
+        contact = {"fn": "Test Contact", "hasEmail": "mailto:test@example.gov"}
+        assert first_contact_point(contact) == contact
+
+    def test_list_returns_first_dict(self):
+        contact = {"fn": "API Support", "hasEmail": "mailto:api@example.gov"}
+        assert first_contact_point([contact]) == contact
+
+    def test_empty_list_returns_empty_dict(self):
+        assert first_contact_point([]) == {}
+
+    def test_none_returns_empty_dict(self):
+        assert first_contact_point(None) == {}
 
 
 def test_dcatus_to_schema_org_jsonld(dcatus_dataset):
