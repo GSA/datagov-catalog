@@ -487,6 +487,23 @@ class TestDatasetDetail:
         assert "Service Information" in sidebar_headings
         assert "Dataset Information" not in sidebar_headings
 
+        # DataService.contactPoint is an array (unlike Dataset's single
+        # object) per DCAT-US 3.0 — the Contact sidebar must still render
+        # the first entry instead of crashing on a list.
+        contact_box = next(
+            (
+                h.find_parent("div", class_="sidebar-section")
+                for h in soup.select(".sidebar-section__heading")
+                if h.get_text(strip=True) == "Contact"
+            ),
+            None,
+        )
+        assert contact_box is not None
+        assert "Climate API Support" in contact_box.get_text()
+        email_link = contact_box.select_one('a[href^="mailto:"]')
+        assert email_link is not None
+        assert email_link.get("href") == "mailto:climate-api@example.gov"
+
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
         Test that the landingPage key in the Complete Metadata section
@@ -632,7 +649,7 @@ class TestDatasetDetail:
         related_section = soup.find("h2", string="Find Related Datasets")
         assert related_section is not None
 
-        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        tags_heading = soup.find("h3", string=lambda s: s and "Search by Tags" in s)
         assert tags_heading is not None
 
     def test_related_datasets_section_shown_when_has_collection(
@@ -661,7 +678,7 @@ class TestDatasetDetail:
         assert related_section is not None
 
         collection_heading = soup.find(
-            "h4", string=lambda s: s and "Explore Collection" in s
+            "h3", string=lambda s: s and "Explore Collection" in s
         )
         assert collection_heading is not None
 
@@ -690,9 +707,9 @@ class TestDatasetDetail:
         related_section = soup.find("h2", string="Find Related Datasets")
         assert related_section is not None
 
-        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        tags_heading = soup.find("h3", string=lambda s: s and "Search by Tags" in s)
         collection_heading = soup.find(
-            "h4", string=lambda s: s and "Explore Collection" in s
+            "h3", string=lambda s: s and "Explore Collection" in s
         )
         assert tags_heading is not None
         assert collection_heading is not None

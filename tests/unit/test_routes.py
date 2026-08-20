@@ -2628,7 +2628,7 @@ def test_index_collection(interface_with_dataset, db_client):
         == "/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
     )
     assert (
-        collection_card_view_badge.select_one("button.collection-card__collection-link")
+        collection_card_view_badge.select_one("a.collection-card__collection-link")
         is not None
     )
 
