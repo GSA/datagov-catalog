@@ -487,6 +487,23 @@ class TestDatasetDetail:
         assert "Service Information" in sidebar_headings
         assert "Dataset Information" not in sidebar_headings
 
+        # DataService.contactPoint is an array (unlike Dataset's single
+        # object) per DCAT-US 3.0 — the Contact sidebar must still render
+        # the first entry instead of crashing on a list.
+        contact_box = next(
+            (
+                h.find_parent("div", class_="sidebar-section")
+                for h in soup.select(".sidebar-section__heading")
+                if h.get_text(strip=True) == "Contact"
+            ),
+            None,
+        )
+        assert contact_box is not None
+        assert "Climate API Support" in contact_box.get_text()
+        email_link = contact_box.select_one('a[href^="mailto:"]')
+        assert email_link is not None
+        assert email_link.get("href") == "mailto:climate-api@example.gov"
+
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
         Test that the landingPage key in the Complete Metadata section
