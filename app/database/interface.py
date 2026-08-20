@@ -320,6 +320,19 @@ class CatalogDBInterface:
             for row in rows
         ]
 
+    def get_federal_organizations(self) -> list[Organization]:
+        """Get all organizations with organization_type='Federal Government', sorted by name.
+
+        Returns:
+            List of Organization objects sorted alphabetically by name.
+        """
+        return (
+            self.db.query(Organization)
+            .filter(Organization.organization_type == "Federal Government")
+            .order_by(Organization.name)
+            .all()
+        )
+
     def get_top_publishers(self) -> list[dict]:
         """Return the top 100 publishers ordered by dataset count."""
         publishers = self.opensearch.get_publisher_counts(size=100)
