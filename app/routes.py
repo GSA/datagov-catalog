@@ -1,5 +1,6 @@
 import json
 import logging
+import requests
 from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
@@ -328,6 +329,28 @@ def sitemap_chunk(index: int) -> Response:
     key = f"{config.prefix.rstrip('/')}/sitemap-{index}.xml"
     body = _get_sitemap_body_or_404(config.bucket, key)
     return Response(body, mimetype="application/xml")
+
+
+@main.route("/maptiles/<int:z>/<int:x>/<int:y>.png")
+def proxy_maptiles(z, x, y):
+    """ Map tiles are served from a same-origin /maptiles path so the CSP stays
+        locked down, and so that they can be cached by the CDN. """
+    try:
+        upstream = requests.get(
+            f"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            headers={"User-Agent": "datagov-catalog-local-dev"},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        logger.warning("Failed to fetch map tile", extra={"error": str(exc)})
+        return Response(status=502)
+
+    return Response(
+        upstream.content,
+        status=upstream.status_code,
+        content_type=upstream.headers.get("Content-Type", "image/png"),
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 # Routes
