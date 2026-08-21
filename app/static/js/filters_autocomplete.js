@@ -90,6 +90,11 @@ class KeywordAutocomplete {
 
         try {
             const params = new URLSearchParams({ search: query, size: 10 });
+            for (const keyword of this.selectedKeywords) {
+                if (keyword) {
+                    params.append('keyword', keyword);
+                }
+            }
             const response = await fetch(`${this.apiEndpoint}?${params}`, {
                 signal: this.fetchController.signal,
             });
@@ -209,10 +214,13 @@ class KeywordAutocomplete {
             div.className = 'keyword-suggestion';
             div.dataset.keyword = item.keyword;
 
-            // Use contextual count if available, otherwise use the item's count
-            const displayCount = this.contextualCounts[item.keyword] !== undefined
-                ? this.contextualCounts[item.keyword]
-                : item.count;
+            // Prefer the response count for the current filter context, falling back
+            // to the page's contextual counts when the API did not provide one.
+            const displayCount = item.count !== undefined
+                ? item.count
+                : this.contextualCounts[item.keyword] !== undefined
+                    ? this.contextualCounts[item.keyword]
+                    : 0;
 
             const textSpan = document.createElement('span');
             textSpan.className = 'keyword-suggestion__text';
