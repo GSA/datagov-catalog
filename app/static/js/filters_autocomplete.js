@@ -550,6 +550,8 @@ class OrganizationAutocomplete {
     }
 
     filterAndShowSuggestions(query) {
+        const hasContextualCount = Object.keys(this.contextualCounts).length > 0;
+
         const filtered = this.organizations.filter((item) => {
             const name = (item.name || '').toLowerCase();
             const slug = (item.slug || '').toLowerCase();
@@ -569,9 +571,12 @@ class OrganizationAutocomplete {
                 return false;
             }
 
+            const contextualCount = this.contextualCounts[item.slug];
+            const hasCount = !hasContextualCount || contextualCount > 0;
+
             const aliasMatch = aliases.some((alias) => alias.includes(query));
             return (
-                name.includes(query) || slug.includes(query) || aliasMatch
+                (name.includes(query) || slug.includes(query) || aliasMatch) && hasCount
             );
         });
 
@@ -603,7 +608,10 @@ class OrganizationAutocomplete {
             textSpan.appendChild(this.highlightMatch(item.name, this.input.value));
             const countSpan = document.createElement('span');
             countSpan.className = 'keyword-suggestion__count';
-            countSpan.textContent = this.formatCount(item.dataset_count || 0);
+            const displayCount = this.contextualCounts[item.slug] !== undefined
+                ? this.contextualCounts[item.slug]
+                : item.dataset_count;
+            countSpan.textContent = this.formatCount(displayCount || 0);
             div.appendChild(textSpan);
             div.appendChild(countSpan);
 
