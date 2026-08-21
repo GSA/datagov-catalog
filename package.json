@@ -23,5 +23,8 @@
   "homepage": "https://github.com/GSA/datagov-catalog#readme",
   "devDependencies": {
     "pa11y-ci": "^4.0.1"
+  },
+  "overrides": {
+    "puppeteer": "25.8.0"
   }
 }
