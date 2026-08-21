@@ -326,12 +326,45 @@ class CatalogDBInterface:
         Returns:
             List of Organization objects sorted alphabetically by name.
         """
-        return (
-            self.db.query(Organization)
-            .filter(Organization.organization_type == "Federal Government")
-            .order_by(Organization.name)
-            .all()
-        )
+        from sqlalchemy import cast, inspect
+        from sqlalchemy.dialects.postgresql import ENUM
+
+        # Check if organization_type_enum exists in the database
+        inspector = inspect(self.db.get_bind())
+        enum_exists = "organization_type_enum" in [
+            t["name"] for t in inspector.get_enums()
+        ]
+
+        if enum_exists:
+            # Production environment: use ENUM cast
+            org_type_enum = ENUM(
+                "Federal Government",
+                "State Government",
+                "Local Government",
+                "University",
+                "Tribal Government",
+                "Other",
+                name="organization_type_enum",
+                create_type=False,
+            )
+
+            return (
+                self.db.query(Organization)
+                .filter(
+                    Organization.organization_type
+                    == cast("Federal Government", org_type_enum)
+                )
+                .order_by(Organization.name)
+                .all()
+            )
+        else:
+            # Test environment: use string comparison
+            return (
+                self.db.query(Organization)
+                .filter(Organization.organization_type == "Federal Government")
+                .order_by(Organization.name)
+                .all()
+            )
 
     def get_top_publishers(self) -> list[dict]:
         """Return the top 100 publishers ordered by dataset count."""
