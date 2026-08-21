@@ -326,9 +326,26 @@ class CatalogDBInterface:
         Returns:
             List of Organization objects sorted alphabetically by name.
         """
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import ENUM
+
+        org_type_enum = ENUM(
+            "Federal Government",
+            "State Government",
+            "Local Government",
+            "University",
+            "Tribal Government",
+            "Other",
+            name="organization_type_enum",
+            create_type=False,
+        )
+
         return (
             self.db.query(Organization)
-            .filter(Organization.organization_type == "Federal Government")
+            .filter(
+                Organization.organization_type
+                == cast("Federal Government", org_type_enum)
+            )
             .order_by(Organization.name)
             .all()
         )
