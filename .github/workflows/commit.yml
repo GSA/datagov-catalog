@@ -156,7 +156,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '18'
+          node-version: '22'
 
       - name: Install Poetry
         uses: abatilo/actions-poetry@v4
@@ -172,6 +172,10 @@ jobs:
       - name: Install Node Dependencies
         run: npm install
 
+      - name: Install playwright
+        run: |
+          poetry run playwright install --with-deps chromium
+
       - name: Create local env file
         run: cp .env.sample .env
 
@@ -186,6 +190,9 @@ jobs:
 
       - name: Run accessibility tests
         run: make test-pa11y
+
+      - name: Run axe-core accessibility tests
+        run: make test-axe
 
       - name: Tear down services
         if: always()

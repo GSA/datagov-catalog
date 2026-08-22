@@ -46,6 +46,11 @@ moto = {version = ">=5.2.2,<6.0.0", extras = ["s3"]}
 pytest = ">=9.1.1,<10.0.0"
 pytest-playwright = "^0.8.0"
 playwright = "^1.61.0"
+axe-playwright-python = "^0.1.8"
+
+
+[tool.poetry.group.debug.dependencies]
+debugpy = "^1.8.21"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -53,6 +58,15 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.requires-plugins]
 poetry-plugin-export = ">=1.10"
+
+[tool.pytest.ini_options]
+markers = [
+    # Accessibility checks are advisory (see the `accessibility` job in
+    # .github/workflows/commit.yml, which is continue-on-error). They are
+    # deselected from the blocking `make test-browser` run so an a11y finding
+    # never blocks a merge on its own.
+    "accessibility: axe-core accessibility checks; run via `make test-axe`",
+]
 
 [tool.isort]
 profile = "black"

@@ -216,7 +216,9 @@ class OpenSearchReader:
 
         return SearchResult.from_opensearch_result(result_dict, per_page_hint=1)
 
-    def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
+    def get_unique_keywords(
+        self, size=100, min_doc_count=1, search=None, keywords=None
+    ) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
 
@@ -226,6 +228,18 @@ class OpenSearchReader:
         canonical form.
         """
         query = build_unique_keywords_query(size, min_doc_count, search)
+
+        # Filter documents to only those matching existing keywords
+        if keywords:
+            normalized_keywords = [
+                kw.strip().lower() for kw in (keywords or []) if kw and kw.strip()
+            ]
+            if normalized_keywords:
+                filters = [
+                    {"term": {"keyword.normalized": keyword}}
+                    for keyword in normalized_keywords
+                ]
+                query["query"] = {"bool": {"filter": filters}}
 
         result = self.client.search(index=self.INDEX_NAME, body=query)
         buckets = (
