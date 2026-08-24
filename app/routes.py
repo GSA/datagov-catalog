@@ -787,6 +787,23 @@ def organization_detail(slug: str):
     )
 
 
+@main.route("/code")
+def code_compliance_index():
+    """Federal agency source code repository compliance index.
+
+    Displays all Federal Government organizations with their SHARE IT Act
+    compliance status: repository URL (if provided), exempt status, or
+    not yet reported.
+    """
+    federal_orgs = interface.get_federal_organizations()
+
+    return render_template(
+        "code_index.html",
+        organizations=federal_orgs,
+        title="Federal Agency Source Code Repositories",
+    )
+
+
 @main.route("/dataset/<slug_or_id>", methods=["GET"])
 def dataset_detail_by_slug_or_id(slug_or_id: str):
     """Display dataset detail page at its slug URL."""
