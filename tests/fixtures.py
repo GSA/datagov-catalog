@@ -554,6 +554,17 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "title": "DCAT-US 3.0 Test Dataset",
                 },
             ),
+            dict(
+                id="dataset_without_collection_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/no-collection/example.json",
+                source_raw='{"title": "Dataset Without Collection", "isPartOf": null}',
+                source_transform={
+                    "title": "Dataset Without Collection",
+                    "isPartOf": None,
+                },
+            ),
         ],
         "dataset": [
             dict(
@@ -867,6 +878,32 @@ def fixture_data(*, include_filter_demos: bool = False):
                         ]
                     ],
                 },
+            ),
+            dict(
+                id="dataset-without-collection",
+                slug="dataset-without-collection",
+                dcat={
+                    "title": "Dataset Without Collection",
+                    "description": "A dataset with an explicit null isPartOf; not part of any collection",
+                    "keyword": ["standalone"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "Standalone Data",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/standalone.csv",
+                        }
+                    ],
+                    "isPartOf": None,
+                },
+                harvest_record_id="dataset_without_collection_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
             ),
             dict(
                 id=DCAT_3_0_DATASET_ID,

@@ -12,6 +12,23 @@ def test_dataset_details(page):
     )
 
 
+def test_dataset_with_collection_shows_explore_collection_card(page):
+    page.goto("/dataset/parent-harvest-record")
+
+    expect(page.locator("div.collection-tooltip")).to_be_visible()
+    expect(page.get_by_role("link", name="Find Related Datasets")).to_be_visible()
+
+
+def test_dataset_with_null_ispartof_omits_collection_card(page):
+    # A null isPartOf means the dataset isn't part of any collection, so the
+    # "Explore Collection" card and its "Find Related Datasets" button
+    # shouldn't render. See GSA/data.gov#5862.
+    page.goto("/dataset/dataset-without-collection")
+
+    expect(page.locator("div.collection-tooltip")).to_have_count(0)
+    expect(page.get_by_role("link", name="Find Related Datasets")).to_have_count(0)
+
+
 def test_dataset_tags_expand_button(page):
     page.goto("/dataset/parent-harvest-record")
 
