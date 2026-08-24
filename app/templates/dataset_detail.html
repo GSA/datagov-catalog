@@ -191,8 +191,9 @@
                 </div>
                 {% endif %}
 
-                {% set collection_total = collection_data.get('count') - 1 %}
-                {% if dataset.dcat.get('keyword') or collection_total > 0 %}
+                {% set collection_total = collection_data.get('count') %}
+                {% set collection_parent_slug = collection_data.get('parent_slug') %}
+                {% if dataset.dcat.get('keyword') or collection_total > 0 or collection_parent_slug %}
                 <h2 class="text-primary-darker margin-bottom-1">Find Related Datasets</h2>
                 <section class="usa-section bg-base-lightest radius-lg padding-3 margin-top-4">
 
@@ -247,7 +248,7 @@
                         </div>
                         {% endif %}
 
-                        {% if collection_total > 0 %}
+                        {% if collection_total > 0 or collection_parent_slug %}
                         <div class="tablet:grid-col-6 collection-tooltip">
                         <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
 
@@ -266,13 +267,24 @@
                                 </button>
                             </div>
 
+                            {% if collection_parent_slug %}
+                            <p class="text-base margin-top-0 margin-bottom-2">
+                            This dataset is part of a larger collection
+                            </p>
+                            <a href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=collection_parent_slug) }}" class="usa-button usa-button--outline width-full margin-bottom-1">
+                                View Parent Record{{ ": " + collection_data.get('parent_title') if collection_data.get('parent_title') }}
+                            </a>
+                            {% else %}
                             <p class="text-base margin-top-0 margin-bottom-2">
                             Navigate datasets in this collection
                             </p>
+                            {% endif %}
+                            {% if collection_total > 0 %}
                             <a href="{{ url_for('main.index', collection=collection_data.get('name')) }}" class="usa-button width-full">Find Related Datasets</a>
                             <div class="margin-top-2 text-base-dark">
                             Includes <strong>{{collection_total}}</strong> related dataset{{ "s" if collection_total != 1 }}
                             </div>
+                            {% endif %}
                         </div>
                         </div>
                         {% endif %}

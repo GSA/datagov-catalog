@@ -900,7 +900,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 65"
+    assert datasets_text == "Datasets: 67"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -949,7 +949,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 65"
+    assert overview_items[1].text.strip() == "Total datasets: 67"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -2756,7 +2756,9 @@ def test_index_collection(interface_with_dataset, db_client):
     assert len(collection_card_footer_elms) == 2
 
     # collection counts
-    assert collection_card_footer_elms[1].text.strip() == "1 dataset in this collection"
+    assert (
+        collection_card_footer_elms[1].text.strip() == "3 datasets in this collection"
+    )
 
     # metrics (e.g. search relevance, view count, published on)
     collection_card_metrics = collection_card.select_one("div.collection-card__metrics")
@@ -2777,12 +2779,12 @@ def test_index_collection(interface_with_dataset, db_client):
     # an awkward space between them
     assert (
         re.sub(r"[\r\n]+", "", collection_count.text.strip())
-        == "1                    dataset  in this collection"
+        == "3                    dataset  in this collection"
     )
 
     collection_datasets = soup.select("li.organization-datasets__item")
     assert collection_datasets is not None
-    assert len(collection_datasets) == 1
+    assert len(collection_datasets) == 3
 
 
 def test_index_collection_query(interface_with_dataset, db_client):
