@@ -787,6 +787,23 @@ def organization_detail(slug: str):
     )
 
 
+@main.route("/code")
+def code_compliance_index():
+    """Federal agency source code repository compliance index.
+
+    Displays all Federal Government organizations with their SHARE IT Act
+    compliance status: repository URL (if provided), exempt status, or
+    not yet reported.
+    """
+    federal_orgs = interface.get_federal_organizations()
+
+    return render_template(
+        "code_index.html",
+        organizations=federal_orgs,
+        title="Federal Agency Source Code Repositories",
+    )
+
+
 @main.route("/dataset/<slug_or_id>", methods=["GET"])
 def dataset_detail_by_slug_or_id(slug_or_id: str):
     """Display dataset detail page at its slug URL."""
@@ -878,6 +895,7 @@ def get_keywords_api(**kwargs):
     size = request.args.get("size", 100, type=int)
     min_count = request.args.get("min_count", 1, type=int)
     search = request.args.get("search", None)
+    selected_keywords = request.args.getlist("keyword")
 
     # Validate parameters
     # Between 1 and 1000
@@ -887,7 +905,10 @@ def get_keywords_api(**kwargs):
 
     try:
         keywords = interface.get_unique_keywords(
-            size=size, min_doc_count=min_count, search=search
+            size=size,
+            min_doc_count=min_count,
+            search=search,
+            keywords=selected_keywords or None,
         )
 
         return jsonify(

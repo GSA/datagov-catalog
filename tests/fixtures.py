@@ -373,6 +373,41 @@ def fixture_data(*, include_filter_demos: bool = False):
                 slug="test-org-filtered",
                 organization_type="Federal Government",
             ),
+            # Federal orgs for /code compliance page testing
+            dict(
+                id="gsa",
+                name="General Services Administration",
+                slug="gsa",
+                organization_type="Federal Government",
+                code_repo_url="https://github.com/GSA",
+            ),
+            dict(
+                id="dod",
+                name="Department of Defense",
+                slug="dod",
+                organization_type="Federal Government",
+                code_repo_exempt=True,
+            ),
+            dict(
+                id="nasa",
+                name="NASA",
+                slug="nasa",
+                organization_type="Federal Government",
+            ),
+            dict(
+                id="epa",
+                name="Environmental Protection Agency",
+                slug="epa",
+                organization_type="Federal Government",
+                code_repo_url="https://github.com/USEPA",
+            ),
+            # Non-federal org (should NOT appear on /code page)
+            dict(
+                id="california",
+                name="State of California",
+                slug="california",
+                organization_type="State Government",
+            ),
         ],
         "harvest_source": dict(
             id="1",

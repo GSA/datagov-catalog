@@ -1490,16 +1490,7 @@ def test_organization_detail_hides_code_repo_url_when_empty_string(
 
 def test_gsa_organization_displays_github_link(db_client, interface_with_organization):
     """Test GSA organization shows GitHub repository link (acceptance test)."""
-    # Add GSA organization with repo URL
-    org = Organization(
-        id="gsa",
-        name="GSA",
-        slug="gsa",
-        code_repo_url="https://github.com/GSA",
-    )
-    interface_with_organization.db.add(org)
-    interface_with_organization.db.commit()
-
+    # GSA organization already exists in fixtures with code_repo_url
     with patch("app.routes.interface", interface_with_organization):
         response = db_client.get("/organization/gsa")
 
@@ -3024,7 +3015,7 @@ def test_keywords_api_returns_all_when_no_search(db_client):
     assert "earth science" in keyword_values
     assert "ocean" in keyword_values
     mock_interface.get_unique_keywords.assert_called_once_with(
-        size=10, min_doc_count=1, search=None
+        size=10, min_doc_count=1, search=None, keywords=None
     )
 
 
@@ -3045,7 +3036,7 @@ def test_keywords_api_passes_search_param_to_interface(db_client):
     assert "earth science" in keyword_values
     assert "earth science > trees" in keyword_values
     mock_interface.get_unique_keywords.assert_called_once_with(
-        size=10, min_doc_count=1, search="earth science"
+        size=10, min_doc_count=1, search="earth science", keywords=None
     )
 
 
@@ -3064,3 +3055,190 @@ def test_keywords_api_hides_internal_exception(db_client):
         "message": internal_error_message(),
     }
     assert "some internal error containing sensitive information" not in response.text
+
+
+# Tests for /code compliance index page (issue #6087)
+
+
+def test_code_compliance_index_page_exists(db_client):
+    """Test that /code page is accessible."""
+    response = db_client.get("/code")
+    assert response.status_code == 200
+
+
+def test_code_page_displays_only_federal_orgs(db_client, interface_with_organization):
+    """Test /code page shows only Federal Government organizations."""
+    # Add federal org
+    federal_org = Organization(
+        id="federal-test",
+        name="Federal Agency",
+        slug="federal-agency",
+        organization_type="Federal Government",
+    )
+    # Add non-federal org
+    state_org = Organization(
+        id="state-test",
+        name="State Agency",
+        slug="state-agency",
+        organization_type="State Government",
+    )
+    interface_with_organization.db.add(federal_org)
+    interface_with_organization.db.add(state_org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Federal Agency" in html
+    assert "State Agency" not in html
+
+
+def test_code_page_displays_repo_url_as_link(db_client, interface_with_organization):
+    """Test organization with repo URL displays as clickable link."""
+    # GSA already exists in fixtures with code_repo_url, so we can just check it
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert 'href="https://github.com/GSA"' in html
+    assert 'target="_blank"' in html
+    assert 'rel="noopener noreferrer"' in html
+
+
+def test_code_page_displays_exempt_status(db_client, interface_with_organization):
+    """Test organization with exempt flag displays 'Exempt'."""
+    org = Organization(
+        id="exempt-agency",
+        name="Exempt Agency",
+        slug="exempt-agency",
+        organization_type="Federal Government",
+        code_repo_exempt=True,
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Exempt" in html
+
+
+def test_code_page_displays_not_reported_status(db_client, interface_with_organization):
+    """Test organization without repo or exempt shows 'Not yet reported'."""
+    org = Organization(
+        id="unreported-agency",
+        name="Unreported Agency",
+        slug="unreported-agency",
+        organization_type="Federal Government",
+        code_repo_url=None,
+        code_repo_exempt=False,
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Not yet reported" in html
+
+
+def test_code_page_sorts_orgs_alphabetically(db_client, interface_with_organization):
+    """Test organizations are sorted alphabetically by name."""
+    orgs = [
+        Organization(
+            id="z",
+            name="Zebra Agency",
+            slug="z",
+            organization_type="Federal Government",
+        ),
+        Organization(
+            id="a",
+            name="Alpha Agency",
+            slug="a",
+            organization_type="Federal Government",
+        ),
+        Organization(
+            id="m",
+            name="Middle Agency",
+            slug="m",
+            organization_type="Federal Government",
+        ),
+    ]
+    for org in orgs:
+        interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    # Check that Alpha appears before Middle which appears before Zebra
+    alpha_pos = html.index("Alpha Agency")
+    middle_pos = html.index("Middle Agency")
+    zebra_pos = html.index("Zebra Agency")
+    assert alpha_pos < middle_pos < zebra_pos
+
+
+def test_code_page_links_to_org_detail_pages(db_client, interface_with_organization):
+    """Test organization names link to their detail pages."""
+    # GSA already exists in fixtures, so we can just check it
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    soup = BeautifulSoup(response.data.decode(), "html.parser")
+    org_link = soup.find("a", href="/organization/gsa")
+    assert org_link is not None
+    assert "General Services Administration" in org_link.text
+
+
+def test_code_page_includes_share_it_act_context(db_client):
+    """Test page includes explanation about SHARE IT Act."""
+    response = db_client.get("/code")
+    html = response.data.decode()
+    assert "SHARE IT Act" in html or "Federal Agency Source Code Repositories" in html
+
+
+def test_keywords_api_passes_selected_keywords_to_interface(db_client):
+    """Selected keywords should narrow autocomplete suggestions to compatible terms."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = [
+        {"keyword": "volunteering", "count": 8},
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?search=vol&size=10&keyword=census")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["keywords"] == [{"keyword": "volunteering", "count": 8}]
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10,
+        min_doc_count=1,
+        search="vol",
+        keywords=["census"],
+    )
+
+
+def test_keywords_api_returns_200_with_empty_results(db_client):
+    """GET /api/keywords returns 200 with empty results when no keywords match."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?keyword=census&keyword=volunteer")
+
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert data["keywords"] == []
+    assert data["total"] == 0
+
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=100,
+        min_doc_count=1,
+        search=None,
+        keywords=["census", "volunteer"],
+    )
