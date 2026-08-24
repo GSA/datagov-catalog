@@ -15,6 +15,23 @@
         to see the full value.
     </p>
 
+    <div class="style-guide-section">
+        <h2 class="style-guide-section__title">Badge colors (search cards)</h2>
+        <p class="style-guide-section__description">
+            Every distinct badge label/color shown on search-result cards, plus the
+            neutral fallback used for unrecognized formats (last item).
+        </p>
+        <ul class="dataset-resources unstyled">
+            {% for badge in badge_samples %}
+            <li>
+                <span class="label label-default text-uppercase"
+                      style="background-color: {{ badge.color }};"
+                      data-format="{{ badge.format }}">{{ badge.label }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
     {% for section in sample_sections %}
     <div class="style-guide-section">
         <h2 class="style-guide-section__title">{{ section.title }}</h2>

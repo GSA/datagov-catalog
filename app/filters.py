@@ -95,46 +95,77 @@ def _normalize_format(value: str) -> str:
     return value
 
 
-_FORMAT_ICON_MAP = {
-    "csv": "csv",
-    "json": "json",
-    "xml": "xml",
-    "rdf+xml": "rdf",
-    "rdf": "rdf",
-    "pdf": "pdf",
-    "html": "html",
-    "xhtml+xml": "html",
-    "api": "api",
-    "zip": "zip",
-    "gz": "zip",
-    "tar": "zip",
-    "7z": "zip",
-    "rar": "zip",
-    "doc": "word",
-    "docx": "word",
-    "rtf": "word",
-    "odt": "word",
-    "xls": "excel",
-    "xlsx": "excel",
-    "ods": "excel",
-    "txt": "text",
-    "plain": "text",
-    "geo+json": "geojson",
-    "geojson": "geojson",
-    "png": "image",
-    "jpg": "image",
-    "jpeg": "image",
-    "gif": "image",
-    "tiff": "image",
-    "webp": "image",
-    "svg+xml": "image",
-    "svg": "image",
+# normalized format -> (icon class, badge label, badge color). label/color
+# are None for formats that only need an icon; callers generate a short
+# fallback label and use the default color for those.
+_FORMAT_INFO = {
+    "html": ("html", "HTML", "#2e759e"),
+    "xhtml+xml": ("html", "HTML", "#2e759e"),
+    "json": ("json", "JSON", "#d63b00"),
+    "geo+json": ("geojson", "GEOJSON", "#d63b00"),
+    "geojson": ("geojson", "GEOJSON", "#d63b00"),
+    "xml": ("xml", "XML", "#d63b00"),
+    "rdf+xml": ("rdf", "RDF", "#0b4498"),
+    "rdf": ("rdf", "RDF", "#0b4498"),
+    "turtle": ("default", "RDF", "#0b4498"),
+    "ntriples": ("default", "RDF", "#0b4498"),
+    "nquad": ("default", "RDF", "#0b4498"),
+    "kml": ("default", "KML", "#8B008B"),
+    "kmz": ("default", "KML", "#8B008B"),
+    "text": ("text", "TXT", "#1a7ea3"),
+    "plain": ("text", "TXT", "#1a7ea3"),
+    "txt": ("text", "TXT", "#1a7ea3"),
+    "csv": ("csv", "CSV", "#856a00"),
+    "xls": ("excel", "XLS", "#207e42"),
+    "xlsx": ("excel", "XLSX", "#207e42"),
+    "ods": ("excel", "ODS", "#207e42"),
+    "doc": ("word", "DOC", "#4a2f66"),
+    "docx": ("word", "DOCX", "#4a2f66"),
+    "odt": ("word", "ODT", "#4a2f66"),
+    "rtf": ("word", None, None),
+    "ppt": ("default", "PPT", "#4a2f66"),
+    "pptx": ("default", "PPTX", "#4a2f66"),
+    "zip": ("zip", "ZIP", "#686868"),
+    "gz": ("zip", "ZIP", "#686868"),
+    "tar": ("zip", "ZIP", "#686868"),
+    "7z": ("zip", "ZIP", "#686868"),
+    "rar": ("zip", "ZIP", "#686868"),
+    "api": ("api", "API", "#d22d81"),
+    "pdf": ("pdf", "PDF", "#e0051e"),
+    "shp": ("default", "SHP", "#5c4a1a"),
+    "png": ("image", None, None),
+    "jpg": ("image", None, None),
+    "jpeg": ("image", None, None),
+    "gif": ("image", None, None),
+    "tiff": ("image", None, None),
+    "webp": ("image", None, None),
+    "svg": ("image", None, None),
+    "svg+xml": ("image", None, None),
 }
+
+_BADGE_DEFAULT_COLOR = "#3d4551"
+
+
+def _lookup_format(normalized: str) -> tuple:
+    return _FORMAT_INFO.get(normalized, ("default", None, None))
+
+
+def known_format_badges() -> list:
+    """One representative normalized key per distinct badge label/color, for the style guide."""
+    seen = set()
+    keys = []
+    for key in sorted(_FORMAT_INFO):
+        _, label, color = _FORMAT_INFO[key]
+        if label is None or (label, color) in seen:
+            continue
+        seen.add((label, color))
+        keys.append(key)
+    return keys
 
 
 def format_icon_class(extension: str) -> str:
     """Return a CSS modifier class for the resource icon based on format."""
-    icon = _FORMAT_ICON_MAP.get(_normalize_format(extension), "default")
+    icon, _, _ = _lookup_format(_normalize_format(extension))
     return f"file-icon--{icon}"
 
 
@@ -156,8 +187,6 @@ def _shorten_overlay_label(label: str) -> str:
 
 def _extract_badge_source(normalized: str) -> str:
     source = normalized
-    if source.startswith("vnd."):
-        source = source[4:]
     if source.startswith("x-"):
         source = source[2:]
 
@@ -182,33 +211,92 @@ def _badge_label_from_normalized(normalized: str) -> str:
     return _shorten_overlay_label(source.upper())
 
 
+_NO_FORMAT = ("default", "file", "")
+
+
+def _display_label(normalized: str) -> str:
+    if normalized in _NO_FORMAT:
+        return "FILE"
+    _, label, _ = _lookup_format(normalized)
+    return label or _badge_label_from_normalized(normalized)
+
+
 def format_overlay_label(extension: str) -> str:
     """Short badge text overlaid on the default file icon for formats we don't
     have a dedicated icon for (e.g. KML, WMS, WFS, GML). Returns "" when a
     dedicated icon is available."""
-    if not isinstance(extension, str):
-        return ""
-
     normalized = _normalize_format(extension)
-    if normalized in _FORMAT_ICON_MAP:
+    icon, _, _ = _lookup_format(normalized)
+    if icon != "default" or normalized in _NO_FORMAT:
         return ""
-    if normalized in ("default", "file", ""):
-        return ""
-    return _badge_label_from_normalized(normalized)
+    return _shorten_overlay_label(_display_label(normalized))
 
 
 def format_icon_label(extension: str) -> str:
     """Return a short extension label for inline file icons, or "" for static SVG icons."""
-    if not isinstance(extension, str):
-        return ""
-
     normalized = _normalize_format(extension)
-    icon = _FORMAT_ICON_MAP.get(normalized, "default")
+    icon, _, _ = _lookup_format(normalized)
     if icon == "html":
         return "HTML"
     if icon != "default":
         return ""
     return format_overlay_label(extension)
+
+
+def normalized_format_label(value: str) -> str:
+    """Canonical uppercase format label, shared by cards and the detail page."""
+    if not isinstance(value, str) or not value.strip():
+        return "FILE"
+
+    return _display_label(_normalize_format(value))
+
+
+def _extract_url_extension(url: str) -> Union[str, None]:
+    if not isinstance(url, str) or not url:
+        return None
+
+    path = url.split("?", 1)[0].split("#", 1)[0]
+    if "." not in path:
+        return None
+
+    ext = path.rsplit(".", 1)[-1]
+    if not ext or not ext.isalnum() or len(ext) > 8:
+        return None
+
+    return ext
+
+
+def resolve_resource_format(resource: Mapping) -> Union[str, None]:
+    """Raw format string for a resource: format, then mediaType, then URL extension."""
+    if not isinstance(resource, Mapping):
+        return None
+
+    fmt = resource.get("format")
+    if fmt:
+        return fmt
+
+    media_type = resource.get("mediaType")
+    if media_type:
+        return media_type
+
+    url = resource.get("downloadURL") or resource.get("accessURL")
+    return _extract_url_extension(url)
+
+
+def resource_format_badge(resource: Mapping) -> dict:
+    """{format, label, color} for a resource; unrecognized formats get a neutral badge, not HTML."""
+    raw = resolve_resource_format(resource)
+    normalized = _normalize_format(raw) if raw else "file"
+
+    if normalized in _NO_FORMAT:
+        return {"format": "file", "label": "FILE", "color": _BADGE_DEFAULT_COLOR}
+
+    _, _, color = _lookup_format(normalized)
+    return {
+        "format": normalized,
+        "label": _display_label(normalized),
+        "color": color or _BADGE_DEFAULT_COLOR,
+    }
 
 
 def first_contact_point(contact_point: Any) -> dict:
@@ -300,22 +388,6 @@ def remove_html_tags(text: str) -> str:
         return ""
     soup = BeautifulSoup(text, "html.parser")
     return soup.get_text()
-
-
-def simplify_resource_type(text: str) -> Union[str, None]:
-    """
-    returns the basic form of the resource type
-    e.g. application/json -> json
-    """
-    # short circuit for instances where the input is not a str or bytes-like
-    if not isinstance(text, str):
-        return None
-
-    pattern = "html|json|xml|kml|csv|xls|zip|api|pdf|rdf|nquad|ntriples|turtle"
-
-    match = re.search(pattern, text, flags=re.IGNORECASE)
-    if match is not None:
-        return match.group(0)
 
 
 def json_to_semantic_html(obj, indent=2, level=0):
@@ -514,10 +586,12 @@ __all__ = [
     "format_icon_class",
     "format_icon_label",
     "format_overlay_label",
+    "normalized_format_label",
+    "resolve_resource_format",
+    "resource_format_badge",
     "format_contact_point_email",
     "first_contact_point",
     "remove_html_tags",
-    "simplify_resource_type",
     "json_to_semantic_html",
     "is_json",
     "parse_datetime",

@@ -900,7 +900,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 64"
+    assert datasets_text == "Datasets: 65"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -949,7 +949,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 64"
+    assert overview_items[1].text.strip() == "Total datasets: 65"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -1089,7 +1089,7 @@ def test_index_page_renders(db_client):
     assert org_banner_rank is not None
     assert org_banner_rank.text == "#1"
 
-    for resource_type in ["json", "rdf", "xml", "csv"]:
+    for resource_type in ["json", "rdf+xml", "xml", "csv"]:
         html_resource = soup.find("a", {"data-format": resource_type})
         assert html_resource is not None
         assert (
@@ -1102,10 +1102,10 @@ def test_index_page_renders(db_client):
     assert line_arrow is not None
 
 
-def test_resource_chip_defaults_to_html(db_client):
+def test_resource_chip_unrecognized_format_shows_generic_badge(db_client):
     """
-    Have it so resource chip is passed None in the template and that
-    the template renders HTML by default.
+    An unrecognized file format should render its own short/generic badge
+    rather than silently being mislabeled as HTML.
     """
 
     mock_interface = Mock()
@@ -1122,9 +1122,9 @@ def test_resource_chip_defaults_to_html(db_client):
                     "description": "USDA data on fruit and tree nut production.",
                     "distribution": [
                         {
-                            "title": "Fruit and Tree Nuts Shapefile",
-                            "format": "shp",
-                            "downloadURL": "https://example.com/fruit-tree-nuts.shp",
+                            "title": "Fruit and Tree Nuts Data",
+                            "format": "flibbertigibbet",
+                            "downloadURL": "https://example.com/fruit-tree-nuts.flibbertigibbet",
                         }
                     ],
                 },
@@ -1148,14 +1148,15 @@ def test_resource_chip_defaults_to_html(db_client):
     format_link = soup.find(
         "a",
         attrs={
-            "data-format": "html",
+            "data-format": "flibbertigibbet",
             "data-organization": "Department of Agriculture",
         },
     )
     assert format_link is not None
 
     assert format_link.get("href") == "/dataset/fruit-and-tree-nuts-data"
-    assert format_link.get_text(strip=True).lower() == "html"
+    assert format_link.get_text(strip=True).lower() != "html"
+    assert format_link.get_text(strip=True) == "FLIB"
 
 
 def test_index_page_dataset_links_use_slug_not_id(db_client):
