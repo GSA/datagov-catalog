@@ -3198,6 +3198,8 @@ def test_code_page_includes_share_it_act_context(db_client):
     response = db_client.get("/code")
     html = response.data.decode()
     assert "SHARE IT Act" in html or "Federal Agency Source Code Repositories" in html
+
+
 def test_keywords_api_passes_selected_keywords_to_interface(db_client):
     """Selected keywords should narrow autocomplete suggestions to compatible terms."""
     mock_interface = Mock()

@@ -329,7 +329,11 @@ class CatalogDBInterface:
 
         Returns:
             List of Organization objects sorted alphabetically by name.
+
+        Raises:
+            RuntimeError: If running in production without organization_type_enum.
         """
+        from flask import current_app
         from sqlalchemy import cast, inspect
         from sqlalchemy.dialects.postgresql import ENUM
 
@@ -338,6 +342,16 @@ class CatalogDBInterface:
         enum_exists = "organization_type_enum" in [
             t["name"] for t in inspector.get_enums()
         ]
+
+        # Detect production environment (IS_LOCAL=False means production/staging)
+        is_production = not current_app.config.get("IS_LOCAL", True)
+
+        if not enum_exists and is_production:
+            raise RuntimeError(
+                "organization_type_enum does not exist in production database. "
+                "This indicates a database schema misconfiguration. The production "
+                "database should have the organization_type_enum type defined."
+            )
 
         if enum_exists:
             # Production environment: use ENUM cast
