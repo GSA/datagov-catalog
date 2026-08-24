@@ -872,7 +872,7 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
             )
             collection_data["name"] = parent_identifier
             collection_data["count"] = result.total + 1
-    elif "isPartOf" in dataset.dcat:
+    elif dataset.dcat.get("isPartOf"):
         result = interface.search_datasets(
             SearchCriteria.from_values(filters={"collection": dataset.dcat["isPartOf"]})
         )
