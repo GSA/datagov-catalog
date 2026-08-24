@@ -1022,6 +1022,54 @@ def fixture_data(*, include_filter_demos: bool = False):
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
             ),
+            dict(
+                id="format-badge-gallery",
+                slug="format-badge-gallery",
+                dcat={
+                    "title": "Format Badge Gallery",
+                    "description": (
+                        "One resource per distinct search-card badge color, for "
+                        "visually comparing them side by side."
+                    ),
+                    "publisher": {"name": "Test Agency"},
+                    "distribution": [
+                        {
+                            "title": "CSV export",
+                            "format": "CSV",
+                            "downloadURL": "https://example.gov/gallery/data.csv",
+                        },
+                        {
+                            "title": "JSON export",
+                            "format": "JSON",
+                            "downloadURL": "https://example.gov/gallery/data.json",
+                        },
+                        {
+                            "title": "XML export",
+                            "format": "XML",
+                            "downloadURL": "https://example.gov/gallery/data.xml",
+                        },
+                        {
+                            "title": "Excel workbook",
+                            "downloadURL": "https://example.gov/gallery/data.xlsx",
+                            "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        },
+                        {
+                            "title": "PDF report",
+                            "format": "PDF",
+                            "downloadURL": "https://example.gov/gallery/report.pdf",
+                        },
+                        {
+                            "title": "KML overlay",
+                            "format": "KML",
+                            "downloadURL": "https://example.gov/gallery/overlay.kml",
+                        },
+                    ],
+                },
+                harvest_record_id="format_badge_gallery_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
         ],
         "locations": [
             {

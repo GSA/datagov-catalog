@@ -150,6 +150,19 @@ def _lookup_format(normalized: str) -> tuple:
     return _FORMAT_INFO.get(normalized, ("default", None, None))
 
 
+def known_format_badges() -> list:
+    """One representative normalized key per distinct badge label/color, for the style guide."""
+    seen = set()
+    keys = []
+    for key in sorted(_FORMAT_INFO):
+        _, label, color = _FORMAT_INFO[key]
+        if label is None or (label, color) in seen:
+            continue
+        seen.add((label, color))
+        keys.append(key)
+    return keys
+
+
 def format_icon_class(extension: str) -> str:
     """Return a CSS modifier class for the resource icon based on format."""
     icon, _, _ = _lookup_format(_normalize_format(extension))
