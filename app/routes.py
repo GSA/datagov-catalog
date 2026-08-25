@@ -1156,6 +1156,13 @@ def openapi_docs():
 
 
 def style_guide_icons():
+    from app.filters import known_format_badges, resource_format_badge
+
+    badge_samples = [
+        resource_format_badge({"format": key}) for key in known_format_badges()
+    ]
+    badge_samples.append(resource_format_badge({"format": "made-up-format"}))
+
     sample_sections = [
         {
             "title": "Dedicated icons",
@@ -1275,7 +1282,11 @@ def style_guide_icons():
             ],
         },
     ]
-    return render_template("style_guide_icons.html", sample_sections=sample_sections)
+    return render_template(
+        "style_guide_icons.html",
+        sample_sections=sample_sections,
+        badge_samples=badge_samples,
+    )
 
 
 def register_routes(app):

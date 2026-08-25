@@ -9,9 +9,11 @@ from app.filters import (
     format_icon_class,
     format_icon_label,
     format_overlay_label,
+    normalized_format_label,
     parse_datetime,
     remove_html_tags,
-    simplify_resource_type,
+    resolve_resource_format,
+    resource_format_badge,
 )
 
 
@@ -103,26 +105,103 @@ def test_dcatus_to_schema_org_jsonld(dcatus_dataset):
     assert dcatus_to_schema_org_jsonld(dcatus_dataset)["distribution"] == []
 
 
-class TestSimplifyResourceType:
-    """
-    Tests for `simplify_resource_type`. We should either get a supported
-    str based from the regex or a None value.
-    """
+class TestResolveResourceFormat:
+    """`resolve_resource_format` picks format > mediaType > URL extension."""
 
-    def test_mime_type_xml(self):
-        assert simplify_resource_type("application/xml") == "xml"
+    def test_prefers_format_over_media_type(self):
+        resource = {"format": "XLSX", "mediaType": "application/xml"}
+        assert resolve_resource_format(resource) == "XLSX"
+
+    def test_falls_back_to_media_type(self):
+        resource = {"mediaType": "application/json"}
+        assert resolve_resource_format(resource) == "application/json"
+
+    def test_falls_back_to_url_extension(self):
+        resource = {"downloadURL": "https://example.gov/data/report.csv"}
+        assert resolve_resource_format(resource) == "csv"
+
+    def test_accessurl_used_when_no_download_url(self):
+        resource = {"accessURL": "https://example.gov/data/report.geojson"}
+        assert resolve_resource_format(resource) == "geojson"
+
+    def test_no_usable_field_returns_none(self):
+        resource = {"accessURL": "https://example.gov/dataset"}
+        assert resolve_resource_format(resource) is None
+
+    def test_non_mapping_returns_none(self):
+        assert resolve_resource_format(None) is None
+
+
+class TestNormalizedFormatLabel:
+    """Single source of truth for a resource's format label, shared by cards and the detail page."""
+
+    def test_vendor_mime_maps_to_xlsx_not_xml(self):
+        # regex-based matching used to see "xml" inside "spreadsheetml" and mislabel this XML.
+        mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        assert normalized_format_label(mime) == "XLSX"
 
     def test_bare_extension(self):
-        assert simplify_resource_type("PDF") == "PDF"
+        assert normalized_format_label("PDF") == "PDF"
 
-    def test_unused_string_returns_none(self):
-        assert simplify_resource_type("shp") is None
+    def test_unrecognized_format_does_not_default_to_html(self):
+        assert normalized_format_label("shp") == "SHP"
 
-    def test_empty_string_returns_none(self):
-        assert simplify_resource_type("") is None
+    def test_empty_string_returns_file(self):
+        assert normalized_format_label("") == "FILE"
 
-    def test_none_returns_none(self):
-        assert simplify_resource_type(None) is None
+    def test_none_returns_file(self):
+        assert normalized_format_label(None) == "FILE"
+
+    def test_unknown_vendor_mime_gets_short_generic_label(self):
+        assert normalized_format_label("application/vnd.unknown-format") == "UNKN"
+
+
+class TestResourceFormatBadge:
+    """Drives both label and color for search-card pills from one source."""
+
+    def test_vendor_mime_resolves_to_xlsx(self):
+        resource = {
+            "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }
+        badge = resource_format_badge(resource)
+        assert badge["label"] == "XLSX"
+        assert badge["format"] == "xlsx"
+
+    def test_format_field_takes_precedence(self):
+        resource = {
+            "format": "XLSX",
+            "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+        badge = resource_format_badge(resource)
+        assert badge["label"] == "XLSX"
+
+    def test_unrecognized_format_falls_back_to_neutral_color_not_html(self):
+        resource = {"format": "some-totally-unknown-format"}
+        badge = resource_format_badge(resource)
+        assert badge["label"] != "HTML"
+
+        from app.filters import _BADGE_DEFAULT_COLOR
+
+        assert badge["color"] == _BADGE_DEFAULT_COLOR
+
+    def test_missing_format_falls_back_to_neutral_file_badge(self):
+        badge = resource_format_badge({})
+        assert badge == {
+            "format": "file",
+            "label": "FILE",
+            "color": "#3d4551",
+        }
+
+    def test_known_format_has_dedicated_color(self):
+        badge = resource_format_badge({"format": "CSV"})
+        assert badge["label"] == "CSV"
+        assert badge["color"] != "#3d4551"
+
+    @pytest.mark.parametrize("fmt", ["turtle", "kml", "shp", "pptx"])
+    def test_label_matches_detail_page_overlay(self, fmt):
+        # both read from the same table, so they can't drift apart again.
+        badge = resource_format_badge({"format": fmt})
+        assert format_icon_label(fmt) == badge["label"]
 
 
 class TestParseDatetime:
