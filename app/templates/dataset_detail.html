@@ -143,8 +143,7 @@
                         {% set access_url = resource.get('accessURL') %}
                         {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~
                         loop.index %}
-                        {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper
-                        %}
+                        {% set resource_format = resource | resolve_resource_format | normalized_format_label %}
                         {% endif %}
 
                         <li class="resources-list__item resources-list__item--main">
