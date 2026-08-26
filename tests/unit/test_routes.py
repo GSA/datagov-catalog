@@ -2788,6 +2788,30 @@ def test_index_collection(interface_with_dataset, db_client):
     assert len(collection_datasets) == 3
 
 
+def test_index_collection_root_without_ispartof(interface_with_dataset, db_client):
+    """A collection root (data_service/data_series) has no dcat.isPartOf of its own -
+    the collection card's "View Collection" link must use the root's own identifier
+    instead, or rendering 500s.
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?collection=https://example.gov/services/climate")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    collection_card = soup.select_one("div.collection-card")
+    assert collection_card is not None
+
+    collection_card_view_badge = collection_card.select_one(
+        "span.collection-card__badge"
+    )
+    assert collection_card_view_badge is not None
+    assert (
+        collection_card_view_badge.select_one("a")["href"]
+        == "/?collection=https://example.gov/services/climate"
+    )
+
+
 def test_index_collection_query(interface_with_dataset, db_client):
     # includes collection, tags/keywords, sort, orgs, spatial filter, and spatial within
     url = (
