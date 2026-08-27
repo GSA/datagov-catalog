@@ -180,27 +180,6 @@ def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
     return shapes
 
 
-def _annotate_has_children(datasets: list[dict]) -> None:
-    """Mark each dataset dict with `has_children` for the "related records" badge.
-
-    Mutates `datasets` in place, mirroring the existing `_distance_km`
-    annotation pattern in OpenSearchReader.search.
-    """
-    identifiers = [
-        dataset.get("identifier")
-        for dataset in datasets
-        if isinstance(dataset, dict) and dataset.get("identifier")
-    ]
-    identifiers_with_children = (
-        interface.get_identifiers_with_children(identifiers) if identifiers else set()
-    )
-    for dataset in datasets:
-        if isinstance(dataset, dict):
-            dataset["has_children"] = (
-                dataset.get("identifier") in identifiers_with_children
-            )
-
-
 def _aggregation_count_maps(
     aggregations: dict | None,
 ) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
@@ -407,7 +386,6 @@ def index():
     else:
         # Build dataset dictionaries with organization data
         datasets = list(result.results)
-        _annotate_has_children(datasets)
 
     if result is not None:
         after = result.search_after_obscured()
@@ -443,9 +421,16 @@ def index():
         # need to get the parent by exact match so using 'slug' because it's a 'keyword'
         parent_db = interface.get_dataset_by_dcat_identifier(collection)
         if parent_db:
-            parent_doc = interface.get_document_by_slug(parent_db.slug)
-            if parent_doc.results:
-                collection_data["parent"] = parent_doc.results[0]
+            parent_results = list(
+                interface.search_datasets(
+                    SearchCriteria.from_values(
+                        query=parent_db.slug,
+                        filters={"collection": collection},
+                    )
+                ).results
+            )
+            if parent_results:
+                collection_data["parent"] = parent_results[0]
 
     return render_template(
         "index.html",
@@ -532,7 +517,6 @@ def search(**kwargs):
 
     if htmx:
         results = list(result.results)
-        _annotate_has_children(results)
         result_start_index = 1
         if results_hint and per_page:
             result_start_index = max(results_hint - per_page + 1, 1)
@@ -838,36 +822,26 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         )
 
     # collections
-    collection_data = {"name": None, "count": 0, "parent_slug": None}
-    parent_identifier = (
-        dataset.harvest_record.parent_identifier if dataset.harvest_record else None
-    )
-    if parent_identifier:
-        result = interface.search_datasets(
-            SearchCriteria.from_values(filters={"collection": parent_identifier})
-        )
-        collection_data["name"] = parent_identifier
-        # The sibling search matches this dataset too, so exclude it
-        # from the displayed count.
-        collection_data["count"] = max(result.total - 1, 0)
-        parent_dataset = interface.get_dataset_by_dcat_identifier(
-            parent_identifier, dataset.harvest_source_id
-        )
-        if parent_dataset:
-            collection_data["parent_slug"] = parent_dataset.slug
-            collection_data["parent_title"] = parent_dataset.dcat.get("title")
-    else:
-        # This dataset has no parent of its own, so it may itself be a
-        # collection root (DatasetSeries, DataService, or WAF collection
-        # record) - check whether any other dataset points back to it.
-        own_identifier = dataset.dcat.get("identifier")
-        if own_identifier:
+    collection_data = {"name": None, "count": 0}
+    if dataset.type in ("data_series", "data_service"):
+        # A DatasetSeries/DataService has no isPartOf of its own; its
+        # members instead carry isPartOf == its own identifier. count is
+        # bumped by one so the template's "- 1" (which normally excludes
+        # the current dataset from its own collection) yields the true
+        # member count.
+        parent_identifier = dataset.dcat.get("identifier")
+        if parent_identifier:
             result = interface.search_datasets(
-                SearchCriteria.from_values(filters={"collection": own_identifier})
+                SearchCriteria.from_values(filters={"collection": parent_identifier})
             )
-            if result.total > 0:
-                collection_data["name"] = own_identifier
-                collection_data["count"] = result.total
+            collection_data["name"] = parent_identifier
+            collection_data["count"] = result.total + 1
+    elif dataset.dcat.get("isPartOf"):
+        result = interface.search_datasets(
+            SearchCriteria.from_values(filters={"collection": dataset.dcat["isPartOf"]})
+        )
+        collection_data["name"] = dataset.dcat["isPartOf"]
+        collection_data["count"] = result.total
 
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None

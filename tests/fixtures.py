@@ -532,31 +532,6 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "title": "Child Harvest Record",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
                 },
-                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
-            ),
-            dict(
-                id="child_harvest_record_2",
-                harvest_source_id="1",
-                harvest_job_id="1",
-                identifier="https://subdomain.domain/child2/example.shp.iso.xml",
-                source_raw='{"title": "Child Harvest Record 2": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
-                source_transform={
-                    "title": "Child Harvest Record 2",
-                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
-                },
-                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
-            ),
-            dict(
-                id="child_harvest_record_3",
-                harvest_source_id="1",
-                harvest_job_id="1",
-                identifier="https://subdomain.domain/child3/example.shp.iso.xml",
-                source_raw='{"title": "Child Harvest Record 3": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
-                source_transform={
-                    "title": "Child Harvest Record 3",
-                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
-                },
-                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
             ),
             dict(
                 id="child_no_parent_harvest_record",
@@ -568,7 +543,6 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "title": "Child Harvest Record",
                     "isPartOf": "https://subdomain.domain/missing_parent/example.shp.iso.xml",
                 },
-                parent_identifier="https://subdomain.domain/missing_parent/example.shp.iso.xml",
             ),
             dict(
                 id=DCAT_3_0_RECORD_ID,
@@ -579,41 +553,6 @@ def fixture_data(*, include_filter_demos: bool = False):
                 source_transform={
                     "title": "DCAT-US 3.0 Test Dataset",
                 },
-                parent_identifier="sample-collection-2024",
-            ),
-            dict(
-                id="annual_report_series_record",
-                harvest_source_id="1",
-                harvest_job_id="1",
-                identifier="https://example.gov/series/annual-report",
-                source_raw='{"title": "Annual Report Series"}',
-                source_transform={"title": "Annual Report Series"},
-            ),
-            dict(
-                id="annual_report_2024_record",
-                harvest_source_id="1",
-                harvest_job_id="1",
-                identifier="https://example.gov/datasets/annual-report-2024",
-                source_raw='{"title": "Annual Report 2024"}',
-                source_transform={"title": "Annual Report 2024"},
-                parent_identifier="https://example.gov/series/annual-report",
-            ),
-            dict(
-                id="climate_data_service_record",
-                harvest_source_id="1",
-                harvest_job_id="1",
-                identifier="https://example.gov/services/climate",
-                source_raw='{"title": "Climate Data Service"}',
-                source_transform={"title": "Climate Data Service"},
-            ),
-            dict(
-                id="climate_dataset_served_record",
-                harvest_source_id="1",
-                harvest_job_id="1",
-                identifier="https://example.gov/datasets/climate-served",
-                source_raw='{"title": "Climate Dataset Served"}',
-                source_transform={"title": "Climate Dataset Served"},
-                parent_identifier="https://example.gov/services/climate",
             ),
             dict(
                 id="dataset_without_collection_record",
@@ -965,56 +904,6 @@ def fixture_data(*, include_filter_demos: bool = False):
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
-            ),
-            dict(
-                id="child1234568",
-                slug="child-harvest-record-2",
-                dcat={
-                    "title": "Child Harvest Record 2",
-                    "description": "Regional statistics on access to health food resources",
-                    "keyword": ["health", "food"],
-                    "modified": "2026-03-04",
-                    "publisher": {"name": "test child publisher"},
-                    "distribution": [
-                        {
-                            "title": "Health Food Data (Region 2)",
-                            "format": "CSV",
-                            "downloadURL": "https://example.com/health-food-2.csv",
-                        }
-                    ],
-                    "identifier": "https://subdomain.domain/child2/example.shp.iso.xml",
-                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
-                },
-                harvest_record_id="child_harvest_record_2",
-                harvest_source_id="1",
-                organization_id="1",
-                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
-                popularity=110,
-            ),
-            dict(
-                id="child1234569",
-                slug="child-harvest-record-3",
-                dcat={
-                    "title": "Child Harvest Record 3",
-                    "description": "Local statistics on access to health food resources",
-                    "keyword": ["health", "food"],
-                    "modified": "2026-03-04",
-                    "publisher": {"name": "test child publisher"},
-                    "distribution": [
-                        {
-                            "title": "Health Food Data (Region 3)",
-                            "format": "CSV",
-                            "downloadURL": "https://example.com/health-food-3.csv",
-                        }
-                    ],
-                    "identifier": "https://subdomain.domain/child3/example.shp.iso.xml",
-                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
-                },
-                harvest_record_id="child_harvest_record_3",
-                harvest_source_id="1",
-                organization_id="1",
-                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
-                popularity=95,
             ),
             dict(
                 id=DCAT_3_0_DATASET_ID,

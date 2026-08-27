@@ -421,19 +421,12 @@ class CatalogDBInterface:
         """
         return self.db.query(Dataset).filter_by(id=dataset_id).first()
 
-    def get_dataset_by_dcat_identifier(
-        self, identifier: str, harvest_source_id: str | None = None
-    ) -> Dataset | None:
-        query = self.db.query(Dataset).filter(
-            Dataset.dcat["identifier"].astext == identifier
+    def get_dataset_by_dcat_identifier(self, identifier: str) -> Dataset | None:
+        return (
+            self.db.query(Dataset)
+            .filter(Dataset.dcat["identifier"].astext == identifier)
+            .first()
         )
-        if harvest_source_id is not None:
-            query = query.filter(Dataset.harvest_source_id == harvest_source_id)
-        return query.first()
-
-    def get_identifiers_with_children(self, identifiers: list[str]) -> set[str]:
-        """Return the subset of `identifiers` that have at least one child record."""
-        return self.opensearch.find_identifiers_with_children(identifiers)
 
     def count_all_datasets_in_search(self) -> int:
         """

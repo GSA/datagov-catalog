@@ -354,16 +354,19 @@ class TestDatasetDetail:
             soup.find("script", src=versioned_asset_url("js/view_bbox_map.js")) is None
         )
 
-    def test_dataset_detail_collections_child_view(
-        self, interface_with_dataset, db_client
+    @pytest.mark.parametrize(
+        "dataset_detail_url",
+        [("/dataset/child-harvest-record"), ("/dataset/parent-harvest-record")],
+    )
+    def test_dataset_detail_collections(
+        self, dataset_detail_url, interface_with_dataset, db_client
     ):
         """
-        A child record's detail page links directly to its parent record
-        (resolved via HarvestRecord.parent_identifier), rather than only a
-        sibling search link.
+        test child and parent dataset detail view
         """
+
         with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get("/dataset/child-harvest-record")
+            response = db_client.get(dataset_detail_url)
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
@@ -376,42 +379,20 @@ class TestDatasetDetail:
         # both the tags and collection options are there
         assert len(related_datasets_options) == 2
 
+        # tag content (the subset of tags and the button to show more)
         tags = related_datasets_options[0]
         assert tags.select_one("div.tag-list") is not None
 
-        collection = related_datasets_options[1]
-        parent_link = collection.find("a", href="/dataset/parent-harvest-record")
-        assert parent_link is not None
+        # not a fan of adding a condition like this but breaking out
+        # this test into 2 would introduce a lot of redundancy
+        if dataset_detail_url == "/dataset/parent-harvest-record":
+            assert tags.select_one("button.usa-button") is not None
 
-    def test_dataset_detail_collections_parent_view(
-        self, interface_with_dataset, db_client
-    ):
-        """
-        A parent record's detail page links to the sibling datasets that
-        point back to it via parent_identifier.
-        """
-        with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get("/dataset/parent-harvest-record")
-
-        assert response.status_code == 200
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        related_datasets_section = soup.select_one("section.usa-section")
-        related_datasets_options = related_datasets_section.find_all(
-            "div", class_="tablet:grid-col-6"
-        )
-
-        # both the tags and collection options are there
-        assert len(related_datasets_options) == 2
-
-        tags = related_datasets_options[0]
-        assert tags.select_one("div.tag-list") is not None
-        assert tags.select_one("button.usa-button") is not None
-
+        # collection content
         collection = related_datasets_options[1]
         collection_count = soup.select_one("div.text-base-dark")
 
-        assert collection_count.text.strip() == "Includes 3 related datasets"
+        assert collection_count.text.strip() == "Includes 1 related dataset"
 
         collection_link = collection.find(
             "a", href="/?collection=https://subdomain.domain/parent/example.shp.iso.xml"

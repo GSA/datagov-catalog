@@ -29,7 +29,7 @@
 {% block content %}
 
 {% set collection = collection_data["name"] %}
-{% set collection_count = collection_data["count"] %}
+{% set collection_count = collection_data["count"] - 1 %}
 {% set parent = collection_data["parent"] %}
 {% set filters_active = filter_sections | selectattr('is_active') | list | length > 0 %}
 
@@ -70,6 +70,7 @@
 
     <!-- Results Section -->
     <div id="search-results" class="catalog-layout__results margin-top-3">
+            {% set total = total -1 if collection and total > 1 else total %}
             {% if collection and parent %}
                 {{ collection_card(
                     parent,
