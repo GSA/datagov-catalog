@@ -5,6 +5,7 @@ from datetime import datetime
 from math import ceil
 from xml.etree import ElementTree
 
+import requests
 from apiflask import APIBlueprint
 from flask import (
     Blueprint,
@@ -349,6 +350,44 @@ def sitemap_chunk(index: int) -> Response:
     key = f"{config.prefix.rstrip('/')}/sitemap-{index}.xml"
     body = _get_sitemap_body_or_404(config.bucket, key)
     return Response(body, mimetype="application/xml")
+
+
+@main.route("/maptiles/<int:z>/<int:x>/<int:y>.png")
+def proxy_maptiles(z, x, y):
+    """Retrieve maptiles from tiles.openstreetmap.org.
+
+    This provides a same-origin /maptiles path so the CSP stays
+    locked down, and enables our CDN to cache the map tile images.
+
+    requests.get automatically uses the egress proxy if it is
+    specified as HTTPS_PROXY or https_proxy in the os environment.
+
+    Openstreetmap policies for tile use:
+    https://operations.osmfoundation.org/policies/tiles/
+    """
+    try:
+        upstream = requests.get(
+            f"https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            headers={
+                "User-Agent": "Data.gov datalog (+https://catalog.data.gov; contact: datagovhelp@gsa.gov)",
+                "Referer": request.referrer,
+            },
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        logger.warning("Failed to fetch map tile", extra={"error": str(exc)})
+        return Response(status=502)
+
+    return Response(
+        upstream.content,
+        status=upstream.status_code,
+        content_type=upstream.headers.get("Content-Type", "image/png"),
+        headers={
+            "Cache-Control": upstream.headers.get(
+                "Cache-Control", "public, max-age=86400"
+            )
+        },
+    )
 
 
 # Routes
@@ -1292,10 +1331,6 @@ def style_guide_icons():
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
-
-    from app.dev_routes import register_dev_routes
-
-    register_dev_routes(app)
 
     if app.config.get("IS_LOCAL"):
         app.add_url_rule(
