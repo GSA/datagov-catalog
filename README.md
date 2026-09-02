@@ -1,11 +1,18 @@
 # datagov-catalog
 
-catalog.data.gov is the public-facing dataset discovery and search application for Data.gov. It serves 515,000+ datasets from 120+ federal, state, municipal, university, and tribal publishing organizations.
+## About
 
-This application is a custom Python/Flask web application that replaced the legacy CKAN-based catalog in 2025. It reads from the shared harvest database managed by [datagov-harvester](https://github.com/GSA/datagov-harvester) and uses OpenSearch for full-text search.
+**catalog.data.gov** is the public-facing dataset discovery and search application for Data.gov, serving 515,000+ datasets from 120+ federal, state, municipal, university, and tribal publishing organizations.
 
-- Production: [catalog.data.gov](https://catalog.data.gov)
-- Legacy catalog (through fall 2026): [catalog-old.data.gov](https://catalog-old.data.gov)
+This is a custom **Python/Flask** web application that replaced the legacy CKAN-based catalog in 2025. It is a **read-only consumer** of the shared harvest database managed by [datagov-harvester](https://github.com/GSA/datagov-harvester) and uses OpenSearch for full-text search.
+
+### Key Characteristics
+- **Read-only**: Does NOT write to the harvest database—only reads. All dataset metadata is written by datagov-harvester.
+- **Database isolation**: SQLAlchemy models are duplicated locally in `app/models.py`. Interact with the shared DB through `CatalogDBInterface` (`app/database/interface.py`).
+- **DCAT support**: Supports DCAT-US 3.0 metadata normalization via `app/dcat_normalizer.py`
+- **Search**: Full-text search powered by OpenSearch (`app/database/opensearch.py`)
+- **Production**: [catalog.data.gov](https://catalog.data.gov)
+- **Legacy catalog** (through fall 2026): [catalog-old.data.gov](https://catalog-old.data.gov)
 
 ## Architecture
 
