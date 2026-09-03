@@ -122,17 +122,18 @@ See `.env.sample` for full list. Key variables:
 
 ## Deployment
 
-Deployments are triggered automatically via GitHub Actions on push to `main`. The [deploy workflow](https://github.com/GSA/datagov-catalog/blob/main/.github/workflows/deploy.yml) runs in this order:
-
-1. **Lint** -- runs ruff Python linting
-2. **Deploy to staging** -- deploys to the `staging` cloud.gov space and runs a smoke test
-3. **Deploy to prod** -- deploys to the `prod` cloud.gov space and runs a smoke test (only runs after staging succeeds)
+**Automated via GitHub Actions** on push to `main`:
+1. **Lint** — runs ruff Python linting
+2. **Deploy to staging** — deploys to the `staging` cloud.gov space and runs a smoke test
+3. **Deploy to prod** — deploys to the `prod` cloud.gov space and runs a smoke test (only runs after staging succeeds)
 
 Cloud.gov spaces:
 - `staging`
 - `prod`
 
-For emergency deployments outside of the normal CI/CD pipeline, see [Break Glass deployment](https://github.com/GSA/data.gov/wiki/Break-Glass-deployment).
+Deployment workflow: `.github/workflows/deploy.yml`
+
+For emergency deployments, see: [Break Glass deployment](https://github.com/GSA/data.gov/wiki/Break-Glass-deployment)
 
 ## dataset_view_count seeding
 
