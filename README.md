@@ -4,7 +4,7 @@
 
 **catalog.data.gov** is the public-facing dataset discovery and search application for Data.gov, serving 515,000+ datasets from 120+ federal, state, municipal, university, and tribal publishing organizations.
 
-This is a custom **Python/Flask** web application that replaced the legacy CKAN-based catalog in 2025. It is a **read-only consumer** of the shared harvest database managed by [datagov-harvester](https://github.com/GSA/datagov-harvester) and uses OpenSearch for full-text search.
+This is a custom **Python/Flask** web application that replaced the legacy CKAN-based catalog in 2025. It serves as the **display layer** in the Data.gov platform: [datagov-harvester](https://github.com/GSA/datagov-harvester) collects and stores dataset metadata in the shared harvest database, while catalog.data.gov reads from that database and displays the metadata to the public through search results, dataset detail pages, and organization pages. It is a **read-only consumer** that uses OpenSearch for full-text search.
 
 ### Key Characteristics
 - **Read-only**: Does NOT write to the harvest database—only reads. All dataset metadata is written by datagov-harvester.
