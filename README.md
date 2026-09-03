@@ -36,50 +36,43 @@ This is a custom **Python/Flask** web application that replaced the legacy CKAN-
 ### Prerequisites
 
 - Docker and Docker Compose
-- Python 3.x and [Poetry](https://python-poetry.org/)
+- Python 3.12+ and [Poetry](https://python-poetry.org/)
 - Node.js and npm (for static assets and accessibility testing)
 
-### Setup
+### Setup & Running
 
-1. Copy the sample environment file:
-```
-   cp .env.sample .env
-```
-2. Update values in `.env` as needed for your local services (file is ignored by Git)
-3. Install static assets:
-```
-   make install-static
-```
-4. Start the app:
-```
-   make up
-```
-5. Load test data:
-```
-   make load-test-data
+```bash
+# 1. Copy environment file
+cp .env.sample .env
+
+# 2. Install static assets (USWDS, SCSS compilation)
+make install-static
+
+# 3. Start app (Docker Compose: app, postgres, opensearch)
+make up
+
+# 4. Load test data (fixtures + sync to OpenSearch)
+make load-test-data
 ```
 
-### Running tests
+App runs at http://localhost:8080
 
-Run the full Python test suite:
-```
-make test
-```
+### Key Make Targets
 
-Run accessibility tests (requires running app):
-```
-make test-pa11y
-```
-
-Run linting:
-```
-make lint-check
-```
-
-Auto-fix linting:
-```
-make lint-fix
-```
+| Target | Description |
+|--------|-------------|
+| `make up` | Start Docker Compose services (app, postgres, opensearch) |
+| `make down` | Stop services |
+| `make clean` | Stop and remove volumes |
+| `make install-static` | Install and build static assets (USWDS, SCSS) |
+| `make watch-static` | Watch and rebuild SCSS/JS on change |
+| `make load-test-data` | Load test fixtures into DB and sync to OpenSearch |
+| `make test` | Run pytest unit tests |
+| `make test-pa11y` | Run pa11y accessibility tests (requires running app) |
+| `make test-browser` | Run Playwright browser tests |
+| `make lint-check` | Run ruff, isort, black linting checks |
+| `make lint-fix` | Auto-fix linting issues |
+| `make poetry-update` | Update Poetry to latest version |
 
 ### Pre-commit hooks
 
