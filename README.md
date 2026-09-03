@@ -16,14 +16,20 @@ This is a custom **Python/Flask** web application that replaced the legacy CKAN-
 
 ## Architecture
 
-- **Web app**: Python/Flask, served via NGINX proxy on cloud.gov
-- **Database**: Shared Postgres instance managed by datagov-harvester (`datagov-harvest-db` service)
+- **Web app**: Python 3.12+, Flask (APIFlask), HTMX for dynamic UI, served via NGINX proxy on cloud.gov
+- **Database**: Shared Postgres instance (`datagov-harvest-db` service, managed by datagov-harvester)
 - **Search**: OpenSearch (`((app_name))-opensearch` service on cloud.gov)
 - **Storage**: S3 for sitemaps and static assets
 - **Monitoring**: New Relic
 - **Logging**: Logstack (cloud.gov log drain)
 
-The application does not write to the harvest database -- it reads only. All dataset metadata is written by datagov-harvester. The SQLAlchemy models are duplicated locally in `app/models.py` for isolation; interact with the shared DB through `CatalogDBInterface` (`app/database/interface.py`).
+### Key Dependencies
+- Flask 3.1+, Flask-SQLAlchemy, Flask-HTMX, Flask-Talisman (security headers)
+- SQLAlchemy 2.0+, Psycopg 3.3+ (Postgres driver)
+- OpenSearch-py 3.2+ (search client)
+- GeoAlchemy2 (geospatial queries)
+- BeautifulSoup4 (HTML parsing)
+- APIFlask (OpenAPI documentation)
 
 ## Local Development
 
