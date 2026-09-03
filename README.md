@@ -90,30 +90,35 @@ CI uses the latest Poetry release. Keep your local Poetry up to date:
 make poetry-update
 ```
 
-## Environment variables
+## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_SERVER` | Postgres host (default: localhost) |
-| `DATABASE_PORT` | Postgres port (default: 5432) |
-| `DATABASE_NAME` | Postgres database name |
-| `DATABASE_USER` | Postgres user |
-| `DATABASE_PASSWORD` | Postgres password |
-| `DATABASE_URI` | Full Postgres connection URI (auto-constructed from above) |
-| `FLASK_SECRET_KEY` | Secret key used by Flask for session signing |
-| `PORT` | App port (default: 8080) |
-| `OPENSEARCH_HOST` | OpenSearch host (default: localhost) |
-| `NEW_RELIC_LICENSE_KEY` | New Relic license key |
-| `NEW_RELIC_APP_NAME` | New Relic app name |
-| `NEW_RELIC_MONITOR_MODE` | Enable New Relic monitoring (true/false) |
-| `NEW_RELIC_LOG` | New Relic log file path |
-| `NEW_RELIC_LOG_LEVEL` | New Relic log level |
-| `SITEMAP_AWS_REGION` | AWS region for sitemap S3 bucket |
-| `SITEMAP_AWS_ACCESS_KEY_ID` | AWS access key for sitemap S3 bucket |
-| `SITEMAP_AWS_SECRET_ACCESS_KEY` | AWS secret key for sitemap S3 bucket |
-| `SITEMAP_S3_BUCKET` | S3 bucket name for sitemaps |
+See `.env.sample` for full list. Key variables:
 
-For cloud.gov deployments, secrets are managed via user-provided services. See the [cloud.gov wiki page](https://github.com/GSA/data.gov/wiki/cloud.gov) for secrets management procedures.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URI` | Postgres connection string (auto-constructed from `DATABASE_*` vars) | `postgresql://...` |
+| `DATABASE_SERVER` | Postgres host | `localhost` |
+| `DATABASE_NAME` | Database name | `mydb` |
+| `DATABASE_USER` | Database user | `myuser` |
+| `DATABASE_PASSWORD` | Database password | `mypassword` |
+| `DATABASE_PORT` | Database port | `5432` |
+| `FLASK_SECRET_KEY` | Flask session signing key | (required) |
+| `PORT` | App port | `8080` |
+| `OPENSEARCH_HOST` | OpenSearch host | `localhost` |
+| `CATALOG_BASE_URL` | Base URL for OpenSearch document links | `http://0.0.0.0:8080` |
+| `SITE_URL` | Public site URL | (set in production) |
+| `NEW_RELIC_LICENSE_KEY` | New Relic license key | (optional) |
+| `NEW_RELIC_APP_NAME` | New Relic application name | (optional) |
+| `NEW_RELIC_MONITOR_MODE` | Enable New Relic monitoring | `false` |
+| `NEW_RELIC_LOG` | New Relic log file path | `/var/log/new_relic.log` |
+| `NEW_RELIC_LOG_LEVEL` | New Relic log level | `info` |
+| `NEW_RELIC_HOST` | New Relic collector host | `gov-collector.newrelic.com` |
+| `SITEMAP_AWS_REGION` | AWS region for sitemap S3 bucket | `us-east-1` |
+| `SITEMAP_AWS_ACCESS_KEY_ID` | AWS access key for sitemap S3 bucket | (optional) |
+| `SITEMAP_AWS_SECRET_ACCESS_KEY` | AWS secret key for sitemap S3 bucket | (optional) |
+| `SITEMAP_S3_BUCKET` | S3 bucket for sitemaps | (optional) |
+
+**Note:** In staging/prod, secrets are managed via cloud.gov user-provided services. See the [cloud.gov wiki page](https://github.com/GSA/data.gov/wiki/cloud.gov) for secrets management procedures.
 
 ## Deployment
 
