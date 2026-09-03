@@ -170,9 +170,9 @@ We use pa11y-ci for accessibility testing.
 2. Load test data: `make load-test-data`
 3. Run pa11y tests: `make test-pa11y`
 
-## Related resources
+## Related Resources
 
-- [harvest.data.gov](https://harvest.data.gov) -- harvest pipeline UI
-- [datagov-harvester](https://github.com/GSA/datagov-harvester) -- harvester source code and shared DB
-- [Data.gov wiki](https://github.com/GSA/data.gov/wiki) -- operational documentation
-- [catalog.data.gov wiki page](https://github.com/GSA/data.gov/wiki/catalog.data.gov)
+- [harvest.data.gov](https://harvest.data.gov) — Harvest pipeline UI
+- [datagov-harvester](https://github.com/GSA/datagov-harvester) — Harvester source code and shared DB
+- [Data.gov wiki](https://github.com/GSA/data.gov/wiki) — Operational documentation
+- [catalog.data.gov wiki](https://github.com/GSA/data.gov/wiki/catalog.data.gov)
