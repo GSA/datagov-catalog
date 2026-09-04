@@ -1,9 +1,7 @@
 # Optional override: point this app at a local datagov-harvester checkout's
 # Postgres and OpenSearch instead of running its own.
 #
-# Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.shared-harvester.yml \
-#     up -d --no-deps app
+# Usage: make up-shared-harvester
 services:
   app:
     environment:
