@@ -57,7 +57,7 @@ up: ## Sets up local flask  docker environment.
 up-debug: ## Sets up local docker environment with VSCODE debug support enabled
 	docker compose -f docker-compose.yml -f docker-compose_debug.yml up -d --wait
 
-up-shared-harvester: ## Runs the app against a local datagov-harvester's db/opensearch instead of its own
+up-shared: ## Runs the app against a local datagov-harvester's db/opensearch instead of its own
 	docker compose -f docker-compose.yml -f docker-compose.shared-harvester.yml up -d --no-deps app
 
 down: ## Tears down the flask and harvester containers

@@ -46,6 +46,16 @@ The application does not write to the harvest database -- it reads only. All dat
    make load-test-data
 ```
 
+### Running alongside a local datagov-harvester checkout
+
+This app can read from a local datagov-harvester's Postgres and OpenSearch instead of running its own.
+
+1. In `datagov-harvester`: `make up`, `make load-test-data`
+2. In this repo: `make up-shared`
+3. Catalog runs at `http://localhost:8082`, harvester at `http://localhost:8080`, sharing the same data.
+
+Assumes harvester's defaults (Postgres on port 5433, `mydb`/`myuser`/`mypassword`). If your `.env` values differ, update `docker-compose.shared-harvester.yml` to match.
+
 ### Running tests
 
 Run the full Python test suite:

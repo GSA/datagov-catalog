@@ -25,8 +25,8 @@ services:
     environment:
       discovery.type: single-node
     ports:
-      - "${OPENSEARCH_PORT:-9200}:9200"
-      - "${OPENSEARCH_PERFORMANCE_PORT:-9600}:9600"
+      - "9200:9200"
+      - "9600:9600"
     healthcheck:
       test: ['CMD-SHELL', 'curl -sk -u admin:admin https://localhost:9200/_cluster/health?wait_for_status=yellow\&timeout=1s | grep -q ''"timed_out":false''']
       interval: 5s
