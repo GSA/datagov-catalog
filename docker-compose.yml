@@ -10,7 +10,9 @@ services:
         POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
         POSTGRES_DB: ${DATABASE_NAME}
       ports:
-        - "${DATABASE_PORT}:5432"
+        # PGPORT above makes postgres listen on DATABASE_PORT, so the
+        # container side of this mapping has to be DATABASE_PORT too.
+        - "${DATABASE_PORT}:${DATABASE_PORT}"
       volumes:
         - postgres_data:/var/lib/postgresql/data
       healthcheck:
@@ -25,8 +27,8 @@ services:
     environment:
       discovery.type: single-node
     ports:
-      - "9200:9200"
-      - "9600:9600"
+      - "${OPENSEARCH_PORT:-9200}:9200"
+      - "${OPENSEARCH_PERFORMANCE_PORT:-9600}:9600"
     healthcheck:
       test: ['CMD-SHELL', 'curl -sk -u admin:admin https://localhost:9200/_cluster/health?wait_for_status=yellow\&timeout=1s | grep -q ''"timed_out":false''']
       interval: 5s
@@ -50,7 +52,7 @@ services:
       FLASK_ENV: development
       FLASK_DEBUG: 1
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
     command:
       - /bin/sh
       - -c
