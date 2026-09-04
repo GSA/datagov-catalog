@@ -10,8 +10,6 @@ services:
         POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
         POSTGRES_DB: ${DATABASE_NAME}
       ports:
-        # PGPORT above makes postgres listen on DATABASE_PORT, so the
-        # container side of this mapping has to be DATABASE_PORT too.
         - "${DATABASE_PORT}:${DATABASE_PORT}"
       volumes:
         - postgres_data:/var/lib/postgresql/data

@@ -1,21 +1,9 @@
 # Optional override: point this app at a local datagov-harvester checkout's
-# Postgres and OpenSearch instead of running its own. In every real
-# environment (dev/staging/prod) catalog reads the *same* database and
-# OpenSearch instance that harvester writes to -- this mirrors that locally
-# so a dataset harvested in your local harvester shows up here too, instead
-# of running a second, empty, disconnected pair of db/opensearch containers.
+# Postgres and OpenSearch instead of running its own.
 #
-# Assumes datagov-harvester is running locally via `make up` (db published on
-# host port 5433) with its default DATABASE_NAME/USER/PASSWORD (mydb/myuser/
-# mypassword) -- adjust the port/credentials below if yours differ.
-#
-# Usage (this compose provider still starts db/opensearch as dependencies
-# even with depends_on.required: false, so bring app up with --no-deps):
+# Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.shared-harvester.yml \
 #     up -d --no-deps app
-#
-# host.docker.internal resolves to the docker/podman host, so this reaches
-# whatever the host has exposed.
 services:
   app:
     environment:
