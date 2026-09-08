@@ -6,8 +6,12 @@ from uuid import uuid4
 
 import pytest
 from bs4 import BeautifulSoup
+from psycopg.errors import SerializationFailure
+from sqlalchemy.exc import OperationalError
 
 from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
+from app.database import CatalogDBInterface
+from app.database.interface import DB_SERIALIZATION_RETRY_DELAY_SECONDS
 from app.models import Dataset, Organization
 from app.search.queries.criteria import SearchCriteria
 from app.search.reader import SearchResult
@@ -19,6 +23,32 @@ def internal_error_message():
     from app.routes import INTERNAL_ERROR_MESSAGE
 
     return INTERNAL_ERROR_MESSAGE
+
+
+def test_db_retry_retries_transient_serialization_failure(monkeypatch):
+    attempts = {"count": 0, "sleep_calls": []}
+    mock_db = Mock()
+    interface = CatalogDBInterface(session=mock_db)
+
+    def fake_sleep(seconds):
+        attempts["sleep_calls"].append(seconds)
+
+    def action():
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise OperationalError(
+                "SELECT 1",
+                {},
+                SerializationFailure("transient db failure"),
+            )
+        return "success"
+
+    monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
+
+    assert interface._run_with_db_retry(action, action_name="test action") == "success"
+    assert attempts["count"] == 2
+    assert attempts["sleep_calls"] == [DB_SERIALIZATION_RETRY_DELAY_SECONDS] * (2**0)
+    mock_db.rollback.assert_called_once_with()
 
 
 def test_static_asset_cache_duration_by_environment():

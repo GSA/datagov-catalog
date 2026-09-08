@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import math
+import time
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
+from psycopg.errors import SerializationFailure
 from sqlalchemy import func, or_
+from sqlalchemy.exc import OperationalError
 
 from app.models import (
     Dataset,
@@ -29,6 +32,8 @@ from .decorators import paginate
 DEFAULT_PER_PAGE = 20
 DEFAULT_PAGE = 1
 SEARCH_API_MAX_PER_PAGE = 1000
+DB_SERIALIZATION_RETRY_ATTEMPTS = 3
+DB_SERIALIZATION_RETRY_DELAY_SECONDS = 0.25
 
 
 logger = logging.getLogger(__name__)
@@ -59,12 +64,54 @@ class CatalogDBInterface:
             self._opensearch = OpenSearchReader(self.os_client)
         return self._opensearch
 
+    def _is_serialization_failure(self, exc: OperationalError) -> bool:
+        return isinstance(getattr(exc, "orig", None), SerializationFailure)
+
+    def _run_with_db_retry(self, action, *, action_name: str):
+        for attempt in range(1, DB_SERIALIZATION_RETRY_ATTEMPTS + 1):
+            try:
+                return action()
+            except OperationalError as exc:
+                if not self._is_serialization_failure(exc):
+                    raise
+
+                self.db.rollback()
+
+                if attempt >= DB_SERIALIZATION_RETRY_ATTEMPTS:
+                    logger.error(
+                        "%s failed after %s attempts due to a database serialization error.",
+                        action_name,
+                        DB_SERIALIZATION_RETRY_ATTEMPTS,
+                        exc_info=exc,
+                    )
+                    raise
+
+                wait_seconds = min(
+                    DB_SERIALIZATION_RETRY_DELAY_SECONDS * (2 ** (attempt - 1)),
+                    2.0,
+                )
+                logger.warning(
+                    "%s hit a transient database serialization error (attempt %s/%s); retrying in %.2f seconds.",
+                    action_name,
+                    attempt,
+                    DB_SERIALIZATION_RETRY_ATTEMPTS,
+                    wait_seconds,
+                    exc_info=exc,
+                )
+                time.sleep(wait_seconds)
+
     def total_datasets(self):
         """Count how many records in the database table."""
-        return self.db.query(Dataset).count()
+        return self._run_with_db_retry(
+            lambda: self.db.query(Dataset).count(),
+            action_name="count total datasets",
+        )
 
     def get_harvest_record(self, record_id: str) -> HarvestRecord | None:
-        return self.db.query(HarvestRecord).filter_by(id=record_id).first()
+        return self._run_with_db_retry(
+            lambda: self.db.query(HarvestRecord).filter_by(id=record_id).first(),
+            action_name=f"get harvest record {record_id}",
+        )
 
     def search_datasets(self, criteria: SearchCriteria):
         """Text search for datasets from the OpenSearch index.
@@ -124,10 +171,13 @@ class CatalogDBInterface:
 
         Returns a tuple of (id, GeoJSON), or None if the location id doesn't exist.
         """
-        return (
-            self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
-            .filter(Locations.id == location_id)
-            .first()
+        return self._run_with_db_retry(
+            lambda: (
+                self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
+                .filter(Locations.id == location_id)
+                .first()
+            ),
+            action_name=f"get location {location_id}",
         )
 
     def _organization_query(
@@ -213,15 +263,23 @@ class CatalogDBInterface:
     def get_organization_by_slug(self, slug: str) -> Organization | None:
         if not slug:
             return None
-        return self.db.query(Organization).filter(Organization.slug == slug).first()
+        return self._run_with_db_retry(
+            lambda: self.db.query(Organization)
+            .filter(Organization.slug == slug)
+            .first(),
+            action_name=f"get organization by slug {slug}",
+        )
 
     def get_organization_by_id(self, organization_id: str) -> Organization | None:
         if not organization_id:
             return None
-        return (
-            self.db.query(Organization)
-            .filter(Organization.id == organization_id)
-            .first()
+        return self._run_with_db_retry(
+            lambda: (
+                self.db.query(Organization)
+                .filter(Organization.id == organization_id)
+                .first()
+            ),
+            action_name=f"get organization by id {organization_id}",
         )
 
     def list_datasets_for_organization(
