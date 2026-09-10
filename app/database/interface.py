@@ -68,6 +68,36 @@ class CatalogDBInterface:
         return isinstance(getattr(exc, "orig", None), SerializationFailure)
 
     def _run_with_db_retry(self, action, *, action_name: str):
+        """
+        Retries `action` if it fails due to a transient PostgreSQL
+        serialization conflict (e.g. "conflict with recovery" on a
+        replica). This is a known, expected Postgres behavior - see:
+        https://www.postgresql.org/docs/current/hot-standby.html
+
+        How it works: on failure, we call `self.db.rollback()` before
+        retrying. This clears the whole session's current transaction,
+        not just the one query that failed. It also refreshes,
+        aka expires any objects already loaded in this session, so they'll
+        be re-fetched from the DB the next time they're used.
+
+        Before wrapping a new call with this helper, ask:
+        1. Does this action write data (INSERT/UPDATE/DELETE)? If so,
+            a rollback could undo work you didn't intend to retry.
+        2. Does this request load other data from the DB *before*
+            calling this action? If so, that data may get refreshed
+            unexpectedly after a rollback.
+
+        If either answer is yes, this helper likely isn't a safe fit as-is.
+        Instead:
+        - If the action writes data: wrap the ENTIRE unit of work (all
+            reads and writes that must succeed or fail together) in the
+            retried action, so a rollback never discards work you needed
+            to keep.
+        - If earlier reads in the request matter after this call: move
+            this call earlier in the request (before those reads), or
+            re-fetch/re-validate anything read before this call after
+            the retry completes.
+        """
         for attempt in range(1, DB_SERIALIZATION_RETRY_ATTEMPTS + 1):
             try:
                 return action()

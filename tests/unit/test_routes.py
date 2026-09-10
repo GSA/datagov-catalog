@@ -3325,3 +3325,28 @@ def test_db_retry_raises_after_max_attempts(monkeypatch):
 
     assert mock_db.rollback.call_count == DB_SERIALIZATION_RETRY_ATTEMPTS
     assert len(sleep_calls) == DB_SERIALIZATION_RETRY_ATTEMPTS - 1
+
+
+def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
+    attempts = {"count": 0}
+    mock_db = Mock()
+    interface = CatalogDBInterface(session=mock_db)
+
+    def fake_sleep(seconds):
+        pytest.fail("sleep should not be called for non-serialization errors")
+
+    def action():
+        attempts["count"] += 1
+        raise OperationalError(
+            "SELECT 1",
+            {},
+            Exception("FATAL: remaining connection slots are reserved"),
+        )
+
+    monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
+
+    with pytest.raises(OperationalError):
+        interface._run_with_db_retry(action, action_name="test action")
+
+    assert attempts["count"] == 1
+    mock_db.rollback.assert_not_called()
