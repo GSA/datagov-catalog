@@ -47,6 +47,17 @@ cp .env.sample .env
 
 # 2. Install static assets (USWDS, SCSS compilation)
 make install-static
+### Running alongside a local datagov-harvester checkout
+
+This app can read from a local datagov-harvester's Postgres and OpenSearch instead of running its own.
+
+1. In `datagov-harvester`: `make up`, `make load-test-data`
+2. In this repo: `make up-shared`
+3. Catalog runs at `http://localhost:8082`, harvester at `http://localhost:8080`, sharing the same data.
+
+Assumes harvester's defaults (Postgres on port 5433, `mydb`/`myuser`/`mypassword`). If your `.env` values differ, update `docker-compose.shared-harvester.yml` to match.
+
+### Running tests
 
 # 3. Start app (Docker Compose: app, postgres, opensearch)
 make up

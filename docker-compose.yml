@@ -10,7 +10,7 @@ services:
         POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
         POSTGRES_DB: ${DATABASE_NAME}
       ports:
-        - "${DATABASE_PORT}:5432"
+        - "${DATABASE_PORT}:${DATABASE_PORT}"
       volumes:
         - postgres_data:/var/lib/postgresql/data
       healthcheck:
@@ -50,7 +50,7 @@ services:
       FLASK_ENV: development
       FLASK_DEBUG: 1
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
     command:
       - /bin/sh
       - -c
