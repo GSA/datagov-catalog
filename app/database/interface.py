@@ -74,29 +74,19 @@ class CatalogDBInterface:
         replica). This is a known, expected Postgres behavior - see:
         https://www.postgresql.org/docs/current/hot-standby.html
 
-        How it works: on failure, we call `self.db.rollback()` before
+        This app only reads from the database (no writes), so a
+        rollback here never discards any of our own changes. 
+        On failure, we call `self.db.rollback()` before
         retrying. This clears the whole session's current transaction,
         not just the one query that failed. It also refreshes,
-        aka expires any objects already loaded in this session, so they'll
-        be re-fetched from the DB the next time they're used.
+        aka expires any objects already loaded in this session, 
+        so they'll be re-fetched from the DB the next time they're used. 
 
-        Before wrapping a new call with this helper, ask:
-        1. Does this action write data (INSERT/UPDATE/DELETE)? If so,
-            a rollback could undo work you didn't intend to retry.
-        2. Does this request load other data from the DB *before*
-            calling this action? If so, that data may get refreshed
-            unexpectedly after a rollback.
-
-        If either answer is yes, this helper likely isn't a safe fit as-is.
-        Instead:
-        - If the action writes data: wrap the ENTIRE unit of work (all
-            reads and writes that must succeed or fail together) in the
-            retried action, so a rollback never discards work you needed
-            to keep.
-        - If earlier reads in the request matter after this call: move
-            this call earlier in the request (before those reads), or
-            re-fetch/re-validate anything read before this call after
-            the retry completes.
+        Before wrapping a new call with this helper, ask: does this
+        request read other data from the DB *before* calling this
+        action, and does it matter if that data gets refreshed
+        (re-queried) after this call returns? If yes, consider moving
+        this call earlier in the request, before those other reads.
         """
         for attempt in range(1, DB_SERIALIZATION_RETRY_ATTEMPTS + 1):
             try:
@@ -132,16 +122,10 @@ class CatalogDBInterface:
 
     def total_datasets(self):
         """Count how many records in the database table."""
-        return self._run_with_db_retry(
-            lambda: self.db.query(Dataset).count(),
-            action_name="count total datasets",
-        )
+        return self.db.query(Dataset).count()
 
     def get_harvest_record(self, record_id: str) -> HarvestRecord | None:
-        return self._run_with_db_retry(
-            lambda: self.db.query(HarvestRecord).filter_by(id=record_id).first(),
-            action_name=f"get harvest record {record_id}",
-        )
+        return self.db.query(HarvestRecord).filter_by(id=record_id).first()
 
     def search_datasets(self, criteria: SearchCriteria):
         """Text search for datasets from the OpenSearch index.
@@ -201,13 +185,10 @@ class CatalogDBInterface:
 
         Returns a tuple of (id, GeoJSON), or None if the location id doesn't exist.
         """
-        return self._run_with_db_retry(
-            lambda: (
-                self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
-                .filter(Locations.id == location_id)
-                .first()
-            ),
-            action_name=f"get location {location_id}",
+        return (
+            self.db.query(Locations.id, func.ST_AsGeoJSON(Locations.the_geom))
+            .filter(Locations.id == location_id)
+            .first()
         )
 
     def _organization_query(
@@ -293,12 +274,7 @@ class CatalogDBInterface:
     def get_organization_by_slug(self, slug: str) -> Organization | None:
         if not slug:
             return None
-        return self._run_with_db_retry(
-            lambda: self.db.query(Organization)
-            .filter(Organization.slug == slug)
-            .first(),
-            action_name=f"get organization by slug {slug}",
-        )
+        return self.db.query(Organization).filter(Organization.slug == slug).first()
 
     def get_organization_by_id(self, organization_id: str) -> Organization | None:
         if not organization_id:
@@ -512,12 +488,17 @@ class CatalogDBInterface:
     def get_dataset_by_dcat_identifier(
         self, identifier: str, harvest_source_id: str | None = None
     ) -> Dataset | None:
-        query = self.db.query(Dataset).filter(
-            Dataset.dcat["identifier"].astext == identifier
+        def action():
+            query = self.db.query(Dataset).filter(
+                Dataset.dcat["identifier"].astext == identifier
+            )
+            if harvest_source_id is not None:
+                query = query.filter(Dataset.harvest_source_id == harvest_source_id)
+            return query.first()
+
+        return self._run_with_db_retry(
+            action, action_name=f"get dataset by dcat identifier {identifier}"
         )
-        if harvest_source_id is not None:
-            query = query.filter(Dataset.harvest_source_id == harvest_source_id)
-        return query.first()
 
     def get_identifiers_with_children(self, identifiers: list[str]) -> set[str]:
         """Return the subset of `identifiers` that have at least one child record."""
