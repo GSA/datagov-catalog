@@ -1302,7 +1302,7 @@ def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_clien
 
     assert response.status_code == 200
     assert response.mimetype == "application/json"
-    assert response.get_data(as_text=True) == '{"title": "test dataset"}'
+    assert response.get_data(as_text=True) == '{\n  "title": "test dataset"\n}'
 
 
 def test_harvest_record_raw_returns_xml(interface_with_harvest_record, db_client):

@@ -614,6 +614,8 @@ def get_harvest_record_raw(record_id: str) -> Response:
     based on the payload content: application/json for valid JSON, application/xml
     for XML, and text/plain otherwise. A 404 JSON response is returned
     when the record does not exist or the payload is missing/empty.
+
+    JSON and XML outputs are pretty-printed for better human readability.
     """
     record = interface.get_harvest_record(record_id)
     if record is None:
@@ -627,22 +629,24 @@ def get_harvest_record_raw(record_id: str) -> Response:
         source_raw = str(source_raw)
 
     mimetype = "text/plain"
+    formatted_output = source_raw
     stripped_source = source_raw.strip()
+
     if stripped_source:
         try:
-            json.loads(stripped_source)
+            parsed_json = json.loads(stripped_source)
+            formatted_output = json.dumps(
+                parsed_json, indent=2, ensure_ascii=False, sort_keys=False
+            )
+            mimetype = "application/json"
         except (TypeError, json.JSONDecodeError):
             try:
                 ElementTree.fromstring(stripped_source)
-            except (ElementTree.ParseError, SyntaxError):
-                # not JSON or XML, leave as "text/plain"
-                pass
-            else:
                 mimetype = "application/xml"
-        else:
-            mimetype = "application/json"
+            except (ElementTree.ParseError, SyntaxError):
+                pass
 
-    return Response(source_raw, mimetype=mimetype)
+    return Response(formatted_output, mimetype=mimetype)
 
 
 @main.route("/harvest_record/<record_id>/transformed", methods=["GET"])
