@@ -75,12 +75,12 @@ class CatalogDBInterface:
         https://www.postgresql.org/docs/current/hot-standby.html
 
         This app only reads from the database (no writes), so a
-        rollback here never discards any of our own changes. 
+        rollback here never discards any of our own changes.
         On failure, we call `self.db.rollback()` before
         retrying. This clears the whole session's current transaction,
         not just the one query that failed. It also refreshes,
-        aka expires any objects already loaded in this session, 
-        so they'll be re-fetched from the DB the next time they're used. 
+        aka expires any objects already loaded in this session,
+        so they'll be re-fetched from the DB the next time they're used.
 
         Before wrapping a new call with this helper, ask: does this
         request read other data from the DB *before* calling this
