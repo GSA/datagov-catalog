@@ -1326,6 +1326,103 @@ def test_harvest_record_raw_not_found(interface_with_harvest_record, db_client):
     assert response.status_code == 404
 
 
+def test_harvest_record_raw_json_is_formatted(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = '{"title":"test dataset","tags":["economy","health"],"resources":[{"url":"http://example.com/data.csv","format":"CSV"}]}'
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+
+    text = response.get_data(as_text=True)
+    assert "\n" in text
+    assert "  " in text
+
+    parsed = json.loads(text)
+    assert parsed["title"] == "test dataset"
+    assert len(parsed["tags"]) == 2
+    assert len(parsed["resources"]) == 1
+
+    expected_formatted = json.dumps(
+        json.loads(record.source_raw), indent=2, ensure_ascii=False
+    )
+    assert text == expected_formatted
+
+
+def test_harvest_record_raw_xml_is_formatted(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = "<root><title>test dataset</title><tags><tag>economy</tag><tag>health</tag></tags></root>"
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+
+    text = response.get_data(as_text=True)
+    assert "\n" in text
+    assert "  " in text or "\t" in text
+
+    from xml.etree import ElementTree
+
+    root = ElementTree.fromstring(text)
+    assert root.find("title").text == "test dataset"
+    assert len(root.find("tags").findall("tag")) == 2
+
+
+def test_harvest_record_raw_malformed_json_returns_as_text(
+    interface_with_harvest_record, db_client
+):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = '{"title": "missing closing brace"'
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/plain"
+    assert response.get_data(as_text=True) == '{"title": "missing closing brace"'
+
+
+def test_harvest_record_raw_empty_json_object(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = "{}"
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    text = response.get_data(as_text=True)
+    assert json.loads(text) == {}
+
+
+def test_harvest_record_raw_preserves_unicode(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = '{"title":"Données économiques","author":"José García"}'
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    text = response.get_data(as_text=True)
+
+    assert "Données économiques" in text
+    assert "José García" in text
+
+    parsed = json.loads(text)
+    assert parsed["title"] == "Données économiques"
+    assert parsed["author"] == "José García"
+
+
 def test_harvest_record_transformed_returns_json(
     interface_with_harvest_record, db_client
 ):
