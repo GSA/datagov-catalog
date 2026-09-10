@@ -641,7 +641,11 @@ def get_harvest_record_raw(record_id: str) -> Response:
             mimetype = "application/json"
         except (TypeError, json.JSONDecodeError):
             try:
-                ElementTree.fromstring(stripped_source)
+                xml_tree = ElementTree.fromstring(stripped_source)
+                ElementTree.indent(xml_tree, space="  ", level=0)
+                formatted_output = ElementTree.tostring(
+                    xml_tree, encoding="unicode", method="xml"
+                )
                 mimetype = "application/xml"
             except (ElementTree.ParseError, SyntaxError):
                 pass
