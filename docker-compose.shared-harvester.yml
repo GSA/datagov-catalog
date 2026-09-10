@@ -1,0 +1,11 @@
+# Optional override: point this app at a local datagov-harvester checkout's
+# Postgres and OpenSearch instead of running its own.
+#
+# Usage: make up-shared
+services:
+  app:
+    environment:
+      DATABASE_URI: postgresql+psycopg://myuser:mypassword@host.docker.internal:5433/mydb
+      OPENSEARCH_HOST: host.docker.internal
+    ports: !override
+      - "8082:8080"
