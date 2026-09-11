@@ -6,8 +6,15 @@ from uuid import uuid4
 
 import pytest
 from bs4 import BeautifulSoup
+from psycopg.errors import SerializationFailure
+from sqlalchemy.exc import OperationalError
 
 from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
+from app.database import CatalogDBInterface
+from app.database.interface import (
+    DB_SERIALIZATION_RETRY_ATTEMPTS,
+    DB_SERIALIZATION_RETRY_DELAY_SECONDS,
+)
 from app.models import Dataset, Organization
 from app.search.queries.criteria import SearchCriteria
 from app.search.reader import SearchResult
@@ -3268,3 +3275,78 @@ def test_keywords_api_returns_200_with_empty_results(db_client):
         search=None,
         keywords=["census", "volunteer"],
     )
+
+
+def test_db_retry_retries_transient_serialization_failure(monkeypatch):
+    attempts = {"count": 0, "sleep_calls": []}
+    mock_db = Mock()
+    interface = CatalogDBInterface(session=mock_db)
+
+    def fake_sleep(seconds):
+        attempts["sleep_calls"].append(seconds)
+
+    def action():
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise OperationalError(
+                "SELECT 1",
+                {},
+                SerializationFailure("transient db failure"),
+            )
+        return "success"
+
+    monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
+
+    assert interface._run_with_db_retry(action, action_name="test action") == "success"
+    assert attempts["count"] == 2
+    assert attempts["sleep_calls"] == [DB_SERIALIZATION_RETRY_DELAY_SECONDS] * (2**0)
+    mock_db.rollback.assert_called_once_with()
+
+
+def test_db_retry_raises_after_max_attempts(monkeypatch):
+    sleep_calls = []
+    mock_db = Mock()
+    interface = CatalogDBInterface(session=mock_db)
+
+    def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    def action():
+        raise OperationalError(
+            "SELECT 1",
+            {},
+            SerializationFailure("persistent db failure"),
+        )
+
+    monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
+
+    with pytest.raises(OperationalError):
+        interface._run_with_db_retry(action, action_name="test action")
+
+    assert mock_db.rollback.call_count == DB_SERIALIZATION_RETRY_ATTEMPTS
+    assert len(sleep_calls) == DB_SERIALIZATION_RETRY_ATTEMPTS - 1
+
+
+def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
+    attempts = {"count": 0}
+    mock_db = Mock()
+    interface = CatalogDBInterface(session=mock_db)
+
+    def fake_sleep(seconds):
+        pytest.fail("sleep should not be called for non-serialization errors")
+
+    def action():
+        attempts["count"] += 1
+        raise OperationalError(
+            "SELECT 1",
+            {},
+            Exception("FATAL: remaining connection slots are reserved"),
+        )
+
+    monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
+
+    with pytest.raises(OperationalError):
+        interface._run_with_db_retry(action, action_name="test action")
+
+    assert attempts["count"] == 1
+    mock_db.rollback.assert_not_called()

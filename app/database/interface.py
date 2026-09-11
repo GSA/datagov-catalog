@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import math
+import time
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
+from psycopg.errors import SerializationFailure
 from sqlalchemy import func, or_
+from sqlalchemy.exc import OperationalError
 
 from app.models import (
     Dataset,
@@ -29,6 +32,8 @@ from .decorators import paginate
 DEFAULT_PER_PAGE = 20
 DEFAULT_PAGE = 1
 SEARCH_API_MAX_PER_PAGE = 1000
+DB_SERIALIZATION_RETRY_ATTEMPTS = 3
+DB_SERIALIZATION_RETRY_DELAY_SECONDS = 0.25
 
 
 logger = logging.getLogger(__name__)
@@ -58,6 +63,62 @@ class CatalogDBInterface:
         if self._opensearch is None:
             self._opensearch = OpenSearchReader(self.os_client)
         return self._opensearch
+
+    def _is_serialization_failure(self, exc: OperationalError) -> bool:
+        return isinstance(getattr(exc, "orig", None), SerializationFailure)
+
+    def _run_with_db_retry(self, action, *, action_name: str):
+        """
+        Retries `action` if it fails due to a transient PostgreSQL
+        serialization conflict (e.g. "conflict with recovery" on a
+        replica). This is a known, expected Postgres behavior - see:
+        https://www.postgresql.org/docs/current/hot-standby.html
+
+        This app only reads from the database (no writes), so a
+        rollback here never discards any of our own changes.
+        On failure, we call `self.db.rollback()` before
+        retrying. This clears the whole session's current transaction,
+        not just the one query that failed. It also refreshes,
+        aka expires any objects already loaded in this session,
+        so they'll be re-fetched from the DB the next time they're used.
+
+        Before wrapping a new call with this helper, ask: does this
+        request read other data from the DB *before* calling this
+        action, and does it matter if that data gets refreshed
+        (re-queried) after this call returns? If yes, consider moving
+        this call earlier in the request, before those other reads.
+        """
+        for attempt in range(1, DB_SERIALIZATION_RETRY_ATTEMPTS + 1):
+            try:
+                return action()
+            except OperationalError as exc:
+                if not self._is_serialization_failure(exc):
+                    raise
+
+                self.db.rollback()
+
+                if attempt >= DB_SERIALIZATION_RETRY_ATTEMPTS:
+                    logger.error(
+                        "%s failed after %s attempts due to a database serialization error.",
+                        action_name,
+                        DB_SERIALIZATION_RETRY_ATTEMPTS,
+                        exc_info=exc,
+                    )
+                    raise
+
+                wait_seconds = min(
+                    DB_SERIALIZATION_RETRY_DELAY_SECONDS * (2 ** (attempt - 1)),
+                    2.0,
+                )
+                logger.warning(
+                    "%s hit a transient database serialization error (attempt %s/%s); retrying in %.2f seconds.",
+                    action_name,
+                    attempt,
+                    DB_SERIALIZATION_RETRY_ATTEMPTS,
+                    wait_seconds,
+                    exc_info=exc,
+                )
+                time.sleep(wait_seconds)
 
     def total_datasets(self):
         """Count how many records in the database table."""
@@ -218,10 +279,13 @@ class CatalogDBInterface:
     def get_organization_by_id(self, organization_id: str) -> Organization | None:
         if not organization_id:
             return None
-        return (
-            self.db.query(Organization)
-            .filter(Organization.id == organization_id)
-            .first()
+        return self._run_with_db_retry(
+            lambda: (
+                self.db.query(Organization)
+                .filter(Organization.id == organization_id)
+                .first()
+            ),
+            action_name=f"get organization by id {organization_id}",
         )
 
     def list_datasets_for_organization(
@@ -424,12 +488,17 @@ class CatalogDBInterface:
     def get_dataset_by_dcat_identifier(
         self, identifier: str, harvest_source_id: str | None = None
     ) -> Dataset | None:
-        query = self.db.query(Dataset).filter(
-            Dataset.dcat["identifier"].astext == identifier
+        def action():
+            query = self.db.query(Dataset).filter(
+                Dataset.dcat["identifier"].astext == identifier
+            )
+            if harvest_source_id is not None:
+                query = query.filter(Dataset.harvest_source_id == harvest_source_id)
+            return query.first()
+
+        return self._run_with_db_retry(
+            action, action_name=f"get dataset by dcat identifier {identifier}"
         )
-        if harvest_source_id is not None:
-            query = query.filter(Dataset.harvest_source_id == harvest_source_id)
-        return query.first()
 
     def get_identifiers_with_children(self, identifiers: list[str]) -> set[str]:
         """Return the subset of `identifiers` that have at least one child record."""
