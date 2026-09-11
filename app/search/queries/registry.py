@@ -130,6 +130,24 @@ def build_ispartof_query() -> dict[str, Any]:
     }
 
 
+def build_parents_with_children_query(identifiers: list[str]) -> dict[str, Any]:
+    """Find which of the given identifiers have at least one child record.
+
+    Returns an aggregation over ``parent_identifier`` restricted to documents
+    whose ``parent_identifier`` is one of ``identifiers``, so the bucket keys
+    are exactly the identifiers that have children.
+    """
+    return {
+        "size": 0,
+        "query": {"bool": {"filter": [{"terms": {"parent_identifier": identifiers}}]}},
+        "aggs": {
+            "parents": {
+                "terms": {"field": "parent_identifier", "size": len(identifiers)}
+            }
+        },
+    }
+
+
 def build_phrase_query(phrase_text: str) -> dict[str, Any]:
     """
     Build a bool query with match_phrase across multiple fields for

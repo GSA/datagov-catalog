@@ -912,7 +912,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 60"
+    assert datasets_text == "Datasets: 68"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -961,7 +961,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 60"
+    assert overview_items[1].text.strip() == "Total datasets: 68"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -1101,7 +1101,7 @@ def test_index_page_renders(db_client):
     assert org_banner_rank is not None
     assert org_banner_rank.text == "#1"
 
-    for resource_type in ["json", "rdf", "xml", "csv"]:
+    for resource_type in ["json", "rdf+xml", "xml", "csv"]:
         html_resource = soup.find("a", {"data-format": resource_type})
         assert html_resource is not None
         assert (
@@ -1114,10 +1114,10 @@ def test_index_page_renders(db_client):
     assert line_arrow is not None
 
 
-def test_resource_chip_defaults_to_html(db_client):
+def test_resource_chip_unrecognized_format_shows_generic_badge(db_client):
     """
-    Have it so resource chip is passed None in the template and that
-    the template renders HTML by default.
+    An unrecognized file format should render its own short/generic badge
+    rather than silently being mislabeled as HTML.
     """
 
     mock_interface = Mock()
@@ -1134,9 +1134,9 @@ def test_resource_chip_defaults_to_html(db_client):
                     "description": "USDA data on fruit and tree nut production.",
                     "distribution": [
                         {
-                            "title": "Fruit and Tree Nuts Shapefile",
-                            "format": "shp",
-                            "downloadURL": "https://example.com/fruit-tree-nuts.shp",
+                            "title": "Fruit and Tree Nuts Data",
+                            "format": "flibbertigibbet",
+                            "downloadURL": "https://example.com/fruit-tree-nuts.flibbertigibbet",
                         }
                     ],
                 },
@@ -1160,14 +1160,15 @@ def test_resource_chip_defaults_to_html(db_client):
     format_link = soup.find(
         "a",
         attrs={
-            "data-format": "html",
+            "data-format": "flibbertigibbet",
             "data-organization": "Department of Agriculture",
         },
     )
     assert format_link is not None
 
     assert format_link.get("href") == "/dataset/fruit-and-tree-nuts-data"
-    assert format_link.get_text(strip=True).lower() == "html"
+    assert format_link.get_text(strip=True).lower() != "html"
+    assert format_link.get_text(strip=True) == "FLIB"
 
 
 def test_index_page_dataset_links_use_slug_not_id(db_client):
@@ -1437,6 +1438,105 @@ def test_organization_detail_displays_no_datasets_on_search(
 
     items = dataset_section.select(".usa-collection__item")
     assert len(items) == 0
+
+
+def test_organization_detail_displays_code_repo_url_when_present(
+    db_client, interface_with_organization
+):
+    """Test organization detail page shows repository link when URL is set."""
+    # Add organization with code_repo_url
+    org = Organization(
+        id="test-org-with-repo",
+        name="Test Agency With Repo",
+        slug="test-agency-with-repo",
+        code_repo_url="https://github.com/test-agency",
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/test-agency-with-repo")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Source Code Repository" in html
+    assert "https://github.com/test-agency" in html
+    assert 'target="_blank"' in html
+    assert 'rel="noopener noreferrer"' in html
+
+
+def test_organization_detail_hides_code_repo_url_when_null(
+    db_client, interface_with_organization
+):
+    """Test organization detail page does NOT show repository field when URL is null."""
+    # Organization fixture already has code_repo_url=None by default
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Source Code Repository" not in html
+
+
+def test_organization_detail_hides_code_repo_url_when_empty_string(
+    db_client, interface_with_organization
+):
+    """Test organization detail page does NOT show repository field when URL is empty string."""
+    # Add organization with empty code_repo_url
+    org = Organization(
+        id="test-org-empty-repo",
+        name="Test Agency Empty Repo",
+        slug="test-agency-empty-repo",
+        code_repo_url="",
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/test-agency-empty-repo")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Source Code Repository" not in html
+
+
+def test_gsa_organization_displays_github_link(db_client, interface_with_organization):
+    """Test GSA organization shows GitHub repository link (acceptance test)."""
+    # GSA organization already exists in fixtures with code_repo_url
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/gsa")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Source Code Repository" in html
+    assert 'href="https://github.com/GSA"' in html
+
+
+def test_organization_detail_does_not_display_code_repo_exempt(
+    db_client, interface_with_organization
+):
+    """Test organization detail page does NOT show code_repo_exempt flag."""
+    # Add organization with both fields
+    org = Organization(
+        id="test-org-both-fields",
+        name="Test Agency Both Fields",
+        slug="test-agency-both-fields",
+        code_repo_url="https://github.com/test-agency",
+        code_repo_exempt=True,
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/organization/test-agency-both-fields")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    # URL should be visible
+    assert "Source Code Repository" in html
+    # But exempt flag should NOT be visible
+    assert "exempt" not in html.lower()
+    assert "OMB" not in html
 
 
 def test_index_page_has_filters_sidebar(db_client):
@@ -2640,7 +2740,7 @@ def test_index_collection(interface_with_dataset, db_client):
         == "/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
     )
     assert (
-        collection_card_view_badge.select_one("button.collection-card__collection-link")
+        collection_card_view_badge.select_one("a.collection-card__collection-link")
         is not None
     )
 
@@ -2669,7 +2769,9 @@ def test_index_collection(interface_with_dataset, db_client):
     assert len(collection_card_footer_elms) == 2
 
     # collection counts
-    assert collection_card_footer_elms[1].text.strip() == "1 dataset in this collection"
+    assert (
+        collection_card_footer_elms[1].text.strip() == "3 datasets in this collection"
+    )
 
     # metrics (e.g. search relevance, view count, published on)
     collection_card_metrics = collection_card.select_one("div.collection-card__metrics")
@@ -2690,12 +2792,36 @@ def test_index_collection(interface_with_dataset, db_client):
     # an awkward space between them
     assert (
         re.sub(r"[\r\n]+", "", collection_count.text.strip())
-        == "1                    dataset  in this collection"
+        == "3                    dataset  in this collection"
     )
 
     collection_datasets = soup.select("li.organization-datasets__item")
     assert collection_datasets is not None
-    assert len(collection_datasets) == 1
+    assert len(collection_datasets) == 3
+
+
+def test_index_collection_root_without_ispartof(interface_with_dataset, db_client):
+    """A collection root (data_service/data_series) has no dcat.isPartOf of its own -
+    the collection card's "View Collection" link must use the root's own identifier
+    instead, or rendering 500s.
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?collection=https://example.gov/services/climate")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    collection_card = soup.select_one("div.collection-card")
+    assert collection_card is not None
+
+    collection_card_view_badge = collection_card.select_one(
+        "span.collection-card__badge"
+    )
+    assert collection_card_view_badge is not None
+    assert (
+        collection_card_view_badge.select_one("a")["href"]
+        == "/?collection=https://example.gov/services/climate"
+    )
 
 
 def test_index_collection_query(interface_with_dataset, db_client):
@@ -2927,7 +3053,7 @@ def test_keywords_api_returns_all_when_no_search(db_client):
     assert "earth science" in keyword_values
     assert "ocean" in keyword_values
     mock_interface.get_unique_keywords.assert_called_once_with(
-        size=10, min_doc_count=1, search=None
+        size=10, min_doc_count=1, search=None, keywords=None
     )
 
 
@@ -2948,7 +3074,7 @@ def test_keywords_api_passes_search_param_to_interface(db_client):
     assert "earth science" in keyword_values
     assert "earth science > trees" in keyword_values
     mock_interface.get_unique_keywords.assert_called_once_with(
-        size=10, min_doc_count=1, search="earth science"
+        size=10, min_doc_count=1, search="earth science", keywords=None
     )
 
 
@@ -2967,3 +3093,190 @@ def test_keywords_api_hides_internal_exception(db_client):
         "message": internal_error_message(),
     }
     assert "some internal error containing sensitive information" not in response.text
+
+
+# Tests for /code compliance index page (issue #6087)
+
+
+def test_code_compliance_index_page_exists(db_client):
+    """Test that /code page is accessible."""
+    response = db_client.get("/code")
+    assert response.status_code == 200
+
+
+def test_code_page_displays_only_federal_orgs(db_client, interface_with_organization):
+    """Test /code page shows only Federal Government organizations."""
+    # Add federal org
+    federal_org = Organization(
+        id="federal-test",
+        name="Federal Agency",
+        slug="federal-agency",
+        organization_type="Federal Government",
+    )
+    # Add non-federal org
+    state_org = Organization(
+        id="state-test",
+        name="State Agency",
+        slug="state-agency",
+        organization_type="State Government",
+    )
+    interface_with_organization.db.add(federal_org)
+    interface_with_organization.db.add(state_org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Federal Agency" in html
+    assert "State Agency" not in html
+
+
+def test_code_page_displays_repo_url_as_link(db_client, interface_with_organization):
+    """Test organization with repo URL displays as clickable link."""
+    # GSA already exists in fixtures with code_repo_url, so we can just check it
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert 'href="https://github.com/GSA"' in html
+    assert 'target="_blank"' in html
+    assert 'rel="noopener noreferrer"' in html
+
+
+def test_code_page_displays_exempt_status(db_client, interface_with_organization):
+    """Test organization with exempt flag displays 'Exempt'."""
+    org = Organization(
+        id="exempt-agency",
+        name="Exempt Agency",
+        slug="exempt-agency",
+        organization_type="Federal Government",
+        code_repo_exempt=True,
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Exempt" in html
+
+
+def test_code_page_displays_not_reported_status(db_client, interface_with_organization):
+    """Test organization without repo or exempt shows 'Not yet reported'."""
+    org = Organization(
+        id="unreported-agency",
+        name="Unreported Agency",
+        slug="unreported-agency",
+        organization_type="Federal Government",
+        code_repo_url=None,
+        code_repo_exempt=False,
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Not yet reported" in html
+
+
+def test_code_page_sorts_orgs_alphabetically(db_client, interface_with_organization):
+    """Test organizations are sorted alphabetically by name."""
+    orgs = [
+        Organization(
+            id="z",
+            name="Zebra Agency",
+            slug="z",
+            organization_type="Federal Government",
+        ),
+        Organization(
+            id="a",
+            name="Alpha Agency",
+            slug="a",
+            organization_type="Federal Government",
+        ),
+        Organization(
+            id="m",
+            name="Middle Agency",
+            slug="m",
+            organization_type="Federal Government",
+        ),
+    ]
+    for org in orgs:
+        interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    # Check that Alpha appears before Middle which appears before Zebra
+    alpha_pos = html.index("Alpha Agency")
+    middle_pos = html.index("Middle Agency")
+    zebra_pos = html.index("Zebra Agency")
+    assert alpha_pos < middle_pos < zebra_pos
+
+
+def test_code_page_links_to_org_detail_pages(db_client, interface_with_organization):
+    """Test organization names link to their detail pages."""
+    # GSA already exists in fixtures, so we can just check it
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    soup = BeautifulSoup(response.data.decode(), "html.parser")
+    org_link = soup.find("a", href="/organization/gsa")
+    assert org_link is not None
+    assert "General Services Administration" in org_link.text
+
+
+def test_code_page_includes_share_it_act_context(db_client):
+    """Test page includes explanation about SHARE IT Act."""
+    response = db_client.get("/code")
+    html = response.data.decode()
+    assert "SHARE IT Act" in html or "Federal Agency Source Code Repositories" in html
+
+
+def test_keywords_api_passes_selected_keywords_to_interface(db_client):
+    """Selected keywords should narrow autocomplete suggestions to compatible terms."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = [
+        {"keyword": "volunteering", "count": 8},
+    ]
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?search=vol&size=10&keyword=census")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["keywords"] == [{"keyword": "volunteering", "count": 8}]
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10,
+        min_doc_count=1,
+        search="vol",
+        keywords=["census"],
+    )
+
+
+def test_keywords_api_returns_200_with_empty_results(db_client):
+    """GET /api/keywords returns 200 with empty results when no keywords match."""
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/api/keywords?keyword=census&keyword=volunteer")
+
+    assert response.status_code == 200
+    data = response.get_json()
+
+    assert data["keywords"] == []
+    assert data["total"] == 0
+
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=100,
+        min_doc_count=1,
+        search=None,
+        keywords=["census", "volunteer"],
+    )

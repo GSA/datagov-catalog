@@ -88,16 +88,20 @@ class CatalogDBInterface:
         """
         return self.opensearch.get_document_by_slug(slug_name)
 
-    def get_unique_keywords(self, size=100, min_doc_count=1, search=None) -> list[dict]:
+    def get_unique_keywords(
+        self, size=100, min_doc_count=1, search=None, keywords=None
+    ) -> list[dict]:
         """
         Get unique keywords from all datasets with their document counts.
 
         size: Maximum number of unique keywords to return (default 100)
         min_doc_count: Minimum number of documents a keyword must appear in (default 1)
         search: Optional substring to filter returned keywords by
+        keywords: Optional list of currently selected keywords to make the
+            suggestions compatible with the active filter set.
         """
         return self.opensearch.get_unique_keywords(
-            size=size, min_doc_count=min_doc_count, search=search
+            size=size, min_doc_count=min_doc_count, search=search, keywords=keywords
         )
 
     def search_locations(self, query, size=100):
@@ -320,6 +324,66 @@ class CatalogDBInterface:
             for row in rows
         ]
 
+    def get_federal_organizations(self) -> list[Organization]:
+        """Get all organizations with organization_type='Federal Government', sorted by name.
+
+        Returns:
+            List of Organization objects sorted alphabetically by name.
+
+        Raises:
+            RuntimeError: If running in production without organization_type_enum.
+        """
+        from flask import current_app
+        from sqlalchemy import cast, inspect
+        from sqlalchemy.dialects.postgresql import ENUM
+
+        # Check if organization_type_enum exists in the database
+        inspector = inspect(self.db.get_bind())
+        enum_exists = "organization_type_enum" in [
+            t["name"] for t in inspector.get_enums()
+        ]
+
+        # Detect production environment (IS_LOCAL=False means production/staging)
+        is_production = not current_app.config.get("IS_LOCAL", True)
+
+        if not enum_exists and is_production:
+            raise RuntimeError(
+                "organization_type_enum does not exist in production database. "
+                "This indicates a database schema misconfiguration. The production "
+                "database should have the organization_type_enum type defined."
+            )
+
+        if enum_exists:
+            # Production environment: use ENUM cast
+            org_type_enum = ENUM(
+                "Federal Government",
+                "State Government",
+                "Local Government",
+                "University",
+                "Tribal Government",
+                "Other",
+                name="organization_type_enum",
+                create_type=False,
+            )
+
+            return (
+                self.db.query(Organization)
+                .filter(
+                    Organization.organization_type
+                    == cast("Federal Government", org_type_enum)
+                )
+                .order_by(Organization.name)
+                .all()
+            )
+        else:
+            # Test environment: use string comparison
+            return (
+                self.db.query(Organization)
+                .filter(Organization.organization_type == "Federal Government")
+                .order_by(Organization.name)
+                .all()
+            )
+
     def get_top_publishers(self) -> list[dict]:
         """Return the top 100 publishers ordered by dataset count."""
         publishers = self.opensearch.get_publisher_counts(size=100)
@@ -357,12 +421,19 @@ class CatalogDBInterface:
         """
         return self.db.query(Dataset).filter_by(id=dataset_id).first()
 
-    def get_dataset_by_dcat_identifier(self, identifier: str) -> Dataset | None:
-        return (
-            self.db.query(Dataset)
-            .filter(Dataset.dcat["identifier"].astext == identifier)
-            .first()
+    def get_dataset_by_dcat_identifier(
+        self, identifier: str, harvest_source_id: str | None = None
+    ) -> Dataset | None:
+        query = self.db.query(Dataset).filter(
+            Dataset.dcat["identifier"].astext == identifier
         )
+        if harvest_source_id is not None:
+            query = query.filter(Dataset.harvest_source_id == harvest_source_id)
+        return query.first()
+
+    def get_identifiers_with_children(self, identifiers: list[str]) -> set[str]:
+        """Return the subset of `identifiers` that have at least one child record."""
+        return self.opensearch.find_identifiers_with_children(identifiers)
 
     def count_all_datasets_in_search(self) -> int:
         """

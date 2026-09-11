@@ -12,7 +12,7 @@ import uuid
 
 from flask_sqlalchemy import SQLAlchemy
 from geoalchemy2 import Geometry
-from sqlalchemy import Column, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import DeclarativeBase, backref, column_property, relationship
@@ -36,6 +36,8 @@ class Organization(Base):
     slug = Column(String(100), nullable=False)
     organization_type = Column(String)
     aliases = Column(ARRAY(String))
+    code_repo_url = Column(String)
+    code_repo_exempt = Column(Boolean)
 
 
 class HarvestSource(Base):
@@ -90,6 +92,7 @@ class Dataset(Base):
     harvest_record_id = Column(String(36), index=True, unique=True)
     popularity = Column(Integer, server_default="0")
     last_harvested_date = Column(DateTime, index=True)
+    type = Column(String, index=True)
 
     organization = relationship(
         "Organization",

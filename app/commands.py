@@ -299,11 +299,27 @@ def _sitemap_lastmod(dataset: Dataset) -> Optional[str]:
         return None
 
 
-def _build_sitemap_chunk_xml(datasets: Iterable[Dataset]) -> str:
+def _build_sitemap_chunk_xml(
+    datasets: Iterable[Dataset], include_static_pages: bool = False
+) -> str:
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ]
+
+    # Add static pages to first chunk if requested
+    if include_static_pages:
+        static_pages = [
+            "/",
+            "/organization",
+            "/code",
+        ]
+        for page in static_pages:
+            loc = f"{BASE_URL}{page}"
+            lines.append("  <url>")
+            lines.append(f"    <loc>{loc}</loc>")
+            lines.append("  </url>")
+
     for ds in datasets:
         # The app will serve these at /dataset/<slug>
         # Use absolute URLs with the public base
@@ -391,7 +407,8 @@ def sitemap_generate(chunk_size: int):
     for idx in range(total_chunks):
         offset = idx * chunk_size
         datasets = get_window(offset, chunk_size)
-        xml_body = _build_sitemap_chunk_xml(datasets)
+        # Include static pages only in the first chunk
+        xml_body = _build_sitemap_chunk_xml(datasets, include_static_pages=(idx == 0))
         key = f"{prefix.rstrip('/')}/sitemap-{idx}.xml"
         s3.put_object(
             Bucket=bucket,

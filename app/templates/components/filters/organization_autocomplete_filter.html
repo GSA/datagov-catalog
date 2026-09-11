@@ -2,23 +2,30 @@
 
 {% macro render_organization_autocomplete_filter(selected_organization, org_slug, suggested_organizations,
 contextual_org_counts=None) %}
+{% set organization_selected = selected_organization is not none or (org_slug is not none and org_slug != '') %}
 {% call render_filter_accordion_section(
     'filter-organization-autocomplete',
     'Organization',
-    is_active=(selected_organization is not none or (org_slug is not none and org_slug != '')),
+    is_active=organization_selected,
     active_summary=selected_organization|organization_active_summary(org_slug),
     subtitle='A specific publishing organization',
     extra_classes='margin-bottom-2'
 ) %}
         <div class="keyword-autocomplete">
-            <label class="usa-label" for="organization-input">
+            <label class="usa-label" for="organization-input" id="organization-input-label">
                 Filter by organization <br>
-                <span class="usa-hint">Start typing to select an organization</span>
+                <span id="organization-input-hint" class="usa-hint">
+                    {%- if organization_selected -%}
+                    Remove the filter to search again
+                    {%- else -%}
+                    Start typing to select an organization
+                    {%- endif -%}
+                </span>
             </label>
             <input
                 type="text"
                 id="organization-input"
-                class="keyword-autocomplete__input usa-input"
+                class="keyword-autocomplete__input usa-input{% if organization_selected %} display-none{% endif %}"
                 placeholder="Type an organization name..."
                 autocomplete="off"
                 aria-autocomplete="list"

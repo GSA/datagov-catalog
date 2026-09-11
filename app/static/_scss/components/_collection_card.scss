@@ -133,9 +133,24 @@ $collection-card-back-offset-y:   -10px !default;
   }
   
   &__collection-link {
+    display: inline-block;
+    padding: 1px 6px;
     background-color: $collection-card-tab-text-color;
     color: white;
     border: none;
+    font-size: 0.8rem;
+    font-weight: 400;
+    text-decoration: none;
+
+    &:hover,
+    &:focus,
+    &:visited {
+      color: white;
+    }
+
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
   &__metadata-link {

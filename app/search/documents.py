@@ -92,6 +92,11 @@ class DatasetDocument:
             or dataset.translated_spatial is not None
             or has_spatial_theme
         )
+        has_download = any(
+            isinstance(distribution, dict)
+            and str(distribution.get("downloadURL") or "").strip()
+            for distribution in (dataset.dcat.get("distribution") or [])
+        )
         nested_dcat = self._normalize_dcat_dates(dataset.dcat)
         spatial_centroid = calc_geometry_centroid(dataset.translated_spatial)
         last_harvested = (
@@ -103,11 +108,17 @@ class DatasetDocument:
 
         popularity = dataset.popularity if dataset.popularity is not None else None
 
+        parent_identifier = getattr(
+            getattr(dataset, "harvest_record", None), "parent_identifier", None
+        )
+
         document = {
             "_index": self.INDEX_NAME,
             "_id": dataset.id,
             "title": index_fields["title"],
             "slug": dataset.slug,
+            "type": dataset.type,
+            "parent_identifier": parent_identifier,
             "last_harvested_date": last_harvested,
             "description": index_fields["description"],
             "publisher": index_fields["publisher"],
@@ -116,6 +127,7 @@ class DatasetDocument:
             "theme": index_fields["theme"],
             "identifier": index_fields["identifier"],
             "has_spatial": has_spatial,
+            "has_download": has_download,
             "organization": organization,
             "distribution_titles": index_fields["distribution_titles"],
             "popularity": popularity,

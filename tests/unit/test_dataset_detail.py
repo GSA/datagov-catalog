@@ -354,19 +354,16 @@ class TestDatasetDetail:
             soup.find("script", src=versioned_asset_url("js/view_bbox_map.js")) is None
         )
 
-    @pytest.mark.parametrize(
-        "dataset_detail_url",
-        [("/dataset/child-harvest-record"), ("/dataset/parent-harvest-record")],
-    )
-    def test_dataset_detail_collections(
-        self, dataset_detail_url, interface_with_dataset, db_client
+    def test_dataset_detail_collections_child_view(
+        self, interface_with_dataset, db_client
     ):
         """
-        test child and parent dataset detail view
+        A child record's detail page links directly to its parent record
+        (resolved via HarvestRecord.parent_identifier), rather than only a
+        sibling search link.
         """
-
         with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get(dataset_detail_url)
+            response = db_client.get("/dataset/child-harvest-record")
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
@@ -379,25 +376,152 @@ class TestDatasetDetail:
         # both the tags and collection options are there
         assert len(related_datasets_options) == 2
 
-        # tag content (the subset of tags and the button to show more)
         tags = related_datasets_options[0]
         assert tags.select_one("div.tag-list") is not None
 
-        # not a fan of adding a condition like this but breaking out
-        # this test into 2 would introduce a lot of redundancy
-        if dataset_detail_url == "/dataset/parent-harvest-record":
-            assert tags.select_one("button.usa-button") is not None
+        collection = related_datasets_options[1]
+        parent_link = collection.find("a", href="/dataset/parent-harvest-record")
+        assert parent_link is not None
 
-        # collection content
+    def test_dataset_detail_collections_parent_view(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        A parent record's detail page links to the sibling datasets that
+        point back to it via parent_identifier.
+        """
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/parent-harvest-record")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        related_datasets_section = soup.select_one("section.usa-section")
+        related_datasets_options = related_datasets_section.find_all(
+            "div", class_="tablet:grid-col-6"
+        )
+
+        # both the tags and collection options are there
+        assert len(related_datasets_options) == 2
+
+        tags = related_datasets_options[0]
+        assert tags.select_one("div.tag-list") is not None
+        assert tags.select_one("button.usa-button") is not None
+
         collection = related_datasets_options[1]
         collection_count = soup.select_one("div.text-base-dark")
 
-        assert collection_count.text.strip() == "Includes 1 related dataset"
+        assert collection_count.text.strip() == "Includes 3 related datasets"
 
         collection_link = collection.find(
             "a", href="/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
         )
         assert collection_link is not None
+
+    def test_dataset_series_detail_page(self, interface_with_dataset, db_client):
+        """A DCAT-US 3.0 DatasetSeries persists as a Dataset row (type=
+        "data_series") with no distribution/publisher of its own. Its detail
+        page must render without error and link to its member dataset(s) via
+        the same collection lookup used for isPartOf, keyed by the series'
+        own identifier rather than an isPartOf it doesn't have."""
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/annual-report-series")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        h1 = soup.select_one("main#content h1.dataset-title").text
+        assert h1 == "Annual Report Series"
+
+        # No distributions on a series: no resources section, no crash.
+        assert soup.select_one("div.resources-section") is None
+
+        collection_count = soup.select_one("div.text-base-dark")
+        assert collection_count is not None
+        assert collection_count.text.strip() == "Includes 1 related dataset"
+
+        collection_link = soup.select_one(
+            "a[href='/?collection=https://example.gov/series/annual-report']"
+        )
+        assert collection_link is not None
+
+        # Complete Metadata must show the series' real @type, not a
+        # hardcoded "dcat:Dataset" overwrite (regression: routes.py used to
+        # force dataset.dcat["@type"] = "dcat:Dataset" for every record).
+        metadata_table = soup.select_one("table.metadata-table")
+        type_row = next(
+            row
+            for row in metadata_table.select("tr")
+            if row.select_one("th").get_text(strip=True) == "@type"
+        )
+        assert type_row.select_one("td").get_text(strip=True) == "DatasetSeries"
+
+        # Sidebar labels read "Series", not the hardcoded "Dataset".
+        sidebar_headings = {
+            h.get_text(strip=True) for h in soup.select("h3.sidebar-section__heading")
+        }
+        assert "Series Information" in sidebar_headings
+        assert "Dataset Information" not in sidebar_headings
+
+    def test_data_service_detail_page(self, interface_with_dataset, db_client):
+        """A DCAT-US 3.0 DataService persists as a Dataset row (type=
+        "data_service") with no distribution/publisher of its own. Its
+        detail page must render without error and link to the dataset(s)
+        it serves via the same collection lookup used for isPartOf, keyed
+        by the service's own identifier rather than an isPartOf it
+        doesn't have."""
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/climate-data-service")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        h1 = soup.select_one("main#content h1.dataset-title").text
+        assert h1 == "Climate Data Service"
+
+        # No distributions on a service: no resources section, no crash.
+        assert soup.select_one("div.resources-section") is None
+
+        collection_count = soup.select_one("div.text-base-dark")
+        assert collection_count is not None
+        assert collection_count.text.strip() == "Includes 1 related dataset"
+
+        collection_link = soup.select_one(
+            "a[href='/?collection=https://example.gov/services/climate']"
+        )
+        assert collection_link is not None
+
+        metadata_table = soup.select_one("table.metadata-table")
+        type_row = next(
+            row
+            for row in metadata_table.select("tr")
+            if row.select_one("th").get_text(strip=True) == "@type"
+        )
+        assert type_row.select_one("td").get_text(strip=True) == "DataService"
+
+        # Sidebar labels read "Service", not the hardcoded "Dataset".
+        sidebar_headings = {
+            h.get_text(strip=True) for h in soup.select("h3.sidebar-section__heading")
+        }
+        assert "Service Information" in sidebar_headings
+        assert "Dataset Information" not in sidebar_headings
+
+        # DataService.contactPoint is an array (unlike Dataset's single
+        # object) per DCAT-US 3.0 — the Contact sidebar must still render
+        # the first entry instead of crashing on a list.
+        contact_box = next(
+            (
+                h.find_parent("div", class_="sidebar-section")
+                for h in soup.select(".sidebar-section__heading")
+                if h.get_text(strip=True) == "Contact"
+            ),
+            None,
+        )
+        assert contact_box is not None
+        assert "Climate API Support" in contact_box.get_text()
+        email_link = contact_box.select_one('a[href^="mailto:"]')
+        assert email_link is not None
+        assert email_link.get("href") == "mailto:climate-api@example.gov"
 
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
@@ -544,7 +668,7 @@ class TestDatasetDetail:
         related_section = soup.find("h2", string="Find Related Datasets")
         assert related_section is not None
 
-        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        tags_heading = soup.find("h3", string=lambda s: s and "Search by Tags" in s)
         assert tags_heading is not None
 
     def test_related_datasets_section_shown_when_has_collection(
@@ -573,7 +697,7 @@ class TestDatasetDetail:
         assert related_section is not None
 
         collection_heading = soup.find(
-            "h4", string=lambda s: s and "Explore Collection" in s
+            "h3", string=lambda s: s and "Explore Collection" in s
         )
         assert collection_heading is not None
 
@@ -602,9 +726,9 @@ class TestDatasetDetail:
         related_section = soup.find("h2", string="Find Related Datasets")
         assert related_section is not None
 
-        tags_heading = soup.find("h4", string=lambda s: s and "Search by Tags" in s)
+        tags_heading = soup.find("h3", string=lambda s: s and "Search by Tags" in s)
         collection_heading = soup.find(
-            "h4", string=lambda s: s and "Explore Collection" in s
+            "h3", string=lambda s: s and "Explore Collection" in s
         )
         assert tags_heading is not None
         assert collection_heading is not None

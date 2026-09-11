@@ -90,6 +90,11 @@ class KeywordAutocomplete {
 
         try {
             const params = new URLSearchParams({ search: query, size: 10 });
+            for (const keyword of this.selectedKeywords) {
+                if (keyword) {
+                    params.append('keyword', keyword);
+                }
+            }
             const response = await fetch(`${this.apiEndpoint}?${params}`, {
                 signal: this.fetchController.signal,
             });
@@ -209,10 +214,13 @@ class KeywordAutocomplete {
             div.className = 'keyword-suggestion';
             div.dataset.keyword = item.keyword;
 
-            // Use contextual count if available, otherwise use the item's count
-            const displayCount = this.contextualCounts[item.keyword] !== undefined
-                ? this.contextualCounts[item.keyword]
-                : item.count;
+            // Prefer the response count for the current filter context, falling back
+            // to the page's contextual counts when the API did not provide one.
+            const displayCount = item.count !== undefined
+                ? item.count
+                : this.contextualCounts[item.keyword] !== undefined
+                    ? this.contextualCounts[item.keyword]
+                    : 0;
 
             const textSpan = document.createElement('span');
             textSpan.className = 'keyword-suggestion__text';
@@ -361,6 +369,7 @@ class OrganizationAutocomplete {
         this.suggestedContainerId = options.suggestedContainerId || 'suggested-organizations';
 
         this.input = document.getElementById(this.inputId);
+        this.inputHint = document.getElementById(`${this.inputId}-hint`);
         this.chipsContainer = document.getElementById(this.chipsContainerId);
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
         this.form = document.getElementById(this.formId);
@@ -541,6 +550,8 @@ class OrganizationAutocomplete {
     }
 
     filterAndShowSuggestions(query) {
+        const hasContextualCount = Object.keys(this.contextualCounts).length > 0;
+
         const filtered = this.organizations.filter((item) => {
             const name = (item.name || '').toLowerCase();
             const slug = (item.slug || '').toLowerCase();
@@ -560,9 +571,12 @@ class OrganizationAutocomplete {
                 return false;
             }
 
+            const contextualCount = this.contextualCounts[item.slug];
+            const hasCount = !hasContextualCount || contextualCount > 0;
+
             const aliasMatch = aliases.some((alias) => alias.includes(query));
             return (
-                name.includes(query) || slug.includes(query) || aliasMatch
+                (name.includes(query) || slug.includes(query) || aliasMatch) && hasCount
             );
         });
 
@@ -594,7 +608,10 @@ class OrganizationAutocomplete {
             textSpan.appendChild(this.highlightMatch(item.name, this.input.value));
             const countSpan = document.createElement('span');
             countSpan.className = 'keyword-suggestion__count';
-            countSpan.textContent = this.formatCount(item.dataset_count || 0);
+            const displayCount = this.contextualCounts[item.slug] !== undefined
+                ? this.contextualCounts[item.slug]
+                : item.dataset_count;
+            countSpan.textContent = this.formatCount(displayCount || 0);
             div.appendChild(textSpan);
             div.appendChild(countSpan);
 
@@ -628,6 +645,7 @@ class OrganizationAutocomplete {
         this.renderChip(this.selectedOrganization);
         this.syncHiddenInputs();
         this.hideSuggestedOrganizations();
+        this.hideInput();
 
         if (!silent) {
             requestFilterFormSubmit(this.form);
@@ -680,6 +698,7 @@ class OrganizationAutocomplete {
         this.chipsContainer.innerHTML = '';
         this.syncHiddenInputs();
         this.showSuggestedOrganizations();
+        this.showInput();
         requestFilterFormSubmit(this.form);
     }
 
@@ -760,6 +779,21 @@ class OrganizationAutocomplete {
             this.suggestedContainer.style.display = 'block';
         }
     }
+
+    hideInput() {
+        this.input.classList.add('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Remove the filter to search again';
+        }
+        this.hideSuggestions();
+    }
+
+    showInput() {
+        this.input.classList.remove('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Start typing to select an organization';
+        }
+    }
 }
 
 class PublisherAutocomplete {
@@ -774,6 +808,7 @@ class PublisherAutocomplete {
         this.suggestedContainerId = options.suggestedContainerId || 'suggested-publishers';
 
         this.input = document.getElementById(this.inputId);
+        this.inputHint = document.getElementById(`${this.inputId}-hint`);
         this.chipsContainer = document.getElementById(this.chipsContainerId);
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
         this.form = document.getElementById(this.formId);
@@ -980,6 +1015,7 @@ class PublisherAutocomplete {
         this.renderChip(name);
         this.syncHiddenInputs();
         this.hideSuggestedPublishers();
+        this.hideInput();
 
         if (!silent) {
             requestFilterFormSubmit(this.form);
@@ -1014,6 +1050,7 @@ class PublisherAutocomplete {
         this.chipsContainer.innerHTML = '';
         this.syncHiddenInputs();
         this.showSuggestedPublishers();
+        this.showInput();
         requestFilterFormSubmit(this.form);
     }
 
@@ -1089,6 +1126,21 @@ class PublisherAutocomplete {
     showSuggestedPublishers() {
         if (this.suggestedContainer && !this.selectedPublisher) {
             this.suggestedContainer.style.display = 'block';
+        }
+    }
+
+    hideInput() {
+        this.input.classList.add('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Remove the filter to search again';
+        }
+        this.hideSuggestions();
+    }
+
+    showInput() {
+        this.input.classList.remove('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Start typing to select a publisher';
         }
     }
 }

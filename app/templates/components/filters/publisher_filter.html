@@ -1,22 +1,29 @@
 {% from "components/filters/filter_accordion_section.html" import render_filter_accordion_section %}
 
 {% macro render_publisher_filter(selected_publisher=None, suggested_publishers=None, contextual_publisher_counts=None) %}
+{% set publisher_selected = selected_publisher is not none and selected_publisher != '' %}
 {% call render_filter_accordion_section(
     'filter-publishers',
     'Publisher',
-    is_active=(selected_publisher is not none and selected_publisher != ''),
+    is_active=publisher_selected,
     active_summary=selected_publisher|publisher_active_summary,
     extra_classes='margin-bottom-2'
 ) %}
         <div class="keyword-autocomplete">
-            <label class="usa-label" for="publisher-input">
+            <label class="usa-label" for="publisher-input" id="publisher-input-label">
                 Filter by publisher <br>
-                <span class="usa-hint">Start typing to select a publisher</span>
+                <span id="publisher-input-hint" class="usa-hint">
+                    {%- if publisher_selected -%}
+                    Remove the filter to search again
+                    {%- else -%}
+                    Start typing to select a publisher
+                    {%- endif -%}
+                </span>
             </label>
             <input
                 type="text"
                 id="publisher-input"
-                class="keyword-autocomplete__input usa-input"
+                class="keyword-autocomplete__input usa-input{% if publisher_selected %} display-none{% endif %}"
                 placeholder="Type a publisher name..."
                 autocomplete="off"
                 aria-autocomplete="list"

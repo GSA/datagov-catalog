@@ -34,14 +34,20 @@ test:
 test-pa11y: ## Runs accessibility tests with pa11y-ci (requires running app)
 	npm run test:pa11y
 
+test-axe: ## Runs axe-core accessibility checks (requires running app w/ test data)
+	poetry run pytest --browser chromium -m accessibility tests/browser/
+
 load-test-data: ## Loads test fixture data into the database
 	docker compose exec app flask testdata load_test_data --clear
 	docker compose exec app flask search compare --update
 
-test-a11y-with-data: up load-test-data test-pa11y ## Runs accessibility tests with test data loaded
+test-a11y-with-data: up load-test-data test-pa11y test-axe ## Runs accessibility tests with test data loaded
 
-test-browser:
-	poetry run pytest --browser chromium --browser firefox --browser webkit tests/browser/
+# CI skips webkit: Linux WebKitGTK needs apt libs that stall on Azure mirrors.
+BROWSER_ARGS ?= --browser chromium --browser firefox --browser webkit
+
+test-browser: ## Runs blocking browser tests (accessibility checks are advisory; see test-axe)
+	poetry run pytest $(BROWSER_ARGS) -m "not accessibility" tests/browser/
 
 test-browser-with-data: up load-test-data test-browser ## Runs accessibility tests with test data loaded
 
@@ -50,6 +56,9 @@ up: ## Sets up local flask  docker environment.
 
 up-debug: ## Sets up local docker environment with VSCODE debug support enabled
 	docker compose -f docker-compose.yml -f docker-compose_debug.yml up -d --wait
+
+up-shared: ## Runs the app against a local datagov-harvester's db/opensearch instead of its own
+	docker compose -f docker-compose.yml -f docker-compose.shared-harvester.yml up -d --no-deps app
 
 down: ## Tears down the flask and harvester containers
 	docker compose down

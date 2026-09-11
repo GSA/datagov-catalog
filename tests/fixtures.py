@@ -373,6 +373,41 @@ def fixture_data(*, include_filter_demos: bool = False):
                 slug="test-org-filtered",
                 organization_type="Federal Government",
             ),
+            # Federal orgs for /code compliance page testing
+            dict(
+                id="gsa",
+                name="General Services Administration",
+                slug="gsa",
+                organization_type="Federal Government",
+                code_repo_url="https://github.com/GSA",
+            ),
+            dict(
+                id="dod",
+                name="Department of Defense",
+                slug="dod",
+                organization_type="Federal Government",
+                code_repo_exempt=True,
+            ),
+            dict(
+                id="nasa",
+                name="NASA",
+                slug="nasa",
+                organization_type="Federal Government",
+            ),
+            dict(
+                id="epa",
+                name="Environmental Protection Agency",
+                slug="epa",
+                organization_type="Federal Government",
+                code_repo_url="https://github.com/USEPA",
+            ),
+            # Non-federal org (should NOT appear on /code page)
+            dict(
+                id="california",
+                name="State of California",
+                slug="california",
+                organization_type="State Government",
+            ),
         ],
         "harvest_source": dict(
             id="1",
@@ -497,6 +532,31 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "title": "Child Harvest Record",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
                 },
+                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
+            ),
+            dict(
+                id="child_harvest_record_2",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/child2/example.shp.iso.xml",
+                source_raw='{"title": "Child Harvest Record 2": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_transform={
+                    "title": "Child Harvest Record 2",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
+            ),
+            dict(
+                id="child_harvest_record_3",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/child3/example.shp.iso.xml",
+                source_raw='{"title": "Child Harvest Record 3": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_transform={
+                    "title": "Child Harvest Record 3",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
             ),
             dict(
                 id="child_no_parent_harvest_record",
@@ -508,6 +568,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "title": "Child Harvest Record",
                     "isPartOf": "https://subdomain.domain/missing_parent/example.shp.iso.xml",
                 },
+                parent_identifier="https://subdomain.domain/missing_parent/example.shp.iso.xml",
             ),
             dict(
                 id=DCAT_3_0_RECORD_ID,
@@ -517,6 +578,52 @@ def fixture_data(*, include_filter_demos: bool = False):
                 source_raw='{"title": "DCAT-US 3.0 Test Dataset"}',
                 source_transform={
                     "title": "DCAT-US 3.0 Test Dataset",
+                },
+                parent_identifier="sample-collection-2024",
+            ),
+            dict(
+                id="annual_report_series_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://example.gov/series/annual-report",
+                source_raw='{"title": "Annual Report Series"}',
+                source_transform={"title": "Annual Report Series"},
+            ),
+            dict(
+                id="annual_report_2024_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://example.gov/datasets/annual-report-2024",
+                source_raw='{"title": "Annual Report 2024"}',
+                source_transform={"title": "Annual Report 2024"},
+                parent_identifier="https://example.gov/series/annual-report",
+            ),
+            dict(
+                id="climate_data_service_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://example.gov/services/climate",
+                source_raw='{"title": "Climate Data Service"}',
+                source_transform={"title": "Climate Data Service"},
+            ),
+            dict(
+                id="climate_dataset_served_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://example.gov/datasets/climate-served",
+                source_raw='{"title": "Climate Dataset Served"}',
+                source_transform={"title": "Climate Dataset Served"},
+                parent_identifier="https://example.gov/services/climate",
+            ),
+            dict(
+                id="dataset_without_collection_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/no-collection/example.json",
+                source_raw='{"title": "Dataset Without Collection", "isPartOf": null}',
+                source_transform={
+                    "title": "Dataset Without Collection",
+                    "isPartOf": None,
                 },
             ),
         ],
@@ -834,6 +941,82 @@ def fixture_data(*, include_filter_demos: bool = False):
                 },
             ),
             dict(
+                id="dataset-without-collection",
+                slug="dataset-without-collection",
+                dcat={
+                    "title": "Dataset Without Collection",
+                    "description": "A dataset with an explicit null isPartOf; not part of any collection",
+                    "keyword": ["standalone"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "Standalone Data",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/standalone.csv",
+                        }
+                    ],
+                    "isPartOf": None,
+                },
+                harvest_record_id="dataset_without_collection_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="child1234568",
+                slug="child-harvest-record-2",
+                dcat={
+                    "title": "Child Harvest Record 2",
+                    "description": "Regional statistics on access to health food resources",
+                    "keyword": ["health", "food"],
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test child publisher"},
+                    "distribution": [
+                        {
+                            "title": "Health Food Data (Region 2)",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/health-food-2.csv",
+                        }
+                    ],
+                    "identifier": "https://subdomain.domain/child2/example.shp.iso.xml",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                harvest_record_id="child_harvest_record_2",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+                popularity=110,
+            ),
+            dict(
+                id="child1234569",
+                slug="child-harvest-record-3",
+                dcat={
+                    "title": "Child Harvest Record 3",
+                    "description": "Local statistics on access to health food resources",
+                    "keyword": ["health", "food"],
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test child publisher"},
+                    "distribution": [
+                        {
+                            "title": "Health Food Data (Region 3)",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/health-food-3.csv",
+                        }
+                    ],
+                    "identifier": "https://subdomain.domain/child3/example.shp.iso.xml",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                harvest_record_id="child_harvest_record_3",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+                popularity=95,
+            ),
+            dict(
                 id=DCAT_3_0_DATASET_ID,
                 slug="test-dcat-3-0",
                 dcat={
@@ -952,6 +1135,123 @@ def fixture_data(*, include_filter_demos: bool = False):
                         ]
                     ],
                 },
+            ),
+            dict(
+                id="dataset-series-1",
+                slug="annual-report-series",
+                type="data_series",
+                dcat={
+                    "@type": "DatasetSeries",
+                    "title": "Annual Report Series",
+                    "description": "A series of annual reports, one dataset per year.",
+                    "identifier": "https://example.gov/series/annual-report",
+                },
+                harvest_record_id="annual_report_series_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="dataset-series-member-1",
+                slug="annual-report-2024",
+                type="dataset",
+                dcat={
+                    "title": "Annual Report 2024",
+                    "description": "The 2024 annual report.",
+                    "identifier": "https://example.gov/datasets/annual-report-2024",
+                    "isPartOf": "https://example.gov/series/annual-report",
+                    "publisher": {"name": "Test Agency"},
+                },
+                harvest_record_id="annual_report_2024_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="data-service-1",
+                slug="climate-data-service",
+                type="data_service",
+                dcat={
+                    "@type": "DataService",
+                    "title": "Climate Data Service",
+                    "description": "A service serving climate datasets.",
+                    "identifier": "https://example.gov/services/climate",
+                    "endpointURL": ["https://api.example.gov/climate/v1"],
+                    "contactPoint": [
+                        {
+                            "fn": "Climate API Support",
+                            "hasEmail": "mailto:climate-api@example.gov",
+                        }
+                    ],
+                },
+                harvest_record_id="climate_data_service_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="data-service-served-1",
+                slug="climate-dataset-served",
+                type="dataset",
+                dcat={
+                    "title": "Climate Dataset Served",
+                    "description": "A dataset served by the climate data service.",
+                    "identifier": "https://example.gov/datasets/climate-served",
+                    "isPartOf": "https://example.gov/services/climate",
+                    "publisher": {"name": "Test Agency"},
+                },
+                harvest_record_id="climate_dataset_served_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="format-badge-gallery",
+                slug="format-badge-gallery",
+                dcat={
+                    "title": "Format Badge Gallery",
+                    "description": (
+                        "One resource per distinct search-card badge color, for "
+                        "visually comparing them side by side."
+                    ),
+                    "publisher": {"name": "Test Agency"},
+                    "distribution": [
+                        {
+                            "title": "CSV export",
+                            "format": "CSV",
+                            "downloadURL": "https://example.gov/gallery/data.csv",
+                        },
+                        {
+                            "title": "JSON export",
+                            "format": "JSON",
+                            "downloadURL": "https://example.gov/gallery/data.json",
+                        },
+                        {
+                            "title": "XML export",
+                            "format": "XML",
+                            "downloadURL": "https://example.gov/gallery/data.xml",
+                        },
+                        {
+                            "title": "Excel workbook",
+                            "downloadURL": "https://example.gov/gallery/data.xlsx",
+                            "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        },
+                        {
+                            "title": "PDF report",
+                            "format": "PDF",
+                            "downloadURL": "https://example.gov/gallery/report.pdf",
+                        },
+                        {
+                            "title": "KML overlay",
+                            "format": "KML",
+                            "downloadURL": "https://example.gov/gallery/overlay.kml",
+                        },
+                    ],
+                },
+                harvest_record_id="format_badge_gallery_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
             ),
         ],
         "locations": [

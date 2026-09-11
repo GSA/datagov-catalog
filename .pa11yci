@@ -24,6 +24,14 @@
       "url": "http://localhost:8080/dataset/test",
       "hideElements": ".touchpoints-form-body"
 
+    },
+    {
+      "url": "http://localhost:8080/?collection=https%3A%2F%2Fsubdomain.domain%2Fparent%2Fexample.shp.iso.xml",
+      "ignore": ["WCAG2AA.Principle3.Guideline3_2.3_2_2.H32.2"]
+    },
+    {
+      "url": "http://localhost:8080/?q=health",
+      "ignore": ["WCAG2AA.Principle3.Guideline3_2.3_2_2.H32.2"]
     }
   ]
 }
