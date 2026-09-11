@@ -2,5 +2,18 @@
 version: v1.25.0
 language-settings:
   python: "3.12"
-ignore: {}
+ignore:
+  SNYK-JS-LEAFLET-16427276:
+    - '*':
+        reason: >-
+          CVE-2025-69993 (XSS) is triggered only when attacker-controlled,
+          unsanitized HTML is passed to Leaflet's bindPopup()/bindTooltip()
+          methods. This codebase uses neither method (grep confirms no
+          bindPopup/bindTooltip/openPopup/setPopupContent usage). The only
+          HTML-rendering Leaflet call is the L.divIcon in
+          app/static/js/geography_autocomplete.js, whose html interpolates a
+          numeric rank label derived solely from integer indices, so no
+          user-supplied data reaches any Leaflet HTML sink. There is no upstream
+          fix version. Re-evaluate before expiry or when a patched Leaflet ships.
+        expires: 2027-09-11T00:00:00.000Z
 patch: {}
