@@ -14,6 +14,7 @@ from app.database import CatalogDBInterface
 from app.database.interface import (
     DB_SERIALIZATION_RETRY_ATTEMPTS,
     DB_SERIALIZATION_RETRY_DELAY_SECONDS,
+    DbSerializationRetriesExhausted,
 )
 from app.models import Dataset, Organization
 from app.search.queries.criteria import SearchCriteria
@@ -3417,7 +3418,7 @@ def test_db_retry_raises_after_max_attempts(monkeypatch):
 
     monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
 
-    with pytest.raises(OperationalError):
+    with pytest.raises(DbSerializationRetriesExhausted):
         interface._run_with_db_retry(action, action_name="test action")
 
     assert mock_db.rollback.call_count == DB_SERIALIZATION_RETRY_ATTEMPTS

@@ -16,6 +16,7 @@ from flask import (
     request,
     url_for,
 )
+from psycopg import OperationalError
 
 from app.models import db
 from app.search import (
@@ -44,6 +45,7 @@ from .api_schemas import (
     StatsResult,
 )
 from .database import DEFAULT_PER_PAGE, SEARCH_API_MAX_PER_PAGE, CatalogDBInterface
+from .database.interface import DbSerializationRetriesExhausted
 from .dcat_normalizer import (
     normalize_access_rights,
     normalize_distribution_license,
@@ -441,7 +443,15 @@ def index():
         )
 
         # need to get the parent by exact match so using 'slug' because it's a 'keyword'
-        parent_db = interface.get_dataset_by_dcat_identifier(collection)
+        parent_db = None
+        try:
+            parent_db = interface.get_dataset_by_dcat_identifier(collection)
+        except (DbSerializationRetriesExhausted, OperationalError) as exc:
+            logger.warning(
+                "Failed to fetch parent dataset %s; " "Continuing without parent data.",
+                collection,
+                exc_info=exc,
+            )
         if parent_db:
             parent_doc = interface.get_document_by_slug(parent_db.slug)
             if parent_doc.results:
@@ -858,9 +868,21 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         # The sibling search matches this dataset too, so exclude it
         # from the displayed count.
         collection_data["count"] = max(result.total - 1, 0)
-        parent_dataset = interface.get_dataset_by_dcat_identifier(
-            parent_identifier, dataset.harvest_source_id
-        )
+
+        parent_dataset = None
+        try:
+            parent_dataset = interface.get_dataset_by_dcat_identifier(
+                parent_identifier, dataset.harvest_source_id
+            )
+        except (DbSerializationRetriesExhausted, OperationalError) as exc:
+            logger.warning(
+                "Failed to fetch parent dataset %s for dataset %s; "
+                "continuing without parent data",
+                parent_identifier,
+                dataset.id,
+                exc_info=exc,
+            )
+
         if parent_dataset:
             collection_data["parent_slug"] = parent_dataset.slug
             collection_data["parent_title"] = parent_dataset.dcat.get("title")
@@ -878,7 +900,17 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
                 collection_data["count"] = result.total
 
     # get the org for GA purposes so far
-    org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
+    org = None
+    try:
+        org = interface.get_organization_by_id(dataset.organization_id)
+    except (DbSerializationRetriesExhausted, OperationalError) as exc:
+        logger.warning(
+            "Failed to fetch organization %s for dataset %s (GA purposes); "
+            "continuing without org data",
+            dataset.organization_id,
+            dataset.id,
+            exc_info=exc,
+        )
 
     # Use from_hint to construct an arguments dict
     from_hint = request.args.get("from_hint")

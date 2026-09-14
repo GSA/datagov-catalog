@@ -39,6 +39,19 @@ DB_SERIALIZATION_RETRY_DELAY_SECONDS = 0.25
 logger = logging.getLogger(__name__)
 
 
+class DbSerializationRetriesExhausted(RuntimeError):
+    """Raised when repeated serialization retries still fail."""
+
+    def __init__(self, action_name: str, *, attempts: int, original_error: Exception):
+        self.action_name = action_name
+        self.attempts = attempts
+        self.original_error = original_error
+        super().__init__(
+            f"{action_name} failed after {attempts} attempts due to a "
+            "database serialization error."
+        )
+
+
 class CatalogDBInterface:
     """Subset of harvester interface for read-only access."""
 
@@ -93,6 +106,11 @@ class CatalogDBInterface:
                 return action()
             except OperationalError as exc:
                 if not self._is_serialization_failure(exc):
+                    logger.error(
+                        "%s failed due to a non-retryable database error.",
+                        action_name,
+                        exc_info=exc,
+                    )
                     raise
 
                 self.db.rollback()
@@ -104,7 +122,11 @@ class CatalogDBInterface:
                         DB_SERIALIZATION_RETRY_ATTEMPTS,
                         exc_info=exc,
                     )
-                    raise
+                    raise DbSerializationRetriesExhausted(
+                        action_name,
+                        attempts=DB_SERIALIZATION_RETRY_ATTEMPTS,
+                        original_error=exc,
+                    ) from exc
 
                 wait_seconds = min(
                     DB_SERIALIZATION_RETRY_DELAY_SECONDS * (2 ** (attempt - 1)),
@@ -277,6 +299,12 @@ class CatalogDBInterface:
         return self.db.query(Organization).filter(Organization.slug == slug).first()
 
     def get_organization_by_id(self, organization_id: str) -> Organization | None:
+        """
+        This function was retried as explained in https://github.com/GSA/data.gov/issues/6285
+        The retry is necessary because the organization may be on a replica database that is
+        temporarily out of sync with the primary database, leading to a "conflict with recovery" error.
+        This might happen during brief periods of database replication lag such as many requests in a short timeframe.
+        """
         if not organization_id:
             return None
         return self._run_with_db_retry(
@@ -488,6 +516,13 @@ class CatalogDBInterface:
     def get_dataset_by_dcat_identifier(
         self, identifier: str, harvest_source_id: str | None = None
     ) -> Dataset | None:
+        """
+        This function was retried as explained in https://github.com/GSA/data.gov/issues/6285
+        The retry is necessary because the dataset may be on a replica database that is
+        temporarily out of sync with the primary database, leading to a "conflict with recovery" error.
+        This might happen during brief periods of database replication lag such as many requests in a short timeframe.
+        """
+
         def action():
             query = self.db.query(Dataset).filter(
                 Dataset.dcat["identifier"].astext == identifier
