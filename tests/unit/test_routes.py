@@ -270,6 +270,18 @@ def test_search_api_by_org_slug(interface_with_dataset, db_client):
         assert len(response.json["results"]) == 0
 
 
+def test_search_api_by_theme(interface_with_dataset, db_client):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"theme": ["climate", "environment"]}
+        )
+        assert len(response.json["results"]) == 1
+
+        # non-existent theme
+        response = db_client.get("/search", query_string={"theme": ["nonexistent"]})
+        assert len(response.json["results"]) == 0
+
+
 def test_index_page_filters_by_org_slug(db_client):
     mock_interface = Mock()
     mock_org = type(
