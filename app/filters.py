@@ -163,6 +163,18 @@ def known_format_badges() -> list:
     return keys
 
 
+def all_badge_colors() -> list:
+    """Every distinct badge background color, including the default.
+
+    Resource badges set their color via an inline style attribute (see
+    resource_format_badge), so the CSP needs a hash allowlist entry per
+    color rendered — this is the single source of truth for that list.
+    """
+    colors = {color for _, _, color in _FORMAT_INFO.values() if color}
+    colors.add(_BADGE_DEFAULT_COLOR)
+    return sorted(colors)
+
+
 def format_icon_class(extension: str) -> str:
     """Return a CSS modifier class for the resource icon based on format."""
     icon, _, _ = _lookup_format(_normalize_format(extension))

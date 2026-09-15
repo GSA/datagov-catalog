@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import logging
 import os
 
@@ -7,6 +9,7 @@ from flask import render_template, request
 from flask_htmx import HTMX
 from flask_talisman import Talisman
 
+from .filters import all_badge_colors
 from .models import db
 from .startup_validation import validate_required_env_vars
 from .utils import normalize_site_url
@@ -52,6 +55,22 @@ def register_template_filters(app):
 
     app.add_template_global(criteria_url_for, "criteria_url_for")
     app.add_template_global(static_url, "static_url")
+
+
+def _resource_badge_style_hashes() -> list:
+    """CSP style-src-attr hash sources for every possible resource-badge inline style.
+
+    dataset_card.j2/collection_card.html/style_guide_icons.html render
+    style="background-color: {{ badge.color }};" with a color drawn from a
+    fixed, known set (app.filters.all_badge_colors) — hashing each possible
+    value up front lets the CSP allowlist them without 'unsafe-inline'.
+    """
+    hashes = []
+    for color in all_badge_colors():
+        declaration = f"background-color: {color};"
+        digest = hashlib.sha256(declaration.encode()).digest()
+        hashes.append(f"'sha256-{base64.b64encode(digest).decode()}'")
+    return hashes
 
 
 def create_app(config_name: str = "local") -> APIFlask:
@@ -187,6 +206,7 @@ def create_app(config_name: str = "local") -> APIFlask:
                 "'self'",
                 "'unsafe-hashes'",
                 "'sha256-kELgoK46JmGjLd8UHfzN0qJToDgIB+yMtRHG8PtGL7s='",  # Google tag manager inline
+                *_resource_badge_style_hashes(),  # resource-format badge colors, from app/filters.py
             ]
         ),
         "style-src": " ".join(

@@ -3,12 +3,14 @@ from datetime import date, datetime
 import pytest
 
 from app.filters import (
+    all_badge_colors,
     dcatus_to_schema_org_jsonld,
     first_contact_point,
     format_dcat_date,
     format_icon_class,
     format_icon_label,
     format_overlay_label,
+    known_format_badges,
     normalized_format_label,
     parse_datetime,
     remove_html_tags,
@@ -202,6 +204,25 @@ class TestResourceFormatBadge:
         # both read from the same table, so they can't drift apart again.
         badge = resource_format_badge({"format": fmt})
         assert format_icon_label(fmt) == badge["label"]
+
+
+class TestAllBadgeColors:
+    """CSP hash allowlisting (app/__init__.py) needs every color a badge can render."""
+
+    def test_includes_default_color(self):
+        from app.filters import _BADGE_DEFAULT_COLOR
+
+        assert _BADGE_DEFAULT_COLOR in all_badge_colors()
+
+    def test_includes_known_format_colors(self):
+        colors = all_badge_colors()
+        for key in known_format_badges():
+            badge = resource_format_badge({"format": key})
+            assert badge["color"] in colors
+
+    def test_no_duplicates(self):
+        colors = all_badge_colors()
+        assert len(colors) == len(set(colors))
 
 
 class TestParseDatetime:
