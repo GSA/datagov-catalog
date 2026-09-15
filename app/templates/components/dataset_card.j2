@@ -99,7 +99,8 @@
               <li>
                   <a
                     href="{{ resource.accessURL or (url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug) if dataset_slug else '#') }}"
-                    class="label label-default text-uppercase {{ badge.color_class }}"
+                    class="label label-default text-uppercase"
+                    style="background-color: {{ badge.color }};"
                     data-format="{{ badge.format }}"
                     data-organization="{{ dataset.organization.name }}">{{ badge.label }}</a>
               </li>

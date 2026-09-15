@@ -24,7 +24,8 @@
         <ul class="dataset-resources unstyled">
             {% for badge in badge_samples %}
             <li>
-                <span class="label label-default text-uppercase {{ badge.color_class }}"
+                <span class="label label-default text-uppercase"
+                      style="background-color: {{ badge.color }};"
                       data-format="{{ badge.format }}">{{ badge.label }}</span>
             </li>
             {% endfor %}
