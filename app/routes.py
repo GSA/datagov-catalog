@@ -858,11 +858,9 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         # The sibling search matches this dataset too, so exclude it
         # from the displayed count.
         collection_data["count"] = max(result.total - 1, 0)
-
         parent_dataset = interface.get_dataset_by_dcat_identifier(
             parent_identifier, dataset.harvest_source_id
         )
-
         if parent_dataset:
             collection_data["parent_slug"] = parent_dataset.slug
             collection_data["parent_title"] = parent_dataset.dcat.get("title")
@@ -880,7 +878,7 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
                 collection_data["count"] = result.total
 
     # get the org for GA purposes so far
-    org = interface.get_organization_by_id(dataset.organization_id)
+    org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
 
     # Use from_hint to construct an arguments dict
     from_hint = request.args.get("from_hint")
