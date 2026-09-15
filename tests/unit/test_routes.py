@@ -14,7 +14,6 @@ from app.database import CatalogDBInterface
 from app.database.interface import (
     DB_SERIALIZATION_RETRY_ATTEMPTS,
     DB_SERIALIZATION_RETRY_DELAY_SECONDS,
-    DbSerializationRetriesExhausted,
 )
 from app.models import Dataset, Organization
 from app.search.queries.criteria import SearchCriteria
@@ -3413,7 +3412,7 @@ def test_db_retry_retries_transient_serialization_failure(monkeypatch):
     mock_db.rollback.assert_called_once_with()
 
 
-def test_db_retry_raises_after_max_attempts(monkeypatch):
+def test_db_retry_logs_and_returns_none_after_max_attempts(monkeypatch):
     sleep_calls = []
     mock_db = Mock()
     interface = CatalogDBInterface(session=mock_db)
@@ -3430,8 +3429,7 @@ def test_db_retry_raises_after_max_attempts(monkeypatch):
 
     monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
 
-    with pytest.raises(DbSerializationRetriesExhausted):
-        interface._run_with_db_retry(action, action_name="test action")
+    assert interface._run_with_db_retry(action, action_name="test action") is None
 
     assert mock_db.rollback.call_count == DB_SERIALIZATION_RETRY_ATTEMPTS
     assert len(sleep_calls) == DB_SERIALIZATION_RETRY_ATTEMPTS - 1
@@ -3455,8 +3453,7 @@ def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
 
     monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
 
-    with pytest.raises(OperationalError):
-        interface._run_with_db_retry(action, action_name="test action")
+    assert interface._run_with_db_retry(action, action_name="test action") is None
 
     assert attempts["count"] == 1
     mock_db.rollback.assert_not_called()

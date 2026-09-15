@@ -39,19 +39,6 @@ DB_SERIALIZATION_RETRY_DELAY_SECONDS = 0.25
 logger = logging.getLogger(__name__)
 
 
-class DbSerializationRetriesExhausted(RuntimeError):
-    """Raised when repeated serialization retries still fail."""
-
-    def __init__(self, action_name: str, *, attempts: int, original_error: Exception):
-        self.action_name = action_name
-        self.attempts = attempts
-        self.original_error = original_error
-        super().__init__(
-            f"{action_name} failed after {attempts} attempts due to a "
-            "database serialization error."
-        )
-
-
 class CatalogDBInterface:
     """Subset of harvester interface for read-only access."""
 
@@ -111,7 +98,7 @@ class CatalogDBInterface:
                         action_name,
                         exc_info=exc,
                     )
-                    raise
+                    return None
 
                 self.db.rollback()
 
@@ -122,11 +109,7 @@ class CatalogDBInterface:
                         DB_SERIALIZATION_RETRY_ATTEMPTS,
                         exc_info=exc,
                     )
-                    raise DbSerializationRetriesExhausted(
-                        action_name,
-                        attempts=DB_SERIALIZATION_RETRY_ATTEMPTS,
-                        original_error=exc,
-                    ) from exc
+                    return None
 
                 wait_seconds = min(
                     DB_SERIALIZATION_RETRY_DELAY_SECONDS * (2 ** (attempt - 1)),

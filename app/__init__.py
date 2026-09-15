@@ -6,9 +6,7 @@ from dotenv import load_dotenv
 from flask import render_template, request
 from flask_htmx import HTMX
 from flask_talisman import Talisman
-from sqlalchemy.exc import OperationalError
 
-from .database.interface import DbSerializationRetriesExhausted
 from .models import db
 from .startup_validation import validate_required_env_vars
 from .utils import normalize_site_url
@@ -54,16 +52,6 @@ def register_template_filters(app):
 
     app.add_template_global(criteria_url_for, "criteria_url_for")
     app.add_template_global(static_url, "static_url")
-
-
-def _database_unavailable_response(error: Exception):
-    if request.blueprint == "api" or request.path.startswith("/api/"):
-        return {
-            "message": "Service temporarily unavailable. Please try again later.",
-            "detail": {},
-        }, 503
-
-    return render_template("503.html"), 503
 
 
 def create_app(config_name: str = "local") -> APIFlask:
@@ -225,14 +213,6 @@ def create_app(config_name: str = "local") -> APIFlask:
         # our https connections are terminated outside this app
         force_https=False,
     )
-
-    @app.errorhandler(OperationalError)
-    def database_operational_error(error):
-        return _database_unavailable_response(error)
-
-    @app.errorhandler(DbSerializationRetriesExhausted)
-    def db_serialization_retries_exhausted(error):
-        return _database_unavailable_response(error)
 
     @app.template_global()
     def newrelic_browser_timing_header():
