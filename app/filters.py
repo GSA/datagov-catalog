@@ -150,6 +150,16 @@ def _lookup_format(normalized: str) -> tuple:
     return _FORMAT_INFO.get(normalized, ("default", None, None))
 
 
+def _badge_color_class(color: str) -> str:
+    """CSS class name for a badge color, defined in _uswds-theme-custom-styles.scss.
+
+    Templates must use this class rather than an inline style: the CSP's
+    style-src-attr directive only allowlists one static hash, so per-format
+    inline colors get silently dropped by the browser.
+    """
+    return f"badge-color-{color.lstrip('#').lower()}"
+
+
 def known_format_badges() -> list:
     """One representative normalized key per distinct badge label/color, for the style guide."""
     seen = set()
@@ -289,13 +299,20 @@ def resource_format_badge(resource: Mapping) -> dict:
     normalized = _normalize_format(raw) if raw else "file"
 
     if normalized in _NO_FORMAT:
-        return {"format": "file", "label": "FILE", "color": _BADGE_DEFAULT_COLOR}
+        return {
+            "format": "file",
+            "label": "FILE",
+            "color": _BADGE_DEFAULT_COLOR,
+            "color_class": _badge_color_class(_BADGE_DEFAULT_COLOR),
+        }
 
     _, _, color = _lookup_format(normalized)
+    color = color or _BADGE_DEFAULT_COLOR
     return {
         "format": normalized,
         "label": _display_label(normalized),
-        "color": color or _BADGE_DEFAULT_COLOR,
+        "color": color,
+        "color_class": _badge_color_class(color),
     }
 
 

@@ -190,12 +190,16 @@ class TestResourceFormatBadge:
             "format": "file",
             "label": "FILE",
             "color": "#3d4551",
+            "color_class": "badge-color-3d4551",
         }
 
     def test_known_format_has_dedicated_color(self):
         badge = resource_format_badge({"format": "CSV"})
         assert badge["label"] == "CSV"
         assert badge["color"] != "#3d4551"
+        assert (
+            badge["color_class"] == f"badge-color-{badge['color'].lstrip('#').lower()}"
+        )
 
     @pytest.mark.parametrize("fmt", ["turtle", "kml", "shp", "pptx"])
     def test_label_matches_detail_page_overlay(self, fmt):
