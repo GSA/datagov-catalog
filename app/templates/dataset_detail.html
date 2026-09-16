@@ -4,7 +4,7 @@
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_slug = dataset.slug %}
 {% set type_label = {'data_series': 'Series', 'data_service': 'Service'}.get(dataset.type, 'Dataset') %}
-{% set organization_title = organization.name %}
+{% set organization_title = organization.name if organization else 'Unknown' %}
 {% set page_title = organization_title ~ ' - ' ~ dataset_title %}
 
 {% block title %}{{ page_title }}{% endblock %}
