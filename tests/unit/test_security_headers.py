@@ -1,9 +1,6 @@
-import base64
-import hashlib
 from pathlib import Path
 
 from app import HSTS_HEADER, create_app
-from app.filters import all_badge_colors
 
 
 def test_https_responses_set_preload_ready_hsts_header():
@@ -27,16 +24,3 @@ def test_nginx_sets_hsts_header_for_base_domain_and_redirects():
     assert nginx_header in primary_server_config
     assert "proxy_hide_header Strict-Transport-Security;" in proxy_to_app_config
     assert nginx_header in nginx_config
-
-
-def test_csp_allowlists_every_resource_badge_color():
-    """dataset_card.j2 etc. render style="background-color: <color>;" inline,
-    so style-src-attr needs a hash source per color or the browser drops it."""
-    app = create_app("production")
-    response = app.test_client().get("/")
-    csp = response.headers["Content-Security-Policy"]
-
-    for color in all_badge_colors():
-        digest = hashlib.sha256(f"background-color: {color};".encode()).digest()
-        expected_hash = f"'sha256-{base64.b64encode(digest).decode()}'"
-        assert expected_hash in csp

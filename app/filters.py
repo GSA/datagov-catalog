@@ -163,16 +163,25 @@ def known_format_badges() -> list:
     return keys
 
 
-def all_badge_colors() -> list:
-    """Every distinct badge background color, including the default.
+def badge_color_class(color: str) -> str:
+    """CSS class name for a badge color; see badge_color_stylesheet for the matching rule."""
+    return f"badge-color-{color.lstrip('#').lower()}"
 
-    Resource badges set their color via an inline style attribute (see
-    resource_format_badge), so the CSP needs a hash allowlist entry per
-    color rendered — this is the single source of truth for that list.
+
+def badge_color_stylesheet() -> str:
+    """<style> contents covering every badge color, generated from _FORMAT_INFO.
+
+    Resource badges can't rely on an inline style="background-color:..." attribute:
+    the CSP's style-src-attr directive would need a hash allowlist entry per color,
+    and that turned out to be unreliable across browsers/CI environments. A <style>
+    element is covered by style-src-elem instead, which already allows unsafe-inline.
     """
-    colors = {color for _, _, color in _FORMAT_INFO.values() if color}
-    colors.add(_BADGE_DEFAULT_COLOR)
-    return sorted(colors)
+    colors = sorted(
+        {color for _, _, color in _FORMAT_INFO.values() if color}
+        | {_BADGE_DEFAULT_COLOR}
+    )
+    rules = (f".{badge_color_class(c)} {{ background-color: {c}; }}" for c in colors)
+    return "\n".join(rules)
 
 
 def format_icon_class(extension: str) -> str:
@@ -301,13 +310,20 @@ def resource_format_badge(resource: Mapping) -> dict:
     normalized = _normalize_format(raw) if raw else "file"
 
     if normalized in _NO_FORMAT:
-        return {"format": "file", "label": "FILE", "color": _BADGE_DEFAULT_COLOR}
+        return {
+            "format": "file",
+            "label": "FILE",
+            "color": _BADGE_DEFAULT_COLOR,
+            "color_class": badge_color_class(_BADGE_DEFAULT_COLOR),
+        }
 
     _, _, color = _lookup_format(normalized)
+    color = color or _BADGE_DEFAULT_COLOR
     return {
         "format": normalized,
         "label": _display_label(normalized),
-        "color": color or _BADGE_DEFAULT_COLOR,
+        "color": color,
+        "color_class": badge_color_class(color),
     }
 
 
