@@ -3,12 +3,14 @@ from datetime import date, datetime
 import pytest
 
 from app.filters import (
+    badge_color_stylesheet,
     dcatus_to_schema_org_jsonld,
     first_contact_point,
     format_dcat_date,
     format_icon_class,
     format_icon_label,
     format_overlay_label,
+    known_format_badges,
     normalized_format_label,
     parse_datetime,
     remove_html_tags,
@@ -190,18 +192,37 @@ class TestResourceFormatBadge:
             "format": "file",
             "label": "FILE",
             "color": "#3d4551",
+            "color_class": "badge-color-3d4551",
         }
 
     def test_known_format_has_dedicated_color(self):
         badge = resource_format_badge({"format": "CSV"})
         assert badge["label"] == "CSV"
         assert badge["color"] != "#3d4551"
+        assert (
+            badge["color_class"] == f"badge-color-{badge['color'].lstrip('#').lower()}"
+        )
 
     @pytest.mark.parametrize("fmt", ["turtle", "kml", "shp", "pptx"])
     def test_label_matches_detail_page_overlay(self, fmt):
         # both read from the same table, so they can't drift apart again.
         badge = resource_format_badge({"format": fmt})
         assert format_icon_label(fmt) == badge["label"]
+
+
+class TestBadgeColorStylesheet:
+    """The <style> block in base.html (CSP-safe, no inline style attributes)."""
+
+    def test_covers_every_color_a_badge_can_render(self):
+        css = badge_color_stylesheet()
+        for key in known_format_badges():
+            badge = resource_format_badge({"format": key})
+            assert f".{badge['color_class']} {{" in css
+
+    def test_covers_default_color(self):
+        css = badge_color_stylesheet()
+        badge = resource_format_badge({})
+        assert f".{badge['color_class']} {{" in css
 
 
 class TestParseDatetime:
