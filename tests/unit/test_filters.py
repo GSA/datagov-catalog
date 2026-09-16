@@ -3,7 +3,7 @@ from datetime import date, datetime
 import pytest
 
 from app.filters import (
-    all_badge_colors,
+    badge_color_stylesheet,
     dcatus_to_schema_org_jsonld,
     first_contact_point,
     format_dcat_date,
@@ -192,12 +192,16 @@ class TestResourceFormatBadge:
             "format": "file",
             "label": "FILE",
             "color": "#3d4551",
+            "color_class": "badge-color-3d4551",
         }
 
     def test_known_format_has_dedicated_color(self):
         badge = resource_format_badge({"format": "CSV"})
         assert badge["label"] == "CSV"
         assert badge["color"] != "#3d4551"
+        assert (
+            badge["color_class"] == f"badge-color-{badge['color'].lstrip('#').lower()}"
+        )
 
     @pytest.mark.parametrize("fmt", ["turtle", "kml", "shp", "pptx"])
     def test_label_matches_detail_page_overlay(self, fmt):
@@ -206,23 +210,19 @@ class TestResourceFormatBadge:
         assert format_icon_label(fmt) == badge["label"]
 
 
-class TestAllBadgeColors:
-    """CSP hash allowlisting (app/__init__.py) needs every color a badge can render."""
+class TestBadgeColorStylesheet:
+    """The <style> block in base.html (CSP-safe, no inline style attributes)."""
 
-    def test_includes_default_color(self):
-        from app.filters import _BADGE_DEFAULT_COLOR
-
-        assert _BADGE_DEFAULT_COLOR in all_badge_colors()
-
-    def test_includes_known_format_colors(self):
-        colors = all_badge_colors()
+    def test_covers_every_color_a_badge_can_render(self):
+        css = badge_color_stylesheet()
         for key in known_format_badges():
             badge = resource_format_badge({"format": key})
-            assert badge["color"] in colors
+            assert f".{badge['color_class']} {{" in css
 
-    def test_no_duplicates(self):
-        colors = all_badge_colors()
-        assert len(colors) == len(set(colors))
+    def test_covers_default_color(self):
+        css = badge_color_stylesheet()
+        badge = resource_format_badge({})
+        assert f".{badge['color_class']} {{" in css
 
 
 class TestParseDatetime:

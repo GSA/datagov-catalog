@@ -52,8 +52,7 @@
               <li>
                   <a
                     href="{{ resource.accessURL or metadata_url if metadata_url else '#'}}"
-                    class="label label-default text-uppercase"
-                    style="background-color: {{ badge.color }};"
+                    class="label label-default text-uppercase {{ badge.color_class }}"
                     data-format="{{ badge.format }}"
                     data-organization="{{ dataset.organization.name }}">{{ badge.label }}</a>
               </li>
