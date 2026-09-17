@@ -163,6 +163,27 @@ def known_format_badges() -> list:
     return keys
 
 
+def badge_color_class(color: str) -> str:
+    """CSS class name for a badge color; see badge_color_stylesheet for the matching rule."""
+    return f"badge-color-{color.lstrip('#').lower()}"
+
+
+def badge_color_stylesheet() -> str:
+    """<style> contents covering every badge color, generated from _FORMAT_INFO.
+
+    Resource badges can't rely on an inline style="background-color:..." attribute:
+    the CSP's style-src-attr directive would need a hash allowlist entry per color,
+    and that turned out to be unreliable across browsers/CI environments. A <style>
+    element is covered by style-src-elem instead, which already allows unsafe-inline.
+    """
+    colors = sorted(
+        {color for _, _, color in _FORMAT_INFO.values() if color}
+        | {_BADGE_DEFAULT_COLOR}
+    )
+    rules = (f".{badge_color_class(c)} {{ background-color: {c}; }}" for c in colors)
+    return "\n".join(rules)
+
+
 def format_icon_class(extension: str) -> str:
     """Return a CSS modifier class for the resource icon based on format."""
     icon, _, _ = _lookup_format(_normalize_format(extension))
@@ -289,13 +310,20 @@ def resource_format_badge(resource: Mapping) -> dict:
     normalized = _normalize_format(raw) if raw else "file"
 
     if normalized in _NO_FORMAT:
-        return {"format": "file", "label": "FILE", "color": _BADGE_DEFAULT_COLOR}
+        return {
+            "format": "file",
+            "label": "FILE",
+            "color": _BADGE_DEFAULT_COLOR,
+            "color_class": badge_color_class(_BADGE_DEFAULT_COLOR),
+        }
 
     _, _, color = _lookup_format(normalized)
+    color = color or _BADGE_DEFAULT_COLOR
     return {
         "format": normalized,
         "label": _display_label(normalized),
-        "color": color or _BADGE_DEFAULT_COLOR,
+        "color": color,
+        "color_class": badge_color_class(color),
     }
 
 
