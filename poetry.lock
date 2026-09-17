@@ -14,14 +14,14 @@ files = [
 
 [[package]]
 name = "apiflask"
-version = "3.1.1"
+version = "3.1.2"
 description = "A lightweight web API framework based on Flask."
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "apiflask-3.1.1-py3-none-any.whl", hash = "sha256:3f68a57bd96eaf9f82ea6f1cdc536b21f959ad09b133a140047ecae4d53dccb1"},
-    {file = "apiflask-3.1.1.tar.gz", hash = "sha256:f3b367d4174d8ad1df9ac3a48a63002276e9f82f7debda91314cca7a20924ada"},
+    {file = "apiflask-3.1.2-py3-none-any.whl", hash = "sha256:cab72013153602f475236c0dfbe13815fc94ee5fcd78c8b8d5ecdfddba17df4c"},
+    {file = "apiflask-3.1.2.tar.gz", hash = "sha256:9e19b554631a518a637c8a77887be37f37d46aeeee3d4a863bc4f6f0128bde23"},
 ]
 
 [package.dependencies]
@@ -186,14 +186,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.43.90"
+version = "1.43.95"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "dev"]
 files = [
-    {file = "botocore-1.43.90-py3-none-any.whl", hash = "sha256:65f3394ef07314e45c92a90120988531d651136390d464a94938a92f665893f7"},
-    {file = "botocore-1.43.90.tar.gz", hash = "sha256:a139ed601e8b8fb1d730022355fe2b284b8c15cfe9ac0f100254a35d2273e1d3"},
+    {file = "botocore-1.43.95-py3-none-any.whl", hash = "sha256:0fda26d16c7c7bf7082c421390a817b696f98a43d3da7c43dbbb093f76662876"},
+    {file = "botocore-1.43.95.tar.gz", hash = "sha256:779588da32bd48a7bb0c097da4bcb747260e86d2bfc507369dca56f1450e0722"},
 ]
 
 [package.dependencies]
@@ -2375,4 +2375,4 @@ test = ["pytest", "pytest-cov"]
 [metadata]
 lock-version = "2.1"
 python-versions = "<4.0,>=3.12"
-content-hash = "a81e78d3dacadcfa352a80ae0185779dc70f95e12e11f7221b9d671f188c4bdc"
+content-hash = "2b12328ed46b6978c2723031b215811242aacc1ff0274f73cf926d97cabdaaa3"
