@@ -52,6 +52,7 @@ def register_template_filters(app):
 
     app.add_template_global(criteria_url_for, "criteria_url_for")
     app.add_template_global(static_url, "static_url")
+    app.add_template_global(filters.badge_color_stylesheet, "badge_color_stylesheet")
 
 
 def create_app(config_name: str = "local") -> APIFlask:
