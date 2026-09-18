@@ -183,7 +183,7 @@ def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_write
     assert "results" in response.json
 
 
-def test_search_api_response_containes_harvest_record_url(
+def test_search_api_response_contains_harvest_record_url(
     interface_with_dataset, db_client, opensearch_writer
 ):
     opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
@@ -716,6 +716,36 @@ def test_search_api_parses_spatial_within_param(db_client):
     geography = criteria.get_geography()
     assert geography.get("within", True) is True
     assert geography.get("geometry") == polygon
+
+
+def test_search_api_filters_by_access_level(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"access_level": "restricted public"}
+        )
+
+    assert response.status_code == 200
+
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
+
+
+def test_search_api_filters_by_access_level_alias(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"accessLevel": "restricted public"}
+        )
+
+    assert response.status_code == 200
+
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
 
 
 def test_organization_detail_parses_spatial_within_param(db_client):
