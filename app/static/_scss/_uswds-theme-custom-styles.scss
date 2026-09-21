@@ -557,9 +557,6 @@ details {
         border-bottom: 1px solid #dfe1e2;
         font-weight: 600;
         width: 10%;
-        @media (max-width: 700px) {
-          width: 20%;
-        }
         vertical-align: top;
         color: #1b1b1b;
         word-break: break-word;
@@ -571,6 +568,25 @@ details {
         border-bottom: 1px solid #dfe1e2;
         color: #454545;
         word-break: break-all;
+    }
+
+    // Below 700px the 10% key column is too narrow for camelCase DCAT
+    // property names to wrap cleanly, so stack key above value instead
+    // of forcing a mid-word break.
+    @media (max-width: 700px) {
+        tbody, tr, th, td {
+            display: block;
+            width: 100%;
+        }
+
+        th {
+            border-bottom: none;
+            padding-bottom: 0.25rem;
+        }
+
+        td {
+            padding-top: 0;
+        }
     }
 }
 
