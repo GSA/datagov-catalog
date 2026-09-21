@@ -305,7 +305,10 @@
                                 <tr>
                                     <th scope="row">{{ key }}</th>
                                     <td>
-                                        {% if key == 'landingPage' %}
+                                        {% if key == 'landingPage' and value is mapping %}
+                                        {% set landing_page_url = value.get('accessURL') or value.get('url') %}
+                                        <a href="{{ landing_page_url }}" target="_blank" rel="noopener">{{ value.get('title') or landing_page_url }}</a>
+                                        {% elif key == 'landingPage' %}
                                         <a href="{{ value }}" target="_blank" rel="noopener">{{ value }}</a>
                                         {% elif rendered_value | is_json %}
                                         <pre class="json">{{ value | json_to_semantic_html | safe }}</pre>
