@@ -636,6 +636,38 @@ class TestDatasetDetail:
         assert anchor.get("href") == landing_page_url
         assert anchor.get_text(strip=True) == landing_page_url
 
+    def test_metadata_landing_page_object_is_anchor(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        DCAT-US 3.0 allows landingPage to be an object (@type: Document,
+        title, accessURL) instead of a plain URL string. The anchor tag
+        must use accessURL/title from the object, not the dict repr.
+        """
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test-dcat-3-0")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        metadata_table = soup.select_one("table.metadata-table")
+        assert metadata_table is not None
+
+        landing_page_row = next(
+            (
+                row
+                for row in metadata_table.select("tr")
+                if row.select_one("th").get_text(strip=True) == "landingPage"
+            ),
+            None,
+        )
+        assert landing_page_row is not None
+
+        anchor = landing_page_row.select_one("td a")
+        assert anchor is not None
+        assert anchor.get("href") == "https://example.gov/datasets/sample-dcat-3-0"
+        assert anchor.get_text(strip=True) == "Sample Dataset Landing Page"
+
     def test_check_jsonld(self, interface_with_dataset, db_client):
 
         with patch("app.routes.interface", interface_with_dataset):
