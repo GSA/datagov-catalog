@@ -3,6 +3,7 @@ import os
 from datetime import date, datetime
 from typing import Any
 
+from app.dcat_normalizer import normalize_access_rights
 from app.models import Dataset
 from app.search.config import DEFAULT_CATALOG_BASE_URL, INDEX_NAME
 from app.search.spatial import calc_geometry_centroid
@@ -121,6 +122,9 @@ class DatasetDocument:
             "parent_identifier": parent_identifier,
             "last_harvested_date": last_harvested,
             "description": index_fields["description"],
+            "access_level": normalize_access_rights(
+                dataset.dcat.get("accessRights"), dataset.dcat.get("accessLevel")
+            ),
             "publisher": index_fields["publisher"],
             "dcat": nested_dcat,
             "keyword": index_fields["keyword"],
