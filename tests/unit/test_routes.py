@@ -2935,9 +2935,9 @@ def test_index_collection(interface_with_dataset, db_client):
 
 
 def test_index_collection_root_without_ispartof(interface_with_dataset, db_client):
-    """A collection root (data_service/data_series) has no dcat.isPartOf of its own -
-    the collection card's "View Collection" link must use the root's own identifier
-    instead, or rendering 500s.
+    """A collection root (data_service/data_series) has no dcat.isPartOf of its own,
+    i.e. it doesn't belong to a further parent collection, so the collection card
+    should not render a "View Collection" badge (there's nothing else to link to).
     """
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?collection=https://example.gov/services/climate")
@@ -2951,11 +2951,7 @@ def test_index_collection_root_without_ispartof(interface_with_dataset, db_clien
     collection_card_view_badge = collection_card.select_one(
         "span.collection-card__badge"
     )
-    assert collection_card_view_badge is not None
-    assert (
-        collection_card_view_badge.select_one("a")["href"]
-        == "/?collection=https://example.gov/services/climate"
-    )
+    assert collection_card_view_badge is None
 
 
 def test_index_collection_query(interface_with_dataset, db_client):
