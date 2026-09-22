@@ -571,6 +571,26 @@ details {
         color: #454545;
         word-break: break-all;
     }
+
+    // The shrink-to-fit key column needs real width to work with; below that,
+    // stack key above value instead of squeezing th down to one letter per line.
+    @media (max-width: 700px) {
+        tbody, tr, th, td {
+            display: block;
+            width: 100%;
+        }
+
+        th {
+            padding: 1rem 1rem 0.25rem;
+            white-space: normal;
+            word-break: break-word;
+            border-bottom: none;
+        }
+
+        td {
+            padding: 0 1rem 1rem;
+        }
+    }
 }
 
 .metadata-table tr:last-child th,
