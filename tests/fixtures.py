@@ -547,11 +547,11 @@ def fixture_data(*, include_filter_demos: bool = False):
                 parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
             ),
             dict(
-                id="child_harvest_record_3",
+                id="6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d",
                 harvest_source_id="1",
                 harvest_job_id="1",
                 identifier="https://subdomain.domain/child3/example.shp.iso.xml",
-                source_raw='{"title": "Child Harvest Record 3": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_raw="""<gmi:MI_Metadata xmlns:gmi="http://www.isotc211.org/2005/gmi" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmi https://data.noaa.gov/resources/iso19139/schema.xsd" uuid="970d64c5-189b-4966-9310-67069782a3fc"><gmd:fileIdentifier><gco:CharacterString>gov.noaa.nmfs.inport:39738</gco:CharacterString></gmd:fileIdentifier></gmi:MI_Metadata>""",
                 source_transform={
                     "title": "Child Harvest Record 3",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
@@ -1010,7 +1010,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "identifier": "https://subdomain.domain/child3/example.shp.iso.xml",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
                 },
-                harvest_record_id="child_harvest_record_3",
+                harvest_record_id="6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
