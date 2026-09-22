@@ -1367,6 +1367,38 @@ def test_harvest_record_raw_returns_xml(interface_with_harvest_record, db_client
     assert response.get_data(as_text=True) == "<xml>value</xml>"
 
 
+def test_harvest_record_raw_xml_correct_namespaces(
+    interface_with_harvest_record, db_client
+):
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(
+            "/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
+        )
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+    # namespaces show up as intended
+    assert "gmi" in response.get_data(as_text=True)
+
+    with patch(
+        "app.routes.ElementTree.register_namespace",
+        return_value=None,
+    ):
+        with patch(
+            "app.routes.interface",
+            interface_with_harvest_record,
+        ):
+            response = db_client.get(
+                "/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
+            )
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+
+    # namespaces don't show up as intended (defaults are used)
+    assert "ns0" in response.get_data(as_text=True)
+
+
 def test_harvest_record_raw_not_found(interface_with_harvest_record, db_client):
     missing_id = str(uuid4())
     with patch("app.routes.interface", interface_with_harvest_record):
