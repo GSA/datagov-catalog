@@ -4,7 +4,7 @@
 
 {% set title = dataset.title %}
 {% set description = dataset.description %}
-{% set parent_collection_id = dataset.dcat.get('isPartOf') %}
+{% set parent_collection_id = dataset.get('parent_identifier') %}
 {% set collection_url = "/?collection=" + parent_collection_id if parent_collection_id else None %}
 {% set metadata_url = "/dataset/" + dataset.slug %}
 {% set file_formats = dataset.dcat.get('distribution', []) %}
