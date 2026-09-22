@@ -7,6 +7,7 @@ import json
 from functools import wraps
 from typing import Callable, TypeVar
 from uuid import UUID
+from xml.etree import ElementTree
 
 from flask import Response, jsonify
 
@@ -82,3 +83,29 @@ def pop_doc_by_identifier(os_docs: list, identifier: str) -> dict | None:
     for idx, doc in enumerate(os_docs):
         if doc.get("identifier") == identifier:
             return os_docs.pop(idx)
+
+
+def register_iso_namespaces(element_tree: ElementTree) -> None:
+    """
+    registers ISO19115 namespaces to the element tree so they're present
+    when displaying xml files in the browser instead of defaults
+    (e.g. ns0, ns1, ns2, etc...). "gmi" is just for ISO19115-2 and not -1
+    but it's harmless to register it instead of sniffing the file and determining
+    which ISO record it is.
+    """
+    namespaces = {
+        "gmi": "http://www.isotc211.org/2005/gmi",
+        "gmd": "http://www.isotc211.org/2005/gmd",
+        "gco": "http://www.isotc211.org/2005/gco",
+        "gml": "http://www.opengis.net/gml/3.2",
+        "gsr": "http://www.isotc211.org/2005/gsr",
+        "gss": "http://www.isotc211.org/2005/gss",
+        "gst": "http://www.isotc211.org/2005/gst",
+        "gmx": "http://www.isotc211.org/2005/gmx",
+        "gfc": "http://www.isotc211.org/2005/gfc",
+        "srv": "http://www.isotc211.org/2005/srv",
+        "xlink": "http://www.w3.org/1999/xlink",
+        "xsi": "http://www.w3.org/2001/XMLSchema-instance",
+    }
+    for ns, ns_url in namespaces.items():
+        element_tree.register_namespace(ns, ns_url)
