@@ -2867,18 +2867,12 @@ def test_index_collection(interface_with_dataset, db_client):
     collection_card = soup.select_one("div.collection-card")
     assert collection_card is not None
 
+    # this record has no parent_identifier of its own, so the badge (which
+    # would otherwise link back to the record itself) must not render
     collection_card_view_badge = collection_card.select_one(
         "span.collection-card__badge"
     )
-    assert collection_card_view_badge is not None
-    assert (
-        collection_card_view_badge.select_one("a")["href"]
-        == "/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
-    )
-    assert (
-        collection_card_view_badge.select_one("a.collection-card__collection-link")
-        is not None
-    )
+    assert collection_card_view_badge is None
 
     collection_card_title = collection_card.select_one("h2.collection-card__title")
     assert collection_card_title is not None
@@ -2937,9 +2931,9 @@ def test_index_collection(interface_with_dataset, db_client):
 
 
 def test_index_collection_root_without_ispartof(interface_with_dataset, db_client):
-    """A collection root (data_service/data_series) has no dcat.isPartOf of its own -
-    the collection card's "View Collection" link must use the root's own identifier
-    instead, or rendering 500s.
+    """A collection root (data_service/data_series) has no dcat.isPartOf of its own,
+    i.e. it doesn't belong to a further parent collection, so the collection card
+    should not render a "View Collection" badge (there's nothing else to link to).
     """
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?collection=https://example.gov/services/climate")
@@ -2953,11 +2947,7 @@ def test_index_collection_root_without_ispartof(interface_with_dataset, db_clien
     collection_card_view_badge = collection_card.select_one(
         "span.collection-card__badge"
     )
-    assert collection_card_view_badge is not None
-    assert (
-        collection_card_view_badge.select_one("a")["href"]
-        == "/?collection=https://example.gov/services/climate"
-    )
+    assert collection_card_view_badge is None
 
 
 def test_index_collection_query(interface_with_dataset, db_client):
