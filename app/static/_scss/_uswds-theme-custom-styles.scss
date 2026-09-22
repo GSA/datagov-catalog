@@ -545,33 +545,51 @@ details {
   }
 }
 
-// DCAT property names are arbitrary-length, unbreakable camelCase words, so
-// no fixed-percentage key column is ever safe from mid-word breaks. Stack
-// key above value at every screen size instead of splitting into columns.
+// width: 1% + white-space: nowrap makes the key column shrink-to-fit its own
+// content instead of taking a fixed percentage, so it's always exactly wide
+// enough for camelCase DCAT property names and never breaks mid-word.
 .metadata-table {
     width: 100%;
     max-width: 100%;
     border-collapse: collapse;
 
-    tbody, tr, th, td {
-        display: block;
-        width: 100%;
-    }
-
     th {
-        padding: 1rem 1rem 0.25rem;
+        padding: 1rem;
         text-align: left;
+        border-bottom: 1px solid #dfe1e2;
         font-weight: 600;
+        width: 1%;
+        white-space: nowrap;
+        vertical-align: top;
         color: #1b1b1b;
-        word-break: break-word;
     }
 
     td {
-        padding: 0 1rem 1rem;
+        padding: 1rem;
         text-align: left;
         border-bottom: 1px solid #dfe1e2;
         color: #454545;
         word-break: break-all;
+    }
+
+    // The shrink-to-fit key column needs real width to work with; below that,
+    // stack key above value instead of squeezing th down to one letter per line.
+    @media (max-width: 700px) {
+        tbody, tr, th, td {
+            display: block;
+            width: 100%;
+        }
+
+        th {
+            padding: 1rem 1rem 0.25rem;
+            white-space: normal;
+            word-break: break-word;
+            border-bottom: none;
+        }
+
+        td {
+            padding: 0 1rem 1rem;
+        }
     }
 }
 
