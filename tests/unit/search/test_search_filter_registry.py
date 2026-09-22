@@ -6,6 +6,7 @@ from app.search.queries import (
     build_parents_with_children_query,
     visible_filter_query_params,
 )
+from app.search.queries.registry import build_multi_match_query, build_phrase_query
 
 
 def test_has_download_filter_parses_and_builds_clause():
@@ -56,3 +57,15 @@ def test_build_parents_with_children_query_filters_and_aggregates_on_parent_iden
         "field": "parent_identifier",
         "size": 2,
     }
+
+
+def test_search_queries_include_access_level():
+    multi_match_fields = build_multi_match_query("restricted public")["multi_match"][
+        "fields"
+    ]
+    phrase_fields = build_phrase_query("restricted public")["bool"]["should"]
+
+    assert "access_level" in multi_match_fields
+    assert {
+        "match_phrase": {"access_level": {"query": "restricted public"}}
+    } in phrase_fields
