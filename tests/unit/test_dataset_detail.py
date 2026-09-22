@@ -636,13 +636,14 @@ class TestDatasetDetail:
         assert anchor.get("href") == landing_page_url
         assert anchor.get_text(strip=True) == landing_page_url
 
-    def test_metadata_landing_page_object_is_anchor(
+    def test_metadata_landing_page_object_is_pretty_json_with_linked_url(
         self, interface_with_dataset, db_client
     ):
         """
         DCAT-US 3.0 allows landingPage to be an object (@type: Document,
-        title, accessURL) instead of a plain URL string. The anchor tag
-        must use accessURL/title from the object, not the dict repr.
+        title, accessURL) instead of a plain URL string. It should render as
+        pretty-printed JSON, keeping every field, with accessURL turned into
+        a clickable link rather than collapsing the object into a single anchor.
         """
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/dataset/test-dcat-3-0")
@@ -663,10 +664,17 @@ class TestDatasetDetail:
         )
         assert landing_page_row is not None
 
-        anchor = landing_page_row.select_one("td a")
+        pre = landing_page_row.select_one("td pre.json")
+        assert pre is not None
+        assert "Sample Dataset Landing Page" in pre.get_text()
+        assert "Document" in pre.get_text()
+
+        anchor = pre.select_one("a")
         assert anchor is not None
         assert anchor.get("href") == "https://example.gov/datasets/sample-dcat-3-0"
-        assert anchor.get_text(strip=True) == "Sample Dataset Landing Page"
+        assert anchor.get_text(strip=True) == (
+            "https://example.gov/datasets/sample-dcat-3-0"
+        )
 
     def test_check_jsonld(self, interface_with_dataset, db_client):
 
