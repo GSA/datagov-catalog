@@ -26,7 +26,7 @@
   "dependencies": {
     "@uswds/uswds": "3.14.0",
     "chart.js": "^4.5.1",
-    "htmx.org": "^2.0.10",
+    "htmx.org": "^4.0.0",
     "leaflet": "^1.9.4"
   },
   "devDependencies": {
@@ -38,7 +38,7 @@
     "browserify": "^17.0.1",
     "concurrently": "^10.0.5",
     "gulp": "^5.0.1",
-    "rollup": "^4.63.2",
+    "rollup": "^4.63.4",
     "rollup-plugin-copy": "^3.5.0",
     "sass": "^1.104.1",
     "typescript": "^7.0.2",
