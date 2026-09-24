@@ -74,6 +74,8 @@
       <div id="widget-form-default" class="contact-widget__screen" style="display: none;">
         <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
           <input type="hidden" name="form_type" value="default">
+          <!-- Honeypot field for bot detection -->
+          <input type="text" name="website" value="" style="position: absolute; left: -9999px;" tabindex="-1" autocomplete="off">
 
           <h3 class="contact-widget__form-title">Default Ticket Form</h3>
 
@@ -159,6 +161,8 @@
       <div id="widget-form-feedback" class="contact-widget__screen" style="display: none;">
         <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
           <input type="hidden" name="form_type" value="feedback">
+          <!-- Honeypot field for bot detection -->
+          <input type="text" name="website" value="" style="position: absolute; left: -9999px;" tabindex="-1" autocomplete="off">
 
           <h3 class="contact-widget__form-title">Data.gov Feedback</h3>
 
@@ -244,6 +248,8 @@
       <div id="widget-form-usagov" class="contact-widget__screen" style="display: none;">
         <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
           <input type="hidden" name="form_type" value="usagov">
+          <!-- Honeypot field for bot detection -->
+          <input type="text" name="website" value="" style="position: absolute; left: -9999px;" tabindex="-1" autocomplete="off">
 
           <h3 class="contact-widget__form-title">Contact the USAGov team</h3>
 

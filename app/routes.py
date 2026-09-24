@@ -1188,6 +1188,12 @@ def contact_submit():
     """Handle contact form submission with optional file attachments."""
     from urllib.parse import urlparse
 
+    # Check honeypot field (should be empty for legitimate users)
+    honeypot = request.form.get("website", "")
+    if honeypot:
+        # Silently reject bot submissions
+        return redirect(url_for("main.index"))
+
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
     subject = request.form.get("subject", "").strip()
@@ -1239,6 +1245,45 @@ def contact_submit():
 
     # Filter out empty file uploads
     attachments = [f for f in attachments if f and f.filename]
+
+    # Validate file sizes and types
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB per file
+    ALLOWED_EXTENSIONS = {
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".txt",
+        ".csv",
+        ".xlsx",
+        ".xls",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+    }
+
+    for file in attachments:
+        # Check file size
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+
+        if file_size > MAX_FILE_SIZE:
+            flash(
+                f"File '{file.filename}' is too large. Maximum size is 10MB.", "error"
+            )
+            return redirect(referrer)
+
+        # Validate file extension
+        import os
+
+        file_ext = os.path.splitext(file.filename.lower())[1]
+        if file_ext not in ALLOWED_EXTENSIONS:
+            flash(
+                f"File type '{file_ext}' is not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, images.",
+                "error",
+            )
+            return redirect(referrer)
 
     # Validate form_type to prevent injection
     allowed_form_types = ["default", "feedback", "usagov"]
