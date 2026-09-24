@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Us - Data.gov{% endblock %}
+
+{% block content %}
+<div class="grid-row margin-top-4">
+  <div class="grid-col-12 tablet:grid-col-8 desktop:grid-col-6">
+    <h1 class="margin-top-0">Contact Us</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="usa-alert usa-alert--{{ 'success' if category == 'success' else 'error' }}" role="alert">
+            <div class="usa-alert__body">
+              <p class="usa-alert__text">{{ message }}</p>
+            </div>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <p class="usa-intro">
+      Have a question or feedback about Data.gov? Send us a message and we'll get back to you as soon as possible.
+    </p>
+
+    <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form usa-form--large">
+
+      <label class="usa-label" for="name">
+        Name <span class="usa-required">*</span>
+      </label>
+      <input
+        class="usa-input"
+        id="name"
+        name="name"
+        type="text"
+        required
+        aria-required="true"
+        maxlength="100"
+      >
+
+      <label class="usa-label" for="email">
+        Email <span class="usa-required">*</span>
+      </label>
+      <input
+        class="usa-input"
+        id="email"
+        name="email"
+        type="email"
+        required
+        aria-required="true"
+        maxlength="100"
+      >
+
+      <label class="usa-label" for="message">
+        Message <span class="usa-required">*</span>
+      </label>
+      <textarea
+        class="usa-textarea"
+        id="message"
+        name="message"
+        required
+        aria-required="true"
+        rows="8"
+        maxlength="2000"
+      ></textarea>
+
+      <button type="submit" class="usa-button">Send Message</button>
+    </form>
+
+    <div class="margin-top-4">
+      <h2>Other Ways to Connect</h2>
+      <p>
+        You can also visit our <a href="https://data.gov/user-guide/" target="_blank">User Guide</a>
+        for answers to common questions about Data.gov.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

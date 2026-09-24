@@ -10,6 +10,7 @@ from flask import (
     Blueprint,
     Response,
     abort,
+    flash,
     jsonify,
     redirect,
     render_template,
@@ -28,7 +29,7 @@ from app.search import (
     visible_filter_query_params,
 )
 
-from . import htmx
+from . import htmx, limiter
 from .api_schemas import (
     KeywordsQuery,
     KeywordsResults,
@@ -55,12 +56,15 @@ from .sitemap_s3 import (
     get_sitemap_s3_config,
 )
 from .utils import (
+    SMTP_CONFIG,
     dict_from_hint,
     hint_from_dict,
     json_not_found,
     pop_doc_by_identifier,
     register_iso_namespaces,
+    send_email,
     valid_id_required,
+    validate_email,
 )
 
 logger = logging.getLogger(__name__)
@@ -1171,6 +1175,64 @@ def get_document_by_dataset_slug(slug_or_id: str):
 @main.route("/openapi/docs", methods=["GET"])
 def openapi_docs():
     return render_template("swagger.html")
+
+
+@main.route("/contact")
+def contact():
+    """Render contact form page."""
+    return render_template("contact.html")
+
+
+@main.route("/contact-submit", methods=["POST"])
+@limiter.limit("5 per hour")
+def contact_submit():
+    """Handle contact form submission."""
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    message = request.form.get("message", "").strip()
+
+    if not all([name, email, message]):
+        flash("All fields are required.", "error")
+        return redirect(url_for("main.contact"))
+
+    if not validate_email(email):
+        flash("Please enter a valid email address.", "error")
+        return redirect(url_for("main.contact"))
+
+    if len(message) < 10:
+        flash(
+            "Please provide a more detailed message (at least 10 characters).", "error"
+        )
+        return redirect(url_for("main.contact"))
+
+    recipient = SMTP_CONFIG["recipient"]
+    subject = f"Data.gov Contact Form: Message from {name}"
+    body = f"""Contact form submission from Data.gov
+
+Name: {name}
+Email: {email}
+
+Message:
+{message}
+
+---
+This message was sent via the Data.gov contact form.
+"""
+
+    success = send_email(recipient, subject, body)
+
+    if success:
+        flash(
+            "Thank you for your message! We will respond as soon as possible.",
+            "success",
+        )
+    else:
+        flash(
+            "Sorry, there was an error sending your message. Please try again later.",
+            "error",
+        )
+
+    return redirect(url_for("main.contact"))
 
 
 def style_guide_icons():
