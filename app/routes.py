@@ -29,7 +29,7 @@ from app.search import (
     visible_filter_query_params,
 )
 
-from . import htmx, limiter
+from . import htmx
 from .api_schemas import (
     KeywordsQuery,
     KeywordsResults,
