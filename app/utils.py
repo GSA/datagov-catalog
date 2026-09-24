@@ -13,6 +13,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from functools import wraps
+from pathlib import Path
 from typing import Callable, TypeVar
 from uuid import UUID
 from xml.etree import ElementTree
@@ -182,11 +183,19 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
             if attachments:
                 for file in attachments:
                     if file and file.filename:
+                        # Sanitize filename to prevent path traversal and other attacks
+                        safe_filename = Path(file.filename).name
+                        if not safe_filename or safe_filename.startswith("."):
+                            logger.warning(
+                                f"Skipping invalid filename: {file.filename}"
+                            )
+                            continue
+
                         # Read file content
                         file_data = file.read()
 
                         # Determine MIME type
-                        mime_type, _ = mimetypes.guess_type(file.filename)
+                        mime_type, _ = mimetypes.guess_type(safe_filename)
                         if not mime_type:
                             mime_type = "application/octet-stream"
 
@@ -200,12 +209,12 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
                             ),
                         )
                         attachment.add_header(
-                            "Content-Disposition", "attachment", filename=file.filename
+                            "Content-Disposition", "attachment", filename=safe_filename
                         )
                         msg.attach(attachment)
 
                         logger.info(
-                            f"Attached file: {file.filename} ({len(file_data)} bytes)"
+                            f"Attached file: {safe_filename} ({len(file_data)} bytes)"
                         )
 
             server.sendmail(sender, [recipient], msg.as_string())

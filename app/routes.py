@@ -1184,16 +1184,25 @@ def contact():
 
 
 @main.route("/contact-submit", methods=["POST"])
-@limiter.limit("5 per hour")
 def contact_submit():
     """Handle contact form submission with optional file attachments."""
+    from urllib.parse import urlparse
+
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
     subject = request.form.get("subject", "").strip()
     message = request.form.get("message", "").strip()
     form_type = request.form.get("form_type", "default").strip()
 
-    referrer = request.referrer or url_for("main.index")
+    # Validate referrer to prevent open redirect attacks
+    referrer = request.referrer
+    if referrer:
+        parsed = urlparse(referrer)
+        # Only allow same-host redirects
+        if parsed.netloc and parsed.netloc != request.host:
+            referrer = url_for("main.index")
+    else:
+        referrer = url_for("main.index")
 
     if not all([name, email, subject, message]):
         flash("All fields are required.", "error")
@@ -1209,6 +1218,19 @@ def contact_submit():
         )
         return redirect(referrer)
 
+    # Validate input lengths to prevent abuse
+    if len(name) > 100:
+        flash("Name is too long (maximum 100 characters).", "error")
+        return redirect(referrer)
+
+    if len(subject) > 200:
+        flash("Subject is too long (maximum 200 characters).", "error")
+        return redirect(referrer)
+
+    if len(message) > 2000:
+        flash("Message is too long (maximum 2000 characters).", "error")
+        return redirect(referrer)
+
     # Handle file attachments (up to 5 files)
     attachments = request.files.getlist("attachments")
     if len(attachments) > 5:
@@ -1218,15 +1240,25 @@ def contact_submit():
     # Filter out empty file uploads
     attachments = [f for f in attachments if f and f.filename]
 
+    # Validate form_type to prevent injection
+    allowed_form_types = ["default", "feedback", "usagov"]
+    if form_type not in allowed_form_types:
+        form_type = "default"
+
     form_type_labels = {
         "default": "Default Ticket",
         "feedback": "Data.gov Feedback",
         "usagov": "USAGov Contact",
     }
-    form_label = form_type_labels.get(form_type, "Contact")
+    form_label = form_type_labels[form_type]
 
     recipient = SMTP_CONFIG["recipient"]
-    email_subject = f"Data.gov {form_label}: {subject}"
+    # Sanitize subject to prevent header injection
+    sanitized_subject = subject.replace("\n", " ").replace("\r", " ")
+    email_subject = f"Data.gov {form_label}: {sanitized_subject}"
+
+    # All user inputs are safely included in the body
+    # MIMEText will handle proper encoding
     body = f"""Contact form submission from Data.gov
 
 Form Type: {form_label}
@@ -1401,6 +1433,11 @@ def register_routes(app):
     from app.dev_routes import register_dev_routes
 
     register_dev_routes(app)
+
+    # Apply rate limiting to contact form after blueprints are registered
+    from app import limiter
+
+    limiter.limit("5 per hour")(contact_submit)
 
     if app.config.get("IS_LOCAL"):
         app.add_url_rule(
