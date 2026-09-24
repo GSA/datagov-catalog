@@ -1475,10 +1475,6 @@ def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
 
-    from app.dev_routes import register_dev_routes
-
-    register_dev_routes(app)
-
     # Apply rate limiting to contact form after blueprints are registered
     from app import limiter
 
