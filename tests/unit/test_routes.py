@@ -3499,7 +3499,9 @@ def test_contact_submit_with_valid_data(db_client):
             data={
                 "name": "John Doe",
                 "email": "john@example.com",
-                "message": "Test message",
+                "subject": "Test subject",
+                "message": "Test message with more details",
+                "form_type": "default",
             },
             follow_redirects=True,
         )
@@ -3528,7 +3530,13 @@ def test_contact_submit_validates_email_format(db_client):
     """Test that contact form validates email format."""
     response = db_client.post(
         "/contact-submit",
-        data={"name": "John Doe", "email": "invalid-email", "message": "Test message"},
+        data={
+            "name": "John Doe",
+            "email": "invalid-email",
+            "subject": "Test subject",
+            "message": "Test message with more details",
+            "form_type": "default",
+        },
         follow_redirects=True,
     )
 
@@ -3546,7 +3554,9 @@ def test_contact_submit_handles_send_failure(db_client):
             data={
                 "name": "John Doe",
                 "email": "john@example.com",
-                "message": "Test message",
+                "subject": "Test subject",
+                "message": "Test message with more details",
+                "form_type": "default",
             },
             follow_redirects=True,
         )

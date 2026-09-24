@@ -5,9 +5,11 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import mimetypes
 import os
 import re
 import smtplib
+from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from functools import wraps
@@ -136,15 +138,16 @@ def validate_email(email):
     return re.match(pattern, email) is not None
 
 
-def send_email(recipient, subject, body, sender=None):
+def send_email(recipient, subject, body, sender=None, attachments=None):
     """
-    Send an email via SMTP.
+    Send an email via SMTP with optional file attachments.
 
     Args:
         recipient: Email address to send to
         subject: Email subject line
         body: Email body text
         sender: Email address to send from (defaults to SMTP_SENDER env var)
+        attachments: List of file objects (FileStorage) to attach
 
     Returns:
         bool: True if email sent successfully, False otherwise
@@ -174,6 +177,36 @@ def send_email(recipient, subject, body, sender=None):
             msg["Reply-To"] = "no-reply@gsa.gov"
             msg["Subject"] = subject
             msg.attach(MIMEText(body, "plain"))
+
+            # Attach files if provided
+            if attachments:
+                for file in attachments:
+                    if file and file.filename:
+                        # Read file content
+                        file_data = file.read()
+
+                        # Determine MIME type
+                        mime_type, _ = mimetypes.guess_type(file.filename)
+                        if not mime_type:
+                            mime_type = "application/octet-stream"
+
+                        # Create attachment
+                        attachment = MIMEApplication(
+                            file_data,
+                            _subtype=(
+                                mime_type.split("/")[1]
+                                if "/" in mime_type
+                                else "octet-stream"
+                            ),
+                        )
+                        attachment.add_header(
+                            "Content-Disposition", "attachment", filename=file.filename
+                        )
+                        msg.attach(attachment)
+
+                        logger.info(
+                            f"Attached file: {file.filename} ({len(file_data)} bytes)"
+                        )
 
             server.sendmail(sender, [recipient], msg.as_string())
 

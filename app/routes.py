@@ -1186,40 +1186,65 @@ def contact():
 @main.route("/contact-submit", methods=["POST"])
 @limiter.limit("5 per hour")
 def contact_submit():
-    """Handle contact form submission."""
+    """Handle contact form submission with optional file attachments."""
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
+    subject = request.form.get("subject", "").strip()
     message = request.form.get("message", "").strip()
+    form_type = request.form.get("form_type", "default").strip()
 
-    if not all([name, email, message]):
+    referrer = request.referrer or url_for("main.index")
+
+    if not all([name, email, subject, message]):
         flash("All fields are required.", "error")
-        return redirect(url_for("main.contact"))
+        return redirect(referrer)
 
     if not validate_email(email):
         flash("Please enter a valid email address.", "error")
-        return redirect(url_for("main.contact"))
+        return redirect(referrer)
 
     if len(message) < 10:
         flash(
             "Please provide a more detailed message (at least 10 characters).", "error"
         )
-        return redirect(url_for("main.contact"))
+        return redirect(referrer)
+
+    # Handle file attachments (up to 5 files)
+    attachments = request.files.getlist("attachments")
+    if len(attachments) > 5:
+        flash("You can only upload up to 5 files.", "error")
+        return redirect(referrer)
+
+    # Filter out empty file uploads
+    attachments = [f for f in attachments if f and f.filename]
+
+    form_type_labels = {
+        "default": "Default Ticket",
+        "feedback": "Data.gov Feedback",
+        "usagov": "USAGov Contact",
+    }
+    form_label = form_type_labels.get(form_type, "Contact")
 
     recipient = SMTP_CONFIG["recipient"]
-    subject = f"Data.gov Contact Form: Message from {name}"
+    email_subject = f"Data.gov {form_label}: {subject}"
     body = f"""Contact form submission from Data.gov
 
+Form Type: {form_label}
 Name: {name}
 Email: {email}
+Subject: {subject}
 
 Message:
 {message}
 
 ---
-This message was sent via the Data.gov contact form.
+This message was sent via the Data.gov contact widget.
 """
 
-    success = send_email(recipient, subject, body)
+    if attachments:
+        body += f"\n{len(attachments)} file(s) attached."
+
+    success = send_email(recipient, email_subject, body, attachments=attachments)
 
     if success:
         flash(
@@ -1232,7 +1257,7 @@ This message was sent via the Data.gov contact form.
             "error",
         )
 
-    return redirect(url_for("main.contact"))
+    return redirect(referrer)
 
 
 def style_guide_icons():

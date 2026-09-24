@@ -24,9 +24,10 @@
     </p>
 
     <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form usa-form--large">
+      <input type="hidden" name="form_type" value="default">
 
       <label class="usa-label" for="name">
-        Name <span class="usa-required">*</span>
+        Your name <span class="text-secondary-dark">*</span>
       </label>
       <input
         class="usa-input"
@@ -39,7 +40,7 @@
       >
 
       <label class="usa-label" for="email">
-        Email <span class="usa-required">*</span>
+        Email address <span class="text-secondary-dark">*</span>
       </label>
       <input
         class="usa-input"
@@ -51,9 +52,23 @@
         maxlength="100"
       >
 
-      <label class="usa-label" for="message">
-        Message <span class="usa-required">*</span>
+      <label class="usa-label" for="subject">
+        Subject <span class="text-secondary-dark">*</span>
       </label>
+      <input
+        class="usa-input"
+        id="subject"
+        name="subject"
+        type="text"
+        required
+        aria-required="true"
+        maxlength="200"
+      >
+
+      <label class="usa-label" for="message">
+        Description <span class="text-secondary-dark">*</span>
+      </label>
+      <p class="usa-hint">Please enter the details of your request. A member of our support staff will respond as soon as possible.</p>
       <textarea
         class="usa-textarea"
         id="message"
@@ -64,7 +79,7 @@
         maxlength="2000"
       ></textarea>
 
-      <button type="submit" class="usa-button">Send Message</button>
+      <button type="submit" class="usa-button">Send</button>
     </form>
 
     <div class="margin-top-4">
