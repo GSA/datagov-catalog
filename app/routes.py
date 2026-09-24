@@ -11,6 +11,7 @@ from flask import (
     Blueprint,
     Response,
     abort,
+    flash,
     jsonify,
     redirect,
     render_template,
@@ -56,12 +57,15 @@ from .sitemap_s3 import (
     get_sitemap_s3_config,
 )
 from .utils import (
+    SMTP_CONFIG,
     dict_from_hint,
     hint_from_dict,
     json_not_found,
     pop_doc_by_identifier,
     register_iso_namespaces,
+    send_email,
     valid_id_required,
+    validate_email,
 )
 
 logger = logging.getLogger(__name__)
@@ -1209,6 +1213,166 @@ def openapi_docs():
     return render_template("swagger.html")
 
 
+@main.route("/contact")
+def contact():
+    """Render contact form page."""
+    return render_template("contact.html")
+
+
+@main.route("/contact-submit", methods=["POST"])
+def contact_submit():
+    """Handle contact form submission with optional file attachments."""
+    from urllib.parse import urlparse
+
+    # Check honeypot field (should be empty for legitimate users)
+    honeypot = request.form.get("website", "")
+    if honeypot:
+        # Silently reject bot submissions
+        return redirect(url_for("main.index"))
+
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    subject = request.form.get("subject", "").strip()
+    message = request.form.get("message", "").strip()
+    form_type = request.form.get("form_type", "default").strip()
+
+    # Validate referrer to prevent open redirect attacks:
+    # only allow local relative paths (no scheme, no host).
+    referrer = request.referrer or ""
+    normalized_referrer = referrer.replace("\\", "/")
+    parsed = urlparse(normalized_referrer)
+    if parsed.scheme or parsed.netloc:
+        referrer = url_for("main.index")
+    else:
+        referrer = normalized_referrer or url_for("main.index")
+
+    if not all([name, email, subject, message]):
+        flash("All fields are required.", "error")
+        return redirect(referrer)
+
+    if not validate_email(email):
+        flash("Please enter a valid email address.", "error")
+        return redirect(referrer)
+
+    if len(message) < 10:
+        flash(
+            "Please provide a more detailed message (at least 10 characters).", "error"
+        )
+        return redirect(referrer)
+
+    # Validate input lengths to prevent abuse
+    if len(name) > 100:
+        flash("Name is too long (maximum 100 characters).", "error")
+        return redirect(referrer)
+
+    if len(subject) > 200:
+        flash("Subject is too long (maximum 200 characters).", "error")
+        return redirect(referrer)
+
+    if len(message) > 2000:
+        flash("Message is too long (maximum 2000 characters).", "error")
+        return redirect(referrer)
+
+    # Handle file attachments (up to 5 files)
+    attachments = request.files.getlist("attachments")
+    if len(attachments) > 5:
+        flash("You can only upload up to 5 files.", "error")
+        return redirect(referrer)
+
+    # Filter out empty file uploads
+    attachments = [f for f in attachments if f and f.filename]
+
+    # Validate file sizes and types
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB per file
+    ALLOWED_EXTENSIONS = {
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".txt",
+        ".csv",
+        ".xlsx",
+        ".xls",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+    }
+
+    for file in attachments:
+        # Check file size
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+
+        if file_size > MAX_FILE_SIZE:
+            flash(
+                f"File '{file.filename}' is too large. Maximum size is 10MB.", "error"
+            )
+            return redirect(referrer)
+
+        # Validate file extension
+        import os
+
+        file_ext = os.path.splitext(file.filename.lower())[1]
+        if file_ext not in ALLOWED_EXTENSIONS:
+            flash(
+                f"File type '{file_ext}' is not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, images.",
+                "error",
+            )
+            return redirect(referrer)
+
+    # Validate form_type to prevent injection
+    allowed_form_types = ["default", "feedback", "usagov"]
+    if form_type not in allowed_form_types:
+        form_type = "default"
+
+    form_type_labels = {
+        "default": "Default Ticket",
+        "feedback": "Data.gov Feedback",
+        "usagov": "USAGov Contact",
+    }
+    form_label = form_type_labels[form_type]
+
+    recipient = SMTP_CONFIG["recipient"]
+    # Sanitize subject to prevent header injection
+    sanitized_subject = subject.replace("\n", " ").replace("\r", " ")
+    email_subject = f"Data.gov {form_label}: {sanitized_subject}"
+
+    # All user inputs are safely included in the body
+    # MIMEText will handle proper encoding
+    body = f"""Contact form submission from Data.gov
+
+Form Type: {form_label}
+Name: {name}
+Email: {email}
+Subject: {subject}
+
+Message:
+{message}
+
+---
+This message was sent via the Data.gov contact widget.
+"""
+
+    if attachments:
+        body += f"\n{len(attachments)} file(s) attached."
+
+    success = send_email(recipient, email_subject, body, attachments=attachments)
+
+    if success:
+        flash(
+            "Thank you for your message! We will respond as soon as possible.",
+            "success",
+        )
+    else:
+        flash(
+            "Sorry, there was an error sending your message. Please try again later.",
+            "error",
+        )
+
+    return redirect(referrer)
+
+
 def style_guide_icons():
     from app.filters import known_format_badges, resource_format_badge
 
@@ -1346,6 +1510,15 @@ def style_guide_icons():
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
+
+    from app.dev_routes import register_dev_routes
+
+    register_dev_routes(app)
+
+    # Apply rate limiting to contact form after blueprints are registered
+    from app import limiter
+
+    limiter.limit("5 per hour")(contact_submit)
 
     if app.config.get("IS_LOCAL"):
         app.add_url_rule(

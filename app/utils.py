@@ -4,7 +4,16 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
+import mimetypes
+import os
+import re
+import smtplib
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from functools import wraps
+from pathlib import Path
 from typing import Callable, TypeVar
 from uuid import UUID
 from xml.etree import ElementTree
@@ -109,3 +118,110 @@ def register_iso_namespaces(element_tree: ElementTree) -> None:
     }
     for ns, ns_url in namespaces.items():
         element_tree.register_namespace(ns, ns_url)
+
+
+logger = logging.getLogger(__name__)
+
+SMTP_CONFIG = {
+    "server": os.getenv("SMTP_SERVER"),
+    "port": int(os.getenv("SMTP_PORT", 587)),
+    "use_tls": os.getenv("SMTP_STARTTLS", "true").lower() == "true",
+    "username": os.getenv("SMTP_USER"),
+    "password": os.getenv("SMTP_PASSWORD"),
+    "default_sender": os.getenv("SMTP_SENDER", "noreply@data.gov"),
+    "recipient": os.getenv("SMTP_RECIPIENT", "DataGovHelp@gsa.gov"),
+}
+
+
+def validate_email(email):
+    """Validate email format using simple regex."""
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return re.match(pattern, email) is not None
+
+
+def send_email(recipient, subject, body, sender=None, attachments=None):
+    """
+    Send an email via SMTP with optional file attachments.
+
+    Args:
+        recipient: Email address to send to
+        subject: Email subject line
+        body: Email body text
+        sender: Email address to send from (defaults to SMTP_SENDER env var)
+        attachments: List of file objects (FileStorage) to attach
+
+    Returns:
+        bool: True if email sent successfully, False otherwise
+    """
+    if not validate_email(recipient):
+        logger.error(f"Invalid recipient email format: {recipient}")
+        return False
+
+    if not all(
+        [SMTP_CONFIG["server"], SMTP_CONFIG["username"], SMTP_CONFIG["password"]]
+    ):
+        logger.error("SMTP configuration is incomplete")
+        return False
+
+    if not sender:
+        sender = SMTP_CONFIG["default_sender"]
+
+    try:
+        with smtplib.SMTP(SMTP_CONFIG["server"], SMTP_CONFIG["port"]) as server:
+            if SMTP_CONFIG["use_tls"]:
+                server.starttls()
+            server.login(SMTP_CONFIG["username"], SMTP_CONFIG["password"])
+
+            msg = MIMEMultipart()
+            msg["From"] = sender
+            msg["To"] = recipient
+            msg["Reply-To"] = "no-reply@gsa.gov"
+            msg["Subject"] = subject
+            msg.attach(MIMEText(body, "plain"))
+
+            # Attach files if provided
+            if attachments:
+                for file in attachments:
+                    if file and file.filename:
+                        # Sanitize filename to prevent path traversal and other attacks
+                        safe_filename = Path(file.filename).name
+                        if not safe_filename or safe_filename.startswith("."):
+                            logger.warning(
+                                f"Skipping invalid filename: {file.filename}"
+                            )
+                            continue
+
+                        # Read file content
+                        file_data = file.read()
+
+                        # Determine MIME type
+                        mime_type, _ = mimetypes.guess_type(safe_filename)
+                        if not mime_type:
+                            mime_type = "application/octet-stream"
+
+                        # Create attachment
+                        attachment = MIMEApplication(
+                            file_data,
+                            _subtype=(
+                                mime_type.split("/")[1]
+                                if "/" in mime_type
+                                else "octet-stream"
+                            ),
+                        )
+                        attachment.add_header(
+                            "Content-Disposition", "attachment", filename=safe_filename
+                        )
+                        msg.attach(attachment)
+
+                        logger.info(
+                            f"Attached file: {safe_filename} ({len(file_data)} bytes)"
+                        )
+
+            server.sendmail(sender, [recipient], msg.as_string())
+
+        logger.info(f"Email sent successfully to {recipient}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
+        return False
