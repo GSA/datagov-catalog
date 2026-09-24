@@ -1200,15 +1200,15 @@ def contact_submit():
     message = request.form.get("message", "").strip()
     form_type = request.form.get("form_type", "default").strip()
 
-    # Validate referrer to prevent open redirect attacks
-    referrer = request.referrer
-    if referrer:
-        parsed = urlparse(referrer)
-        # Only allow same-host redirects
-        if parsed.netloc and parsed.netloc != request.host:
-            referrer = url_for("main.index")
-    else:
+    # Validate referrer to prevent open redirect attacks:
+    # only allow local relative paths (no scheme, no host).
+    referrer = request.referrer or ""
+    normalized_referrer = referrer.replace("\\", "/")
+    parsed = urlparse(normalized_referrer)
+    if parsed.scheme or parsed.netloc:
         referrer = url_for("main.index")
+    else:
+        referrer = normalized_referrer or url_for("main.index")
 
     if not all([name, email, subject, message]):
         flash("All fields are required.", "error")
