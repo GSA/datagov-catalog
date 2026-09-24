@@ -30,6 +30,7 @@ dependencies = [
     "soupsieve (>=2.8.4,<3.0.0)",
     "geoalchemy2 (>=0.20.0,<0.21.0)",
     "haversine (>=2.9.0,<3.0.0)",
+    "flask-limiter (>=3.8.0,<4.0.0)",
 ]
 
 [tool.poetry]

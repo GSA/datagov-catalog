@@ -3479,3 +3479,77 @@ def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
 
     assert attempts["count"] == 1
     mock_db.rollback.assert_not_called()
+
+
+def test_contact_page_renders(client):
+    """Test that /contact page renders successfully."""
+    response = client.get("/contact")
+    assert response.status_code == 200
+    assert b"Contact Us" in response.data
+    assert b"<form" in response.data
+
+
+def test_contact_submit_with_valid_data(client):
+    """Test that contact form submission works with valid data."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
+
+        response = client.post(
+            "/contact-submit",
+            data={
+                "name": "John Doe",
+                "email": "john@example.com",
+                "message": "Test message",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b"Thank you" in response.data
+        mock_send.assert_called_once()
+
+
+def test_contact_submit_requires_all_fields(client):
+    """Test that contact form requires all fields."""
+    response = client.post(
+        "/contact-submit",
+        data={
+            "name": "John Doe",
+            "email": "john@example.com",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"required" in response.data.lower()
+
+
+def test_contact_submit_validates_email_format(client):
+    """Test that contact form validates email format."""
+    response = client.post(
+        "/contact-submit",
+        data={"name": "John Doe", "email": "invalid-email", "message": "Test message"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"valid email" in response.data.lower()
+
+
+def test_contact_submit_handles_send_failure(client):
+    """Test that contact form handles email sending failures gracefully."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = False
+
+        response = client.post(
+            "/contact-submit",
+            data={
+                "name": "John Doe",
+                "email": "john@example.com",
+                "message": "Test message",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b"error" in response.data.lower()
