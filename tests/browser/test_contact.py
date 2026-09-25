@@ -23,7 +23,7 @@ def test_contact_form_validation(page):
 
 
 def test_contact_form_fields(page):
-    """Test that all form fields are present and functional."""
+    """Test that form fields are present and functional."""
     page.goto("/contact")
 
     page.locator("#name").fill("Test User")
