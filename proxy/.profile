@@ -16,6 +16,19 @@ export SPACE_NAME=$(echo "$VCAP_APPLICATION" | jq -r '.space_name')
 
 echo "Setting up proxy in $APP_NAME on $SPACE_NAME"
 
+# Convert the human-readable CIDR list into the address/value format required
+# by nginx's geo include directive.
+ALLOWLIST_SOURCE=${HOME}/ip-allow-list.txt
+ALLOWLIST_CONFIG=${HOME}/etc/nginx/ip-allow-list.conf
+if ! awk '
+    /^[[:space:]]*#/ || NF == 0 { next }
+    NF != 1 { exit 1 }
+    { print $1 " 1;" }
+' "$ALLOWLIST_SOURCE" > "$ALLOWLIST_CONFIG"; then
+    echo "Invalid entry in $ALLOWLIST_SOURCE" >&2
+    exit 1
+fi
+
 # sitemap config
 export S3_URL=$(vcap_get_service s3 .credentials.endpoint)
 export S3_BUCKET=$(vcap_get_service s3 .credentials.bucket)

@@ -1,0 +1,4 @@
+# One allowlisted client network or address per line.
+173.79.114.71/32
+8.8.8.0/24
+4.4.4.4
