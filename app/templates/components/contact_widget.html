@@ -1,0 +1,335 @@
+<div id="contact-widget" class="contact-widget">
+  <!-- Floating button -->
+  <button
+    id="contact-widget-button"
+    class="contact-widget__button"
+    aria-label="Open feedback form"
+    aria-expanded="false"
+  >
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 2H4C2.9 2 2.01 2.9 2.01 4L2 22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H6L4 18V4H20V16Z" fill="currentColor"/>
+      <path d="M7 9H17V11H7V9ZM7 12H14V14H7V12ZM7 6H17V8H7V6Z" fill="currentColor"/>
+    </svg>
+    <span class="contact-widget__button-text">Feedback</span>
+  </button>
+
+  <!-- Slide-in panel -->
+  <div id="contact-widget-panel" class="contact-widget__panel" role="dialog" aria-labelledby="contact-widget-title" aria-hidden="true">
+    <!-- Header -->
+    <div class="contact-widget__panel-header">
+      <button
+        id="contact-widget-back"
+        class="contact-widget__back"
+        aria-label="Go back"
+        style="display: none;"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" fill="currentColor"/>
+        </svg>
+      </button>
+      <h2 id="contact-widget-title" class="contact-widget__panel-title">Contact us</h2>
+      <button
+        id="contact-widget-close"
+        class="contact-widget__close"
+        aria-label="Close contact form"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Panel content -->
+    <div class="contact-widget__panel-content">
+      <!-- Flash messages -->
+      {% if get_flashed_messages(with_categories=true) %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="usa-alert usa-alert--{{ 'success' if category == 'success' else 'error' }} usa-alert--slim" role="alert">
+              <div class="usa-alert__body">
+                <p class="usa-alert__text">{{ message }}</p>
+              </div>
+            </div>
+          {% endfor %}
+        {% endwith %}
+      {% endif %}
+
+      <!-- Menu screen -->
+      <div id="widget-menu" class="contact-widget__screen">
+        <h3 class="contact-widget__subtitle">Please select your issue</h3>
+        <div class="contact-widget__menu">
+          <button type="button" class="contact-widget__menu-item" data-form="default">
+            Default Ticket Form
+          </button>
+          <button type="button" class="contact-widget__menu-item" data-form="feedback">
+            Data.gov Feedback
+          </button>
+          <button type="button" class="contact-widget__menu-item" data-form="usagov">
+            Contact the USAGov team
+          </button>
+        </div>
+      </div>
+
+      <!-- Default Ticket Form -->
+      <div id="widget-form-default" class="contact-widget__screen" style="display: none;">
+        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
+          <input type="hidden" name="form_type" value="default">
+          <!-- Honeypot field for bot detection -->
+          <input type="hidden" name="website" value="">
+
+          <h3 class="contact-widget__form-title">Default Ticket Form</h3>
+
+          <label class="contact-widget__label" for="default-name">
+            Your name
+          </label>
+          <input
+            class="contact-widget__input"
+            id="default-name"
+            name="name"
+            type="text"
+            required
+            aria-required="true"
+            maxlength="100"
+          >
+
+          <label class="contact-widget__label" for="default-email">
+            Email address
+          </label>
+          <input
+            class="contact-widget__input"
+            id="default-email"
+            name="email"
+            type="email"
+            required
+            aria-required="true"
+            maxlength="100"
+          >
+
+          <label class="contact-widget__label" for="default-subject">
+            Subject
+          </label>
+          <input
+            class="contact-widget__input"
+            id="default-subject"
+            name="subject"
+            type="text"
+            required
+            aria-required="true"
+            maxlength="200"
+          >
+
+          <label class="contact-widget__label" for="default-message">
+            Description
+          </label>
+          <p class="contact-widget__help-text">Please enter the details of your request. A member of our support staff will respond as soon as possible.</p>
+          <textarea
+            class="contact-widget__textarea"
+            id="default-message"
+            name="message"
+            required
+            aria-required="true"
+            rows="6"
+            maxlength="2000"
+          ></textarea>
+
+          <label class="contact-widget__label" for="default-attachments">
+            Attachments
+          </label>
+          <div class="contact-widget__file-upload">
+            <input
+              type="file"
+              id="default-attachments"
+              name="attachments"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
+              class="contact-widget__file-input"
+            >
+            <label for="default-attachments" class="contact-widget__file-label">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16.5 6V17.5C16.5 19.71 14.71 21.5 12.5 21.5C10.29 21.5 8.5 19.71 8.5 17.5V5C8.5 3.62 9.62 2.5 11 2.5C12.38 2.5 13.5 3.62 13.5 5V15.5C13.5 16.05 13.05 16.5 12.5 16.5C11.95 16.5 11.5 16.05 11.5 15.5V6H10V15.5C10 16.88 11.12 18 12.5 18C13.88 18 15 16.88 15 15.5V5C15 2.79 13.21 1 11 1C8.79 1 7 2.79 7 5V17.5C7 20.54 9.46 23 12.5 23C15.54 23 18 20.54 18 17.5V6H16.5Z" fill="currentColor"/>
+              </svg>
+              Add up to 5 files
+            </label>
+          </div>
+          <div class="contact-widget__file-list" id="default-file-list"></div>
+
+          <button type="submit" class="contact-widget__submit">Send</button>
+        </form>
+      </div>
+
+      <!-- Data.gov Feedback Form -->
+      <div id="widget-form-feedback" class="contact-widget__screen" style="display: none;">
+        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
+          <input type="hidden" name="form_type" value="feedback">
+          <!-- Honeypot field for bot detection -->
+          <input type="hidden" name="website" value="">
+
+          <h3 class="contact-widget__form-title">Data.gov Feedback</h3>
+
+          <label class="contact-widget__label" for="feedback-name">
+            Your name
+          </label>
+          <input
+            class="contact-widget__input"
+            id="feedback-name"
+            name="name"
+            type="text"
+            required
+            aria-required="true"
+            maxlength="100"
+          >
+
+          <label class="contact-widget__label" for="feedback-email">
+            Email address
+          </label>
+          <input
+            class="contact-widget__input"
+            id="feedback-email"
+            name="email"
+            type="email"
+            required
+            aria-required="true"
+            maxlength="100"
+          >
+
+          <label class="contact-widget__label" for="feedback-subject">
+            Subject
+          </label>
+          <input
+            class="contact-widget__input"
+            id="feedback-subject"
+            name="subject"
+            type="text"
+            required
+            aria-required="true"
+            maxlength="200"
+          >
+
+          <label class="contact-widget__label" for="feedback-message">
+            Description
+          </label>
+          <p class="contact-widget__help-text">Please enter the details of your request. A member of our support staff will respond as soon as possible.</p>
+          <textarea
+            class="contact-widget__textarea"
+            id="feedback-message"
+            name="message"
+            required
+            aria-required="true"
+            rows="6"
+            maxlength="2000"
+          ></textarea>
+
+          <label class="contact-widget__label" for="feedback-attachments">
+            Attachments
+          </label>
+          <div class="contact-widget__file-upload">
+            <input
+              type="file"
+              id="feedback-attachments"
+              name="attachments"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
+              class="contact-widget__file-input"
+            >
+            <label for="feedback-attachments" class="contact-widget__file-label">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16.5 6V17.5C16.5 19.71 14.71 21.5 12.5 21.5C10.29 21.5 8.5 19.71 8.5 17.5V5C8.5 3.62 9.62 2.5 11 2.5C12.38 2.5 13.5 3.62 13.5 5V15.5C13.5 16.05 13.05 16.5 12.5 16.5C11.95 16.5 11.5 16.05 11.5 15.5V6H10V15.5C10 16.88 11.12 18 12.5 18C13.88 18 15 16.88 15 15.5V5C15 2.79 13.21 1 11 1C8.79 1 7 2.79 7 5V17.5C7 20.54 9.46 23 12.5 23C15.54 23 18 20.54 18 17.5V6H16.5Z" fill="currentColor"/>
+              </svg>
+              Add up to 5 files
+            </label>
+          </div>
+          <div class="contact-widget__file-list" id="feedback-file-list"></div>
+
+          <button type="submit" class="contact-widget__submit">Send</button>
+        </form>
+      </div>
+
+      <!-- Contact USAGov Form -->
+      <div id="widget-form-usagov" class="contact-widget__screen" style="display: none;">
+        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
+          <input type="hidden" name="form_type" value="usagov">
+          <!-- Honeypot field for bot detection -->
+          <input type="hidden" name="website" value="">
+
+          <h3 class="contact-widget__form-title">Contact the USAGov team</h3>
+
+          <label class="contact-widget__label" for="usagov-name">
+            Your name
+          </label>
+          <input
+            class="contact-widget__input"
+            id="usagov-name"
+            name="name"
+            type="text"
+            required
+            aria-required="true"
+            maxlength="100"
+          >
+
+          <label class="contact-widget__label" for="usagov-email">
+            Email address
+          </label>
+          <input
+            class="contact-widget__input"
+            id="usagov-email"
+            name="email"
+            type="email"
+            required
+            aria-required="true"
+            maxlength="100"
+          >
+
+          <label class="contact-widget__label" for="usagov-subject">
+            Subject
+          </label>
+          <input
+            class="contact-widget__input"
+            id="usagov-subject"
+            name="subject"
+            type="text"
+            required
+            aria-required="true"
+            maxlength="200"
+          >
+
+          <label class="contact-widget__label" for="usagov-message">
+            Description
+          </label>
+          <p class="contact-widget__help-text">Please enter the details of your request. A member of our support staff will respond as soon as possible.</p>
+          <textarea
+            class="contact-widget__textarea"
+            id="usagov-message"
+            name="message"
+            required
+            aria-required="true"
+            rows="6"
+            maxlength="2000"
+          ></textarea>
+
+          <label class="contact-widget__label" for="usagov-attachments">
+            Attachments
+          </label>
+          <div class="contact-widget__file-upload">
+            <input
+              type="file"
+              id="usagov-attachments"
+              name="attachments"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls"
+              class="contact-widget__file-input"
+            >
+            <label for="usagov-attachments" class="contact-widget__file-label">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16.5 6V17.5C16.5 19.71 14.71 21.5 12.5 21.5C10.29 21.5 8.5 19.71 8.5 17.5V5C8.5 3.62 9.62 2.5 11 2.5C12.38 2.5 13.5 3.62 13.5 5V15.5C13.5 16.05 13.05 16.5 12.5 16.5C11.95 16.5 11.5 16.05 11.5 15.5V6H10V15.5C10 16.88 11.12 18 12.5 18C13.88 18 15 16.88 15 15.5V5C15 2.79 13.21 1 11 1C8.79 1 7 2.79 7 5V17.5C7 20.54 9.46 23 12.5 23C15.54 23 18 20.54 18 17.5V6H16.5Z" fill="currentColor"/>
+              </svg>
+              Add up to 5 files
+            </label>
+          </div>
+          <div class="contact-widget__file-list" id="usagov-file-list"></div>
+
+          <button type="submit" class="contact-widget__submit">Send</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
