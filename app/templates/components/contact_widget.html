@@ -41,6 +41,9 @@
 
     <!-- Panel content -->
     <div class="contact-widget__panel-content">
+      <!-- Alert container for HTMX responses -->
+      <div id="contact-widget-alert"></div>
+
       <!-- Flash messages -->
       {% if get_flashed_messages(with_categories=true) %}
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -72,9 +75,11 @@
 
       <!-- Default Ticket Form -->
       <div id="widget-form-default" class="contact-widget__screen" style="display: none;">
-        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
+        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data"
+              hx-post="{{ url_for('main.contact_submit') }}"
+              hx-target="#contact-widget-alert"
+              hx-swap="innerHTML">
           <input type="hidden" name="form_type" value="default">
-          <!-- Honeypot field for bot detection -->
           <input type="hidden" name="website" value="">
 
           <h3 class="contact-widget__form-title">Default Ticket Form</h3>
@@ -159,9 +164,11 @@
 
       <!-- Data.gov Feedback Form -->
       <div id="widget-form-feedback" class="contact-widget__screen" style="display: none;">
-        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
+        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data"
+              hx-post="{{ url_for('main.contact_submit') }}"
+              hx-target="#contact-widget-alert"
+              hx-swap="innerHTML">
           <input type="hidden" name="form_type" value="feedback">
-          <!-- Honeypot field for bot detection -->
           <input type="hidden" name="website" value="">
 
           <h3 class="contact-widget__form-title">Data.gov Feedback</h3>
@@ -246,7 +253,10 @@
 
       <!-- Contact USAGov Form -->
       <div id="widget-form-usagov" class="contact-widget__screen" style="display: none;">
-        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data">
+        <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form" enctype="multipart/form-data"
+              hx-post="{{ url_for('main.contact_submit') }}"
+              hx-target="#contact-widget-alert"
+              hx-swap="innerHTML">
           <input type="hidden" name="form_type" value="usagov">
           <!-- Honeypot field for bot detection -->
           <input type="hidden" name="website" value="">
