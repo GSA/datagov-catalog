@@ -161,7 +161,7 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
     if not all(
         [SMTP_CONFIG["server"], SMTP_CONFIG["username"], SMTP_CONFIG["password"]]
     ):
-        print(f"[EMAIL ERROR] SMTP configuration is incomplete", flush=True)
+        print("[EMAIL ERROR] SMTP configuration is incomplete", flush=True)
         logger.error("SMTP configuration is incomplete")
         return False
 
