@@ -28,6 +28,7 @@ applications:
       - ((app_name))-secrets
       - ((app_name))-s3
       - ((app_name))-opensearch
+      - ((app_name))-smtp
       - logstack-space-drain
     instances: ((instances))
     memory: 1G
