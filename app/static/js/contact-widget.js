@@ -78,6 +78,35 @@
       }, 500);
     }
 
+    // Listen for HTMX responses to handle success and errors
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+      if (event.detail.target.id === 'contact-widget-alert') {
+        const alertElement = event.detail.target.querySelector('.usa-alert');
+        if (alertElement) {
+          const message = alertElement.querySelector('.usa-alert__text').textContent;
+          event.detail.target.innerHTML = '';
+
+          if (alertElement.classList.contains('usa-alert--success')) {
+            showToast(message, 'success');
+            setTimeout(function() {
+              closePanel();
+              const form = event.detail.elt;
+              if (form && form.tagName === 'FORM') {
+                form.reset();
+                const formType = form.querySelector('input[name="form_type"]').value;
+                const fileList = document.getElementById(formType + '-file-list');
+                if (fileList) {
+                  fileList.innerHTML = '';
+                }
+              }
+            }, 500);
+          } else {
+            showToast(message, 'error');
+          }
+        }
+      }
+    });
+
     function openPanel() {
       button.setAttribute('aria-expanded', 'true');
       panel.setAttribute('aria-hidden', 'false');
@@ -213,6 +242,33 @@
         });
         fileInput.files = dataTransfer.files;
       }
+    }
+
+    function showToast(message, type) {
+      const existingToast = document.getElementById('contact-widget-toast');
+      if (existingToast) {
+        existingToast.remove();
+      }
+
+      const isSuccess = type === 'success';
+      const icon = isSuccess
+        ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>'
+        : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/></svg>';
+
+      const toast = document.createElement('div');
+      toast.id = 'contact-widget-toast';
+      toast.className = 'contact-widget-toast contact-widget-toast--' + type + ' contact-widget-toast--show';
+      toast.setAttribute('role', isSuccess ? 'status' : 'alert');
+      toast.setAttribute('aria-live', 'polite');
+      toast.innerHTML = icon + '<span>' + message + '</span>';
+      document.body.appendChild(toast);
+
+      setTimeout(function() {
+        toast.classList.add('contact-widget-toast--hide');
+        setTimeout(function() {
+          toast.remove();
+        }, 300);
+      }, isSuccess ? 4000 : 5000);
     }
   }
 })();

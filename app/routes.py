@@ -1186,12 +1186,11 @@ def contact():
 @main.route("/contact-submit", methods=["POST"])
 def contact_submit():
     """Handle contact form submission with optional file attachments."""
+    import sys
     from urllib.parse import urlparse
 
-    # Check honeypot field (should be empty for legitimate users)
     honeypot = request.form.get("website", "")
     if honeypot:
-        # Silently reject bot submissions
         return redirect(url_for("main.index"))
 
     name = request.form.get("name", "").strip()
@@ -1200,8 +1199,11 @@ def contact_submit():
     message = request.form.get("message", "").strip()
     form_type = request.form.get("form_type", "default").strip()
 
-    # Validate referrer to prevent open redirect attacks:
-    # only allow local relative paths (no scheme, no host).
+    logger.info(f"[CONTACT FORM] Received submission from {email}")
+    print(
+        f"[CONTACT FORM] Received submission from {email}", file=sys.stderr, flush=True
+    )
+
     referrer = request.referrer or ""
     normalized_referrer = referrer.replace("\\", "/")
     parsed = urlparse(normalized_referrer)
@@ -1211,43 +1213,79 @@ def contact_submit():
         referrer = normalized_referrer or url_for("main.index")
 
     if not all([name, email, subject, message]):
-        flash("All fields are required.", "error")
+        error_msg = "All fields are required."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
         return redirect(referrer)
 
     if not validate_email(email):
-        flash("Please enter a valid email address.", "error")
+        error_msg = "Please enter a valid email address."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
         return redirect(referrer)
 
     if len(message) < 10:
-        flash(
-            "Please provide a more detailed message (at least 10 characters).", "error"
-        )
+        error_msg = "Please provide a more detailed message (at least 10 characters)."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
         return redirect(referrer)
 
-    # Validate input lengths to prevent abuse
     if len(name) > 100:
-        flash("Name is too long (maximum 100 characters).", "error")
+        error_msg = "Name is too long (maximum 100 characters)."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
         return redirect(referrer)
 
     if len(subject) > 200:
-        flash("Subject is too long (maximum 200 characters).", "error")
+        error_msg = "Subject is too long (maximum 200 characters)."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
         return redirect(referrer)
 
     if len(message) > 2000:
-        flash("Message is too long (maximum 2000 characters).", "error")
+        error_msg = "Message is too long (maximum 2000 characters)."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
         return redirect(referrer)
 
-    # Handle file attachments (up to 5 files)
     attachments = request.files.getlist("attachments")
     if len(attachments) > 5:
-        flash("You can only upload up to 5 files.", "error")
+        error_msg = "You can only upload up to 5 files."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
         return redirect(referrer)
 
-    # Filter out empty file uploads
     attachments = [f for f in attachments if f and f.filename]
 
-    # Validate file sizes and types
-    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB per file
+    MAX_FILE_SIZE = 10 * 1024 * 1024
     ALLOWED_EXTENSIONS = {
         ".pdf",
         ".doc",
@@ -1263,29 +1301,33 @@ def contact_submit():
     }
 
     for file in attachments:
-        # Check file size
-        file.seek(0, 2)  # Seek to end
+        file.seek(0, 2)
         file_size = file.tell()
-        file.seek(0)  # Reset to beginning
+        file.seek(0)
 
         if file_size > MAX_FILE_SIZE:
-            flash(
-                f"File '{file.filename}' is too large. Maximum size is 10MB.", "error"
-            )
+            error_msg = f"File '{file.filename}' is too large. Maximum size is 10MB."
+            logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+            flash(error_msg, "error")
+            if htmx:
+                return render_template(
+                    "components/contact_alert.html", message=error_msg, category="error"
+                )
             return redirect(referrer)
 
-        # Validate file extension
         import os
 
         file_ext = os.path.splitext(file.filename.lower())[1]
         if file_ext not in ALLOWED_EXTENSIONS:
-            flash(
-                f"File type '{file_ext}' is not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, images.",
-                "error",
-            )
+            error_msg = f"File type '{file_ext}' is not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, images."
+            logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+            flash(error_msg, "error")
+            if htmx:
+                return render_template(
+                    "components/contact_alert.html", message=error_msg, category="error"
+                )
             return redirect(referrer)
 
-    # Validate form_type to prevent injection
     allowed_form_types = ["default", "feedback", "usagov"]
     if form_type not in allowed_form_types:
         form_type = "default"
@@ -1298,12 +1340,9 @@ def contact_submit():
     form_label = form_type_labels[form_type]
 
     recipient = SMTP_CONFIG["recipient"]
-    # Sanitize subject to prevent header injection
     sanitized_subject = subject.replace("\n", " ").replace("\r", " ")
     email_subject = f"Data.gov {form_label}: {sanitized_subject}"
 
-    # All user inputs are safely included in the body
-    # MIMEText will handle proper encoding
     body = f"""Contact form submission from Data.gov
 
 Form Type: {form_label}
@@ -1321,18 +1360,34 @@ This message was sent via the Data.gov contact widget.
     if attachments:
         body += f"\n{len(attachments)} file(s) attached."
 
+    logger.info(f"[CONTACT FORM] Attempting to send email to {recipient}")
+    print(
+        f"[CONTACT FORM] Attempting to send email to {recipient}",
+        file=sys.stderr,
+        flush=True,
+    )
+
     success = send_email(recipient, email_subject, body, attachments=attachments)
 
+    logger.info(f"[CONTACT FORM] Email send result: {success}")
+    print(f"[CONTACT FORM] Email send result: {success}", file=sys.stderr, flush=True)
+
     if success:
-        flash(
-            "Thank you for your message! We will respond as soon as possible.",
-            "success",
-        )
+        success_msg = "Thank you for your message! We will respond as soon as possible."
+        flash(success_msg, "success")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=success_msg, category="success"
+            )
     else:
-        flash(
-            "Sorry, there was an error sending your message. Please try again later.",
-            "error",
+        error_msg = (
+            "Sorry, there was an error sending your message. Please try again later."
         )
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
 
     return redirect(referrer)
 
