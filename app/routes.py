@@ -534,11 +534,12 @@ def search(**kwargs):
     try:
         result = interface.search_datasets(criteria)
     except InvalidCursorError as error:
+        logger.warning("Invalid cursor parameter provided", exc_info=error)
         return (
             jsonify(
                 {
                     "error": "Invalid cursor parameter",
-                    "message": str(error),
+                    "message": "The provided cursor is invalid.",
                 }
             ),
             400,
