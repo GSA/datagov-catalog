@@ -263,6 +263,70 @@ def test_search_api_paginate_after(
             after = response.json["after"]
 
 
+def test_search_with_invalid_cursor_returns_400_json(db_client):
+    """Test that invalid after cursor returns 400 with JSON error."""
+    response = db_client.get("/search?after=NOTAVALIDCURSOR")
+
+    assert response.status_code == 400
+    assert response.content_type == "application/json"
+
+    data = response.get_json()
+    assert "error" in data
+    assert "cursor" in data["error"].lower() or "invalid" in data["error"].lower()
+
+
+def test_search_with_malformed_cursor_base64_returns_400(db_client):
+    """Test that malformed base64 cursor returns 400."""
+    response = db_client.get("/search?after=!!!invalid-base64!!!")
+
+    assert response.status_code == 400
+    assert response.content_type == "application/json"
+
+
+def test_search_with_valid_cursor_works(
+    interface_with_dataset, db_client, opensearch_writer
+):
+    """Test that valid cursor still works correctly."""
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(5):
+        dataset_dict["id"] = str(uuid4())
+        dataset_dict["slug"] = f"cursor-test-{i}"
+        dataset_dict["dcat"] = {"title": f"cursor test {i}"}
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
+    interface_with_dataset.db.commit()
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"q": "cursor", "per_page": "2"}
+        )
+        assert response.status_code == 200
+
+        data = response.get_json()
+        if "after" in data:
+            cursor = data["after"]
+            response2 = db_client.get(
+                "/search",
+                query_string={"q": "cursor", "per_page": "2", "after": cursor},
+            )
+
+            assert response2.status_code == 200
+            data2 = response2.get_json()
+            assert "results" in data2
+
+
+def test_search_without_cursor_still_works(db_client):
+    """Test that search without cursor parameter works unchanged."""
+    response = db_client.get("/search", query_string={"q": "test"})
+
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+
+    data = response.get_json()
+    assert "results" in data
+    assert "sort" in data
+
+
 def test_search_api_by_org_slug(interface_with_dataset, db_client):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(
