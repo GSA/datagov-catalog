@@ -28,6 +28,12 @@ from app.search.spatial import calc_distance_km, calc_geometry_centroid
 logger = logging.getLogger(__name__)
 
 
+class InvalidCursorError(ValueError):
+    """Raised when cursor parameter cannot be decoded."""
+
+    pass
+
+
 @dataclass
 class SearchResult:
     total: int
@@ -113,8 +119,27 @@ class SearchResult:
 
     @staticmethod
     def decode_search_after(encoded_after):
-        """Decode the encoded representation of self.search_after."""
-        return json.loads(base64.urlsafe_b64decode(encoded_after).decode("utf-8"))
+        """Decode the encoded representation of self.search_after.
+
+        Raises:
+            InvalidCursorError: If cursor is malformed or invalid format.
+        """
+        if not encoded_after:
+            raise InvalidCursorError("Invalid cursor format: empty cursor")
+
+        try:
+            decoded_bytes = base64.urlsafe_b64decode(encoded_after)
+            decoded_str = decoded_bytes.decode("utf-8")
+            result = json.loads(decoded_str)
+        except (ValueError, UnicodeDecodeError) as e:
+            raise InvalidCursorError(f"Invalid cursor format: {e}") from e
+
+        if not isinstance(result, list):
+            raise InvalidCursorError(
+                f"Invalid cursor format: expected list, got {type(result).__name__}"
+            )
+
+        return result
 
 
 class OpenSearchReader:
