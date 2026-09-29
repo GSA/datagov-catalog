@@ -636,6 +636,16 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "title": "Dataset with Very Long Resource Titles",
                 },
             ),
+            dict(
+                id="enviroatlas_test_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://catalog.data.gov/dataset/enviroatlas-2010-dasymetric-population-conus-v3",
+                source_raw='{"title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3"}',
+                source_transform={
+                    "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3",
+                },
+            ),
         ],
         "dataset": [
             dict(
@@ -1013,6 +1023,48 @@ def fixture_data(*, include_filter_demos: bool = False):
                     ],
                 },
                 harvest_record_id="dataset_long_resource_titles_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="enviroatlas-test",
+                slug="enviroatlas-2010-dasymetric-population-conus-v3",
+                dcat={
+                    "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3",
+                    "description": "This EnviroAtlas dataset intelligently reallocates 2010 population from census blocks to 30 meter pixels based on land cover and imperviousness. The dataset is provided by the US EPA Office of Research and Development related to EnviroAtlas.",
+                    "keyword": ["environment", "population", "dasymetric"],
+                    "publisher": {
+                        "name": "U.S. EPA Office of Research and Development (ORD)"
+                    },
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "https://gaftp.epa.gov/EPADataCommons/ORD/EnviroAtlas/InReview/2010_Dasymetric_Population_CONUS_V3.zip",
+                            "format": "ZIP",
+                            "accessURL": "https://gaftp.epa.gov/EPADataCommons/ORD/EnviroAtlas/InReview/2010_Dasymetric_Population_CONUS_V3.zip",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - County Level Error.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_County_Level_Error.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - Representative population densities.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_Representative_population_densities.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - State Level Error.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_State_Level_Error.xlsx",
+                        },
+                    ],
+                },
+                harvest_record_id="enviroatlas_test_record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
