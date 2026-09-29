@@ -626,6 +626,16 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "isPartOf": None,
                 },
             ),
+            dict(
+                id="dataset_long_resource_titles_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/long-titles/example.json",
+                source_raw='{"title": "Dataset with Very Long Resource Titles"}',
+                source_transform={
+                    "title": "Dataset with Very Long Resource Titles",
+                },
+            ),
         ],
         "dataset": [
             dict(
@@ -962,6 +972,47 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "isPartOf": None,
                 },
                 harvest_record_id="dataset_without_collection_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="dataset-long-resource-titles",
+                slug="dataset-long-resource-titles",
+                dcat={
+                    "title": "Dataset with Very Long Resource Titles",
+                    "description": "A test dataset with resources that have extremely long titles to test UI layout and text wrapping behavior",
+                    "keyword": ["testing", "ui", "layout"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Test Contact",
+                        "hasEmail": "mailto:test@example.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - County Level Error Analysis and Validation Report",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-county-level-error.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - Representative Population Densities by Land Cover Classification",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-population-densities.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - State Level Error Analysis",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-state-level-error.xlsx",
+                        },
+                        {
+                            "title": "Short Title",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/short.csv",
+                            "accessURL": "https://example.com/view/short",
+                        },
+                    ],
+                },
+                harvest_record_id="dataset_long_resource_titles_record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
