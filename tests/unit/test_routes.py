@@ -949,7 +949,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 68"
+    assert datasets_text == "Datasets: 70"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -998,7 +998,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 68"
+    assert overview_items[1].text.strip() == "Total datasets: 70"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -1365,6 +1365,38 @@ def test_harvest_record_raw_returns_xml(interface_with_harvest_record, db_client
     assert response.status_code == 200
     assert response.mimetype == "application/xml"
     assert response.get_data(as_text=True) == "<xml>value</xml>"
+
+
+def test_harvest_record_raw_xml_correct_namespaces(
+    interface_with_harvest_record, db_client
+):
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(
+            "/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
+        )
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+    # namespaces show up as intended
+    assert "gmi" in response.get_data(as_text=True)
+
+    with patch(
+        "app.routes.ElementTree.register_namespace",
+        return_value=None,
+    ):
+        with patch(
+            "app.routes.interface",
+            interface_with_harvest_record,
+        ):
+            response = db_client.get(
+                "/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
+            )
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+
+    # namespaces don't show up as intended (defaults are used)
+    assert "ns0" in response.get_data(as_text=True)
 
 
 def test_harvest_record_raw_not_found(interface_with_harvest_record, db_client):
@@ -2865,18 +2897,12 @@ def test_index_collection(interface_with_dataset, db_client):
     collection_card = soup.select_one("div.collection-card")
     assert collection_card is not None
 
+    # this record has no parent_identifier of its own, so the badge (which
+    # would otherwise link back to the record itself) must not render
     collection_card_view_badge = collection_card.select_one(
         "span.collection-card__badge"
     )
-    assert collection_card_view_badge is not None
-    assert (
-        collection_card_view_badge.select_one("a")["href"]
-        == "/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
-    )
-    assert (
-        collection_card_view_badge.select_one("a.collection-card__collection-link")
-        is not None
-    )
+    assert collection_card_view_badge is None
 
     collection_card_title = collection_card.select_one("h2.collection-card__title")
     assert collection_card_title is not None
@@ -2935,9 +2961,9 @@ def test_index_collection(interface_with_dataset, db_client):
 
 
 def test_index_collection_root_without_ispartof(interface_with_dataset, db_client):
-    """A collection root (data_service/data_series) has no dcat.isPartOf of its own -
-    the collection card's "View Collection" link must use the root's own identifier
-    instead, or rendering 500s.
+    """A collection root (data_service/data_series) has no dcat.isPartOf of its own,
+    i.e. it doesn't belong to a further parent collection, so the collection card
+    should not render a "View Collection" badge (there's nothing else to link to).
     """
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?collection=https://example.gov/services/climate")
@@ -2951,11 +2977,7 @@ def test_index_collection_root_without_ispartof(interface_with_dataset, db_clien
     collection_card_view_badge = collection_card.select_one(
         "span.collection-card__badge"
     )
-    assert collection_card_view_badge is not None
-    assert (
-        collection_card_view_badge.select_one("a")["href"]
-        == "/?collection=https://example.gov/services/climate"
-    )
+    assert collection_card_view_badge is None
 
 
 def test_index_collection_query(interface_with_dataset, db_client):

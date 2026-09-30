@@ -523,6 +523,85 @@ class TestDatasetDetail:
         assert email_link is not None
         assert email_link.get("href") == "mailto:climate-api@example.gov"
 
+    def test_sidebar_access_level_label(self, interface_with_dataset, db_client):
+        """
+        The Access & Use sidebar label should reflect the legacy DCAT-US 1.1
+        accessLevel field when present.
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {**ds.dcat, "accessLevel": "restricted public"}
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        access_box = next(
+            (
+                h.find_parent("div", class_="sidebar-section")
+                for h in soup.select(".sidebar-section__heading")
+                if h.get_text(strip=True) == "Access & Use"
+            ),
+            None,
+        )
+        assert access_box is not None
+        access_item = next(
+            (
+                item
+                for item in access_box.select(".sidebar-section__item")
+                if item.select_one(".sidebar-section__value").get_text(strip=True)
+                == "restricted public"
+            ),
+            None,
+        )
+        assert access_item is not None
+        assert (
+            access_item.select_one(".sidebar-section__label").get_text(strip=True)
+            == "Access Level"
+        )
+
+    def test_sidebar_access_rights_label(self, interface_with_dataset, db_client):
+        """
+        DCAT-US 3.0 records may only have accessRights (no legacy
+        accessLevel) — the sidebar label must say "Access Rights" in that
+        case instead of the stale DCAT-US 1.1 "Access Level" label.
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {**ds.dcat, "accessRights": "restricted public"}
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        access_box = next(
+            (
+                h.find_parent("div", class_="sidebar-section")
+                for h in soup.select(".sidebar-section__heading")
+                if h.get_text(strip=True) == "Access & Use"
+            ),
+            None,
+        )
+        assert access_box is not None
+        access_item = next(
+            (
+                item
+                for item in access_box.select(".sidebar-section__item")
+                if item.select_one(".sidebar-section__value").get_text(strip=True)
+                == "restricted public"
+            ),
+            None,
+        )
+        assert access_item is not None
+        assert (
+            access_item.select_one(".sidebar-section__label").get_text(strip=True)
+            == "Access Rights"
+        )
+
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
         Test that the landingPage key in the Complete Metadata section

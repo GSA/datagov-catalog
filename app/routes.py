@@ -59,6 +59,7 @@ from .utils import (
     hint_from_dict,
     json_not_found,
     pop_doc_by_identifier,
+    register_iso_namespaces,
     valid_id_required,
 )
 
@@ -632,6 +633,8 @@ def get_harvest_record_raw(record_id: str) -> Response:
     formatted_output = source_raw
     stripped_source = source_raw.strip()
 
+    orig_et_map = ElementTree._namespace_map.copy()
+
     if stripped_source:
         try:
             parsed_json = json.loads(stripped_source)
@@ -641,6 +644,9 @@ def get_harvest_record_raw(record_id: str) -> Response:
             mimetype = "application/json"
         except (TypeError, json.JSONDecodeError):
             try:
+                # to avoid default namespaces
+                # https://github.com/GSA/data.gov/issues/6328
+                register_iso_namespaces(ElementTree)
                 xml_tree = ElementTree.fromstring(stripped_source)
                 ElementTree.indent(xml_tree, space="  ", level=0)
                 formatted_output = ElementTree.tostring(
@@ -649,6 +655,10 @@ def get_harvest_record_raw(record_id: str) -> Response:
                 mimetype = "application/xml"
             except (ElementTree.ParseError, SyntaxError):
                 pass
+            finally:
+                # restore the original state
+                ElementTree._namespace_map.clear()
+                ElementTree._namespace_map.update(orig_et_map)
 
     return Response(formatted_output, mimetype=mimetype)
 

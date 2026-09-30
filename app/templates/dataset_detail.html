@@ -361,7 +361,9 @@
 
                     {% if normalized_dcat.accessLevel %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Access Level</div>
+                        <div class="sidebar-section__label">
+                            {{ 'Access Level' if dataset.dcat.get('accessLevel') else 'Access Rights' }}
+                        </div>
                         <div class="sidebar-section__value">{{ normalized_dcat.accessLevel }}</div>
                     </div>
                     {% endif %}

@@ -547,11 +547,11 @@ def fixture_data(*, include_filter_demos: bool = False):
                 parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
             ),
             dict(
-                id="child_harvest_record_3",
+                id="6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d",
                 harvest_source_id="1",
                 harvest_job_id="1",
                 identifier="https://subdomain.domain/child3/example.shp.iso.xml",
-                source_raw='{"title": "Child Harvest Record 3": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_raw="""<gmi:MI_Metadata xmlns:gmi="http://www.isotc211.org/2005/gmi" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmi https://data.noaa.gov/resources/iso19139/schema.xsd" uuid="970d64c5-189b-4966-9310-67069782a3fc"><gmd:fileIdentifier><gco:CharacterString>gov.noaa.nmfs.inport:39738</gco:CharacterString></gmd:fileIdentifier></gmi:MI_Metadata>""",
                 source_transform={
                     "title": "Child Harvest Record 3",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
@@ -624,6 +624,26 @@ def fixture_data(*, include_filter_demos: bool = False):
                 source_transform={
                     "title": "Dataset Without Collection",
                     "isPartOf": None,
+                },
+            ),
+            dict(
+                id="dataset_long_resource_titles_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/long-titles/example.json",
+                source_raw='{"title": "Dataset with Very Long Resource Titles"}',
+                source_transform={
+                    "title": "Dataset with Very Long Resource Titles",
+                },
+            ),
+            dict(
+                id="enviroatlas_test_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://catalog.data.gov/dataset/enviroatlas-2010-dasymetric-population-conus-v3",
+                source_raw='{"title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3"}',
+                source_transform={
+                    "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3",
                 },
             ),
         ],
@@ -967,6 +987,89 @@ def fixture_data(*, include_filter_demos: bool = False):
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
             ),
             dict(
+                id="dataset-long-resource-titles",
+                slug="dataset-long-resource-titles",
+                dcat={
+                    "title": "Dataset with Very Long Resource Titles",
+                    "description": "A test dataset with resources that have extremely long titles to test UI layout and text wrapping behavior",
+                    "keyword": ["testing", "ui", "layout"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Test Contact",
+                        "hasEmail": "mailto:test@example.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - County Level Error Analysis and Validation Report",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-county-level-error.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - Representative Population Densities by Land Cover Classification",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-population-densities.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - State Level Error Analysis",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-state-level-error.xlsx",
+                        },
+                        {
+                            "title": "Short Title",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/short.csv",
+                            "accessURL": "https://example.com/view/short",
+                        },
+                    ],
+                },
+                harvest_record_id="dataset_long_resource_titles_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="enviroatlas-test",
+                slug="enviroatlas-2010-dasymetric-population-conus-v3",
+                dcat={
+                    "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3",
+                    "description": "This EnviroAtlas dataset intelligently reallocates 2010 population from census blocks to 30 meter pixels based on land cover and imperviousness. The dataset is provided by the US EPA Office of Research and Development related to EnviroAtlas.",
+                    "keyword": ["environment", "population", "dasymetric"],
+                    "publisher": {
+                        "name": "U.S. EPA Office of Research and Development (ORD)"
+                    },
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "https://gaftp.epa.gov/EPADataCommons/ORD/EnviroAtlas/InReview/2010_Dasymetric_Population_CONUS_V3.zip",
+                            "format": "ZIP",
+                            "accessURL": "https://gaftp.epa.gov/EPADataCommons/ORD/EnviroAtlas/InReview/2010_Dasymetric_Population_CONUS_V3.zip",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - County Level Error.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_County_Level_Error.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - Representative population densities.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_Representative_population_densities.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - State Level Error.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_State_Level_Error.xlsx",
+                        },
+                    ],
+                },
+                harvest_record_id="enviroatlas_test_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
                 id="child1234568",
                 slug="child-harvest-record-2",
                 dcat={
@@ -1010,7 +1113,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "identifier": "https://subdomain.domain/child3/example.shp.iso.xml",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
                 },
-                harvest_record_id="child_harvest_record_3",
+                harvest_record_id="6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
