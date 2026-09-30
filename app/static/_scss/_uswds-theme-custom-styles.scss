@@ -822,6 +822,8 @@ details {
     color: #1b1b1b;
     line-height: 1.4;
     margin-bottom: 0.25rem;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .resources-list--main .resources-list__format {
