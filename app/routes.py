@@ -1136,7 +1136,7 @@ def get_location_by_id_api(location_id, **kwargs):
     return jsonify(
         {
             "id": location_obj[0],
-            "geometry": location_obj[1],
+            "geometry": json.loads(location_obj[1]) if location_obj[1] else None,
         }
     )
 
