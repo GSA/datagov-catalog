@@ -418,6 +418,9 @@ def remove_html_tags(text: str) -> str:
     return soup.get_text()
 
 
+_URL_RE = re.compile(r"^https?://", re.IGNORECASE)
+
+
 def json_to_semantic_html(obj, indent=2, level=0):
     """
     render a Python dict/list as semantic JSON HTML
@@ -468,6 +471,13 @@ def json_to_semantic_html(obj, indent=2, level=0):
 
     # Scalars
     if isinstance(obj, str):
+        if _URL_RE.match(obj):
+            escaped = html.escape(obj)
+            return (
+                '<span class="string">"'
+                f'<a href="{escaped}" target="_blank" rel="noopener">{escaped}</a>'
+                '"</span>'
+            )
         return f'<span class="string">"{html.escape(obj)}"</span>'
 
     if isinstance(obj, bool):
