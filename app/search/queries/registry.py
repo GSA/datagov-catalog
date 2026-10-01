@@ -409,17 +409,33 @@ def build_organization_counts_query(size=100, min_doc_count=1) -> dict[str, Any]
     }
 
 
-def build_publisher_counts_query(size=100, min_doc_count=1) -> dict[str, Any]:
+def build_publisher_counts_query(
+    total_unique: int,
+    from_page: int,
+    min_doc_count: int = 1,
+    page_size: int = 100,
+) -> dict[str, Any]:
     return {
         "size": 0,
         "aggs": {
             "unique_publishers": {
                 "terms": {
                     "field": "publisher.raw",
-                    "size": size,
+                    "size": total_unique,
                     "min_doc_count": min_doc_count,
-                    "order": {"_count": "desc"},
-                }
+                },
+                "aggs": {
+                    "page_and_sort": {
+                        "bucket_sort": {
+                            "sort": [
+                                {"_count": {"order": "desc"}},
+                                {"_key": {"order": "asc"}},
+                            ],
+                            "from": from_page,
+                            "size": page_size,
+                        }
+                    }
+                },
             }
         },
     }

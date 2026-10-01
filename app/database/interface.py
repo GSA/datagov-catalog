@@ -459,17 +459,17 @@ class CatalogDBInterface:
                 .all()
             )
 
-    def get_top_publishers(self) -> list[dict]:
-        """Return the top 100 publishers ordered by dataset count."""
-        publishers = self.opensearch.get_publisher_counts(size=100)
+    def get_unique_publishers(self, page_size: int, from_page: int) -> list[dict]:
+        """Return total unique publisher count and ordered by dataset count with name as tie-breaker"""
 
-        return sorted(
-            publishers,
-            key=lambda item: (
-                -item["count"],
-                item["name"].lower(),
-            ),
+        total_unique_publishers = self.opensearch.get_total_unique_publishers_count()
+        if total_unique_publishers == 0:
+            return 0, {}
+        publishers_page = self.opensearch.get_publisher_counts(
+            page_size, from_page, total_unique_publishers
         )
+
+        return total_unique_publishers, publishers_page
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:
