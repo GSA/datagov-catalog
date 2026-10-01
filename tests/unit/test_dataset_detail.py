@@ -636,6 +636,46 @@ class TestDatasetDetail:
         assert anchor.get("href") == landing_page_url
         assert anchor.get_text(strip=True) == landing_page_url
 
+    def test_metadata_landing_page_object_is_pretty_json_with_linked_url(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        DCAT-US 3.0 allows landingPage to be an object (@type: Document,
+        title, accessURL) instead of a plain URL string. It should render as
+        pretty-printed JSON, keeping every field, with accessURL turned into
+        a clickable link rather than collapsing the object into a single anchor.
+        """
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test-dcat-3-0")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        metadata_table = soup.select_one("table.metadata-table")
+        assert metadata_table is not None
+
+        landing_page_row = next(
+            (
+                row
+                for row in metadata_table.select("tr")
+                if row.select_one("th").get_text(strip=True) == "landingPage"
+            ),
+            None,
+        )
+        assert landing_page_row is not None
+
+        pre = landing_page_row.select_one("td pre.json")
+        assert pre is not None
+        assert "Sample Dataset Landing Page" in pre.get_text()
+        assert "Document" in pre.get_text()
+
+        anchor = pre.select_one("a")
+        assert anchor is not None
+        assert anchor.get("href") == "https://example.gov/datasets/sample-dcat-3-0"
+        assert anchor.get_text(strip=True) == (
+            "https://example.gov/datasets/sample-dcat-3-0"
+        )
+
     def test_check_jsonld(self, interface_with_dataset, db_client):
 
         with patch("app.routes.interface", interface_with_dataset):
