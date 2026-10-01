@@ -457,6 +457,24 @@ def test_get_publishers_api_handles_errors(db_client):
     assert "some internal error containing sensitive information" not in response.text
 
 
+def test_get_publishers_api(interface_with_dataset, db_client):
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/publishers")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["total"] == 20
+        assert len(data["publishers"]) == 20
+
+        # out of bounds so no publishers
+        response = db_client.get("/api/publishers?from_page=50")
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "publishers": [],
+            "total": 20,
+        }
+
+
 def test_get_opensearch_health_api_returns_data(db_client):
     mock_interface = Mock()
     mock_interface.opensearch = Mock()

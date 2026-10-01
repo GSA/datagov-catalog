@@ -226,3 +226,8 @@ class StatsResult(Schema):
     meta = Nested(StatsMeta)
     metrics = Nested(StatsMetrics)
     results = Nested(StatsResults)
+
+
+class PublishersQuery(Schema):
+    page_size = Integer()
+    from_page = Integer()

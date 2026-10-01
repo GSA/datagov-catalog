@@ -38,6 +38,7 @@ from .api_schemas import (
     LocationsResults,
     OpensearchHealth,
     OrganizationsResults,
+    PublishersQuery,
     PublishersResults,
     SearchQuery,
     SearchResults,
@@ -1002,17 +1003,27 @@ def get_organizations_api(**kwargs):
 
 
 @api.route("/api/publishers", methods=["GET"])
+@api.input(PublishersQuery, location="query")
 @api.output(PublishersResults)
-@api.doc(description="Get the top 100 publishers")
+@api.doc(description="Get unique publishers by count")
 def get_publishers_api(**kwargs):
-    """Fetch the top 100 publishers."""
+    """Fetch unique publishers based on count."""
+    page_size = request.args.get("page_size", 100, type=int)
+    from_page = request.args.get("from_page", 0, type=int)
+
+    # ensure page size is valid
+    page_size = page_size if (1000 >= page_size >= 1) else 100
+
+    # ensure from page is valid
+    from_page = from_page if from_page >= 0 else 0
+    from_page = from_page * page_size
 
     try:
-        publishers = interface.get_top_publishers()
+        total, publishers = interface.get_unique_publishers(page_size, from_page)
         return jsonify(
             {
                 "publishers": publishers,
-                "total": len(publishers),
+                "total": total,
             }
         )
     except Exception:
