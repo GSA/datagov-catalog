@@ -166,11 +166,12 @@ def test_location_search_api_endpoint_hides_internal_exception(db_client):
 def test_location_api_by_id(interface_with_location, db_client):
     with patch("app.routes.interface", interface_with_location):
         response = db_client.get("/api/location/1")
-    assert response.json is not None
-    assert "id" in response.json
-    assert "geometry" in response.json
-    assert "type" in response.json["geometry"]
-    assert "coordinates" in response.json["geometry"]
+    assert response.status_code == 200
+    assert response.json["id"] == "1"
+    geometry = response.json["geometry"]
+    assert isinstance(geometry, dict)
+    assert geometry["type"] == "MultiPolygon"
+    assert geometry["coordinates"]
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_writer):
