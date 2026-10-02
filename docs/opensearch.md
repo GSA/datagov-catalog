@@ -10,7 +10,7 @@ documents and respond to search queries. Search results are collected up from
 nodes and returned in response to queries from the API. We use Opensearch from
 AWS brokered to us via Cloud.gov <https://docs.cloud.gov/platform/services/aws-elasticsearch/>.
 
-The opensearch functionality used in this app has been migrated to our [data-access](https://github.com/GSA/datagov-databases) repository but the initial entry points have remained the same (e.g. `CatalogDBInterface` is still accessible via `/app/database/__init__.py`) to limit file changes because of import statements. That could be a further improvement.
+The opensearch functionality used in this app had been temporarily migrated to our [data-access](https://github.com/GSA/datagov-databases) repository, but it has moved to the harvester repo (https://github.com/GSA/datagov-harvester) as of August 2026 (https://github.com/GSA/datagov-harvester/pull/807).
 
 ## Limitations
 
@@ -43,7 +43,7 @@ query parameter. Instead, we form an opaque `after` string that can be
 provided with an `after=...` query parameter to get the next page of results.
 The `after` string is a base64-encoded JSON serialization of the actual
 `search_after` list. The `search` endpoint in `app/routes.py` handles the
-`after` string and the passes it to the `search_datasets` method of our
+`after` string and then passes it to the `search_datasets` method of our
 database interface which decodes it and sends the actual `search_after` value
 to our Opensearch interface's `search` method.
 

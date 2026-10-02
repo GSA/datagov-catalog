@@ -92,3 +92,21 @@ def test_dataset_to_document_parent_identifier_none_without_harvest_record(
     document = dataset_doc.dataset_to_document()
 
     assert document["parent_identifier"] is None
+
+
+def test_dataset_to_document_indexes_access_level(sample_dataset):
+    sample_dataset.dcat["accessLevel"] = "restricted public"
+
+    dataset_doc = DatasetDocument(sample_dataset)
+    document = dataset_doc.dataset_to_document()
+
+    assert document["access_level"] == "restricted public"
+
+
+def test_dataset_to_document_normalizes_access_rights(sample_dataset):
+    sample_dataset.dcat["accessRights"] = "public"
+
+    dataset_doc = DatasetDocument(sample_dataset)
+    document = dataset_doc.dataset_to_document()
+
+    assert document["access_level"] == "public"
