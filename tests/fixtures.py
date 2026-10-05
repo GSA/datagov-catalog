@@ -373,6 +373,41 @@ def fixture_data(*, include_filter_demos: bool = False):
                 slug="test-org-filtered",
                 organization_type="Federal Government",
             ),
+            # Federal orgs for /code compliance page testing
+            dict(
+                id="gsa",
+                name="General Services Administration",
+                slug="gsa",
+                organization_type="Federal Government",
+                code_repo_url="https://github.com/GSA",
+            ),
+            dict(
+                id="dod",
+                name="Department of Defense",
+                slug="dod",
+                organization_type="Federal Government",
+                code_repo_exempt=True,
+            ),
+            dict(
+                id="nasa",
+                name="NASA",
+                slug="nasa",
+                organization_type="Federal Government",
+            ),
+            dict(
+                id="epa",
+                name="Environmental Protection Agency",
+                slug="epa",
+                organization_type="Federal Government",
+                code_repo_url="https://github.com/USEPA",
+            ),
+            # Non-federal org (should NOT appear on /code page)
+            dict(
+                id="california",
+                name="State of California",
+                slug="california",
+                organization_type="State Government",
+            ),
         ],
         "harvest_source": dict(
             id="1",
@@ -497,6 +532,31 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "title": "Child Harvest Record",
                     "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
                 },
+                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
+            ),
+            dict(
+                id="child_harvest_record_2",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/child2/example.shp.iso.xml",
+                source_raw='{"title": "Child Harvest Record 2": "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml"}',
+                source_transform={
+                    "title": "Child Harvest Record 2",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
+            ),
+            dict(
+                id="6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/child3/example.shp.iso.xml",
+                source_raw="""<gmi:MI_Metadata xmlns:gmi="http://www.isotc211.org/2005/gmi" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gmd="http://www.isotc211.org/2005/gmd" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmx="http://www.isotc211.org/2005/gmx" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:srv="http://www.isotc211.org/2005/srv" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmi https://data.noaa.gov/resources/iso19139/schema.xsd" uuid="970d64c5-189b-4966-9310-67069782a3fc"><gmd:fileIdentifier><gco:CharacterString>gov.noaa.nmfs.inport:39738</gco:CharacterString></gmd:fileIdentifier></gmi:MI_Metadata>""",
+                source_transform={
+                    "title": "Child Harvest Record 3",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                parent_identifier="https://subdomain.domain/parent/example.shp.iso.xml",
             ),
             dict(
                 id="child_no_parent_harvest_record",
@@ -508,6 +568,7 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "title": "Child Harvest Record",
                     "isPartOf": "https://subdomain.domain/missing_parent/example.shp.iso.xml",
                 },
+                parent_identifier="https://subdomain.domain/missing_parent/example.shp.iso.xml",
             ),
             dict(
                 id=DCAT_3_0_RECORD_ID,
@@ -517,6 +578,72 @@ def fixture_data(*, include_filter_demos: bool = False):
                 source_raw='{"title": "DCAT-US 3.0 Test Dataset"}',
                 source_transform={
                     "title": "DCAT-US 3.0 Test Dataset",
+                },
+                parent_identifier="sample-collection-2024",
+            ),
+            dict(
+                id="annual_report_series_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://example.gov/series/annual-report",
+                source_raw='{"title": "Annual Report Series"}',
+                source_transform={"title": "Annual Report Series"},
+            ),
+            dict(
+                id="annual_report_2024_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://example.gov/datasets/annual-report-2024",
+                source_raw='{"title": "Annual Report 2024"}',
+                source_transform={"title": "Annual Report 2024"},
+                parent_identifier="https://example.gov/series/annual-report",
+            ),
+            dict(
+                id="climate_data_service_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://example.gov/services/climate",
+                source_raw='{"title": "Climate Data Service"}',
+                source_transform={"title": "Climate Data Service"},
+            ),
+            dict(
+                id="climate_dataset_served_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://example.gov/datasets/climate-served",
+                source_raw='{"title": "Climate Dataset Served"}',
+                source_transform={"title": "Climate Dataset Served"},
+                parent_identifier="https://example.gov/services/climate",
+            ),
+            dict(
+                id="dataset_without_collection_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/no-collection/example.json",
+                source_raw='{"title": "Dataset Without Collection", "isPartOf": null}',
+                source_transform={
+                    "title": "Dataset Without Collection",
+                    "isPartOf": None,
+                },
+            ),
+            dict(
+                id="dataset_long_resource_titles_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://subdomain.domain/long-titles/example.json",
+                source_raw='{"title": "Dataset with Very Long Resource Titles"}',
+                source_transform={
+                    "title": "Dataset with Very Long Resource Titles",
+                },
+            ),
+            dict(
+                id="enviroatlas_test_record",
+                harvest_source_id="1",
+                harvest_job_id="1",
+                identifier="https://catalog.data.gov/dataset/enviroatlas-2010-dasymetric-population-conus-v3",
+                source_raw='{"title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3"}',
+                source_transform={
+                    "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3",
                 },
             ),
         ],
@@ -834,6 +961,165 @@ def fixture_data(*, include_filter_demos: bool = False):
                 },
             ),
             dict(
+                id="dataset-without-collection",
+                slug="dataset-without-collection",
+                dcat={
+                    "title": "Dataset Without Collection",
+                    "description": "A dataset with an explicit null isPartOf; not part of any collection",
+                    "keyword": ["standalone"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "Standalone Data",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/standalone.csv",
+                        }
+                    ],
+                    "isPartOf": None,
+                },
+                harvest_record_id="dataset_without_collection_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="dataset-long-resource-titles",
+                slug="dataset-long-resource-titles",
+                dcat={
+                    "title": "Dataset with Very Long Resource Titles",
+                    "description": "A test dataset with resources that have extremely long titles to test UI layout and text wrapping behavior",
+                    "keyword": ["testing", "ui", "layout"],
+                    "publisher": {"name": "test publisher"},
+                    "contactPoint": {
+                        "fn": "Test Contact",
+                        "hasEmail": "mailto:test@example.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - County Level Error Analysis and Validation Report",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-county-level-error.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - Representative Population Densities by Land Cover Classification",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-population-densities.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - State Level Error Analysis",
+                            "format": "XLSX",
+                            "downloadURL": "https://example.com/very-long-filename-state-level-error.xlsx",
+                        },
+                        {
+                            "title": "Short Title",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/short.csv",
+                            "accessURL": "https://example.com/view/short",
+                        },
+                    ],
+                },
+                harvest_record_id="dataset_long_resource_titles_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="enviroatlas-test",
+                slug="enviroatlas-2010-dasymetric-population-conus-v3",
+                dcat={
+                    "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3",
+                    "description": "This EnviroAtlas dataset intelligently reallocates 2010 population from census blocks to 30 meter pixels based on land cover and imperviousness. The dataset is provided by the US EPA Office of Research and Development related to EnviroAtlas.",
+                    "keyword": ["environment", "population", "dasymetric"],
+                    "publisher": {
+                        "name": "U.S. EPA Office of Research and Development (ORD)"
+                    },
+                    "contactPoint": {
+                        "fn": "Not provided - Contact data.gov",
+                        "hasEmail": "mailto:datagovsupport@gsa.gov",
+                    },
+                    "distribution": [
+                        {
+                            "title": "https://gaftp.epa.gov/EPADataCommons/ORD/EnviroAtlas/InReview/2010_Dasymetric_Population_CONUS_V3.zip",
+                            "format": "ZIP",
+                            "accessURL": "https://gaftp.epa.gov/EPADataCommons/ORD/EnviroAtlas/InReview/2010_Dasymetric_Population_CONUS_V3.zip",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - County Level Error.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_County_Level_Error.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - Representative population densities.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_Representative_population_densities.xlsx",
+                        },
+                        {
+                            "title": "EnviroAtlas - 2010 Dasymetric Population for the Conterminous United States v3 - State Level Error.xlsx",
+                            "format": "XLSX",
+                            "downloadURL": "https://pasteur.epa.gov/uploads/10.23719/1520442/2010_DasyPop_CONUS_v3_State_Level_Error.xlsx",
+                        },
+                    ],
+                },
+                harvest_record_id="enviroatlas_test_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="child1234568",
+                slug="child-harvest-record-2",
+                dcat={
+                    "title": "Child Harvest Record 2",
+                    "description": "Regional statistics on access to health food resources",
+                    "keyword": ["health", "food"],
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test child publisher"},
+                    "distribution": [
+                        {
+                            "title": "Health Food Data (Region 2)",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/health-food-2.csv",
+                        }
+                    ],
+                    "identifier": "https://subdomain.domain/child2/example.shp.iso.xml",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                harvest_record_id="child_harvest_record_2",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+                popularity=110,
+            ),
+            dict(
+                id="child1234569",
+                slug="child-harvest-record-3",
+                dcat={
+                    "title": "Child Harvest Record 3",
+                    "description": "Local statistics on access to health food resources",
+                    "keyword": ["health", "food"],
+                    "modified": "2026-03-04",
+                    "publisher": {"name": "test child publisher"},
+                    "distribution": [
+                        {
+                            "title": "Health Food Data (Region 3)",
+                            "format": "CSV",
+                            "downloadURL": "https://example.com/health-food-3.csv",
+                        }
+                    ],
+                    "identifier": "https://subdomain.domain/child3/example.shp.iso.xml",
+                    "isPartOf": "https://subdomain.domain/parent/example.shp.iso.xml",
+                },
+                harvest_record_id="6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+                popularity=95,
+            ),
+            dict(
                 id=DCAT_3_0_DATASET_ID,
                 slug="test-dcat-3-0",
                 dcat={
@@ -1018,6 +1304,54 @@ def fixture_data(*, include_filter_demos: bool = False):
                     "publisher": {"name": "Test Agency"},
                 },
                 harvest_record_id="climate_dataset_served_record",
+                harvest_source_id="1",
+                organization_id="1",
+                last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
+            ),
+            dict(
+                id="format-badge-gallery",
+                slug="format-badge-gallery",
+                dcat={
+                    "title": "Format Badge Gallery",
+                    "description": (
+                        "One resource per distinct search-card badge color, for "
+                        "visually comparing them side by side."
+                    ),
+                    "publisher": {"name": "Test Agency"},
+                    "distribution": [
+                        {
+                            "title": "CSV export",
+                            "format": "CSV",
+                            "downloadURL": "https://example.gov/gallery/data.csv",
+                        },
+                        {
+                            "title": "JSON export",
+                            "format": "JSON",
+                            "downloadURL": "https://example.gov/gallery/data.json",
+                        },
+                        {
+                            "title": "XML export",
+                            "format": "XML",
+                            "downloadURL": "https://example.gov/gallery/data.xml",
+                        },
+                        {
+                            "title": "Excel workbook",
+                            "downloadURL": "https://example.gov/gallery/data.xlsx",
+                            "mediaType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        },
+                        {
+                            "title": "PDF report",
+                            "format": "PDF",
+                            "downloadURL": "https://example.gov/gallery/report.pdf",
+                        },
+                        {
+                            "title": "KML overlay",
+                            "format": "KML",
+                            "downloadURL": "https://example.gov/gallery/overlay.kml",
+                        },
+                    ],
+                },
+                harvest_record_id="format_badge_gallery_record",
                 harvest_source_id="1",
                 organization_id="1",
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,

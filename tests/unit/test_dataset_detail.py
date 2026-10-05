@@ -354,19 +354,16 @@ class TestDatasetDetail:
             soup.find("script", src=versioned_asset_url("js/view_bbox_map.js")) is None
         )
 
-    @pytest.mark.parametrize(
-        "dataset_detail_url",
-        [("/dataset/child-harvest-record"), ("/dataset/parent-harvest-record")],
-    )
-    def test_dataset_detail_collections(
-        self, dataset_detail_url, interface_with_dataset, db_client
+    def test_dataset_detail_collections_child_view(
+        self, interface_with_dataset, db_client
     ):
         """
-        test child and parent dataset detail view
+        A child record's detail page links directly to its parent record
+        (resolved via HarvestRecord.parent_identifier), rather than only a
+        sibling search link.
         """
-
         with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get(dataset_detail_url)
+            response = db_client.get("/dataset/child-harvest-record")
 
         assert response.status_code == 200
         soup = BeautifulSoup(response.text, "html.parser")
@@ -379,20 +376,42 @@ class TestDatasetDetail:
         # both the tags and collection options are there
         assert len(related_datasets_options) == 2
 
-        # tag content (the subset of tags and the button to show more)
         tags = related_datasets_options[0]
         assert tags.select_one("div.tag-list") is not None
 
-        # not a fan of adding a condition like this but breaking out
-        # this test into 2 would introduce a lot of redundancy
-        if dataset_detail_url == "/dataset/parent-harvest-record":
-            assert tags.select_one("button.usa-button") is not None
+        collection = related_datasets_options[1]
+        parent_link = collection.find("a", href="/dataset/parent-harvest-record")
+        assert parent_link is not None
 
-        # collection content
+    def test_dataset_detail_collections_parent_view(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        A parent record's detail page links to the sibling datasets that
+        point back to it via parent_identifier.
+        """
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/parent-harvest-record")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        related_datasets_section = soup.select_one("section.usa-section")
+        related_datasets_options = related_datasets_section.find_all(
+            "div", class_="tablet:grid-col-6"
+        )
+
+        # both the tags and collection options are there
+        assert len(related_datasets_options) == 2
+
+        tags = related_datasets_options[0]
+        assert tags.select_one("div.tag-list") is not None
+        assert tags.select_one("button.usa-button") is not None
+
         collection = related_datasets_options[1]
         collection_count = soup.select_one("div.text-base-dark")
 
-        assert collection_count.text.strip() == "Includes 1 related dataset"
+        assert collection_count.text.strip() == "Includes 3 related datasets"
 
         collection_link = collection.find(
             "a", href="/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
@@ -504,6 +523,85 @@ class TestDatasetDetail:
         assert email_link is not None
         assert email_link.get("href") == "mailto:climate-api@example.gov"
 
+    def test_sidebar_access_level_label(self, interface_with_dataset, db_client):
+        """
+        The Access & Use sidebar label should reflect the legacy DCAT-US 1.1
+        accessLevel field when present.
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {**ds.dcat, "accessLevel": "restricted public"}
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        access_box = next(
+            (
+                h.find_parent("div", class_="sidebar-section")
+                for h in soup.select(".sidebar-section__heading")
+                if h.get_text(strip=True) == "Access & Use"
+            ),
+            None,
+        )
+        assert access_box is not None
+        access_item = next(
+            (
+                item
+                for item in access_box.select(".sidebar-section__item")
+                if item.select_one(".sidebar-section__value").get_text(strip=True)
+                == "restricted public"
+            ),
+            None,
+        )
+        assert access_item is not None
+        assert (
+            access_item.select_one(".sidebar-section__label").get_text(strip=True)
+            == "Access Level"
+        )
+
+    def test_sidebar_access_rights_label(self, interface_with_dataset, db_client):
+        """
+        DCAT-US 3.0 records may only have accessRights (no legacy
+        accessLevel) — the sidebar label must say "Access Rights" in that
+        case instead of the stale DCAT-US 1.1 "Access Level" label.
+        """
+        ds = interface_with_dataset.get_dataset_by_slug("test")
+        ds.dcat = {**ds.dcat, "accessRights": "restricted public"}
+        interface_with_dataset.db.commit()
+
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        access_box = next(
+            (
+                h.find_parent("div", class_="sidebar-section")
+                for h in soup.select(".sidebar-section__heading")
+                if h.get_text(strip=True) == "Access & Use"
+            ),
+            None,
+        )
+        assert access_box is not None
+        access_item = next(
+            (
+                item
+                for item in access_box.select(".sidebar-section__item")
+                if item.select_one(".sidebar-section__value").get_text(strip=True)
+                == "restricted public"
+            ),
+            None,
+        )
+        assert access_item is not None
+        assert (
+            access_item.select_one(".sidebar-section__label").get_text(strip=True)
+            == "Access Rights"
+        )
+
     def test_metadata_landing_page_is_anchor(self, interface_with_dataset, db_client):
         """
         Test that the landingPage key in the Complete Metadata section
@@ -537,6 +635,46 @@ class TestDatasetDetail:
         assert anchor is not None
         assert anchor.get("href") == landing_page_url
         assert anchor.get_text(strip=True) == landing_page_url
+
+    def test_metadata_landing_page_object_is_pretty_json_with_linked_url(
+        self, interface_with_dataset, db_client
+    ):
+        """
+        DCAT-US 3.0 allows landingPage to be an object (@type: Document,
+        title, accessURL) instead of a plain URL string. It should render as
+        pretty-printed JSON, keeping every field, with accessURL turned into
+        a clickable link rather than collapsing the object into a single anchor.
+        """
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test-dcat-3-0")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        metadata_table = soup.select_one("table.metadata-table")
+        assert metadata_table is not None
+
+        landing_page_row = next(
+            (
+                row
+                for row in metadata_table.select("tr")
+                if row.select_one("th").get_text(strip=True) == "landingPage"
+            ),
+            None,
+        )
+        assert landing_page_row is not None
+
+        pre = landing_page_row.select_one("td pre.json")
+        assert pre is not None
+        assert "Sample Dataset Landing Page" in pre.get_text()
+        assert "Document" in pre.get_text()
+
+        anchor = pre.select_one("a")
+        assert anchor is not None
+        assert anchor.get("href") == "https://example.gov/datasets/sample-dcat-3-0"
+        assert anchor.get_text(strip=True) == (
+            "https://example.gov/datasets/sample-dcat-3-0"
+        )
 
     def test_check_jsonld(self, interface_with_dataset, db_client):
 

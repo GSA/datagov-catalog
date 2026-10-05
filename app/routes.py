@@ -39,6 +39,7 @@ from .api_schemas import (
     LocationsResults,
     OpensearchHealth,
     OrganizationsResults,
+    PublishersQuery,
     PublishersResults,
     SearchQuery,
     SearchResults,
@@ -60,6 +61,7 @@ from .utils import (
     hint_from_dict,
     json_not_found,
     pop_doc_by_identifier,
+    register_iso_namespaces,
     valid_id_required,
 )
 
@@ -179,6 +181,27 @@ def _collect_spatial_shapes(datasets: Iterable, limit: int = 20) -> list[dict]:
         if len(shapes) >= limit:
             break
     return shapes
+
+
+def _annotate_has_children(datasets: list[dict]) -> None:
+    """Mark each dataset dict with `has_children` for the "related records" badge.
+
+    Mutates `datasets` in place, mirroring the existing `_distance_km`
+    annotation pattern in OpenSearchReader.search.
+    """
+    identifiers = [
+        dataset.get("identifier")
+        for dataset in datasets
+        if isinstance(dataset, dict) and dataset.get("identifier")
+    ]
+    identifiers_with_children = (
+        interface.get_identifiers_with_children(identifiers) if identifiers else set()
+    )
+    for dataset in datasets:
+        if isinstance(dataset, dict):
+            dataset["has_children"] = (
+                dataset.get("identifier") in identifiers_with_children
+            )
 
 
 def _aggregation_count_maps(
@@ -425,6 +448,7 @@ def index():
     else:
         # Build dataset dictionaries with organization data
         datasets = list(result.results)
+        _annotate_has_children(datasets)
 
     if result is not None:
         after = result.search_after_obscured()
@@ -460,16 +484,9 @@ def index():
         # need to get the parent by exact match so using 'slug' because it's a 'keyword'
         parent_db = interface.get_dataset_by_dcat_identifier(collection)
         if parent_db:
-            parent_results = list(
-                interface.search_datasets(
-                    SearchCriteria.from_values(
-                        query=parent_db.slug,
-                        filters={"collection": collection},
-                    )
-                ).results
-            )
-            if parent_results:
-                collection_data["parent"] = parent_results[0]
+            parent_doc = interface.get_document_by_slug(parent_db.slug)
+            if parent_doc.results:
+                collection_data["parent"] = parent_doc.results[0]
 
     return render_template(
         "index.html",
@@ -556,6 +573,7 @@ def search(**kwargs):
 
     if htmx:
         results = list(result.results)
+        _annotate_has_children(results)
         result_start_index = 1
         if results_hint and per_page:
             result_start_index = max(results_hint - per_page + 1, 1)
@@ -637,6 +655,8 @@ def get_harvest_record_raw(record_id: str) -> Response:
     based on the payload content: application/json for valid JSON, application/xml
     for XML, and text/plain otherwise. A 404 JSON response is returned
     when the record does not exist or the payload is missing/empty.
+
+    JSON and XML outputs are pretty-printed for better human readability.
     """
     record = interface.get_harvest_record(record_id)
     if record is None:
@@ -650,22 +670,37 @@ def get_harvest_record_raw(record_id: str) -> Response:
         source_raw = str(source_raw)
 
     mimetype = "text/plain"
+    formatted_output = source_raw
     stripped_source = source_raw.strip()
+
+    orig_et_map = ElementTree._namespace_map.copy()
+
     if stripped_source:
         try:
-            json.loads(stripped_source)
+            parsed_json = json.loads(stripped_source)
+            formatted_output = json.dumps(
+                parsed_json, indent=2, ensure_ascii=False, sort_keys=False
+            )
+            mimetype = "application/json"
         except (TypeError, json.JSONDecodeError):
             try:
-                ElementTree.fromstring(stripped_source)
-            except (ElementTree.ParseError, SyntaxError):
-                # not JSON or XML, leave as "text/plain"
-                pass
-            else:
+                # to avoid default namespaces
+                # https://github.com/GSA/data.gov/issues/6328
+                register_iso_namespaces(ElementTree)
+                xml_tree = ElementTree.fromstring(stripped_source)
+                ElementTree.indent(xml_tree, space="  ", level=0)
+                formatted_output = ElementTree.tostring(
+                    xml_tree, encoding="unicode", method="xml"
+                )
                 mimetype = "application/xml"
-        else:
-            mimetype = "application/json"
+            except (ElementTree.ParseError, SyntaxError):
+                pass
+            finally:
+                # restore the original state
+                ElementTree._namespace_map.clear()
+                ElementTree._namespace_map.update(orig_et_map)
 
-    return Response(source_raw, mimetype=mimetype)
+    return Response(formatted_output, mimetype=mimetype)
 
 
 @main.route("/harvest_record/<record_id>/transformed", methods=["GET"])
@@ -826,6 +861,23 @@ def organization_detail(slug: str):
     )
 
 
+@main.route("/code")
+def code_compliance_index():
+    """Federal agency source code repository compliance index.
+
+    Displays all Federal Government organizations with their SHARE IT Act
+    compliance status: repository URL (if provided), exempt status, or
+    not yet reported.
+    """
+    federal_orgs = interface.get_federal_organizations()
+
+    return render_template(
+        "code_index.html",
+        organizations=federal_orgs,
+        title="Federal Agency Source Code Repositories",
+    )
+
+
 @main.route("/dataset/<slug_or_id>", methods=["GET"])
 def dataset_detail_by_slug_or_id(slug_or_id: str):
     """Display dataset detail page at its slug URL."""
@@ -844,26 +896,36 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         )
 
     # collections
-    collection_data = {"name": None, "count": 0}
-    if dataset.type in ("data_series", "data_service"):
-        # A DatasetSeries/DataService has no isPartOf of its own; its
-        # members instead carry isPartOf == its own identifier. count is
-        # bumped by one so the template's "- 1" (which normally excludes
-        # the current dataset from its own collection) yields the true
-        # member count.
-        parent_identifier = dataset.dcat.get("identifier")
-        if parent_identifier:
-            result = interface.search_datasets(
-                SearchCriteria.from_values(filters={"collection": parent_identifier})
-            )
-            collection_data["name"] = parent_identifier
-            collection_data["count"] = result.total + 1
-    elif "isPartOf" in dataset.dcat:
+    collection_data = {"name": None, "count": 0, "parent_slug": None}
+    parent_identifier = (
+        dataset.harvest_record.parent_identifier if dataset.harvest_record else None
+    )
+    if parent_identifier:
         result = interface.search_datasets(
-            SearchCriteria.from_values(filters={"collection": dataset.dcat["isPartOf"]})
+            SearchCriteria.from_values(filters={"collection": parent_identifier})
         )
-        collection_data["name"] = dataset.dcat["isPartOf"]
-        collection_data["count"] = result.total
+        collection_data["name"] = parent_identifier
+        # The sibling search matches this dataset too, so exclude it
+        # from the displayed count.
+        collection_data["count"] = max(result.total - 1, 0)
+        parent_dataset = interface.get_dataset_by_dcat_identifier(
+            parent_identifier, dataset.harvest_source_id
+        )
+        if parent_dataset:
+            collection_data["parent_slug"] = parent_dataset.slug
+            collection_data["parent_title"] = parent_dataset.dcat.get("title")
+    else:
+        # This dataset has no parent of its own, so it may itself be a
+        # collection root (DatasetSeries, DataService, or WAF collection
+        # record) - check whether any other dataset points back to it.
+        own_identifier = dataset.dcat.get("identifier")
+        if own_identifier:
+            result = interface.search_datasets(
+                SearchCriteria.from_values(filters={"collection": own_identifier})
+            )
+            if result.total > 0:
+                collection_data["name"] = own_identifier
+                collection_data["count"] = result.total
 
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
@@ -980,17 +1042,27 @@ def get_organizations_api(**kwargs):
 
 
 @api.route("/api/publishers", methods=["GET"])
+@api.input(PublishersQuery, location="query")
 @api.output(PublishersResults)
-@api.doc(description="Get the top 100 publishers")
+@api.doc(description="Get unique publishers by count")
 def get_publishers_api(**kwargs):
-    """Fetch the top 100 publishers."""
+    """Fetch unique publishers based on count."""
+    page_size = request.args.get("page_size", 100, type=int)
+    from_page = request.args.get("from_page", 0, type=int)
+
+    # ensure page size is valid
+    page_size = page_size if (1000 >= page_size >= 1) else 100
+
+    # ensure from page is valid
+    from_page = from_page if from_page >= 0 else 0
+    from_page = from_page * page_size
 
     try:
-        publishers = interface.get_top_publishers()
+        total, publishers = interface.get_unique_publishers(page_size, from_page)
         return jsonify(
             {
                 "publishers": publishers,
-                "total": len(publishers),
+                "total": total,
             }
         )
     except Exception:
@@ -1114,7 +1186,7 @@ def get_location_by_id_api(location_id, **kwargs):
     return jsonify(
         {
             "id": location_obj[0],
-            "geometry": location_obj[1],
+            "geometry": json.loads(location_obj[1]) if location_obj[1] else None,
         }
     )
 
@@ -1152,6 +1224,13 @@ def openapi_docs():
 
 
 def style_guide_icons():
+    from app.filters import known_format_badges, resource_format_badge
+
+    badge_samples = [
+        resource_format_badge({"format": key}) for key in known_format_badges()
+    ]
+    badge_samples.append(resource_format_badge({"format": "made-up-format"}))
+
     sample_sections = [
         {
             "title": "Dedicated icons",
@@ -1271,7 +1350,11 @@ def style_guide_icons():
             ],
         },
     ]
-    return render_template("style_guide_icons.html", sample_sections=sample_sections)
+    return render_template(
+        "style_guide_icons.html",
+        sample_sections=sample_sections,
+        badge_samples=badge_samples,
+    )
 
 
 def register_routes(app):

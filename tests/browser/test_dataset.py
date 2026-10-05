@@ -12,6 +12,23 @@ def test_dataset_details(page):
     )
 
 
+def test_dataset_with_collection_shows_explore_collection_card(page):
+    page.goto("/dataset/parent-harvest-record")
+
+    expect(page.locator("div.collection-tooltip")).to_be_visible()
+    expect(page.get_by_role("link", name="Find Related Datasets")).to_be_visible()
+
+
+def test_dataset_with_null_ispartof_omits_collection_card(page):
+    # A null isPartOf means the dataset isn't part of any collection, so the
+    # "Explore Collection" card and its "Find Related Datasets" button
+    # shouldn't render. See GSA/data.gov#5862.
+    page.goto("/dataset/dataset-without-collection")
+
+    expect(page.locator("div.collection-tooltip")).to_have_count(0)
+    expect(page.get_by_role("link", name="Find Related Datasets")).to_have_count(0)
+
+
 def test_dataset_tags_expand_button(page):
     page.goto("/dataset/parent-harvest-record")
 
@@ -142,3 +159,81 @@ def test_dcat_3_0_normalized_fields(page):
     expect(page.locator("a[href='/?keyword=dcat-us-3.0']")).to_be_visible()
     expect(page.locator("a[href='/?keyword=climate']")).to_be_visible()
     expect(page.locator("a[href='/?keyword=environment']")).to_be_visible()
+
+
+def test_resource_list_items_have_proper_vertical_alignment(page):
+    page.goto("/dataset/test-dcat-3-0")
+
+    resource_items = page.locator(".resources-list__item--main")
+    count = resource_items.count()
+
+    assert count > 0
+
+    for i in range(count):
+        item = resource_items.nth(i)
+        info_section = item.locator(".resources-list__info")
+        actions_section = item.locator(".resources-list__actions")
+
+        info_box = info_section.bounding_box()
+        actions_box = actions_section.bounding_box()
+
+        assert (
+            info_box["x"] + info_box["width"] <= actions_box["x"] + 10
+        ), f"Resource info overlaps with actions in item {i}"
+
+        expect(info_section).to_be_visible()
+        expect(actions_section).to_be_visible()
+
+
+def test_long_resource_title_does_not_overlap_buttons(page):
+    page.goto("/dataset/dataset-long-resource-titles")
+
+    resources_section = page.locator(".resources-section")
+    expect(resources_section).to_be_visible()
+
+    first_resource = page.locator(".resources-list__item--main").first
+    expect(first_resource).to_be_visible()
+
+    resource_name = first_resource.locator(".resources-list__name")
+    download_button = first_resource.locator(".resources-list__btn").first
+
+    name_box = resource_name.bounding_box()
+    button_box = download_button.bounding_box()
+
+    assert (
+        name_box["x"] + name_box["width"] < button_box["x"]
+    ), f"Resource name overlaps with button: name ends at {name_box['x'] + name_box['width']}, button starts at {button_box['x']}"
+
+    expect(download_button).to_be_visible()
+    expect(download_button).to_be_enabled()
+
+
+def test_all_resource_items_maintain_proper_layout(page):
+    page.goto("/dataset/dataset-long-resource-titles")
+
+    resource_items = page.locator(".resources-list__item--main")
+    count = resource_items.count()
+
+    assert count == 4
+
+    for i in range(count):
+        item = resource_items.nth(i)
+        info_section = item.locator(".resources-list__info")
+        actions_section = item.locator(".resources-list__actions")
+
+        info_box = info_section.bounding_box()
+        actions_box = actions_section.bounding_box()
+
+        assert (
+            info_box["x"] + info_box["width"] <= actions_box["x"] + 10
+        ), f"Resource info overlaps with actions in item {i}"
+
+        expect(info_section).to_be_visible()
+        expect(actions_section).to_be_visible()
+
+        buttons = actions_section.locator("a.resources-list__btn")
+        button_count = buttons.count()
+        for j in range(button_count):
+            button = buttons.nth(j)
+            expect(button).to_be_visible()
+            expect(button).to_be_enabled()

@@ -4,7 +4,7 @@
 {% set dataset_title = dataset.dcat.get('title') or dataset.slug or dataset.id %}
 {% set dataset_slug = dataset.slug %}
 {% set type_label = {'data_series': 'Series', 'data_service': 'Service'}.get(dataset.type, 'Dataset') %}
-{% set organization_title = organization.name %}
+{% set organization_title = organization.name if organization else 'Unknown' %}
 {% set page_title = organization_title ~ ' - ' ~ dataset_title %}
 
 {% block title %}{{ page_title }}{% endblock %}
@@ -143,8 +143,7 @@
                         {% set access_url = resource.get('accessURL') %}
                         {% set resource_title = resource.get('title') or resource.get('description') or 'Resource ' ~
                         loop.index %}
-                        {% set resource_format = (resource.get('format') or resource.get('mediaType') or 'file')|upper
-                        %}
+                        {% set resource_format = resource | resolve_resource_format | normalized_format_label %}
                         {% endif %}
 
                         <li class="resources-list__item resources-list__item--main">
@@ -191,8 +190,9 @@
                 </div>
                 {% endif %}
 
-                {% set collection_total = collection_data.get('count') - 1 %}
-                {% if dataset.dcat.get('keyword') or collection_total > 0 %}
+                {% set collection_total = collection_data.get('count') %}
+                {% set collection_parent_slug = collection_data.get('parent_slug') %}
+                {% if dataset.dcat.get('keyword') or collection_total > 0 or collection_parent_slug %}
                 <h2 class="text-primary-darker margin-bottom-1">Find Related Datasets</h2>
                 <section class="usa-section bg-base-lightest radius-lg padding-3 margin-top-4">
 
@@ -247,7 +247,7 @@
                         </div>
                         {% endif %}
 
-                        {% if collection_total > 0 %}
+                        {% if collection_total > 0 or collection_parent_slug %}
                         <div class="tablet:grid-col-6 collection-tooltip">
                         <div class="padding-3 bg-white radius-lg border border-base-lighter height-full">
 
@@ -266,13 +266,24 @@
                                 </button>
                             </div>
 
+                            {% if collection_parent_slug %}
+                            <p class="text-base margin-top-0 margin-bottom-2">
+                            This dataset is part of a larger collection
+                            </p>
+                            <a href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=collection_parent_slug) }}" class="usa-button usa-button--outline width-full margin-bottom-1">
+                                View Parent Record{{ ": " + collection_data.get('parent_title') if collection_data.get('parent_title') }}
+                            </a>
+                            {% else %}
                             <p class="text-base margin-top-0 margin-bottom-2">
                             Navigate datasets in this collection
                             </p>
+                            {% endif %}
+                            {% if collection_total > 0 %}
                             <a href="{{ url_for('main.index', collection=collection_data.get('name')) }}" class="usa-button width-full">Find Related Datasets</a>
                             <div class="margin-top-2 text-base-dark">
                             Includes <strong>{{collection_total}}</strong> related dataset{{ "s" if collection_total != 1 }}
                             </div>
+                            {% endif %}
                         </div>
                         </div>
                         {% endif %}
@@ -294,7 +305,7 @@
                                 <tr>
                                     <th scope="row">{{ key }}</th>
                                     <td>
-                                        {% if key == 'landingPage' %}
+                                        {% if key == 'landingPage' and value is string %}
                                         <a href="{{ value }}" target="_blank" rel="noopener">{{ value }}</a>
                                         {% elif rendered_value | is_json %}
                                         <pre class="json">{{ value | json_to_semantic_html | safe }}</pre>
@@ -350,7 +361,9 @@
 
                     {% if normalized_dcat.accessLevel %}
                     <div class="sidebar-section__item">
-                        <div class="sidebar-section__label">Access Level</div>
+                        <div class="sidebar-section__label">
+                            {{ 'Access Level' if dataset.dcat.get('accessLevel') else 'Access Rights' }}
+                        </div>
                         <div class="sidebar-section__value">{{ normalized_dcat.accessLevel }}</div>
                     </div>
                     {% endif %}

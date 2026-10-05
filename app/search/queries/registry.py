@@ -130,6 +130,24 @@ def build_ispartof_query() -> dict[str, Any]:
     }
 
 
+def build_parents_with_children_query(identifiers: list[str]) -> dict[str, Any]:
+    """Find which of the given identifiers have at least one child record.
+
+    Returns an aggregation over ``parent_identifier`` restricted to documents
+    whose ``parent_identifier`` is one of ``identifiers``, so the bucket keys
+    are exactly the identifiers that have children.
+    """
+    return {
+        "size": 0,
+        "query": {"bool": {"filter": [{"terms": {"parent_identifier": identifiers}}]}},
+        "aggs": {
+            "parents": {
+                "terms": {"field": "parent_identifier", "size": len(identifiers)}
+            }
+        },
+    }
+
+
 def build_phrase_query(phrase_text: str) -> dict[str, Any]:
     """
     Build a bool query with match_phrase across multiple fields for
@@ -146,6 +164,7 @@ def build_phrase_query(phrase_text: str) -> dict[str, Any]:
             "should": [
                 {"match_phrase": {"title": {"query": phrase_text, "boost": 5}}},
                 {"match_phrase": {"description": {"query": phrase_text, "boost": 3}}},
+                {"match_phrase": {"access_level": {"query": phrase_text}}},
                 {"match_phrase": {"publisher": {"query": phrase_text, "boost": 3}}},
                 {"match_phrase": {"keyword": {"query": phrase_text, "boost": 2}}},
                 {"match_phrase": {"theme": {"query": phrase_text}}},
@@ -172,6 +191,7 @@ def build_multi_match_query(query_text: str) -> dict[str, Any]:
             "fields": [
                 "title^5",
                 "description^3",
+                "access_level",
                 "publisher^3",
                 "keyword^2",
                 "theme",
@@ -391,17 +411,33 @@ def build_organization_counts_query(size=100, min_doc_count=1) -> dict[str, Any]
     }
 
 
-def build_publisher_counts_query(size=100, min_doc_count=1) -> dict[str, Any]:
+def build_publisher_counts_query(
+    total_unique: int,
+    from_page: int,
+    min_doc_count: int = 1,
+    page_size: int = 100,
+) -> dict[str, Any]:
     return {
         "size": 0,
         "aggs": {
             "unique_publishers": {
                 "terms": {
                     "field": "publisher.raw",
-                    "size": size,
+                    "size": total_unique,
                     "min_doc_count": min_doc_count,
-                    "order": {"_count": "desc"},
-                }
+                },
+                "aggs": {
+                    "page_and_sort": {
+                        "bucket_sort": {
+                            "sort": [
+                                {"_count": {"order": "desc"}},
+                                {"_key": {"order": "asc"}},
+                            ],
+                            "from": from_page,
+                            "size": page_size,
+                        }
+                    }
+                },
             }
         },
     }

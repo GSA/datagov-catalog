@@ -74,3 +74,39 @@ def test_dataset_to_document_has_download_false_for_blank_download_url(
     document = dataset_doc.dataset_to_document()
 
     assert document["has_download"] is False
+
+
+def test_dataset_to_document_parent_identifier_from_harvest_record(sample_dataset):
+    sample_dataset.harvest_record = Mock(parent_identifier="parent-1")
+
+    dataset_doc = DatasetDocument(sample_dataset)
+    document = dataset_doc.dataset_to_document()
+
+    assert document["parent_identifier"] == "parent-1"
+
+
+def test_dataset_to_document_parent_identifier_none_without_harvest_record(
+    sample_dataset,
+):
+    dataset_doc = DatasetDocument(sample_dataset)
+    document = dataset_doc.dataset_to_document()
+
+    assert document["parent_identifier"] is None
+
+
+def test_dataset_to_document_indexes_access_level(sample_dataset):
+    sample_dataset.dcat["accessLevel"] = "restricted public"
+
+    dataset_doc = DatasetDocument(sample_dataset)
+    document = dataset_doc.dataset_to_document()
+
+    assert document["access_level"] == "restricted public"
+
+
+def test_dataset_to_document_normalizes_access_rights(sample_dataset):
+    sample_dataset.dcat["accessRights"] = "public"
+
+    dataset_doc = DatasetDocument(sample_dataset)
+    document = dataset_doc.dataset_to_document()
+
+    assert document["access_level"] == "public"

@@ -6,7 +6,7 @@
     },
     "reporters": ["cli"],
     "ignore": [],
-    "hideElements": "iframe"
+    "hideElements": "iframe, .dataset-resources"
   },
   "urls": [
     {

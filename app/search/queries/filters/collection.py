@@ -10,12 +10,7 @@ from app.search.queries.filters.base import (
 
 
 def _clause(criteria, value: str) -> dict:
-    return {
-        "nested": {
-            "path": "dcat",
-            "query": {"term": {"dcat.isPartOf": value}},
-        }
-    }
+    return {"term": {"parent_identifier": value}}
 
 
 COLLECTION_FILTER = FilterDefinition(

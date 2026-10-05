@@ -3,8 +3,10 @@ from app.search.queries import (
     SearchCriteria,
     build_filter_clauses,
     build_filter_sections,
+    build_parents_with_children_query,
     visible_filter_query_params,
 )
+from app.search.queries.registry import build_multi_match_query, build_phrase_query
 
 
 def test_has_download_filter_parses_and_builds_clause():
@@ -36,3 +38,34 @@ def test_has_download_section_is_built_when_active():
 
 def test_has_download_is_a_visible_main_context_query_param():
     assert "has_download" in visible_filter_query_params(MAIN_CONTEXT)
+
+
+def test_collection_filter_builds_top_level_parent_identifier_term():
+    criteria = SearchCriteria.from_values(filters={"collection": "parent-1"})
+
+    assert {"term": {"parent_identifier": "parent-1"}} in build_filter_clauses(criteria)
+
+
+def test_build_parents_with_children_query_filters_and_aggregates_on_parent_identifier():
+    query = build_parents_with_children_query(["parent-1", "parent-2"])
+
+    assert query["size"] == 0
+    assert query["query"] == {
+        "bool": {"filter": [{"terms": {"parent_identifier": ["parent-1", "parent-2"]}}]}
+    }
+    assert query["aggs"]["parents"]["terms"] == {
+        "field": "parent_identifier",
+        "size": 2,
+    }
+
+
+def test_search_queries_include_access_level():
+    multi_match_fields = build_multi_match_query("restricted public")["multi_match"][
+        "fields"
+    ]
+    phrase_fields = build_phrase_query("restricted public")["bool"]["should"]
+
+    assert "access_level" in multi_match_fields
+    assert {
+        "match_phrase": {"access_level": {"query": "restricted public"}}
+    } in phrase_fields

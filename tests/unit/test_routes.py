@@ -6,8 +6,15 @@ from uuid import uuid4
 
 import pytest
 from bs4 import BeautifulSoup
+from psycopg.errors import SerializationFailure
+from sqlalchemy.exc import OperationalError
 
 from app import HTML_PAGE_MAX_AGE_SECONDS, STATIC_ASSET_MAX_AGE_SECONDS, create_app
+from app.database import CatalogDBInterface
+from app.database.interface import (
+    DB_SERIALIZATION_RETRY_ATTEMPTS,
+    DB_SERIALIZATION_RETRY_DELAY_SECONDS,
+)
 from app.models import Dataset, Organization
 from app.search.queries.criteria import SearchCriteria
 from app.search.reader import SearchResult
@@ -159,11 +166,12 @@ def test_location_search_api_endpoint_hides_internal_exception(db_client):
 def test_location_api_by_id(interface_with_location, db_client):
     with patch("app.routes.interface", interface_with_location):
         response = db_client.get("/api/location/1")
-    assert response.json is not None
-    assert "id" in response.json
-    assert "geometry" in response.json
-    assert "type" in response.json["geometry"]
-    assert "coordinates" in response.json["geometry"]
+    assert response.status_code == 200
+    assert response.json["id"] == "1"
+    geometry = response.json["geometry"]
+    assert isinstance(geometry, dict)
+    assert geometry["type"] == "MultiPolygon"
+    assert geometry["coordinates"]
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_writer):
@@ -176,7 +184,7 @@ def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_write
     assert "results" in response.json
 
 
-def test_search_api_response_containes_harvest_record_url(
+def test_search_api_response_contains_harvest_record_url(
     interface_with_dataset, db_client, opensearch_writer
 ):
     opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
@@ -267,6 +275,18 @@ def test_search_api_by_org_slug(interface_with_dataset, db_client):
         response = db_client.get(
             "/search", query_string={"q": "test", "org_slug": "non-existent"}
         )
+        assert len(response.json["results"]) == 0
+
+
+def test_search_api_by_theme(interface_with_dataset, db_client):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"theme": ["climate", "environment"]}
+        )
+        assert len(response.json["results"]) == 1
+
+        # non-existent theme
+        response = db_client.get("/search", query_string={"theme": ["nonexistent"]})
         assert len(response.json["results"]) == 0
 
 
@@ -436,6 +456,24 @@ def test_get_publishers_api_handles_errors(db_client):
     assert data["error"] == "Failed to fetch publishers"
     assert data["message"] == internal_error_message()
     assert "some internal error containing sensitive information" not in response.text
+
+
+def test_get_publishers_api(interface_with_dataset, db_client):
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/publishers")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["total"] == 20
+        assert len(data["publishers"]) == 20
+
+        # out of bounds so no publishers
+        response = db_client.get("/api/publishers?from_page=50")
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "publishers": [],
+            "total": 20,
+        }
 
 
 def test_get_opensearch_health_api_returns_data(db_client):
@@ -699,6 +737,36 @@ def test_search_api_parses_spatial_within_param(db_client):
     assert geography.get("geometry") == polygon
 
 
+def test_search_api_filters_by_access_level(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"access_level": "restricted public"}
+        )
+
+    assert response.status_code == 200
+
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
+
+
+def test_search_api_filters_by_access_level_alias(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"accessLevel": "restricted public"}
+        )
+
+    assert response.status_code == 200
+
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
+
+
 def test_organization_detail_parses_spatial_within_param(db_client):
     mock_org = type(
         "Org",
@@ -900,7 +968,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 64"
+    assert datasets_text == "Datasets: 70"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -949,7 +1017,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 64"
+    assert overview_items[1].text.strip() == "Total datasets: 70"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -1089,7 +1157,7 @@ def test_index_page_renders(db_client):
     assert org_banner_rank is not None
     assert org_banner_rank.text == "#1"
 
-    for resource_type in ["json", "rdf", "xml", "csv"]:
+    for resource_type in ["json", "rdf+xml", "xml", "csv"]:
         html_resource = soup.find("a", {"data-format": resource_type})
         assert html_resource is not None
         assert (
@@ -1102,10 +1170,10 @@ def test_index_page_renders(db_client):
     assert line_arrow is not None
 
 
-def test_resource_chip_defaults_to_html(db_client):
+def test_resource_chip_unrecognized_format_shows_generic_badge(db_client):
     """
-    Have it so resource chip is passed None in the template and that
-    the template renders HTML by default.
+    An unrecognized file format should render its own short/generic badge
+    rather than silently being mislabeled as HTML.
     """
 
     mock_interface = Mock()
@@ -1122,9 +1190,9 @@ def test_resource_chip_defaults_to_html(db_client):
                     "description": "USDA data on fruit and tree nut production.",
                     "distribution": [
                         {
-                            "title": "Fruit and Tree Nuts Shapefile",
-                            "format": "shp",
-                            "downloadURL": "https://example.com/fruit-tree-nuts.shp",
+                            "title": "Fruit and Tree Nuts Data",
+                            "format": "flibbertigibbet",
+                            "downloadURL": "https://example.com/fruit-tree-nuts.flibbertigibbet",
                         }
                     ],
                 },
@@ -1148,14 +1216,15 @@ def test_resource_chip_defaults_to_html(db_client):
     format_link = soup.find(
         "a",
         attrs={
-            "data-format": "html",
+            "data-format": "flibbertigibbet",
             "data-organization": "Department of Agriculture",
         },
     )
     assert format_link is not None
 
     assert format_link.get("href") == "/dataset/fruit-and-tree-nuts-data"
-    assert format_link.get_text(strip=True).lower() == "html"
+    assert format_link.get_text(strip=True).lower() != "html"
+    assert format_link.get_text(strip=True) == "FLIB"
 
 
 def test_index_page_dataset_links_use_slug_not_id(db_client):
@@ -1301,7 +1370,7 @@ def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_clien
 
     assert response.status_code == 200
     assert response.mimetype == "application/json"
-    assert response.get_data(as_text=True) == '{"title": "test dataset"}'
+    assert response.get_data(as_text=True) == '{\n  "title": "test dataset"\n}'
 
 
 def test_harvest_record_raw_returns_xml(interface_with_harvest_record, db_client):
@@ -1317,12 +1386,141 @@ def test_harvest_record_raw_returns_xml(interface_with_harvest_record, db_client
     assert response.get_data(as_text=True) == "<xml>value</xml>"
 
 
+def test_harvest_record_raw_xml_correct_namespaces(
+    interface_with_harvest_record, db_client
+):
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(
+            "/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
+        )
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+    # namespaces show up as intended
+    assert "gmi" in response.get_data(as_text=True)
+
+    with patch(
+        "app.routes.ElementTree.register_namespace",
+        return_value=None,
+    ):
+        with patch(
+            "app.routes.interface",
+            interface_with_harvest_record,
+        ):
+            response = db_client.get(
+                "/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
+            )
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+
+    # namespaces don't show up as intended (defaults are used)
+    assert "ns0" in response.get_data(as_text=True)
+
+
 def test_harvest_record_raw_not_found(interface_with_harvest_record, db_client):
     missing_id = str(uuid4())
     with patch("app.routes.interface", interface_with_harvest_record):
         response = db_client.get(f"/harvest_record/{missing_id}/raw")
 
     assert response.status_code == 404
+
+
+def test_harvest_record_raw_json_is_formatted(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = '{"title":"test dataset","tags":["economy","health"],"resources":[{"url":"http://example.com/data.csv","format":"CSV"}]}'
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+
+    text = response.get_data(as_text=True)
+    assert "\n" in text
+    assert "  " in text
+
+    parsed = json.loads(text)
+    assert parsed["title"] == "test dataset"
+    assert len(parsed["tags"]) == 2
+    assert len(parsed["resources"]) == 1
+
+    expected_formatted = json.dumps(
+        json.loads(record.source_raw), indent=2, ensure_ascii=False
+    )
+    assert text == expected_formatted
+
+
+def test_harvest_record_raw_xml_is_formatted(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = "<root><title>test dataset</title><tags><tag>economy</tag><tag>health</tag></tags></root>"
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/xml"
+
+    text = response.get_data(as_text=True)
+    assert "\n" in text
+    assert "  " in text or "\t" in text
+
+    from xml.etree import ElementTree
+
+    root = ElementTree.fromstring(text)
+    assert root.find("title").text == "test dataset"
+    assert len(root.find("tags").findall("tag")) == 2
+
+
+def test_harvest_record_raw_malformed_json_returns_as_text(
+    interface_with_harvest_record, db_client
+):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = '{"title": "missing closing brace"'
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "text/plain"
+    assert response.get_data(as_text=True) == '{"title": "missing closing brace"'
+
+
+def test_harvest_record_raw_empty_json_object(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = "{}"
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    text = response.get_data(as_text=True)
+    assert json.loads(text) == {}
+
+
+def test_harvest_record_raw_preserves_unicode(interface_with_harvest_record, db_client):
+    record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    record.source_raw = '{"title":"Données économiques","author":"José García"}'
+    interface_with_harvest_record.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    text = response.get_data(as_text=True)
+
+    assert "Données économiques" in text
+    assert "José García" in text
+
+    parsed = json.loads(text)
+    assert parsed["title"] == "Données économiques"
+    assert parsed["author"] == "José García"
 
 
 def test_harvest_record_transformed_returns_json(
@@ -1489,16 +1687,7 @@ def test_organization_detail_hides_code_repo_url_when_empty_string(
 
 def test_gsa_organization_displays_github_link(db_client, interface_with_organization):
     """Test GSA organization shows GitHub repository link (acceptance test)."""
-    # Add GSA organization with repo URL
-    org = Organization(
-        id="gsa",
-        name="GSA",
-        slug="gsa",
-        code_repo_url="https://github.com/GSA",
-    )
-    interface_with_organization.db.add(org)
-    interface_with_organization.db.commit()
-
+    # GSA organization already exists in fixtures with code_repo_url
     with patch("app.routes.interface", interface_with_organization):
         response = db_client.get("/organization/gsa")
 
@@ -2727,18 +2916,12 @@ def test_index_collection(interface_with_dataset, db_client):
     collection_card = soup.select_one("div.collection-card")
     assert collection_card is not None
 
+    # this record has no parent_identifier of its own, so the badge (which
+    # would otherwise link back to the record itself) must not render
     collection_card_view_badge = collection_card.select_one(
         "span.collection-card__badge"
     )
-    assert collection_card_view_badge is not None
-    assert (
-        collection_card_view_badge.select_one("a")["href"]
-        == "/?collection=https://subdomain.domain/parent/example.shp.iso.xml"
-    )
-    assert (
-        collection_card_view_badge.select_one("a.collection-card__collection-link")
-        is not None
-    )
+    assert collection_card_view_badge is None
 
     collection_card_title = collection_card.select_one("h2.collection-card__title")
     assert collection_card_title is not None
@@ -2765,7 +2948,9 @@ def test_index_collection(interface_with_dataset, db_client):
     assert len(collection_card_footer_elms) == 2
 
     # collection counts
-    assert collection_card_footer_elms[1].text.strip() == "1 dataset in this collection"
+    assert (
+        collection_card_footer_elms[1].text.strip() == "3 datasets in this collection"
+    )
 
     # metrics (e.g. search relevance, view count, published on)
     collection_card_metrics = collection_card.select_one("div.collection-card__metrics")
@@ -2786,12 +2971,32 @@ def test_index_collection(interface_with_dataset, db_client):
     # an awkward space between them
     assert (
         re.sub(r"[\r\n]+", "", collection_count.text.strip())
-        == "1                    dataset  in this collection"
+        == "3                    dataset  in this collection"
     )
 
     collection_datasets = soup.select("li.organization-datasets__item")
     assert collection_datasets is not None
-    assert len(collection_datasets) == 1
+    assert len(collection_datasets) == 3
+
+
+def test_index_collection_root_without_ispartof(interface_with_dataset, db_client):
+    """A collection root (data_service/data_series) has no dcat.isPartOf of its own,
+    i.e. it doesn't belong to a further parent collection, so the collection card
+    should not render a "View Collection" badge (there's nothing else to link to).
+    """
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/?collection=https://example.gov/services/climate")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    collection_card = soup.select_one("div.collection-card")
+    assert collection_card is not None
+
+    collection_card_view_badge = collection_card.select_one(
+        "span.collection-card__badge"
+    )
+    assert collection_card_view_badge is None
 
 
 def test_index_collection_query(interface_with_dataset, db_client):
@@ -3065,6 +3270,150 @@ def test_keywords_api_hides_internal_exception(db_client):
     assert "some internal error containing sensitive information" not in response.text
 
 
+# Tests for /code compliance index page (issue #6087)
+
+
+def test_code_compliance_index_page_exists(db_client):
+    """Test that /code page is accessible."""
+    response = db_client.get("/code")
+    assert response.status_code == 200
+
+
+def test_code_page_displays_only_federal_orgs(db_client, interface_with_organization):
+    """Test /code page shows only Federal Government organizations."""
+    # Add federal org
+    federal_org = Organization(
+        id="federal-test",
+        name="Federal Agency",
+        slug="federal-agency",
+        organization_type="Federal Government",
+    )
+    # Add non-federal org
+    state_org = Organization(
+        id="state-test",
+        name="State Agency",
+        slug="state-agency",
+        organization_type="State Government",
+    )
+    interface_with_organization.db.add(federal_org)
+    interface_with_organization.db.add(state_org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Federal Agency" in html
+    assert "State Agency" not in html
+
+
+def test_code_page_displays_repo_url_as_link(db_client, interface_with_organization):
+    """Test organization with repo URL displays as clickable link."""
+    # GSA already exists in fixtures with code_repo_url, so we can just check it
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert 'href="https://github.com/GSA"' in html
+    assert 'target="_blank"' in html
+    assert 'rel="noopener noreferrer"' in html
+
+
+def test_code_page_displays_exempt_status(db_client, interface_with_organization):
+    """Test organization with exempt flag displays 'Exempt'."""
+    org = Organization(
+        id="exempt-agency",
+        name="Exempt Agency",
+        slug="exempt-agency",
+        organization_type="Federal Government",
+        code_repo_exempt=True,
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Exempt" in html
+
+
+def test_code_page_displays_not_reported_status(db_client, interface_with_organization):
+    """Test organization without repo or exempt shows 'Not yet reported'."""
+    org = Organization(
+        id="unreported-agency",
+        name="Unreported Agency",
+        slug="unreported-agency",
+        organization_type="Federal Government",
+        code_repo_url=None,
+        code_repo_exempt=False,
+    )
+    interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    assert "Not yet reported" in html
+
+
+def test_code_page_sorts_orgs_alphabetically(db_client, interface_with_organization):
+    """Test organizations are sorted alphabetically by name."""
+    orgs = [
+        Organization(
+            id="z",
+            name="Zebra Agency",
+            slug="z",
+            organization_type="Federal Government",
+        ),
+        Organization(
+            id="a",
+            name="Alpha Agency",
+            slug="a",
+            organization_type="Federal Government",
+        ),
+        Organization(
+            id="m",
+            name="Middle Agency",
+            slug="m",
+            organization_type="Federal Government",
+        ),
+    ]
+    for org in orgs:
+        interface_with_organization.db.add(org)
+    interface_with_organization.db.commit()
+
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    html = response.data.decode()
+    # Check that Alpha appears before Middle which appears before Zebra
+    alpha_pos = html.index("Alpha Agency")
+    middle_pos = html.index("Middle Agency")
+    zebra_pos = html.index("Zebra Agency")
+    assert alpha_pos < middle_pos < zebra_pos
+
+
+def test_code_page_links_to_org_detail_pages(db_client, interface_with_organization):
+    """Test organization names link to their detail pages."""
+    # GSA already exists in fixtures, so we can just check it
+    with patch("app.routes.interface", interface_with_organization):
+        response = db_client.get("/code")
+
+    soup = BeautifulSoup(response.data.decode(), "html.parser")
+    org_link = soup.find("a", href="/organization/gsa")
+    assert org_link is not None
+    assert "General Services Administration" in org_link.text
+
+
+def test_code_page_includes_share_it_act_context(db_client):
+    """Test page includes explanation about SHARE IT Act."""
+    response = db_client.get("/code")
+    html = response.data.decode()
+    assert "SHARE IT Act" in html or "Federal Agency Source Code Repositories" in html
+
+
 def test_keywords_api_passes_selected_keywords_to_interface(db_client):
     """Selected keywords should narrow autocomplete suggestions to compatible terms."""
     mock_interface = Mock()
@@ -3106,3 +3455,76 @@ def test_keywords_api_returns_200_with_empty_results(db_client):
         search=None,
         keywords=["census", "volunteer"],
     )
+
+
+def test_db_retry_retries_transient_serialization_failure(monkeypatch):
+    attempts = {"count": 0, "sleep_calls": []}
+    mock_db = Mock()
+    interface = CatalogDBInterface(session=mock_db)
+
+    def fake_sleep(seconds):
+        attempts["sleep_calls"].append(seconds)
+
+    def action():
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise OperationalError(
+                "SELECT 1",
+                {},
+                SerializationFailure("transient db failure"),
+            )
+        return "success"
+
+    monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
+
+    assert interface._run_with_db_retry(action, action_name="test action") == "success"
+    assert attempts["count"] == 2
+    assert attempts["sleep_calls"] == [DB_SERIALIZATION_RETRY_DELAY_SECONDS] * (2**0)
+    mock_db.rollback.assert_called_once_with()
+
+
+def test_db_retry_logs_and_returns_none_after_max_attempts(monkeypatch):
+    sleep_calls = []
+    mock_db = Mock()
+    interface = CatalogDBInterface(session=mock_db)
+
+    def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+
+    def action():
+        raise OperationalError(
+            "SELECT 1",
+            {},
+            SerializationFailure("persistent db failure"),
+        )
+
+    monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
+
+    assert interface._run_with_db_retry(action, action_name="test action") is None
+
+    assert mock_db.rollback.call_count == DB_SERIALIZATION_RETRY_ATTEMPTS
+    assert len(sleep_calls) == DB_SERIALIZATION_RETRY_ATTEMPTS - 1
+
+
+def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
+    attempts = {"count": 0}
+    mock_db = Mock()
+    interface = CatalogDBInterface(session=mock_db)
+
+    def fake_sleep(seconds):
+        pytest.fail("sleep should not be called for non-serialization errors")
+
+    def action():
+        attempts["count"] += 1
+        raise OperationalError(
+            "SELECT 1",
+            {},
+            Exception("FATAL: remaining connection slots are reserved"),
+        )
+
+    monkeypatch.setattr("app.database.interface.time.sleep", fake_sleep)
+
+    assert interface._run_with_db_retry(action, action_name="test action") is None
+
+    assert attempts["count"] == 1
+    mock_db.rollback.assert_not_called()

@@ -1,3 +1,4 @@
+from app.search.queries.filters.access_level import ACCESS_LEVEL_FILTER
 from app.search.queries.filters.base import (
     API_CONTEXT,
     MAIN_CONTEXT,
@@ -15,6 +16,7 @@ from app.search.queries.filters.organization_type import (
 )
 from app.search.queries.filters.publisher import PUBLISHER_FILTER
 from app.search.queries.filters.spatial_data import SPATIAL_DATA_FILTER
+from app.search.queries.filters.theme import THEME_FILTER
 
 __all__ = [
     "API_CONTEXT",
@@ -26,6 +28,7 @@ __all__ = [
 ]
 
 FILTERS = (
+    ACCESS_LEVEL_FILTER,
     GEOGRAPHY_FILTER,
     KEYWORD_FILTER,
     ORGANIZATION_FILTER,
@@ -33,5 +36,6 @@ FILTERS = (
     PUBLISHER_FILTER,
     SPATIAL_DATA_FILTER,
     COLLECTION_FILTER,
+    THEME_FILTER,
     HAS_DOWNLOAD_FILTER,
 )

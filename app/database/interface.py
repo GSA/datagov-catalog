@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import math
+import time
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
+from psycopg.errors import SerializationFailure
 from sqlalchemy import func, or_
+from sqlalchemy.exc import OperationalError
 
 from app.models import (
     Dataset,
@@ -29,6 +32,8 @@ from .decorators import paginate
 DEFAULT_PER_PAGE = 20
 DEFAULT_PAGE = 1
 SEARCH_API_MAX_PER_PAGE = 1000
+DB_SERIALIZATION_RETRY_ATTEMPTS = 3
+DB_SERIALIZATION_RETRY_DELAY_SECONDS = 0.25
 
 
 logger = logging.getLogger(__name__)
@@ -58,6 +63,67 @@ class CatalogDBInterface:
         if self._opensearch is None:
             self._opensearch = OpenSearchReader(self.os_client)
         return self._opensearch
+
+    def _is_serialization_failure(self, exc: OperationalError) -> bool:
+        return isinstance(getattr(exc, "orig", None), SerializationFailure)
+
+    def _run_with_db_retry(self, action, *, action_name: str):
+        """
+        Retries `action` if it fails due to a transient PostgreSQL
+        serialization conflict (e.g. "conflict with recovery" on a
+        replica). This is a known, expected Postgres behavior - see:
+        https://www.postgresql.org/docs/current/hot-standby.html
+
+        This app only reads from the database (no writes), so a
+        rollback here never discards any of our own changes.
+        On failure, we call `self.db.rollback()` before
+        retrying. This clears the whole session's current transaction,
+        not just the one query that failed. It also refreshes,
+        aka expires any objects already loaded in this session,
+        so they'll be re-fetched from the DB the next time they're used.
+
+        Before wrapping a new call with this helper, ask: does this
+        request read other data from the DB *before* calling this
+        action, and does it matter if that data gets refreshed
+        (re-queried) after this call returns? If yes, consider moving
+        this call earlier in the request, before those other reads.
+        """
+        for attempt in range(1, DB_SERIALIZATION_RETRY_ATTEMPTS + 1):
+            try:
+                return action()
+            except OperationalError as exc:
+                if not self._is_serialization_failure(exc):
+                    logger.error(
+                        "%s failed due to a non-retryable database error.",
+                        action_name,
+                        exc_info=exc,
+                    )
+                    return None
+
+                self.db.rollback()
+
+                if attempt >= DB_SERIALIZATION_RETRY_ATTEMPTS:
+                    logger.error(
+                        "%s failed after %s attempts due to a database serialization error.",
+                        action_name,
+                        DB_SERIALIZATION_RETRY_ATTEMPTS,
+                        exc_info=exc,
+                    )
+                    return None
+
+                wait_seconds = min(
+                    DB_SERIALIZATION_RETRY_DELAY_SECONDS * (2 ** (attempt - 1)),
+                    2.0,
+                )
+                logger.warning(
+                    "%s hit a transient database serialization error (attempt %s/%s); retrying in %.2f seconds.",
+                    action_name,
+                    attempt,
+                    DB_SERIALIZATION_RETRY_ATTEMPTS,
+                    wait_seconds,
+                    exc_info=exc,
+                )
+                time.sleep(wait_seconds)
 
     def total_datasets(self):
         """Count how many records in the database table."""
@@ -216,12 +282,21 @@ class CatalogDBInterface:
         return self.db.query(Organization).filter(Organization.slug == slug).first()
 
     def get_organization_by_id(self, organization_id: str) -> Organization | None:
+        """
+        This function was retried as explained in https://github.com/GSA/data.gov/issues/6285
+        The retry is necessary because the organization may be on a replica database that is
+        temporarily out of sync with the primary database, leading to a "conflict with recovery" error.
+        This might happen during brief periods of database replication lag such as many requests in a short timeframe.
+        """
         if not organization_id:
             return None
-        return (
-            self.db.query(Organization)
-            .filter(Organization.id == organization_id)
-            .first()
+        return self._run_with_db_retry(
+            lambda: (
+                self.db.query(Organization)
+                .filter(Organization.id == organization_id)
+                .first()
+            ),
+            action_name=f"get organization by id {organization_id}",
         )
 
     def list_datasets_for_organization(
@@ -324,17 +399,77 @@ class CatalogDBInterface:
             for row in rows
         ]
 
-    def get_top_publishers(self) -> list[dict]:
-        """Return the top 100 publishers ordered by dataset count."""
-        publishers = self.opensearch.get_publisher_counts(size=100)
+    def get_federal_organizations(self) -> list[Organization]:
+        """Get all organizations with organization_type='Federal Government', sorted by name.
 
-        return sorted(
-            publishers,
-            key=lambda item: (
-                -item["count"],
-                item["name"].lower(),
-            ),
+        Returns:
+            List of Organization objects sorted alphabetically by name.
+
+        Raises:
+            RuntimeError: If running in production without organization_type_enum.
+        """
+        from flask import current_app
+        from sqlalchemy import cast, inspect
+        from sqlalchemy.dialects.postgresql import ENUM
+
+        # Check if organization_type_enum exists in the database
+        inspector = inspect(self.db.get_bind())
+        enum_exists = "organization_type_enum" in [
+            t["name"] for t in inspector.get_enums()
+        ]
+
+        # Detect production environment (IS_LOCAL=False means production/staging)
+        is_production = not current_app.config.get("IS_LOCAL", True)
+
+        if not enum_exists and is_production:
+            raise RuntimeError(
+                "organization_type_enum does not exist in production database. "
+                "This indicates a database schema misconfiguration. The production "
+                "database should have the organization_type_enum type defined."
+            )
+
+        if enum_exists:
+            # Production environment: use ENUM cast
+            org_type_enum = ENUM(
+                "Federal Government",
+                "State Government",
+                "Local Government",
+                "University",
+                "Tribal Government",
+                "Other",
+                name="organization_type_enum",
+                create_type=False,
+            )
+
+            return (
+                self.db.query(Organization)
+                .filter(
+                    Organization.organization_type
+                    == cast("Federal Government", org_type_enum)
+                )
+                .order_by(Organization.name)
+                .all()
+            )
+        else:
+            # Test environment: use string comparison
+            return (
+                self.db.query(Organization)
+                .filter(Organization.organization_type == "Federal Government")
+                .order_by(Organization.name)
+                .all()
+            )
+
+    def get_unique_publishers(self, page_size: int, from_page: int) -> list[dict]:
+        """Return total unique publisher count and ordered by dataset count with name as tie-breaker"""
+
+        total_unique_publishers = self.opensearch.get_total_unique_publishers_count()
+        if total_unique_publishers == 0:
+            return 0, {}
+        publishers_page = self.opensearch.get_publisher_counts(
+            page_size, from_page, total_unique_publishers
         )
+
+        return total_unique_publishers, publishers_page
 
     @staticmethod
     def to_dict(obj: Any) -> dict[str, Any] | None:
@@ -361,12 +496,31 @@ class CatalogDBInterface:
         """
         return self.db.query(Dataset).filter_by(id=dataset_id).first()
 
-    def get_dataset_by_dcat_identifier(self, identifier: str) -> Dataset | None:
-        return (
-            self.db.query(Dataset)
-            .filter(Dataset.dcat["identifier"].astext == identifier)
-            .first()
+    def get_dataset_by_dcat_identifier(
+        self, identifier: str, harvest_source_id: str | None = None
+    ) -> Dataset | None:
+        """
+        This function was retried as explained in https://github.com/GSA/data.gov/issues/6285
+        The retry is necessary because the dataset may be on a replica database that is
+        temporarily out of sync with the primary database, leading to a "conflict with recovery" error.
+        This might happen during brief periods of database replication lag such as many requests in a short timeframe.
+        """
+
+        def action():
+            query = self.db.query(Dataset).filter(
+                Dataset.dcat["identifier"].astext == identifier
+            )
+            if harvest_source_id is not None:
+                query = query.filter(Dataset.harvest_source_id == harvest_source_id)
+            return query.first()
+
+        return self._run_with_db_retry(
+            action, action_name=f"get dataset by dcat identifier {identifier}"
         )
+
+    def get_identifiers_with_children(self, identifiers: list[str]) -> set[str]:
+        """Return the subset of `identifiers` that have at least one child record."""
+        return self.opensearch.find_identifiers_with_children(identifiers)
 
     def count_all_datasets_in_search(self) -> int:
         """

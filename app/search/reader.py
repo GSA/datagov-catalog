@@ -16,6 +16,7 @@ from app.search.queries import (
     build_ispartof_query,
     build_last_harvested_stats_query,
     build_organization_counts_query,
+    build_parents_with_children_query,
     build_publisher_counts_query,
     build_search_body_query,
     build_search_filter_body_query,
@@ -275,11 +276,30 @@ class OpenSearchReader:
             {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]
 
+    def get_total_unique_publishers_count(self):
+        unique_pubs_count_q = {
+            "size": 0,
+            "aggs": {"unique_pubs_count": {"cardinality": {"field": "publisher.raw"}}},
+        }
+
+        pub_count_result = self.client.search(
+            index=self.INDEX_NAME, body=unique_pubs_count_q
+        )
+        pubs_count = pub_count_result.get("aggregations", {}).get(
+            "unique_pubs_count", {}
+        )
+        if not pubs_count:
+            return 0
+
+        return pubs_count["value"]
+
     def get_publisher_counts(
-        self, size=100, min_doc_count=1, as_dict=False
+        self, page_size, from_page, unique_count, min_doc_count=1, as_dict=False
     ) -> list[dict] | dict[str, int]:
         """Aggregate datasets by publisher name to get counts."""
-        query = build_publisher_counts_query(size, min_doc_count)
+        query = build_publisher_counts_query(
+            unique_count, from_page, min_doc_count, page_size=page_size
+        )
 
         result = self.client.search(index=self.INDEX_NAME, body=query)
         buckets = (
@@ -340,6 +360,22 @@ class OpenSearchReader:
         except Exception as e:
             logger.error(f"Error counting datasets with isPartOf in OpenSearch: {e}")
             return 0
+
+    def find_identifiers_with_children(self, identifiers: list[str]) -> set[str]:
+        """Return the subset of `identifiers` that have at least one child record."""
+        if not identifiers:
+            return set()
+
+        query = build_parents_with_children_query(identifiers)
+
+        try:
+            result = self.client.search(index=self.INDEX_NAME, body=query)
+        except Exception as e:
+            logger.error(f"Error finding identifiers with children in OpenSearch: {e}")
+            return set()
+
+        buckets = result.get("aggregations", {}).get("parents", {}).get("buckets", [])
+        return {bucket["key"] for bucket in buckets}
 
     def scan_index(
         self,
