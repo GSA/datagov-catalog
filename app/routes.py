@@ -40,6 +40,7 @@ from .api_schemas import (
     LocationsResults,
     OpensearchHealth,
     OrganizationsResults,
+    PublishersQuery,
     PublishersResults,
     SearchQuery,
     SearchResults,
@@ -940,10 +941,10 @@ def redirect_to_dcat_validator():
 
 
 @api.get("/api/keywords")
-@api.input(KeywordsQuery, location="query", validation=False)
+@api.input(KeywordsQuery, location="query")
 @api.output(KeywordsResults)
 @api.doc(description="Get a list of the most popular keywords and how often they occur")
-def get_keywords_api(**kwargs):
+def get_keywords_api(query_data):
     """Get unique keywords with counts.
 
     Query parameters:
@@ -954,14 +955,11 @@ def get_keywords_api(**kwargs):
     Returns:
         JSON with list of keywords and their counts
     """
-    size = request.args.get("size", 100, type=int)
+    size = query_data.get("size", 100)
     min_count = request.args.get("min_count", 1, type=int)
     search = request.args.get("search", None)
     selected_keywords = request.args.getlist("keyword")
 
-    # Validate parameters
-    # Between 1 and 1000
-    size = max(min(size, 1000), 1)
     # At least 1
     min_count = max(min_count, 1)
 
@@ -1020,17 +1018,27 @@ def get_organizations_api(**kwargs):
 
 
 @api.route("/api/publishers", methods=["GET"])
+@api.input(PublishersQuery, location="query")
 @api.output(PublishersResults)
-@api.doc(description="Get the top 100 publishers")
+@api.doc(description="Get unique publishers by count")
 def get_publishers_api(**kwargs):
-    """Fetch the top 100 publishers."""
+    """Fetch unique publishers based on count."""
+    page_size = request.args.get("page_size", 100, type=int)
+    from_page = request.args.get("from_page", 0, type=int)
+
+    # ensure page size is valid
+    page_size = page_size if (1000 >= page_size >= 1) else 100
+
+    # ensure from page is valid
+    from_page = from_page if from_page >= 0 else 0
+    from_page = from_page * page_size
 
     try:
-        publishers = interface.get_top_publishers()
+        total, publishers = interface.get_unique_publishers(page_size, from_page)
         return jsonify(
             {
                 "publishers": publishers,
-                "total": len(publishers),
+                "total": total,
             }
         )
     except Exception:
@@ -1154,7 +1162,7 @@ def get_location_by_id_api(location_id, **kwargs):
     return jsonify(
         {
             "id": location_obj[0],
-            "geometry": location_obj[1],
+            "geometry": json.loads(location_obj[1]) if location_obj[1] else None,
         }
     )
 

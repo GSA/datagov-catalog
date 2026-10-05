@@ -166,11 +166,12 @@ def test_location_search_api_endpoint_hides_internal_exception(db_client):
 def test_location_api_by_id(interface_with_location, db_client):
     with patch("app.routes.interface", interface_with_location):
         response = db_client.get("/api/location/1")
-    assert response.json is not None
-    assert "id" in response.json
-    assert "geometry" in response.json
-    assert "type" in response.json["geometry"]
-    assert "coordinates" in response.json["geometry"]
+    assert response.status_code == 200
+    assert response.json["id"] == "1"
+    geometry = response.json["geometry"]
+    assert isinstance(geometry, dict)
+    assert geometry["type"] == "MultiPolygon"
+    assert geometry["coordinates"]
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_writer):
@@ -519,6 +520,24 @@ def test_get_publishers_api_handles_errors(db_client):
     assert data["error"] == "Failed to fetch publishers"
     assert data["message"] == internal_error_message()
     assert "some internal error containing sensitive information" not in response.text
+
+
+def test_get_publishers_api(interface_with_dataset, db_client):
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/publishers")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["total"] == 20
+        assert len(data["publishers"]) == 20
+
+        # out of bounds so no publishers
+        response = db_client.get("/api/publishers?from_page=50")
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "publishers": [],
+            "total": 20,
+        }
 
 
 def test_get_opensearch_health_api_returns_data(db_client):
@@ -3274,6 +3293,50 @@ def test_keywords_api_returns_all_when_no_search(db_client):
     assert "ocean" in keyword_values
     mock_interface.get_unique_keywords.assert_called_once_with(
         size=10, min_doc_count=1, search=None, keywords=None
+    )
+
+
+@pytest.mark.parametrize("size", ["0", "1001", "-1", "abc"])
+def test_keywords_api_rejects_invalid_size(size):
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get(f"/api/keywords?size={size}")
+
+    assert response.status_code == 422
+    assert "size" in response.get_json()["detail"]["query"]
+    mock_interface.get_unique_keywords.assert_not_called()
+
+
+@pytest.mark.parametrize("size", [1, 1000])
+def test_keywords_api_accepts_size_boundaries(size):
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get(f"/api/keywords?size={size}")
+
+    assert response.status_code == 200
+    assert response.get_json()["size"] == size
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=size, min_doc_count=1, search=None, keywords=None
+    )
+
+
+def test_keywords_api_uses_default_size():
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get("/api/keywords")
+
+    assert response.status_code == 200
+    assert response.get_json()["size"] == 100
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=100, min_doc_count=1, search=None, keywords=None
     )
 
 

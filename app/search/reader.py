@@ -301,11 +301,30 @@ class OpenSearchReader:
             {"slug": bucket["key"], "count": bucket["doc_count"]} for bucket in buckets
         ]
 
+    def get_total_unique_publishers_count(self):
+        unique_pubs_count_q = {
+            "size": 0,
+            "aggs": {"unique_pubs_count": {"cardinality": {"field": "publisher.raw"}}},
+        }
+
+        pub_count_result = self.client.search(
+            index=self.INDEX_NAME, body=unique_pubs_count_q
+        )
+        pubs_count = pub_count_result.get("aggregations", {}).get(
+            "unique_pubs_count", {}
+        )
+        if not pubs_count:
+            return 0
+
+        return pubs_count["value"]
+
     def get_publisher_counts(
-        self, size=100, min_doc_count=1, as_dict=False
+        self, page_size, from_page, unique_count, min_doc_count=1, as_dict=False
     ) -> list[dict] | dict[str, int]:
         """Aggregate datasets by publisher name to get counts."""
-        query = build_publisher_counts_query(size, min_doc_count)
+        query = build_publisher_counts_query(
+            unique_count, from_page, min_doc_count, page_size=page_size
+        )
 
         result = self.client.search(index=self.INDEX_NAME, body=query)
         buckets = (
