@@ -26,7 +26,7 @@
   "dependencies": {
     "@uswds/uswds": "3.14.0",
     "chart.js": "^4.5.1",
-    "htmx.org": "^2.0.10",
+    "htmx.org": "^2.0.11",
     "leaflet": "^1.9.4"
   },
   "devDependencies": {
@@ -38,13 +38,13 @@
     "browserify": "^17.0.1",
     "concurrently": "^10.0.5",
     "gulp": "^5.0.1",
-    "rollup": "^4.63.2",
+    "rollup": "^4.64.0",
     "rollup-plugin-copy": "^3.5.0",
-    "sass": "^1.104.1",
+    "sass": "^1.105.1",
     "typescript": "^7.0.2",
     "vinyl-buffer": "^1.0.1",
     "vinyl-source-stream": "^2.0.0",
-    "vite": "^8.3.0"
+    "vite": "^8.3.2"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.62.0"
