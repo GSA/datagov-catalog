@@ -24,6 +24,7 @@ from app.search import (
     ORGANIZATION_CONTEXT,
     FilterParseError,
     SearchCriteria,
+    SortValidationError,
     build_filter_sections,
     visible_filter_query_params,
 )
@@ -393,7 +394,7 @@ def index():
         )
     except FilterParseError as error:
         return _filter_parse_error_response(error)
-    _apply_search_sort(criteria)
+    _apply_search_sort(criteria, is_api_context=False)
 
     query = criteria.query
     num_results = criteria.per_page
@@ -524,7 +525,19 @@ def search(**kwargs):
         )
     except FilterParseError as error:
         return _filter_parse_error_response(error)
-    _apply_search_sort(criteria)
+
+    try:
+        _apply_search_sort(criteria, is_api_context=True)
+    except SortValidationError as error:
+        return (
+            jsonify(
+                {
+                    "error": "Search failed",
+                    "message": error.message,
+                }
+            ),
+            400,
+        )
 
     # missing query parameter searches for everything
     per_page = criteria.per_page
@@ -763,7 +776,7 @@ def organization_detail(slug: str):
         )
     except FilterParseError as error:
         return _filter_parse_error_response(error)
-    _apply_search_sort(criteria)
+    _apply_search_sort(criteria, is_api_context=False)
 
     dataset_search_query = criteria.query
     num_results = criteria.per_page
