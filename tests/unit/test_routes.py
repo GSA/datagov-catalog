@@ -2240,14 +2240,11 @@ def test_header_exists(db_client):
     usa_banner = soup.find("section", class_="usa-banner")
     assert usa_banner is not None
 
-    # check for navigation and nav parts
     nav_bar = soup.find("div", class_="usa-navbar")
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert (
-        len(nav_parts) == 5
-    )  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
+    assert len(nav_parts) == 6
 
 
 def test_footer_exists(db_client):
