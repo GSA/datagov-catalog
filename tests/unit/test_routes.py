@@ -2244,7 +2244,7 @@ def test_header_exists(db_client):
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert len(nav_parts) == 6
+    assert len(nav_parts) == 5
 
 
 def test_footer_exists(db_client):
