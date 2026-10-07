@@ -118,12 +118,27 @@ def _homepage_dataset_total(default_total: int) -> int:
     return default_total
 
 
-def _normalize_sort(sort_value: str | None, spatial_geometry: dict | None) -> str:
+def _validate_and_normalize_sort(
+    sort_value: str | None,
+    spatial_geometry: dict | None,
+    is_api_context: bool = False,
+) -> str:
     sort_key = (sort_value or "relevance").lower()
+
     if sort_key not in ALLOWED_SORTS:
         return "relevance"
+
     if sort_key == "distance" and spatial_geometry is None:
+        if is_api_context:
+            from app.search import SortValidationError
+
+            raise SortValidationError(
+                "Distance sorting requires a spatial reference point. "
+                "Please provide the 'spatial_geometry' parameter.",
+                sort_requested="distance",
+            )
         return "relevance"
+
     return sort_key
 
 
@@ -139,9 +154,9 @@ def _filter_parse_error_response(error: FilterParseError):
     )
 
 
-def _apply_search_sort(criteria: SearchCriteria) -> None:
-    criteria.sort_by = _normalize_sort(
-        criteria.sort_by, criteria.get_spatial_geometry()
+def _apply_search_sort(criteria: SearchCriteria, is_api_context: bool = False) -> None:
+    criteria.sort_by = _validate_and_normalize_sort(
+        criteria.sort_by, criteria.get_spatial_geometry(), is_api_context=is_api_context
     )
 
 
