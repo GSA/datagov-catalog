@@ -1143,7 +1143,9 @@ def get_location_by_id_api(location_id, **kwargs):
     """
     location_obj = interface.get_location(location_id)
     if location_obj is None:
-        return jsonify({"error": "Location not found"}), 404
+        response = jsonify({"error": "Not Found"})
+        response.status_code = 404
+        return response
     return jsonify(
         {
             "id": location_obj[0],

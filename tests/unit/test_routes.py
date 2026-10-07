@@ -174,6 +174,19 @@ def test_location_api_by_id(interface_with_location, db_client):
     assert geometry["coordinates"]
 
 
+@pytest.mark.parametrize("location_id", ["99999999", "notanid"])
+def test_location_api_by_id_not_found(db_client, location_id):
+    mock_interface = Mock()
+    mock_interface.get_location.return_value = None
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(f"/api/location/{location_id}")
+
+    assert response.status_code == 404
+    assert response.json == {"error": "Not Found"}
+    mock_interface.get_location.assert_called_once_with(location_id)
+
+
 def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_writer):
     # search relies on Opensearch now
     opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
