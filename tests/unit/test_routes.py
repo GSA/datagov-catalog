@@ -2253,14 +2253,11 @@ def test_header_exists(db_client):
     usa_banner = soup.find("section", class_="usa-banner")
     assert usa_banner is not None
 
-    # check for navigation and nav parts
     nav_bar = soup.find("div", class_="usa-navbar")
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert (
-        len(nav_parts) == 5
-    )  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
+    assert len(nav_parts) == 5
 
 
 def test_footer_exists(db_client):
@@ -3541,3 +3538,59 @@ def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
 
     assert attempts["count"] == 1
     mock_db.rollback.assert_not_called()
+
+
+def test_search_api_distance_sort_without_spatial_geometry_returns_400(db_client):
+    """Test that distance sort without spatial_geometry returns 400 error."""
+    response = db_client.get("/search?sort=distance")
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "error" in data
+    assert "message" in data
+    assert "spatial reference point" in data["message"].lower()
+    assert "spatial_geometry" in data["message"]
+
+
+def test_search_api_distance_sort_with_spatial_geometry_returns_200(db_client):
+    """Test that distance sort with spatial_geometry works correctly."""
+    geojson = {"type": "Point", "coordinates": [-77.0369, 38.9072]}
+    encoded_geojson = quote(json.dumps(geojson))
+
+    response = db_client.get(
+        f"/search?sort=distance&spatial_geometry={encoded_geojson}"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "results" in data
+    assert data.get("sort") == "distance"
+
+
+def test_search_api_other_sorts_work_without_spatial_geometry(db_client):
+    """Test that other sort options work without spatial_geometry."""
+    for sort_option in ["relevance", "popularity", "last_harvested_date"]:
+        response = db_client.get(f"/search?sort={sort_option}")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "results" in data
+        assert data.get("sort") == sort_option
+
+
+def test_search_api_invalid_sort_falls_back_to_relevance(db_client):
+    """Test that invalid sort values fall back to relevance (existing behavior)."""
+    response = db_client.get("/search?sort=invalid_sort")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "results" in data
+    assert data.get("sort") == "relevance"
+
+
+def test_homepage_distance_sort_without_spatial_geometry_returns_200(db_client):
+    """Test that homepage (web UI) handles distance sort gracefully (no error)."""
+    response = db_client.get("/?sort=distance")
+
+    assert response.status_code == 200
+    assert b"<!DOCTYPE html>" in response.data or b"<html" in response.data
