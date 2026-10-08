@@ -34,6 +34,14 @@ class TestOpenAPI:
         assert registered_names <= documented_names
         assert {"keyword", "geography_label"} <= documented_names
 
+        spatial_within = next(
+            param for param in params if param.get("name") == "spatial_within"
+        )
+        assert (
+            spatial_within["description"]
+            == "Only applies when spatial_geometry is provided."
+        )
+
     def test_openapi_docs(self, db_client):
         """The Swagger docs can be loaded."""
         response = db_client.get("/openapi/docs")

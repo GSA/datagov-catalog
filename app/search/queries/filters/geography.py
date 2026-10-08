@@ -79,7 +79,11 @@ GEOGRAPHY_FILTER = FilterDefinition(
     renderer="geography",
     api_query_params=(
         ApiQueryParam("spatial_geometry", field_type="json_string"),
-        ApiQueryParam("spatial_within", field_type="boolean"),
+        ApiQueryParam(
+            "spatial_within",
+            field_type="boolean",
+            description="Only applies when spatial_geometry is provided.",
+        ),
         ApiQueryParam("geography_label"),
     ),
     parse=_parse_geography,
