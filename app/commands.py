@@ -11,10 +11,7 @@ from flask import Blueprint
 from .database import CatalogDBInterface
 from .models import (
     Dataset,
-    HarvestRecord,
-    HarvestSource,
     Locations,
-    Organization,
     db,
 )
 from .sitemap_s3 import (
@@ -78,10 +75,12 @@ def load_test_data(clear):
     # Import before db.create_all() below so its table is registered on
     # app.models.Base's metadata in time to be created. See
     # tests/fixture_models.py for why this write-only model exists.
+    from tests.factories import generated_test_data
     from tests.fixture_models import HarvestJobFixtureModel
     from tests.fixtures import fixture_data
 
     fixture = fixture_data(include_filter_demos=True)
+    generated_fixture = generated_test_data(fixture)
     interface = CatalogDBInterface(db.session)
 
     if clear:
@@ -102,22 +101,26 @@ def load_test_data(clear):
 
     click.echo("Loading test data...")
     try:
-        for organization_data in fixture["organization"]:
-            interface.db.add(Organization(**organization_data))
-        interface.db.add(HarvestSource(**fixture["harvest_source"]))
-        for extra_source in fixture.get("extra_harvest_source", []):
-            interface.db.add(HarvestSource(**extra_source))
+        for organization in generated_fixture["organizations"]:
+            interface.db.add(organization)
+        for harvest_source in generated_fixture["harvest_sources"]:
+            interface.db.add(harvest_source)
         interface.db.add(
             HarvestJobFixtureModel(id="1", harvest_source_id="1", status="complete")
         )
-        for record in fixture["harvest_record"]:
-            interface.db.add(HarvestRecord(**record))
-        for data in fixture["dataset"]:
-            interface.db.add(Dataset(**data))
+        for record in generated_fixture["harvest_records"]:
+            interface.db.add(record)
+        for dataset in generated_fixture["datasets"]:
+            interface.db.add(dataset)
         for location in fixture["locations"]:
             interface.db.add(Locations(**location))
         interface.db.commit()
-        click.echo("Test data loaded successfully.")
+        click.echo(
+            "Test data loaded successfully "
+            f"({len(generated_fixture['organizations'])} organizations, "
+            f"{len(generated_fixture['harvest_sources'])} harvest sources, "
+            f"{len(generated_fixture['datasets'])} datasets with varied metadata)."
+        )
     except Exception as e:
         interface.db.rollback()
         click.echo(f"Error loading test data: {e}")

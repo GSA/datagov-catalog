@@ -62,11 +62,18 @@ Assumes harvester's defaults (Postgres on port 5433, `mydb`/`myuser`/`mypassword
 # 3. Start app (Docker Compose: app, postgres, opensearch)
 make up
 
-# 4. Load test data (fixtures + sync to OpenSearch)
+# 4. Load test data (full fixture pool + sync to OpenSearch)
 make load-test-data
 ```
 
 App runs at http://localhost:8080
+
+`make load-test-data` loads the full 86-dataset fixture pool, including the
+records in `tests/data/americorps_datasets.csv`, and adds 24 curated, searchable
+examples across 12 subject areas. The resulting 110 datasets have reproducible
+variation in DCAT metadata, access levels, and resource formats. The focused
+geographic and filter-demo datasets are retained, and the command requires no
+additional flags. FactoryBoy factories are also registered as pytest fixtures.
 
 ### Key Make Targets
 
