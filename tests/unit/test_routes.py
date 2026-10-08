@@ -166,11 +166,12 @@ def test_location_search_api_endpoint_hides_internal_exception(db_client):
 def test_location_api_by_id(interface_with_location, db_client):
     with patch("app.routes.interface", interface_with_location):
         response = db_client.get("/api/location/1")
-    assert response.json is not None
-    assert "id" in response.json
-    assert "geometry" in response.json
-    assert "type" in response.json["geometry"]
-    assert "coordinates" in response.json["geometry"]
+    assert response.status_code == 200
+    assert response.json["id"] == "1"
+    geometry = response.json["geometry"]
+    assert isinstance(geometry, dict)
+    assert geometry["type"] == "MultiPolygon"
+    assert geometry["coordinates"]
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_writer):
@@ -183,7 +184,7 @@ def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_write
     assert "results" in response.json
 
 
-def test_search_api_response_containes_harvest_record_url(
+def test_search_api_response_contains_harvest_record_url(
     interface_with_dataset, db_client, opensearch_writer
 ):
     opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
@@ -457,6 +458,24 @@ def test_get_publishers_api_handles_errors(db_client):
     assert "some internal error containing sensitive information" not in response.text
 
 
+def test_get_publishers_api(interface_with_dataset, db_client):
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/publishers")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["total"] == 20
+        assert len(data["publishers"]) == 20
+
+        # out of bounds so no publishers
+        response = db_client.get("/api/publishers?from_page=50")
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "publishers": [],
+            "total": 20,
+        }
+
+
 def test_get_opensearch_health_api_returns_data(db_client):
     mock_interface = Mock()
     mock_interface.opensearch = Mock()
@@ -718,6 +737,36 @@ def test_search_api_parses_spatial_within_param(db_client):
     assert geography.get("geometry") == polygon
 
 
+def test_search_api_filters_by_access_level(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"access_level": "restricted public"}
+        )
+
+    assert response.status_code == 200
+
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
+
+
+def test_search_api_filters_by_access_level_alias(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"accessLevel": "restricted public"}
+        )
+
+    assert response.status_code == 200
+
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
+
+
 def test_organization_detail_parses_spatial_within_param(db_client):
     mock_org = type(
         "Org",
@@ -919,7 +968,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 68"
+    assert datasets_text == "Datasets: 70"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -968,7 +1017,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 68"
+    assert overview_items[1].text.strip() == "Total datasets: 70"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):

@@ -1,3 +1,4 @@
+from app.search.queries.filters.access_level import ACCESS_LEVEL_FILTER
 from app.search.queries.filters.base import (
     API_CONTEXT,
     MAIN_CONTEXT,
@@ -27,6 +28,7 @@ __all__ = [
 ]
 
 FILTERS = (
+    ACCESS_LEVEL_FILTER,
     GEOGRAPHY_FILTER,
     KEYWORD_FILTER,
     ORGANIZATION_FILTER,
