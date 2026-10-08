@@ -42,6 +42,14 @@ class TestOpenAPI:
             == "Only applies when spatial_geometry is provided."
         )
 
+        geography_label = next(
+            param for param in params if param.get("name") == "geography_label"
+        )
+        assert geography_label["description"] == (
+            "Display label for the selected area. Only applies when "
+            "spatial_geometry is provided; does not affect search results."
+        )
+
     def test_openapi_docs(self, db_client):
         """The Swagger docs can be loaded."""
         response = db_client.get("/openapi/docs")

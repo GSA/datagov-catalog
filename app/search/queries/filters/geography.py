@@ -84,7 +84,13 @@ GEOGRAPHY_FILTER = FilterDefinition(
             field_type="boolean",
             description="Only applies when spatial_geometry is provided.",
         ),
-        ApiQueryParam("geography_label"),
+        ApiQueryParam(
+            "geography_label",
+            description=(
+                "Display label for the selected area. Only applies when "
+                "spatial_geometry is provided; does not affect search results."
+            ),
+        ),
     ),
     parse=_parse_geography,
     to_query_pairs=_to_query_pairs,
