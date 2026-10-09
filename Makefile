@@ -39,7 +39,7 @@ test-axe: ## Runs axe-core accessibility checks (requires running app w/ test da
 
 load-test-data: ## Loads test fixture data into the database
 	docker compose exec app flask testdata load_test_data --clear
-	docker compose exec app flask search compare --update
+	docker compose exec app flask search compare --force-update
 
 test-a11y-with-data: up load-test-data test-pa11y test-axe ## Runs accessibility tests with test data loaded
 

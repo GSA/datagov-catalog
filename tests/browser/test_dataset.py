@@ -127,7 +127,7 @@ def test_dcat_3_0_normalized_fields(page):
     ).to_be_visible()
 
     resources_section = page.locator(".resources-section")
-    expect(resources_section.get_by_text("3 resources available")).to_be_visible()
+    expect(resources_section.get_by_text("4 resources available")).to_be_visible()
 
     csv_resource = resources_section.locator(".resources-list__item").filter(
         has_text="Sample CSV Data File"
@@ -214,7 +214,7 @@ def test_all_resource_items_maintain_proper_layout(page):
     resource_items = page.locator(".resources-list__item--main")
     count = resource_items.count()
 
-    assert count == 4
+    assert count == 5
 
     for i in range(count):
         item = resource_items.nth(i)
