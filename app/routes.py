@@ -1582,10 +1582,13 @@ def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
 
-    # Apply rate limiting to contact form after blueprints are registered
     from app import limiter
 
     limiter.limit("5 per hour")(contact_submit)
+
+    from app.dev_routes import register_dev_routes
+
+    register_dev_routes(app)
 
     if app.config.get("IS_LOCAL"):
         app.add_url_rule(

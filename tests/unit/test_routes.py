@@ -3700,15 +3700,31 @@ def test_contact_submit_validates_email_format(db_client):
         data={
             "name": "John Doe",
             "email": "invalid-email",
-            "subject": "Test subject",
+            "subject": "Test",
             "message": "Test message with more details",
-            "form_type": "default",
         },
         follow_redirects=True,
     )
 
     assert response.status_code == 200
     assert b"valid email" in response.data.lower()
+
+
+def test_contact_submit_validates_message_length(db_client):
+    """Test that contact form validates minimum message length."""
+    response = db_client.post(
+        "/contact-submit",
+        data={
+            "name": "John Doe",
+            "email": "john@example.com",
+            "subject": "Test",
+            "message": "Short",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"at least 10 characters" in response.data.lower()
 
 
 def test_contact_submit_handles_send_failure(db_client):
@@ -3721,9 +3737,8 @@ def test_contact_submit_handles_send_failure(db_client):
             data={
                 "name": "John Doe",
                 "email": "john@example.com",
-                "subject": "Test subject",
+                "subject": "Test",
                 "message": "Test message with more details",
-                "form_type": "default",
             },
             follow_redirects=True,
         )
@@ -3786,3 +3801,78 @@ def test_homepage_distance_sort_without_spatial_geometry_returns_200(db_client):
 
     assert response.status_code == 200
     assert b"<!DOCTYPE html>" in response.data or b"<html" in response.data
+
+
+def test_contact_submit_with_attachments(db_client):
+    """Test contact form submission with file attachments."""
+    from io import BytesIO
+
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
+
+        data = {
+            "name": "John Doe",
+            "email": "john@example.com",
+            "subject": "Test with attachment",
+            "message": "Test message with attachment",
+            "form_type": "feedback",
+        }
+
+        file1 = (BytesIO(b"test file content"), "test.pdf")
+        data["attachments"] = file1
+
+        response = db_client.post(
+            "/contact-submit",
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b"Thank you" in response.data
+        mock_send.assert_called_once()
+
+
+def test_contact_submit_validates_max_attachments(db_client):
+    """Test that contact form enforces maximum attachment limit."""
+    from io import BytesIO
+
+    data = {
+        "name": "John Doe",
+        "email": "john@example.com",
+        "subject": "Test",
+        "message": "Test message with too many files",
+    }
+
+    files = [(BytesIO(b"content"), f"test{i}.pdf") for i in range(6)]
+    data["attachments"] = files
+
+    response = db_client.post(
+        "/contact-submit",
+        data=data,
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"up to 5 files" in response.data.lower()
+
+
+def test_contact_submit_htmx_request(db_client):
+    """Test that contact form returns alert component for HTMX requests."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
+
+        response = db_client.post(
+            "/contact-submit",
+            data={
+                "name": "John Doe",
+                "email": "john@example.com",
+                "subject": "Test",
+                "message": "Test message with more details",
+            },
+            headers={"HX-Request": "true"},
+        )
+
+        assert response.status_code == 200
+        assert b"contact-alert" in response.data or b"Thank you" in response.data
