@@ -10,6 +10,7 @@ from flask import (
     Blueprint,
     Response,
     abort,
+    flash,
     jsonify,
     redirect,
     render_template,
@@ -56,12 +57,15 @@ from .sitemap_s3 import (
     get_sitemap_s3_config,
 )
 from .utils import (
+    SMTP_CONFIG,
     dict_from_hint,
     hint_from_dict,
     json_not_found,
     pop_doc_by_identifier,
     register_iso_namespaces,
+    send_email,
     valid_id_required,
+    validate_email,
 )
 
 logger = logging.getLogger(__name__)
@@ -1184,6 +1188,221 @@ def openapi_docs():
     return render_template("swagger.html")
 
 
+@main.route("/contact")
+def contact():
+    """Render contact form page."""
+    return render_template("contact.html")
+
+
+@main.route("/contact-submit", methods=["POST"])
+def contact_submit():
+    """Handle contact form submission with optional file attachments."""
+    import sys
+    from urllib.parse import urlparse
+
+    honeypot = request.form.get("website", "")
+    if honeypot:
+        return redirect(url_for("main.index"))
+
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    subject = request.form.get("subject", "").strip()
+    message = request.form.get("message", "").strip()
+    form_type = request.form.get("form_type", "default").strip()
+
+    logger.info(f"[CONTACT FORM] Received submission from {email}")
+    print(
+        f"[CONTACT FORM] Received submission from {email}", file=sys.stderr, flush=True
+    )
+
+    referrer = request.referrer or ""
+    normalized_referrer = referrer.replace("\\", "/")
+    parsed = urlparse(normalized_referrer)
+    if parsed.scheme or parsed.netloc:
+        referrer = url_for("main.index")
+    else:
+        referrer = normalized_referrer or url_for("main.index")
+
+    if not all([name, email, subject, message]):
+        error_msg = "All fields are required."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+        return redirect(referrer)
+
+    if not validate_email(email):
+        error_msg = "Please enter a valid email address."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+        return redirect(referrer)
+
+    if len(message) < 10:
+        error_msg = "Please provide a more detailed message (at least 10 characters)."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+        return redirect(referrer)
+
+    if len(name) > 100:
+        error_msg = "Name is too long (maximum 100 characters)."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+        return redirect(referrer)
+
+    if len(subject) > 200:
+        error_msg = "Subject is too long (maximum 200 characters)."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+        return redirect(referrer)
+
+    if len(message) > 2000:
+        error_msg = "Message is too long (maximum 2000 characters)."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+        return redirect(referrer)
+
+    attachments = request.files.getlist("attachments")
+    if len(attachments) > 5:
+        error_msg = "You can only upload up to 5 files."
+        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+        return redirect(referrer)
+
+    attachments = [f for f in attachments if f and f.filename]
+
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    ALLOWED_EXTENSIONS = {
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".txt",
+        ".csv",
+        ".xlsx",
+        ".xls",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+    }
+
+    for file in attachments:
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+
+        if file_size > MAX_FILE_SIZE:
+            error_msg = f"File '{file.filename}' is too large. Maximum size is 10MB."
+            logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+            flash(error_msg, "error")
+            if htmx:
+                return render_template(
+                    "components/contact_alert.html", message=error_msg, category="error"
+                )
+            return redirect(referrer)
+
+        import os
+
+        file_ext = os.path.splitext(file.filename.lower())[1]
+        if file_ext not in ALLOWED_EXTENSIONS:
+            error_msg = f"File type '{file_ext}' is not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, images."
+            logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+            flash(error_msg, "error")
+            if htmx:
+                return render_template(
+                    "components/contact_alert.html", message=error_msg, category="error"
+                )
+            return redirect(referrer)
+
+    allowed_form_types = ["default", "feedback", "usagov"]
+    if form_type not in allowed_form_types:
+        form_type = "default"
+
+    form_type_labels = {
+        "default": "Default Ticket",
+        "feedback": "Data.gov Feedback",
+        "usagov": "USAGov Contact",
+    }
+    form_label = form_type_labels[form_type]
+
+    recipient = SMTP_CONFIG["recipient"]
+    sanitized_subject = subject.replace("\n", " ").replace("\r", " ")
+    email_subject = f"Data.gov {form_label}: {sanitized_subject}"
+
+    body = f"""Contact form submission from Data.gov
+
+Form Type: {form_label}
+Name: {name}
+Email: {email}
+Subject: {subject}
+
+Message:
+{message}
+
+---
+This message was sent via the Data.gov contact widget.
+"""
+
+    if attachments:
+        body += f"\n{len(attachments)} file(s) attached."
+
+    logger.info(f"[CONTACT FORM] Attempting to send email to {recipient}")
+    print(
+        f"[CONTACT FORM] Attempting to send email to {recipient}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+    success = send_email(recipient, email_subject, body, attachments=attachments)
+
+    logger.info(f"[CONTACT FORM] Email send result: {success}")
+    print(f"[CONTACT FORM] Email send result: {success}", file=sys.stderr, flush=True)
+
+    if success:
+        success_msg = "Thank you for your message! We will respond as soon as possible."
+        flash(success_msg, "success")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=success_msg, category="success"
+            )
+    else:
+        error_msg = (
+            "Sorry, there was an error sending your message. Please try again later."
+        )
+        flash(error_msg, "error")
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+
+    return redirect(referrer)
+
+
 def style_guide_icons():
     from app.filters import known_format_badges, resource_format_badge
 
@@ -1321,6 +1540,10 @@ def style_guide_icons():
 def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
+
+    from app import limiter
+
+    limiter.limit("5 per hour")(contact_submit)
 
     from app.dev_routes import register_dev_routes
 
