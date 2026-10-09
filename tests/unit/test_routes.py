@@ -3242,6 +3242,50 @@ def test_keywords_api_returns_all_when_no_search(db_client):
     )
 
 
+@pytest.mark.parametrize("size", ["0", "1001", "-1", "abc"])
+def test_keywords_api_rejects_invalid_size(size):
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get(f"/api/keywords?size={size}")
+
+    assert response.status_code == 422
+    assert "size" in response.get_json()["detail"]["query"]
+    mock_interface.get_unique_keywords.assert_not_called()
+
+
+@pytest.mark.parametrize("size", [1, 1000])
+def test_keywords_api_accepts_size_boundaries(size):
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get(f"/api/keywords?size={size}")
+
+    assert response.status_code == 200
+    assert response.get_json()["size"] == size
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=size, min_doc_count=1, search=None, keywords=None
+    )
+
+
+def test_keywords_api_uses_default_size():
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get("/api/keywords")
+
+    assert response.status_code == 200
+    assert response.get_json()["size"] == 100
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=100, min_doc_count=1, search=None, keywords=None
+    )
+
+
 def test_keywords_api_passes_search_param_to_interface(db_client):
     """GET /api/keywords?search=... forwards the search value to the interface."""
     mock_interface = Mock()

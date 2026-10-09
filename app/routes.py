@@ -951,10 +951,10 @@ def redirect_to_dcat_validator():
 
 
 @api.get("/api/keywords")
-@api.input(KeywordsQuery, location="query", validation=False)
+@api.input(KeywordsQuery, location="query")
 @api.output(KeywordsResults)
 @api.doc(description="Get a list of the most popular keywords and how often they occur")
-def get_keywords_api(**kwargs):
+def get_keywords_api(query_data):
     """Get unique keywords with counts.
 
     Query parameters:
@@ -965,14 +965,11 @@ def get_keywords_api(**kwargs):
     Returns:
         JSON with list of keywords and their counts
     """
-    size = request.args.get("size", 100, type=int)
+    size = query_data.get("size", 100)
     min_count = request.args.get("min_count", 1, type=int)
     search = request.args.get("search", None)
     selected_keywords = request.args.getlist("keyword")
 
-    # Validate parameters
-    # Between 1 and 1000
-    size = max(min(size, 1000), 1)
     # At least 1
     min_count = max(min_count, 1)
 

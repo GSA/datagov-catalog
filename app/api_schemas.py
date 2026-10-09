@@ -138,7 +138,7 @@ SearchQuery = _build_search_query_schema()
 
 
 class KeywordsQuery(Schema):
-    size = Integer()
+    size = Integer(validate=Range(min=1, max=1000))
     min_count = Integer()
     search = String()
     keyword = List(String())
