@@ -72,7 +72,8 @@ def hint_from_dict(args_dict):
 
 
 def normalize_site_url(site_url: str) -> str:
-    return site_url.strip("https://")
+    """Strip the scheme and any trailing slash so SITE_URL can be a SERVER_NAME."""
+    return site_url.removeprefix("https://").removeprefix("http://").rstrip("/")
 
 
 def pop_doc_by_identifier(os_docs: list, identifier: str) -> dict | None:
