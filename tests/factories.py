@@ -208,15 +208,16 @@ def _supplemental_distribution(
 
 
 def _enrich_dataset_metadata(
-    dcat: dict[str, Any], dataset_index: int
+    dcat: dict[str, Any], dataset_index: int, *, include_spatial: bool = True
 ) -> dict[str, Any]:
     result = copy.deepcopy(dcat)
 
-    result.pop("accessLevel", None)
-    result.pop("accessRights", None)
-    result.update(
-        ACCESS_PROFILES[(dataset_index + FIXED_TEST_DATA_SEED) % len(ACCESS_PROFILES)]
-    )
+    if "accessLevel" not in result and "accessRights" not in result:
+        result.update(
+            ACCESS_PROFILES[
+                (dataset_index + FIXED_TEST_DATA_SEED) % len(ACCESS_PROFILES)
+            ]
+        )
 
     if "theme" not in result:
         theme_index = dataset_index % 5
@@ -242,7 +243,7 @@ def _enrich_dataset_metadata(
         else:
             result["temporal"] = "2024"
 
-    if "spatial" not in result and dataset_index % 3 != 0:
+    if include_spatial and "spatial" not in result and dataset_index % 3 != 0:
         if dataset_index % 3 == 1:
             result["spatial"] = "United States"
         else:
@@ -471,7 +472,11 @@ def generated_test_data(fixture_data: dict[str, Any]) -> FactoryFixtureData:
         datasets = []
         updated_metadata_by_record_id = {}
         for dataset_index, dataset_data in enumerate(fixture_data["dataset"]):
-            dcat = _enrich_dataset_metadata(dataset_data["dcat"], dataset_index)
+            dcat = _enrich_dataset_metadata(
+                dataset_data["dcat"],
+                dataset_index,
+                include_spatial="translated_spatial" not in dataset_data,
+            )
             dataset = DatasetFactory.build(**{**dataset_data, "dcat": dcat})
             datasets.append(dataset)
             updated_metadata_by_record_id[dataset.harvest_record_id] = dcat

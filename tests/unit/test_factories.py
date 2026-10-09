@@ -48,6 +48,15 @@ def test_generated_test_data_enriches_the_existing_pool_reproducibly():
         == 12
     )
 
+    datasets_by_slug = {dataset.slug: dataset for dataset in first["datasets"]}
+    dcat_3_0 = datasets_by_slug["test-dcat-3-0"].dcat
+    assert dcat_3_0["accessLevel"] == "public"
+    assert dcat_3_0["accessRights"] == "public"
+
+    non_geospatial_demo = datasets_by_slug["michigan-research-grants"]
+    assert non_geospatial_demo.translated_spatial is None
+    assert "spatial" not in non_geospatial_demo.dcat
+
     access_levels = Counter(
         dataset.dcat.get("accessLevel", dataset.dcat.get("accessRights"))
         for dataset in first["datasets"]

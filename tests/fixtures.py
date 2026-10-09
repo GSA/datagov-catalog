@@ -299,7 +299,7 @@ def _add_filter_demo_data(fixture_dict):
                 harvest_source_id=f"src-{org_id}",
                 organization_id=org_id,
                 last_harvested_date=DEFAULT_LAST_HARVESTED_DATE,
-                popularity=50 + index,
+                popularity=1000 + index,
                 translated_spatial=_bbox_polygon(*bbox) if bbox else None,
             )
         )
