@@ -44,6 +44,7 @@ class ApiQueryParam:
     repeated: bool = False
     field_type: str = "string"
     enum_values: tuple[str, ...] = ()
+    description: str | None = None
 
 
 ClauseBuilder = Callable[

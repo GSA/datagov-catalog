@@ -79,8 +79,18 @@ GEOGRAPHY_FILTER = FilterDefinition(
     renderer="geography",
     api_query_params=(
         ApiQueryParam("spatial_geometry", field_type="json_string"),
-        ApiQueryParam("spatial_within", field_type="boolean"),
-        ApiQueryParam("geography_label"),
+        ApiQueryParam(
+            "spatial_within",
+            field_type="boolean",
+            description="Only applies when spatial_geometry is provided.",
+        ),
+        ApiQueryParam(
+            "geography_label",
+            description=(
+                "Display label for the selected area. Only applies when "
+                "spatial_geometry is provided; does not affect search results."
+            ),
+        ),
     ),
     parse=_parse_geography,
     to_query_pairs=_to_query_pairs,
