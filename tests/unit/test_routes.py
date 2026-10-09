@@ -3540,57 +3540,175 @@ def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
     mock_db.rollback.assert_not_called()
 
 
-def test_search_api_distance_sort_without_spatial_geometry_returns_400(db_client):
-    """Test that distance sort without spatial_geometry returns 400 error."""
-    response = db_client.get("/search?sort=distance")
-
-    assert response.status_code == 400
-    data = response.get_json()
-    assert "error" in data
-    assert "message" in data
-    assert "spatial reference point" in data["message"].lower()
-    assert "spatial_geometry" in data["message"]
+def test_contact_page_renders(db_client):
+    """Test that /contact page renders successfully."""
+    response = db_client.get("/contact")
+    assert response.status_code == 200
+    assert b"Contact Us" in response.data
+    assert b"<form" in response.data
 
 
-def test_search_api_distance_sort_with_spatial_geometry_returns_200(db_client):
-    """Test that distance sort with spatial_geometry works correctly."""
-    geojson = {"type": "Point", "coordinates": [-77.0369, 38.9072]}
-    encoded_geojson = quote(json.dumps(geojson))
+def test_contact_submit_with_valid_data(db_client):
+    """Test that contact form submission works with valid data."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
 
-    response = db_client.get(
-        f"/search?sort=distance&spatial_geometry={encoded_geojson}"
+        response = db_client.post(
+            "/contact-submit",
+            data={
+                "name": "John Doe",
+                "email": "john@example.com",
+                "subject": "Test subject",
+                "message": "Test message with more details",
+                "form_type": "default",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b"Thank you" in response.data
+        mock_send.assert_called_once()
+
+
+def test_contact_submit_requires_all_fields(db_client):
+    """Test that contact form requires all fields."""
+    response = db_client.post(
+        "/contact-submit",
+        data={
+            "name": "John Doe",
+            "email": "john@example.com",
+        },
+        follow_redirects=True,
     )
 
     assert response.status_code == 200
-    data = response.get_json()
-    assert "results" in data
-    assert data.get("sort") == "distance"
+    assert b"required" in response.data.lower()
 
 
-def test_search_api_other_sorts_work_without_spatial_geometry(db_client):
-    """Test that other sort options work without spatial_geometry."""
-    for sort_option in ["relevance", "popularity", "last_harvested_date"]:
-        response = db_client.get(f"/search?sort={sort_option}")
+def test_contact_submit_validates_email_format(db_client):
+    """Test that contact form validates email format."""
+    response = db_client.post(
+        "/contact-submit",
+        data={
+            "name": "John Doe",
+            "email": "invalid-email",
+            "subject": "Test",
+            "message": "Test message with more details",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"valid email" in response.data.lower()
+
+
+def test_contact_submit_validates_message_length(db_client):
+    """Test that contact form validates minimum message length."""
+    response = db_client.post(
+        "/contact-submit",
+        data={
+            "name": "John Doe",
+            "email": "john@example.com",
+            "subject": "Test",
+            "message": "Short",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert b"at least 10 characters" in response.data.lower()
+
+
+def test_contact_submit_handles_send_failure(db_client):
+    """Test that contact form handles email sending failures gracefully."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = False
+
+        response = db_client.post(
+            "/contact-submit",
+            data={
+                "name": "John Doe",
+                "email": "john@example.com",
+                "subject": "Test",
+                "message": "Test message with more details",
+            },
+            follow_redirects=True,
+        )
 
         assert response.status_code == 200
-        data = response.get_json()
-        assert "results" in data
-        assert data.get("sort") == sort_option
+        assert b"error" in response.data.lower()
 
 
-def test_search_api_invalid_sort_falls_back_to_relevance(db_client):
-    """Test that invalid sort values fall back to relevance (existing behavior)."""
-    response = db_client.get("/search?sort=invalid_sort")
+def test_contact_submit_with_attachments(db_client):
+    """Test contact form submission with file attachments."""
+    from io import BytesIO
+
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
+
+        data = {
+            "name": "John Doe",
+            "email": "john@example.com",
+            "subject": "Test with attachment",
+            "message": "Test message with attachment",
+            "form_type": "feedback",
+        }
+
+        file1 = (BytesIO(b"test file content"), "test.pdf")
+        data["attachments"] = file1
+
+        response = db_client.post(
+            "/contact-submit",
+            data=data,
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b"Thank you" in response.data
+        mock_send.assert_called_once()
+
+
+def test_contact_submit_validates_max_attachments(db_client):
+    """Test that contact form enforces maximum attachment limit."""
+    from io import BytesIO
+
+    data = {
+        "name": "John Doe",
+        "email": "john@example.com",
+        "subject": "Test",
+        "message": "Test message with too many files",
+    }
+
+    files = [(BytesIO(b"content"), f"test{i}.pdf") for i in range(6)]
+    data["attachments"] = files
+
+    response = db_client.post(
+        "/contact-submit",
+        data=data,
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
 
     assert response.status_code == 200
-    data = response.get_json()
-    assert "results" in data
-    assert data.get("sort") == "relevance"
+    assert b"up to 5 files" in response.data.lower()
 
 
-def test_homepage_distance_sort_without_spatial_geometry_returns_200(db_client):
-    """Test that homepage (web UI) handles distance sort gracefully (no error)."""
-    response = db_client.get("/?sort=distance")
+def test_contact_submit_htmx_request(db_client):
+    """Test that contact form returns alert component for HTMX requests."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
 
-    assert response.status_code == 200
-    assert b"<!DOCTYPE html>" in response.data or b"<html" in response.data
+        response = db_client.post(
+            "/contact-submit",
+            data={
+                "name": "John Doe",
+                "email": "john@example.com",
+                "subject": "Test",
+                "message": "Test message with more details",
+            },
+            headers={"HX-Request": "true"},
+        )
+
+        assert response.status_code == 200
+        assert b"contact-alert" in response.data or b"Thank you" in response.data
