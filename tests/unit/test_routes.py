@@ -166,11 +166,25 @@ def test_location_search_api_endpoint_hides_internal_exception(db_client):
 def test_location_api_by_id(interface_with_location, db_client):
     with patch("app.routes.interface", interface_with_location):
         response = db_client.get("/api/location/1")
-    assert response.json is not None
-    assert "id" in response.json
-    assert "geometry" in response.json
-    assert "type" in response.json["geometry"]
-    assert "coordinates" in response.json["geometry"]
+    assert response.status_code == 200
+    assert response.json["id"] == "1"
+    geometry = response.json["geometry"]
+    assert isinstance(geometry, dict)
+    assert geometry["type"] == "MultiPolygon"
+    assert geometry["coordinates"]
+
+
+@pytest.mark.parametrize("location_id", ["99999999", "notanid"])
+def test_location_api_by_id_not_found(db_client, location_id):
+    mock_interface = Mock()
+    mock_interface.get_location.return_value = None
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(f"/api/location/{location_id}")
+
+    assert response.status_code == 404
+    assert response.json == {"error": "Not Found"}
+    mock_interface.get_location.assert_called_once_with(location_id)
 
 
 def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_writer):
@@ -183,7 +197,7 @@ def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_write
     assert "results" in response.json
 
 
-def test_search_api_response_containes_harvest_record_url(
+def test_search_api_response_contains_harvest_record_url(
     interface_with_dataset, db_client, opensearch_writer
 ):
     opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
@@ -521,6 +535,24 @@ def test_get_publishers_api_handles_errors(db_client):
     assert "some internal error containing sensitive information" not in response.text
 
 
+def test_get_publishers_api(interface_with_dataset, db_client):
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/api/publishers")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["total"] == 20
+        assert len(data["publishers"]) == 20
+
+        # out of bounds so no publishers
+        response = db_client.get("/api/publishers?from_page=50")
+        assert response.status_code == 200
+        assert response.get_json() == {
+            "publishers": [],
+            "total": 20,
+        }
+
+
 def test_get_opensearch_health_api_returns_data(db_client):
     mock_interface = Mock()
     mock_interface.opensearch = Mock()
@@ -782,6 +814,36 @@ def test_search_api_parses_spatial_within_param(db_client):
     assert geography.get("geometry") == polygon
 
 
+def test_search_api_filters_by_access_level(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"access_level": "restricted public"}
+        )
+
+    assert response.status_code == 200
+
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
+
+
+def test_search_api_filters_by_access_level_alias(db_client, interface_with_dataset):
+    interface_with_dataset.search_datasets = Mock(
+        return_value=Mock(results=[], search_after=None)
+    )
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"accessLevel": "restricted public"}
+        )
+
+    assert response.status_code == 200
+
+    criteria = interface_with_dataset.search_datasets.call_args[0][0]
+    assert criteria.get_filter("access_level") == "restricted public"
+
+
 def test_organization_detail_parses_spatial_within_param(db_client):
     mock_org = type(
         "Org",
@@ -983,7 +1045,7 @@ def test_organization_list_shows_type_and_count(db_client, interface_with_datase
     assert type_text.endswith("Federal Government")
 
     datasets_text = body_paragraphs[1].get_text(" ", strip=True)
-    assert datasets_text == "Datasets: 68"
+    assert datasets_text == "Datasets: 70"
 
     default_icon = card.find("svg", class_="default-gov-svg-org-item")
     assert default_icon is not None
@@ -1032,7 +1094,7 @@ def test_organization_detail_displays_dataset_count(db_client, interface_with_da
     overview_elem = soup.find("ul", class_="usa-summary-box__list")
     overview_items = overview_elem.find_all("li", class_="usa-summary-box__item")
 
-    assert overview_items[1].text.strip() == "Total datasets: 68"
+    assert overview_items[1].text.strip() == "Total datasets: 70"
 
 
 def test_organization_detail_displays_dataset_list(db_client, interface_with_dataset):
@@ -2255,14 +2317,11 @@ def test_header_exists(db_client):
     usa_banner = soup.find("section", class_="usa-banner")
     assert usa_banner is not None
 
-    # check for navigation and nav parts
     nav_bar = soup.find("div", class_="usa-navbar")
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert (
-        len(nav_parts) == 5
-    )  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
+    assert len(nav_parts) == 5
 
 
 def test_footer_exists(db_client):
@@ -3543,3 +3602,59 @@ def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
 
     assert attempts["count"] == 1
     mock_db.rollback.assert_not_called()
+
+
+def test_search_api_distance_sort_without_spatial_geometry_returns_400(db_client):
+    """Test that distance sort without spatial_geometry returns 400 error."""
+    response = db_client.get("/search?sort=distance")
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "error" in data
+    assert "message" in data
+    assert "spatial reference point" in data["message"].lower()
+    assert "spatial_geometry" in data["message"]
+
+
+def test_search_api_distance_sort_with_spatial_geometry_returns_200(db_client):
+    """Test that distance sort with spatial_geometry works correctly."""
+    geojson = {"type": "Point", "coordinates": [-77.0369, 38.9072]}
+    encoded_geojson = quote(json.dumps(geojson))
+
+    response = db_client.get(
+        f"/search?sort=distance&spatial_geometry={encoded_geojson}"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "results" in data
+    assert data.get("sort") == "distance"
+
+
+def test_search_api_other_sorts_work_without_spatial_geometry(db_client):
+    """Test that other sort options work without spatial_geometry."""
+    for sort_option in ["relevance", "popularity", "last_harvested_date"]:
+        response = db_client.get(f"/search?sort={sort_option}")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "results" in data
+        assert data.get("sort") == sort_option
+
+
+def test_search_api_invalid_sort_falls_back_to_relevance(db_client):
+    """Test that invalid sort values fall back to relevance (existing behavior)."""
+    response = db_client.get("/search?sort=invalid_sort")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "results" in data
+    assert data.get("sort") == "relevance"
+
+
+def test_homepage_distance_sort_without_spatial_geometry_returns_200(db_client):
+    """Test that homepage (web UI) handles distance sort gracefully (no error)."""
+    response = db_client.get("/?sort=distance")
+
+    assert response.status_code == 200
+    assert b"<!DOCTYPE html>" in response.data or b"<html" in response.data

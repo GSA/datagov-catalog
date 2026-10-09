@@ -1287,8 +1287,10 @@ class GeographyAutocomplete {
       try {
         const response = await fetch(`${this.apiEndpoint}/${location_id}`);
         const data = await response.json();
-        // data.geometry is a string of the GeoJSON geometry of that location
-        this.selectedGeometry = JSON.parse(data.geometry);
+        this.selectedGeometry = this.normalizeGeometry(data.geometry);
+        if (!this.selectedGeometry) {
+          throw new Error('Invalid location geometry');
+        }
         this.selectedGeographyLabel = location_data.display_name || null;
         this.showClearButton();
         this.displayGeometry(this.selectedGeometry);

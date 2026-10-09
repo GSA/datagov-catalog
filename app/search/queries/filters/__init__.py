@@ -1,9 +1,11 @@
+from app.search.queries.filters.access_level import ACCESS_LEVEL_FILTER
 from app.search.queries.filters.base import (
     API_CONTEXT,
     MAIN_CONTEXT,
     ORGANIZATION_CONTEXT,
     ApiQueryParam,
     FilterParseError,
+    SortValidationError,
 )
 from app.search.queries.filters.collection import COLLECTION_FILTER
 from app.search.queries.filters.geography import GEOGRAPHY_FILTER
@@ -24,9 +26,11 @@ __all__ = [
     "FilterParseError",
     "MAIN_CONTEXT",
     "ORGANIZATION_CONTEXT",
+    "SortValidationError",
 ]
 
 FILTERS = (
+    ACCESS_LEVEL_FILTER,
     GEOGRAPHY_FILTER,
     KEYWORD_FILTER,
     ORGANIZATION_FILTER,

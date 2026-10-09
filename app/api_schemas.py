@@ -57,6 +57,7 @@ class _Any(Field):
 class Dataset(Schema):
     _score = Float()
     _sort = List(_Any())
+    access_level = String()
     dcat = Dict()
     description = String()
     harvest_record = URL()
@@ -98,6 +99,9 @@ def _api_query_field(param: ApiQueryParam):
         )
     else:
         field = String()
+
+    if param.description:
+        field.metadata["description"] = param.description
 
     if param.repeated:
         return List(field)
@@ -226,3 +230,8 @@ class StatsResult(Schema):
     meta = Nested(StatsMeta)
     metrics = Nested(StatsMetrics)
     results = Nested(StatsResults)
+
+
+class PublishersQuery(Schema):
+    page_size = Integer()
+    from_page = Integer()

@@ -25,6 +25,11 @@ MAPPINGS = {
             "analyzer": TEXT_ANALYZER,
             "search_analyzer": TEXT_ANALYZER,
         },
+        "access_level": {
+            "type": "text",
+            "analyzer": TEXT_ANALYZER,
+            "search_analyzer": TEXT_ANALYZER,
+        },
         "publisher": {
             "type": "text",
             "analyzer": TEXT_ANALYZER,
