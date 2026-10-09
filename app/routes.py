@@ -28,6 +28,7 @@ from app.search import (
     build_filter_sections,
     visible_filter_query_params,
 )
+from app.search.reader import InvalidCursorError
 
 from . import htmx
 from .api_schemas import (
@@ -558,7 +559,20 @@ def search(**kwargs):
     spatial_geometry = criteria.get_spatial_geometry()
 
     selected_organization = _resolve_organization_filter(criteria)
-    result = interface.search_datasets(criteria)
+
+    try:
+        result = interface.search_datasets(criteria)
+    except InvalidCursorError as error:
+        logger.warning("Invalid cursor parameter provided", exc_info=error)
+        return (
+            jsonify(
+                {
+                    "error": "Invalid cursor parameter",
+                    "message": "The provided cursor is invalid.",
+                }
+            ),
+            400,
+        )
 
     if htmx:
         results = list(result.results)
