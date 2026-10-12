@@ -1,7 +1,8 @@
 FROM python:3.12-alpine3.22
 
-# Pull the latest patched packages from the base distro.
-RUN apk upgrade --no-cache
+# Pull patched packages and require the Alpine 3.22 zlib security fix.
+RUN apk upgrade --no-cache \
+    && apk add --no-cache 'zlib>=1.3.2-r1'
 
 WORKDIR /app
 
