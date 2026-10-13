@@ -106,7 +106,7 @@ def create_app(config_name: str = "local") -> APIFlask:
         app=app,
         key_func=get_remote_address,
         default_limits=[],
-        storage_uri="memory://",
+        storage_uri=os.getenv("REDIS_URI", "memory://"),
     )
 
     db.init_app(app)
