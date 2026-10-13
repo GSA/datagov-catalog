@@ -4,13 +4,12 @@ import uuid
 from typing import Any, TypedDict
 
 import factory
-from factory import random as factory_random
 
 from app.models import Dataset, HarvestRecord, HarvestSource, Organization
 
 from .fixtures import DEFAULT_LAST_HARVESTED_DATE
 
-FIXED_TEST_DATA_SEED = 1
+TEST_DATA_VERSION = 1
 
 ACCESS_PROFILES = (
     {"accessLevel": "public"},
@@ -18,7 +17,6 @@ ACCESS_PROFILES = (
     {"accessLevel": "restricted public"},
     {"accessRights": "public"},
     {"accessRights": "restricted"},
-    {},
 )
 
 RESOURCE_FORMATS = (
@@ -212,11 +210,13 @@ def _enrich_dataset_metadata(
 ) -> dict[str, Any]:
     result = copy.deepcopy(dcat)
 
-    if "accessLevel" not in result and "accessRights" not in result:
+    for field in ("accessLevel", "accessRights"):
+        if result.get(field) is None:
+            result.pop(field, None)
+
+    if not result.get("accessLevel") and not result.get("accessRights"):
         result.update(
-            ACCESS_PROFILES[
-                (dataset_index + FIXED_TEST_DATA_SEED) % len(ACCESS_PROFILES)
-            ]
+            ACCESS_PROFILES[(dataset_index + TEST_DATA_VERSION) % len(ACCESS_PROFILES)]
         )
 
     if "theme" not in result:
@@ -344,7 +344,7 @@ def _stable_id(entity_type: str, *indexes: int) -> str:
     return str(
         uuid.uuid5(
             uuid.NAMESPACE_URL,
-            f"datagov-catalog-test-data:{FIXED_TEST_DATA_SEED}:{entity_type}:{index_path}",
+            f"datagov-catalog-test-data:{TEST_DATA_VERSION}:{entity_type}:{index_path}",
         )
     )
 
@@ -352,12 +352,8 @@ def _stable_id(entity_type: str, *indexes: int) -> str:
 def _add_topic_datasets(
     generated: FactoryFixtureData, existing_dataset_count: int
 ) -> None:
-    source_by_organization = {
-        source.organization_id: source for source in generated["harvest_sources"]
-    }
     source_organizations = [
-        (organization_id, source)
-        for organization_id, source in source_by_organization.items()
+        (source.organization_id, source) for source in generated["harvest_sources"]
     ]
 
     for profile_index, (slug_part, title, keywords, theme) in enumerate(TOPIC_PROFILES):
@@ -373,6 +369,9 @@ def _add_topic_datasets(
             dataset_id = _stable_id("topic-dataset", profile_index, variation_index)
             dcat = {
                 "@type": "dcat:Dataset",
+                **ACCESS_PROFILES[
+                    (dataset_index + TEST_DATA_VERSION) % len(ACCESS_PROFILES)
+                ],
                 "title": f"{title} - Test Dataset {variation_index + 1}",
                 "description": (
                     f"Sample {slug_part.replace('-', ' ')} data for testing "
@@ -466,61 +465,55 @@ def _add_topic_datasets(
 
 def generated_test_data(fixture_data: dict[str, Any]) -> FactoryFixtureData:
     """Build the full fixture dataset pool as FactoryBoy model instances."""
-    previous_random_state = factory_random.get_random_state()
-    factory_random.reseed_random(FIXED_TEST_DATA_SEED)
-    try:
-        datasets = []
-        updated_metadata_by_record_id = {}
-        for dataset_index, dataset_data in enumerate(fixture_data["dataset"]):
-            dcat = _enrich_dataset_metadata(
-                dataset_data["dcat"],
-                dataset_index,
-                include_spatial="translated_spatial" not in dataset_data,
-            )
-            dataset = DatasetFactory.build(**{**dataset_data, "dcat": dcat})
-            datasets.append(dataset)
-            updated_metadata_by_record_id[dataset.harvest_record_id] = dcat
+    datasets = []
+    updated_metadata_by_record_id = {}
+    for dataset_index, dataset_data in enumerate(fixture_data["dataset"]):
+        dcat = _enrich_dataset_metadata(
+            dataset_data["dcat"],
+            dataset_index,
+            include_spatial="translated_spatial" not in dataset_data,
+        )
+        dataset = DatasetFactory.build(**{**dataset_data, "dcat": dcat})
+        datasets.append(dataset)
+        updated_metadata_by_record_id[dataset.harvest_record_id] = dcat
 
-        records = []
-        for record_data in fixture_data["harvest_record"]:
-            dcat = updated_metadata_by_record_id.get(record_data["id"])
-            if dcat is None:
-                records.append(HarvestRecordFactory.build(**record_data))
-                continue
-            source_raw = record_data.get("source_raw")
-            if isinstance(source_raw, str):
-                try:
-                    raw_metadata = json.loads(source_raw)
-                except json.JSONDecodeError:
-                    raw_metadata = None
-                if isinstance(raw_metadata, dict):
-                    source_raw = json.dumps(dcat)
-            records.append(
-                HarvestRecordFactory.build(
-                    **{
-                        **record_data,
-                        "source_raw": source_raw,
-                        "source_transform": copy.deepcopy(dcat),
-                    }
-                )
+    records = []
+    for record_data in fixture_data["harvest_record"]:
+        dcat = updated_metadata_by_record_id.get(record_data["id"])
+        if dcat is None:
+            records.append(HarvestRecordFactory.build(**record_data))
+            continue
+        source_raw = record_data.get("source_raw")
+        if isinstance(source_raw, str):
+            try:
+                raw_metadata = json.loads(source_raw)
+            except json.JSONDecodeError:
+                raw_metadata = None
+            if isinstance(raw_metadata, dict):
+                source_raw = json.dumps(dcat)
+        records.append(
+            HarvestRecordFactory.build(
+                **{
+                    **record_data,
+                    "source_raw": source_raw,
+                    "source_transform": copy.deepcopy(dcat),
+                }
             )
+        )
 
-        generated: FactoryFixtureData = {
-            "organizations": [
-                OrganizationFactory.build(**data)
-                for data in fixture_data["organization"]
-            ],
-            "harvest_sources": [
-                HarvestSourceFactory.build(**data)
-                for data in [
-                    fixture_data["harvest_source"],
-                    *fixture_data.get("extra_harvest_source", []),
-                ]
-            ],
-            "harvest_records": records,
-            "datasets": datasets,
-        }
-        _add_topic_datasets(generated, len(datasets))
-        return generated
-    finally:
-        factory_random.set_random_state(previous_random_state)
+    generated: FactoryFixtureData = {
+        "organizations": [
+            OrganizationFactory.build(**data) for data in fixture_data["organization"]
+        ],
+        "harvest_sources": [
+            HarvestSourceFactory.build(**data)
+            for data in [
+                fixture_data["harvest_source"],
+                *fixture_data.get("extra_harvest_source", []),
+            ]
+        ],
+        "harvest_records": records,
+        "datasets": datasets,
+    }
+    _add_topic_datasets(generated, len(datasets))
+    return generated

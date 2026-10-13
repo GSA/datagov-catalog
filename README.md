@@ -68,12 +68,14 @@ make load-test-data
 
 App runs at http://localhost:8080
 
-`make load-test-data` loads the full 86-dataset fixture pool, including the
-records in `tests/data/americorps_datasets.csv`, and adds 24 curated, searchable
-examples across 12 subject areas. The resulting 110 datasets have reproducible
-variation in DCAT metadata, access levels, and resource formats. The focused
-geographic and filter-demo datasets are retained, and the command requires no
-additional flags. FactoryBoy factories are also registered as pytest fixtures.
+`make load-test-data` loads a local dataset pool designed to approximate
+production in variety, not scale. The pool combines curated, CSV-backed,
+and generated records with deterministic variation in access levels,
+metadata completeness, and resource formats including datasets with
+no resources and datasets with many. Geographic and filter-demo examples
+are retained. The command takes no flags and produces the same result
+on every run. FactoryBoy factories used for this generation are also
+registered as pytest fixtures via pytest-factoryboy.
 
 ### Key Make Targets
 

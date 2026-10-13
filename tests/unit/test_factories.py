@@ -48,6 +48,21 @@ def test_generated_test_data_enriches_the_existing_pool_reproducibly():
         == 12
     )
 
+    topic_datasets = [
+        dataset
+        for dataset in first["datasets"]
+        if dataset.slug.startswith("generated-topic-")
+    ]
+    sources_by_id = {source.id: source for source in first["harvest_sources"]}
+    assert {dataset.harvest_source_id for dataset in topic_datasets} == set(
+        sources_by_id
+    )
+    assert all(
+        sources_by_id[dataset.harvest_source_id].organization_id
+        == dataset.organization_id
+        for dataset in topic_datasets
+    )
+
     datasets_by_slug = {dataset.slug: dataset for dataset in first["datasets"]}
     dcat_3_0 = datasets_by_slug["test-dcat-3-0"].dcat
     assert dcat_3_0["accessLevel"] == "public"
@@ -64,7 +79,18 @@ def test_generated_test_data_enriches_the_existing_pool_reproducibly():
     assert {"public", "non-public", "restricted public", "restricted"} <= set(
         access_levels
     )
-    assert access_levels[None] > 0
+    assert access_levels[None] == 0
+    assert all(
+        dataset.dcat.get("accessLevel") or dataset.dcat.get("accessRights")
+        for dataset in first["datasets"]
+    )
+    assert all(
+        value is not None
+        for dataset in first["datasets"]
+        for field in ("accessLevel", "accessRights")
+        if field in dataset.dcat
+        for value in (dataset.dcat[field],)
+    )
 
     datasets_by_record = {
         dataset.harvest_record_id: dataset for dataset in first["datasets"]
