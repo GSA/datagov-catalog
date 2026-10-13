@@ -177,6 +177,22 @@
   color: #1b1b1b;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contact-widget__menu-item strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1b1b1b;
+}
+
+.contact-widget__menu-description {
+  font-size: 13px;
+  font-weight: 400;
+  color: #5b616b;
+  line-height: 1.4;
 }
 
 .contact-widget__menu-item:first-child {
