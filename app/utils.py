@@ -129,7 +129,7 @@ SMTP_CONFIG = {
     "username": os.getenv("SMTP_USER"),
     "password": os.getenv("SMTP_PASSWORD"),
     "default_sender": os.getenv("SMTP_SENDER", "noreply@data.gov"),
-    "recipient": os.getenv("SMTP_RECIPIENT", "DataGovHelp@gsa.gov"),
+    "recipient": "DataGovHelp@gsa.gov",
 }
 
 
