@@ -181,11 +181,9 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
             msg["Subject"] = subject
             msg.attach(MIMEText(body, "plain"))
 
-            # Attach files if provided
             if attachments:
                 for file in attachments:
                     if file and file.filename:
-                        # Sanitize filename to prevent path traversal and other attacks
                         safe_filename = Path(file.filename).name
                         if not safe_filename or safe_filename.startswith("."):
                             logger.warning(
@@ -193,15 +191,12 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
                             )
                             continue
 
-                        # Read file content
                         file_data = file.read()
 
-                        # Determine MIME type
                         mime_type, _ = mimetypes.guess_type(safe_filename)
                         if not mime_type:
                             mime_type = "application/octet-stream"
 
-                        # Create attachment
                         attachment = MIMEApplication(
                             file_data,
                             _subtype=(
