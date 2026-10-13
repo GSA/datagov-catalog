@@ -1252,9 +1252,6 @@ def contact_submit():
     form_type = request.form.get("form_type", "default").strip()
 
     logger.info(f"[CONTACT FORM] Received submission from {email}")
-    print(
-        f"[CONTACT FORM] Received submission from {email}", file=sys.stderr, flush=True
-    )
 
     referrer = request.referrer or ""
     normalized_referrer = referrer.replace("\\", "/")

@@ -129,7 +129,7 @@ SMTP_CONFIG = {
     "username": os.getenv("SMTP_USER"),
     "password": os.getenv("SMTP_PASSWORD"),
     "default_sender": os.getenv("SMTP_SENDER", "noreply@data.gov"),
-    "recipient": os.getenv("SMTP_RECIPIENT", "DataGovHelp@gsa.gov"),
+    "recipient": "DataGovHelp@gsa.gov",
 }
 
 
@@ -181,11 +181,9 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
             msg["Subject"] = subject
             msg.attach(MIMEText(body, "plain"))
 
-            # Attach files if provided
             if attachments:
                 for file in attachments:
                     if file and file.filename:
-                        # Sanitize filename to prevent path traversal and other attacks
                         safe_filename = Path(file.filename).name
                         if not safe_filename or safe_filename.startswith("."):
                             logger.warning(
@@ -193,15 +191,12 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
                             )
                             continue
 
-                        # Read file content
                         file_data = file.read()
 
-                        # Determine MIME type
                         mime_type, _ = mimetypes.guess_type(safe_filename)
                         if not mime_type:
                             mime_type = "application/octet-stream"
 
-                        # Create attachment
                         attachment = MIMEApplication(
                             file_data,
                             _subtype=(

@@ -260,7 +260,15 @@
       toast.className = 'contact-widget-toast contact-widget-toast--' + type + ' contact-widget-toast--show';
       toast.setAttribute('role', isSuccess ? 'status' : 'alert');
       toast.setAttribute('aria-live', 'polite');
-      toast.innerHTML = icon + '<span>' + message + '</span>';
+
+      const iconSpan = document.createElement('span');
+      iconSpan.innerHTML = icon;
+
+      const messageSpan = document.createElement('span');
+      messageSpan.textContent = message;
+
+      toast.appendChild(iconSpan);
+      toast.appendChild(messageSpan);
       document.body.appendChild(toast);
 
       setTimeout(function() {
