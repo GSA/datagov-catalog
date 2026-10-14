@@ -5,6 +5,8 @@ from apiflask import APIFlask
 from dotenv import load_dotenv
 from flask import render_template, request
 from flask_htmx import HTMX
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 
 from .models import db
@@ -17,6 +19,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 htmx = None
+limiter = None
 STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 HTML_PAGE_MAX_AGE_SECONDS = 60 * 60
 HSTS_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
@@ -87,6 +90,7 @@ def create_app(config_name: str = "local") -> APIFlask:
     app.config["SECRET_KEY"] = env_values["FLASK_SECRET_KEY"]
     app.config["SQLALCHEMY_DATABASE_URI"] = env_values["DATABASE_URI"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["MAX_CONTENT_LENGTH"] = 55 * 1024 * 1024
     app.config["SOCIAL_IMAGE_URL"] = os.getenv(
         "SOCIAL_IMAGE_URL",
         "https://s3-us-gov-west-1.amazonaws.com/cg-0817d6e3-93c4-4de8-8b32-da6919464e61/hero-image-bg.png",
@@ -97,6 +101,14 @@ def create_app(config_name: str = "local") -> APIFlask:
 
     global htmx
     htmx = HTMX(app)
+
+    global limiter
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=[],
+        storage_uri=os.getenv("REDIS_URI", "memory://"),
+    )
 
     db.init_app(app)
 
@@ -132,6 +144,15 @@ def create_app(config_name: str = "local") -> APIFlask:
         if request.blueprint == "api" or request.path.startswith("/api/"):
             return {"message": "Not Found", "detail": {}}, 404
         return render_template("404.html"), 404
+
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        if request.blueprint == "api" or request.path.startswith("/api/"):
+            return {"error": "Upload too large. Maximum total size is 55MB."}, 413
+        from flask import flash, redirect, url_for
+
+        flash("Upload too large. Maximum total size is 55MB.", "error")
+        return redirect(url_for("main.contact"))
 
     # Content-Security-Policy headers
     # single quotes need to appear in some of the strings
