@@ -6,6 +6,7 @@ from app.search.queries.filters import (
     ORGANIZATION_CONTEXT,
     ApiQueryParam,
     FilterParseError,
+    SortValidationError,
 )
 from app.search.queries.registry import (
     build_aggregation_specs,
@@ -34,6 +35,7 @@ __all__ = [
     "MAIN_CONTEXT",
     "ORGANIZATION_CONTEXT",
     "SearchCriteria",
+    "SortValidationError",
     "build_aggregation_specs",
     "build_filter_clauses",
     "build_filter_sections",
