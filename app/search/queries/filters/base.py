@@ -24,6 +24,13 @@ class FilterParseError(ValueError):
         super().__init__(message)
 
 
+class SortValidationError(Exception):
+    def __init__(self, message: str, sort_requested: str):
+        self.message = message
+        self.sort_requested = sort_requested
+        super().__init__(self.message)
+
+
 @dataclass(frozen=True)
 class FilterOption:
     value: str
@@ -37,6 +44,7 @@ class ApiQueryParam:
     repeated: bool = False
     field_type: str = "string"
     enum_values: tuple[str, ...] = ()
+    description: str | None = None
 
 
 ClauseBuilder = Callable[
