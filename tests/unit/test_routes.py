@@ -3276,6 +3276,33 @@ def test_keywords_api_uses_default_size():
     )
 
 
+@pytest.mark.parametrize("min_count,expected_count", [("abc", 1), ("-2", 1)])
+def test_keywords_api_preserves_other_query_parameters(min_count, expected_count):
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get(
+            "/api/keywords",
+            query_string=[
+                ("size", "10"),
+                ("min_count", min_count),
+                ("search", "earth"),
+                ("keyword", "climate"),
+                ("keyword", "water"),
+            ],
+        )
+
+    assert response.status_code == 200
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10,
+        min_doc_count=expected_count,
+        search="earth",
+        keywords=["climate", "water"],
+    )
+
+
 def test_keywords_api_passes_search_param_to_interface(db_client):
     """GET /api/keywords?search=... forwards the search value to the interface."""
     mock_interface = Mock()
