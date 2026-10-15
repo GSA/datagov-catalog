@@ -323,7 +323,7 @@ class CatalogDBInterface:
 
     def get_organizations(self) -> list[dict]:
         """Return all organizations ordered by dataset count."""
-        organizations = self._organization_query().all()
+        organizations = self._organization_query(ignore_empty_orgs=True).all()
         if not organizations:
             return []
 
@@ -383,6 +383,7 @@ class CatalogDBInterface:
                 Organization.organization_type,
                 Organization.aliases,
             )
+            .having(func.count(Dataset.id) > 0)
             .order_by(func.count(Dataset.id).desc(), Organization.name.asc())
             .all()
         )
