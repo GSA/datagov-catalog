@@ -6,6 +6,7 @@ from math import ceil
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
+from apiflask import abort as api_abort
 from flask import (
     Blueprint,
     Response,
