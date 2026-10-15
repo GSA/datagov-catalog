@@ -174,6 +174,19 @@ def test_location_api_by_id(interface_with_location, db_client):
     assert geometry["coordinates"]
 
 
+@pytest.mark.parametrize("location_id", ["99999999", "notanid"])
+def test_location_api_by_id_not_found(db_client, location_id):
+    mock_interface = Mock()
+    mock_interface.get_location.return_value = None
+
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get(f"/api/location/{location_id}")
+
+    assert response.status_code == 404
+    assert response.json == {"error": "Not Found"}
+    mock_interface.get_location.assert_called_once_with(location_id)
+
+
 def test_search_api_endpoint(interface_with_dataset, db_client, opensearch_writer):
     # search relies on Opensearch now
     opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
@@ -262,6 +275,70 @@ def test_search_api_paginate_after(
             assert response.json["results"][0]["slug"] != previous_slug
             previous_slug = response.json["results"][0]["slug"]
             after = response.json["after"]
+
+
+def test_search_with_invalid_cursor_returns_400_json(db_client):
+    """Test that invalid after cursor returns 400 with JSON error."""
+    response = db_client.get("/search?after=NOTAVALIDCURSOR")
+
+    assert response.status_code == 400
+    assert response.content_type == "application/json"
+
+    data = response.get_json()
+    assert "error" in data
+    assert "cursor" in data["error"].lower() or "invalid" in data["error"].lower()
+
+
+def test_search_with_malformed_cursor_base64_returns_400(db_client):
+    """Test that malformed base64 cursor returns 400."""
+    response = db_client.get("/search?after=!!!invalid-base64!!!")
+
+    assert response.status_code == 400
+    assert response.content_type == "application/json"
+
+
+def test_search_with_valid_cursor_works(
+    interface_with_dataset, db_client, opensearch_writer
+):
+    """Test that valid cursor still works correctly."""
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(5):
+        dataset_dict["id"] = str(uuid4())
+        dataset_dict["slug"] = f"cursor-test-{i}"
+        dataset_dict["dcat"] = {"title": f"cursor test {i}"}
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
+    interface_with_dataset.db.commit()
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"q": "cursor", "per_page": "2"}
+        )
+        assert response.status_code == 200
+
+        data = response.get_json()
+        if "after" in data:
+            cursor = data["after"]
+            response2 = db_client.get(
+                "/search",
+                query_string={"q": "cursor", "per_page": "2", "after": cursor},
+            )
+
+            assert response2.status_code == 200
+            data2 = response2.get_json()
+            assert "results" in data2
+
+
+def test_search_without_cursor_still_works(db_client):
+    """Test that search without cursor parameter works unchanged."""
+    response = db_client.get("/search", query_string={"q": "test"})
+
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+
+    data = response.get_json()
+    assert "results" in data
+    assert "sort" in data
 
 
 def test_search_api_by_org_slug(interface_with_dataset, db_client):
@@ -2240,14 +2317,11 @@ def test_header_exists(db_client):
     usa_banner = soup.find("section", class_="usa-banner")
     assert usa_banner is not None
 
-    # check for navigation and nav parts
     nav_bar = soup.find("div", class_="usa-navbar")
     assert nav_bar is not None
 
     nav_parts = soup.find_all("li", class_="usa-nav__primary-item")
-    assert (
-        len(nav_parts) == 5
-    )  # “Data”, “Metrics”, “Organizations”, "Contact" “User Guide”
+    assert len(nav_parts) == 5
 
 
 def test_footer_exists(db_client):
@@ -3599,3 +3673,59 @@ def test_db_retry_does_not_retry_unrelated_operational_errors(monkeypatch):
 
     assert attempts["count"] == 1
     mock_db.rollback.assert_not_called()
+
+
+def test_search_api_distance_sort_without_spatial_geometry_returns_400(db_client):
+    """Test that distance sort without spatial_geometry returns 400 error."""
+    response = db_client.get("/search?sort=distance")
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "error" in data
+    assert "message" in data
+    assert "spatial reference point" in data["message"].lower()
+    assert "spatial_geometry" in data["message"]
+
+
+def test_search_api_distance_sort_with_spatial_geometry_returns_200(db_client):
+    """Test that distance sort with spatial_geometry works correctly."""
+    geojson = {"type": "Point", "coordinates": [-77.0369, 38.9072]}
+    encoded_geojson = quote(json.dumps(geojson))
+
+    response = db_client.get(
+        f"/search?sort=distance&spatial_geometry={encoded_geojson}"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "results" in data
+    assert data.get("sort") == "distance"
+
+
+def test_search_api_other_sorts_work_without_spatial_geometry(db_client):
+    """Test that other sort options work without spatial_geometry."""
+    for sort_option in ["relevance", "popularity", "last_harvested_date"]:
+        response = db_client.get(f"/search?sort={sort_option}")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "results" in data
+        assert data.get("sort") == sort_option
+
+
+def test_search_api_invalid_sort_falls_back_to_relevance(db_client):
+    """Test that invalid sort values fall back to relevance (existing behavior)."""
+    response = db_client.get("/search?sort=invalid_sort")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "results" in data
+    assert data.get("sort") == "relevance"
+
+
+def test_homepage_distance_sort_without_spatial_geometry_returns_200(db_client):
+    """Test that homepage (web UI) handles distance sort gracefully (no error)."""
+    response = db_client.get("/?sort=distance")
+
+    assert response.status_code == 200
+    assert b"<!DOCTYPE html>" in response.data or b"<html" in response.data

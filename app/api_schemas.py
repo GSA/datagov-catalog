@@ -100,6 +100,9 @@ def _api_query_field(param: ApiQueryParam):
     else:
         field = String()
 
+    if param.description:
+        field.metadata["description"] = param.description
+
     if param.repeated:
         return List(field)
     return field
