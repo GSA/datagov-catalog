@@ -5,7 +5,7 @@ from datetime import datetime
 from math import ceil
 from xml.etree import ElementTree
 
-from apiflask import APIBlueprint
+from apiflask import APIBlueprint, abort as api_abort
 from flask import (
     Blueprint,
     Response,
@@ -16,6 +16,7 @@ from flask import (
     request,
     url_for,
 )
+from marshmallow import ValidationError
 
 from app.models import db
 from app.search import (
@@ -923,21 +924,26 @@ def redirect_to_dcat_validator():
 
 
 @api.get("/api/keywords")
-@api.input(KeywordsQuery, location="query")
+@api.input(KeywordsQuery, location="query", validation=False)
 @api.output(KeywordsResults)
 @api.doc(description="Get a list of the most popular keywords and how often they occur")
-def get_keywords_api(query_data):
+def get_keywords_api(**kwargs):
     """Get unique keywords with counts.
 
     Query parameters:
-        size: Maximum number of keywords to return (default 100, max 1000)
+        size: Maximum number of keywords to return (default 100, range 1-1000;
+            invalid values return a 422)
         min_count: Minimum document count for keywords (default 1)
         search: Substring to perofrm lookup for specific keyword (default: None)
 
     Returns:
         JSON with list of keywords and their counts
     """
-    size = query_data.get("size", 100)
+    size_input = {"size": request.args["size"]} if "size" in request.args else {}
+    try:
+        size = KeywordsQuery(only=("size",)).load(size_input).get("size", 100)
+    except ValidationError as error:
+        api_abort(422, message="Validation error", detail={"query": error.messages})
     min_count = request.args.get("min_count", 1, type=int)
     search = request.args.get("search", None)
     selected_keywords = request.args.getlist("keyword")
