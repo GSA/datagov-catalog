@@ -339,12 +339,12 @@ def _enrich_dataset_metadata(
     return result
 
 
-def _stable_id(entity_type: str, *indexes: int) -> str:
-    index_path = ":".join(map(str, indexes))
+def _stable_id(entity_type: str, *parts: str | int) -> str:
+    identity = ":".join(map(str, parts))
     return str(
         uuid.uuid5(
             uuid.NAMESPACE_URL,
-            f"datagov-catalog-test-data:{TEST_DATA_VERSION}:{entity_type}:{index_path}",
+            f"datagov-catalog-test-data:{TEST_DATA_VERSION}:{entity_type}:{identity}",
         )
     )
 
@@ -352,21 +352,17 @@ def _stable_id(entity_type: str, *indexes: int) -> str:
 def _add_topic_datasets(
     generated: FactoryFixtureData, existing_dataset_count: int
 ) -> None:
-    source_organizations = [
+    sources = [
         (source.organization_id, source) for source in generated["harvest_sources"]
     ]
 
     for profile_index, (slug_part, title, keywords, theme) in enumerate(TOPIC_PROFILES):
         for variation_index in range(2):
             dataset_index = existing_dataset_count + profile_index * 2 + variation_index
-            organization_id, source = source_organizations[
-                dataset_index % len(source_organizations)
-            ]
+            organization_id, source = sources[dataset_index % len(sources)]
             slug = f"generated-topic-{slug_part}-{variation_index + 1}"
-            record_id = _stable_id(
-                "topic-harvest-record", profile_index, variation_index
-            )
-            dataset_id = _stable_id("topic-dataset", profile_index, variation_index)
+            record_id = _stable_id("topic-harvest-record", slug_part, variation_index)
+            dataset_id = _stable_id("topic-dataset", slug_part, variation_index)
             dcat = {
                 "@type": "dcat:Dataset",
                 **ACCESS_PROFILES[
@@ -476,7 +472,6 @@ def generated_test_data(fixture_data: dict[str, Any]) -> FactoryFixtureData:
         dataset = DatasetFactory.build(**{**dataset_data, "dcat": dcat})
         datasets.append(dataset)
         updated_metadata_by_record_id[dataset.harvest_record_id] = dcat
-
     records = []
     for record_data in fixture_data["harvest_record"]:
         dcat = updated_metadata_by_record_id.get(record_data["id"])
