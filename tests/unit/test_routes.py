@@ -1149,7 +1149,7 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
     assert filter_form is not None
 
     hidden_sort = filter_form.find("input", {"name": "sort", "type": "hidden"})
-    assert hidden_sort is not None
+    assert hidden_sort is None
 
     sort_select = soup.find("select", {"id": "sort-select"})
     assert sort_select is not None
@@ -1867,8 +1867,7 @@ def test_index_page_query_parameter_preserved_in_form(db_client):
     assert search_input.get("value") == "climate"
 
     sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
-    assert sort_input is not None
-    assert sort_input.get("value") == "relevance"
+    assert sort_input is None
 
 
 def test_index_page_popularity_sort_preserved(db_client):
@@ -2065,7 +2064,7 @@ def test_index_pagination_preserves_query_params(
     href = next_link.get("hx-get")
     assert "q=test" in href
     assert "per_page=20" in href
-    assert "sort=relevance" in href
+    assert "sort=relevance" not in href
 
 
 def test_index_search_results_arg(interface_with_dataset, db_client, opensearch_writer):

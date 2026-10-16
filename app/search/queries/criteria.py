@@ -142,7 +142,7 @@ class SearchCriteria:
         pairs: list[tuple[str, str]] = []
         if include_query and "q" not in exclude:
             pairs.append(("q", self.query))
-        if include_sort and "sort" not in exclude:
+        if include_sort and self.sort_by != "relevance" and "sort" not in exclude:
             pairs.append(("sort", self.sort_by))
         if include_after and self.after and "after" not in exclude:
             pairs.append(("after", self.after))
