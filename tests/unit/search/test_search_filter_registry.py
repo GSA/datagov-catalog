@@ -1,3 +1,5 @@
+from werkzeug.datastructures import MultiDict
+
 from app.search.queries import (
     MAIN_CONTEXT,
     SearchCriteria,
@@ -69,3 +71,15 @@ def test_search_queries_include_access_level():
     assert {
         "match_phrase": {"access_level": {"query": "restricted public"}}
     } in phrase_fields
+
+
+def test_default_sort_applied_when_omitted_from_url():
+    args = MultiDict([("q", "test")])
+
+    criteria = SearchCriteria.from_request_args(args)
+
+    # Search behavior still uses relevance sorting.
+    assert criteria.sort_by == "relevance"
+
+    # Generated URLs don't include the default sort.
+    assert ("sort", "relevance") not in criteria.to_query_pairs()

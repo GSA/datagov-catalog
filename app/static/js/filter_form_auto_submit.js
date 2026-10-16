@@ -2,6 +2,18 @@
     const mapPanelStateStorageKey = 'datagov.geographyMapExpanded.nextState';
     const mapPanelId = 'geography-map-expanded-panel';
 
+    function cleanFilterFormData(event) {
+        const data = event.formData;
+
+        if (data.get('sort') === 'relevance') {
+            data.delete('sort');
+        }
+
+        if (data.get('spatial_filter') === '') {
+            data.delete('spatial_filter');
+            }
+        }
+
     function parseSpatialWithinValue(value) {
         if (typeof value !== 'string') {
             return true;
@@ -163,6 +175,8 @@
         if (!form) {
             return;
         }
+
+        form.addEventListener('formdata', cleanFilterFormData);
 
         autoSubmit.init(form);
         attachInputAutoSubmit(form, [
