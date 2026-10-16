@@ -6,6 +6,7 @@ from math import ceil
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
+from apiflask import abort as api_abort
 from flask import (
     Blueprint,
     Response,
@@ -16,6 +17,7 @@ from flask import (
     request,
     url_for,
 )
+from marshmallow import ValidationError
 
 from app.models import db
 from app.search import (
@@ -972,21 +974,23 @@ def get_keywords_api(**kwargs):
     """Get unique keywords with counts.
 
     Query parameters:
-        size: Maximum number of keywords to return (default 100, max 1000)
+        size: Maximum number of keywords to return (default 100, range 1-1000;
+            invalid values return a 422)
         min_count: Minimum document count for keywords (default 1)
         search: Substring to perofrm lookup for specific keyword (default: None)
 
     Returns:
         JSON with list of keywords and their counts
     """
-    size = request.args.get("size", 100, type=int)
+    size_input = {"size": request.args["size"]} if "size" in request.args else {}
+    try:
+        size = KeywordsQuery(only=("size",)).load(size_input).get("size", 100)
+    except ValidationError as error:
+        api_abort(422, message="Validation error", detail={"query": error.messages})
     min_count = request.args.get("min_count", 1, type=int)
     search = request.args.get("search", None)
     selected_keywords = request.args.getlist("keyword")
 
-    # Validate parameters
-    # Between 1 and 1000
-    size = max(min(size, 1000), 1)
     # At least 1
     min_count = max(min_count, 1)
 
