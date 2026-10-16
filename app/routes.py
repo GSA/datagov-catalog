@@ -1028,9 +1028,9 @@ def get_keywords_api(**kwargs):
 
 @api.route("/api/organizations", methods=["GET"])
 @api.output(OrganizationsResults)
-@api.doc(description="Get the complete list of organizations")
+@api.doc(description="Get the list of organizations that have at least one dataset")
 def get_organizations_api(**kwargs):
-    """Fetch the complete list of organizations."""
+    """Fetch the list of organizations that have at least one dataset."""
 
     try:
         organizations = interface.get_organizations()
