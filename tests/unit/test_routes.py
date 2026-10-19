@@ -1149,7 +1149,9 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
     assert filter_form is not None
 
     hidden_sort = filter_form.find("input", {"name": "sort", "type": "hidden"})
-    assert hidden_sort is not None
+    # no hidden sort. only the sort provided via the filter form.
+    # hidden sort adds a duplicate sort query parameter in the url
+    assert hidden_sort is None
 
     sort_select = soup.find("select", {"id": "sort-select"})
     assert sort_select is not None
