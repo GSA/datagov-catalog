@@ -62,11 +62,20 @@ Assumes harvester's defaults (Postgres on port 5433, `mydb`/`myuser`/`mypassword
 # 3. Start app (Docker Compose: app, postgres, opensearch)
 make up
 
-# 4. Load test data (fixtures + sync to OpenSearch)
+# 4. Load test data (full fixture pool + sync to OpenSearch)
 make load-test-data
 ```
 
 App runs at http://localhost:8080
+
+`make load-test-data` loads a local dataset pool designed to approximate
+production in variety, not scale. The pool combines curated, CSV-backed,
+and generated records with deterministic variation in access levels,
+metadata completeness, and resource formats including datasets with
+no resources and datasets with many. Geographic and filter-demo examples
+are retained. The command takes no flags and produces the same result
+on every run. FactoryBoy factories used for this generation are also
+registered as pytest fixtures via pytest-factoryboy.
 
 ### Key Make Targets
 

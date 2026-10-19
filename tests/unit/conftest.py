@@ -6,6 +6,7 @@ from unittest.mock import Mock
 import pytest
 from dotenv import load_dotenv
 from opensearchpy.exceptions import NotFoundError
+from pytest_factoryboy import register
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import create_app
@@ -21,9 +22,20 @@ from app.models import (
 from app.search.config import INDEX_NAME
 from app.search.writer import OpenSearchWriter
 
+from ..factories import (
+    DatasetFactory,
+    HarvestRecordFactory,
+    HarvestSourceFactory,
+    OrganizationFactory,
+)
 from ..fixture_models import HarvestJobFixtureModel
 from ..fixtures import fixture_data as build_fixture_data
 from ..harvester_snapshot import load_opensearch_snapshot, load_postgres_snapshot
+
+register(OrganizationFactory)
+register(HarvestSourceFactory)
+register(HarvestRecordFactory)
+register(DatasetFactory)
 
 
 @pytest.fixture
