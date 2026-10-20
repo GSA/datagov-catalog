@@ -531,7 +531,8 @@ def search(**kwargs):
             default_per_page=DEFAULT_PER_PAGE,
         )
     except FilterParseError as error:
-        return _filter_parse_error_response(error)
+        response, _ = _filter_parse_error_response(error)
+        return response, 422
 
     try:
         _apply_search_sort(criteria, is_api_context=True)
