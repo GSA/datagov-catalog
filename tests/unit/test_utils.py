@@ -11,7 +11,10 @@ class TestNormalizeSiteUrl:
 
     def test_keeps_leading_host_characters(self):
         """The host may begin with any of "https:/", which str.strip would eat."""
-        assert normalize_site_url("https://staging.catalog.data.gov") == "staging.catalog.data.gov"
+        assert (
+            normalize_site_url("https://staging.catalog.data.gov")
+            == "staging.catalog.data.gov"
+        )
         assert normalize_site_url("https://test.data.gov") == "test.data.gov"
         assert normalize_site_url("http://harvest.data.gov") == "harvest.data.gov"
 
