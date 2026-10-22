@@ -6,8 +6,8 @@ from typing import Any
 from app.search.queries.filters.base import (
     API_CONTEXT,
     DEFAULT_SEARCH_PER_PAGE,
-    FilterEnumValidationError,
     MAIN_CONTEXT,
+    FilterEnumValidationError,
     get_int,
     get_value,
 )
