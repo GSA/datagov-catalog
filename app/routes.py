@@ -30,6 +30,7 @@ from app.search import (
     build_filter_sections,
     visible_filter_query_params,
 )
+from app.search.queries.filters.base import FilterEnumValidationError
 from app.search.reader import InvalidCursorError
 
 from . import htmx
@@ -526,9 +527,11 @@ def search(**kwargs):
             per_page_name="per_page",
             default_per_page=DEFAULT_PER_PAGE,
         )
-    except FilterParseError as error:
+    except FilterEnumValidationError as error:
         response, _ = _filter_parse_error_response(error)
         return response, 422
+    except FilterParseError as error:
+        return _filter_parse_error_response(error)
 
     try:
         _apply_search_sort(criteria, is_api_context=True)
