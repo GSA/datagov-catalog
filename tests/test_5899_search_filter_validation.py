@@ -84,8 +84,7 @@ def test_empty_api_filter_is_ignored(parameter):
     ["spatial_filter", "org_type"],
 )
 def test_empty_api_filter_reaches_search_backend(parameter, monkeypatch):
-    from app import create_app
-    from app import routes
+    from app import create_app, routes
 
     app = create_app()
     app.config["TESTING"] = True
