@@ -6,7 +6,7 @@ from typing import Any
 from app.search.queries.filters.base import (
     API_CONTEXT,
     DEFAULT_SEARCH_PER_PAGE,
-    FilterParseError,
+    FilterEnumValidationError,
     MAIN_CONTEXT,
     get_int,
     get_value,
@@ -64,19 +64,14 @@ class SearchCriteria:
                     if not param.enum_values:
                         continue
 
-                    raw_values = (
-                        args.getlist(param.name)
-                        if hasattr(args, "getlist")
-                        else get_value(args, param.name)
-                    )
-                    if not isinstance(raw_values, list):
-                        raw_values = [] if raw_values is None else [raw_values]
-
-                    for raw_value in raw_values:
-                        if raw_value not in param.enum_values:
-                            raise FilterParseError(
+                    values = value if isinstance(value, list) else [value]
+                    for item in values:
+                        if item in (None, ""):
+                            continue
+                        if item not in param.enum_values:
+                            raise FilterEnumValidationError(
                                 param.name,
-                                f"Invalid value for {param.name}: {raw_value}",
+                                f"Invalid value for {param.name}: {item}",
                             )
 
             if definition.is_active(value):
