@@ -6,6 +6,7 @@ from math import ceil
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
+from apiflask import abort as api_abort
 from flask import (
     Blueprint,
     Response,
@@ -17,6 +18,7 @@ from flask import (
     request,
     url_for,
 )
+from marshmallow import ValidationError
 
 from app.models import db
 from app.search import (
@@ -29,6 +31,7 @@ from app.search import (
     build_filter_sections,
     visible_filter_query_params,
 )
+from app.search.reader import InvalidCursorError
 
 from . import htmx
 from .api_schemas import (
@@ -494,7 +497,7 @@ def index():
         ),
         filter_form_hidden_params=criteria.to_query_pairs(
             include_query=True,
-            include_sort=True,
+            include_sort=False,
             exclude=visible_filter_query_params(MAIN_CONTEXT),
         ),
         pagination_query_params=criteria.to_query_dict(
@@ -562,7 +565,20 @@ def search(**kwargs):
     spatial_geometry = criteria.get_spatial_geometry()
 
     selected_organization = _resolve_organization_filter(criteria)
-    result = interface.search_datasets(criteria)
+
+    try:
+        result = interface.search_datasets(criteria)
+    except InvalidCursorError as error:
+        logger.warning("Invalid cursor parameter provided", exc_info=error)
+        return (
+            jsonify(
+                {
+                    "error": "Invalid cursor parameter",
+                    "message": "The provided cursor is invalid.",
+                }
+            ),
+            400,
+        )
 
     if htmx:
         results = list(result.results)
@@ -840,7 +856,7 @@ def organization_detail(slug: str):
         ),
         filter_form_hidden_params=criteria.to_query_pairs(
             include_query=True,
-            include_sort=True,
+            include_sort=False,
             exclude=visible_filter_query_params(ORGANIZATION_CONTEXT),
         ),
         api_pagination_query_params={
@@ -962,21 +978,23 @@ def get_keywords_api(**kwargs):
     """Get unique keywords with counts.
 
     Query parameters:
-        size: Maximum number of keywords to return (default 100, max 1000)
+        size: Maximum number of keywords to return (default 100, range 1-1000;
+            invalid values return a 422)
         min_count: Minimum document count for keywords (default 1)
         search: Substring to perofrm lookup for specific keyword (default: None)
 
     Returns:
         JSON with list of keywords and their counts
     """
-    size = request.args.get("size", 100, type=int)
+    size_input = {"size": request.args["size"]} if "size" in request.args else {}
+    try:
+        size = KeywordsQuery(only=("size",)).load(size_input).get("size", 100)
+    except ValidationError as error:
+        api_abort(422, message="Validation error", detail={"query": error.messages})
     min_count = request.args.get("min_count", 1, type=int)
     search = request.args.get("search", None)
     selected_keywords = request.args.getlist("keyword")
 
-    # Validate parameters
-    # Between 1 and 1000
-    size = max(min(size, 1000), 1)
     # At least 1
     min_count = max(min_count, 1)
 
@@ -1010,9 +1028,9 @@ def get_keywords_api(**kwargs):
 
 @api.route("/api/organizations", methods=["GET"])
 @api.output(OrganizationsResults)
-@api.doc(description="Get the complete list of organizations")
+@api.doc(description="Get the list of organizations that have at least one dataset")
 def get_organizations_api(**kwargs):
-    """Fetch the complete list of organizations."""
+    """Fetch the list of organizations that have at least one dataset."""
 
     try:
         organizations = interface.get_organizations()

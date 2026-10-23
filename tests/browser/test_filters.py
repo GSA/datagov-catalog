@@ -160,19 +160,6 @@ def test_sort_by_popularity_preserves_active_filters(page: Page) -> None:
     expect_result_visible(page, "Red Cross Blood Drive Schedule")
 
 
-def test_sort_select_syncs_hidden_filter_form_input(page: Page) -> None:
-    """Changing the sort dropdown updates the hidden sort field before submit."""
-    page.goto("/?keyword=health")
-    wait_for_filtered_results(page)
-    open_filter_sidebar(page)
-
-    sort_select(page).select_option("popularity")
-
-    expect(
-        page.locator('#filter-form input[name="sort"][type="hidden"]')
-    ).to_have_value("popularity")
-
-
 def test_bfcache_restore_removes_stale_loading_overlay(page: Page) -> None:
     """A loading overlay left over from a prior navigation must be torn down
     when the browser restores the page from the back/forward cache, so it

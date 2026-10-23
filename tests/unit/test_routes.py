@@ -277,6 +277,70 @@ def test_search_api_paginate_after(
             after = response.json["after"]
 
 
+def test_search_with_invalid_cursor_returns_400_json(db_client):
+    """Test that invalid after cursor returns 400 with JSON error."""
+    response = db_client.get("/search?after=NOTAVALIDCURSOR")
+
+    assert response.status_code == 400
+    assert response.content_type == "application/json"
+
+    data = response.get_json()
+    assert "error" in data
+    assert "cursor" in data["error"].lower() or "invalid" in data["error"].lower()
+
+
+def test_search_with_malformed_cursor_base64_returns_400(db_client):
+    """Test that malformed base64 cursor returns 400."""
+    response = db_client.get("/search?after=!!!invalid-base64!!!")
+
+    assert response.status_code == 400
+    assert response.content_type == "application/json"
+
+
+def test_search_with_valid_cursor_works(
+    interface_with_dataset, db_client, opensearch_writer
+):
+    """Test that valid cursor still works correctly."""
+    dataset_dict = interface_with_dataset.db.query(Dataset).first().to_dict()
+    for i in range(5):
+        dataset_dict["id"] = str(uuid4())
+        dataset_dict["slug"] = f"cursor-test-{i}"
+        dataset_dict["dcat"] = {"title": f"cursor test {i}"}
+        add_dataset_with_harvest_record(interface_with_dataset, dataset_dict)
+    interface_with_dataset.db.commit()
+    opensearch_writer.index_datasets(interface_with_dataset.db.query(Dataset))
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/search", query_string={"q": "cursor", "per_page": "2"}
+        )
+        assert response.status_code == 200
+
+        data = response.get_json()
+        if "after" in data:
+            cursor = data["after"]
+            response2 = db_client.get(
+                "/search",
+                query_string={"q": "cursor", "per_page": "2", "after": cursor},
+            )
+
+            assert response2.status_code == 200
+            data2 = response2.get_json()
+            assert "results" in data2
+
+
+def test_search_without_cursor_still_works(db_client):
+    """Test that search without cursor parameter works unchanged."""
+    response = db_client.get("/search", query_string={"q": "test"})
+
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+
+    data = response.get_json()
+    assert "results" in data
+    assert "sort" in data
+
+
 def test_search_api_by_org_slug(interface_with_dataset, db_client):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(
@@ -1085,7 +1149,9 @@ def test_organization_detail_filters_sidebar(db_client, interface_with_dataset):
     assert filter_form is not None
 
     hidden_sort = filter_form.find("input", {"name": "sort", "type": "hidden"})
-    assert hidden_sort is not None
+    # no hidden sort. only the sort provided via the filter form.
+    # hidden sort adds a duplicate sort query parameter in the url
+    assert hidden_sort is None
 
     sort_select = soup.find("select", {"id": "sort-select"})
     assert sort_select is not None
@@ -3239,6 +3305,77 @@ def test_keywords_api_returns_all_when_no_search(db_client):
     assert "ocean" in keyword_values
     mock_interface.get_unique_keywords.assert_called_once_with(
         size=10, min_doc_count=1, search=None, keywords=None
+    )
+
+
+@pytest.mark.parametrize("size", ["0", "1001", "-1", "abc"])
+def test_keywords_api_rejects_invalid_size(size):
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get(f"/api/keywords?size={size}")
+
+    assert response.status_code == 422
+    assert "size" in response.get_json()["detail"]["query"]
+    mock_interface.get_unique_keywords.assert_not_called()
+
+
+@pytest.mark.parametrize("size", [1, 1000])
+def test_keywords_api_accepts_size_boundaries(size):
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get(f"/api/keywords?size={size}")
+
+    assert response.status_code == 200
+    assert response.get_json()["size"] == size
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=size, min_doc_count=1, search=None, keywords=None
+    )
+
+
+def test_keywords_api_uses_default_size():
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get("/api/keywords")
+
+    assert response.status_code == 200
+    assert response.get_json()["size"] == 100
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=100, min_doc_count=1, search=None, keywords=None
+    )
+
+
+@pytest.mark.parametrize("min_count,expected_count", [("abc", 1), ("-2", 1)])
+def test_keywords_api_preserves_other_query_parameters(min_count, expected_count):
+    client = create_app("local").test_client()
+    mock_interface = Mock()
+    mock_interface.get_unique_keywords.return_value = []
+
+    with patch("app.routes.interface", mock_interface):
+        response = client.get(
+            "/api/keywords",
+            query_string=[
+                ("size", "10"),
+                ("min_count", min_count),
+                ("search", "earth"),
+                ("keyword", "climate"),
+                ("keyword", "water"),
+            ],
+        )
+
+    assert response.status_code == 200
+    mock_interface.get_unique_keywords.assert_called_once_with(
+        size=10,
+        min_doc_count=expected_count,
+        search="earth",
+        keywords=["climate", "water"],
     )
 
 
