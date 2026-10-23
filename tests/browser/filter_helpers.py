@@ -57,7 +57,9 @@ def open_filter_sidebar(page: Page) -> None:
     if not panel.is_visible():
         toggle = page.locator("#filter-mobile-toggle")
         toggle.wait_for(state="attached")
-        toggle.click()
+        # Only click if the toggle button is actually visible (mobile viewports)
+        if toggle.is_visible():
+            toggle.click()
     expect(panel).to_be_visible()
 
 
