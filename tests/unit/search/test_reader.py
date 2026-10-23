@@ -69,3 +69,10 @@ class TestDecodeSearchAfter:
             SearchResult.decode_search_after("")
 
         assert "Invalid cursor format" in str(exc_info.value)
+
+    def test_decode_search_after_with_non_string_input(self):
+        """Test that non-string input (e.g. int) raises InvalidCursorError."""
+        with pytest.raises(InvalidCursorError) as exc_info:
+            SearchResult.decode_search_after(12345)
+
+        assert "Invalid cursor format" in str(exc_info.value)

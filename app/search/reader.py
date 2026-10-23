@@ -131,7 +131,7 @@ class SearchResult:
             decoded_bytes = base64.urlsafe_b64decode(encoded_after)
             decoded_str = decoded_bytes.decode("utf-8")
             result = json.loads(decoded_str)
-        except (ValueError, UnicodeDecodeError) as e:
+        except (ValueError, UnicodeDecodeError, TypeError) as e:
             raise InvalidCursorError(f"Invalid cursor format: {e}") from e
 
         if not isinstance(result, list):

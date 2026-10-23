@@ -498,7 +498,7 @@ def index():
         ),
         filter_form_hidden_params=criteria.to_query_pairs(
             include_query=True,
-            include_sort=True,
+            include_sort=False,
             exclude=visible_filter_query_params(MAIN_CONTEXT),
         ),
         pagination_query_params=criteria.to_query_dict(
@@ -860,7 +860,7 @@ def organization_detail(slug: str):
         ),
         filter_form_hidden_params=criteria.to_query_pairs(
             include_query=True,
-            include_sort=True,
+            include_sort=False,
             exclude=visible_filter_query_params(ORGANIZATION_CONTEXT),
         ),
         api_pagination_query_params={
