@@ -348,14 +348,20 @@ def build_base_query(query: str) -> dict[str, Any]:
                     "minimum_should_match": 1,
                 }
             }
+        elif len(parsed_query["terms"]) == 1:
+            # A lone phrase, e.g. "poor food"
+            base_query = build_query_for_parsed_term(parsed_query["terms"][0])
         else:
-            # Single phrase query without OR
-            # Should only have one term since has_or is False
-            if len(parsed_query["terms"]) == 1:
-                base_query = build_query_for_parsed_term(parsed_query["terms"][0])
-            else:
-                # Shouldn't happen, but fall back to match_all
-                base_query = {"match_all": {}}
+            # No OR, so require every phrase and term, the same AND
+            # behaviour an unquoted query gets from build_multi_match_query
+            base_query = {
+                "bool": {
+                    "must": [
+                        build_query_for_parsed_term(term)
+                        for term in parsed_query["terms"]
+                    ],
+                }
+            }
     elif query and query.strip():
         # Standard AND query (no phrases, no OR)
         base_query: dict[str, Any] = build_multi_match_query(query)
