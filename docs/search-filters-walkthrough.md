@@ -289,7 +289,7 @@ clause_builder → geo_shape WITHIN or INTERSECTS
 
 ### Resolved vs. raw filter values
 
-The **organization** filter accepts `org_slug` in the URL but OpenSearch needs the organization's `id`. Routes resolve the slug and call `criteria.set_resolved_filter("organization", org_id)`. `build_filter_clauses` reads `resolved_filters` first.
+The **organization** filter accepts `org_slug` in the URL but OpenSearch needs the organization's `id`. Routes resolve the slug (case-insensitively) and call `criteria.set_resolved_filter("organization", org_id)`. `build_filter_clauses` reads `resolved_filters` first.
 
 ---
 
