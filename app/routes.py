@@ -968,6 +968,7 @@ def redirect_to_dcat_validator():
 
 
 @api.get("/api/keywords")
+@api.get("/api/v1/keywords")
 @api.input(KeywordsQuery, location="query", validation=False)
 @api.output(KeywordsResults)
 @api.doc(description="Get a list of the most popular keywords and how often they occur")
@@ -1024,6 +1025,7 @@ def get_keywords_api(**kwargs):
 
 
 @api.route("/api/organizations", methods=["GET"])
+@api.route("/api/v1/organizations", methods=["GET"])
 @api.output(OrganizationsResults)
 @api.doc(description="Get the list of organizations that have at least one dataset")
 def get_organizations_api(**kwargs):
@@ -1050,6 +1052,7 @@ def get_organizations_api(**kwargs):
 
 
 @api.route("/api/publishers", methods=["GET"])
+@api.route("/api/v1/publishers", methods=["GET"])
 @api.input(PublishersQuery, location="query")
 @api.output(PublishersResults)
 @api.doc(description="Get unique publishers by count")
