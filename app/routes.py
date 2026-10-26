@@ -504,6 +504,7 @@ def index():
 
 
 @api.get("/search")
+@api.get("/api/v1/search")
 @api.input(SearchQuery, location="query", validation=False)
 @api.doc(
     description="Search the catalog for datasets based on query parameters",
