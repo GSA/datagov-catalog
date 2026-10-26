@@ -277,9 +277,18 @@ class CatalogDBInterface:
         }
 
     def get_organization_by_slug(self, slug: str) -> Organization | None:
+        """Look up an organization by slug, ignoring case.
+
+        An exact match wins if two slugs differ only by case.
+        """
         if not slug:
             return None
-        return self.db.query(Organization).filter(Organization.slug == slug).first()
+        return (
+            self.db.query(Organization)
+            .filter(func.lower(Organization.slug) == func.lower(slug))
+            .order_by((Organization.slug == slug).desc(), Organization.id)
+            .first()
+        )
 
     def get_organization_by_id(self, organization_id: str) -> Organization | None:
         """

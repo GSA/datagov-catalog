@@ -123,6 +123,9 @@ class SearchCriteria:
     def get_resolved_filter(self, name: str, default: Any = None) -> Any:
         return self.resolved_filters.get(name, self.filters.get(name, default))
 
+    def set_filter(self, name: str, value: Any) -> None:
+        self.filters[name] = value
+
     def set_resolved_filter(self, name: str, value: Any) -> None:
         if value is None or value == "" or value == []:
             self.resolved_filters.pop(name, None)

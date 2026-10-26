@@ -3,6 +3,7 @@ import logging
 from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
+from urllib.parse import urlencode
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
@@ -180,6 +181,10 @@ def _resolve_organization_filter(criteria: SearchCriteria):
             org_filter_id = (
                 selected_organization.id if selected_organization else org_slug_param
             )
+    if selected_organization:
+        # Carry the canonical slug through links and form state (slugs match
+        # case-insensitively, so the request may have used a different case).
+        criteria.set_filter("organization", selected_organization.slug)
     if org_filter_id:
         criteria.set_resolved_filter("organization", org_filter_id)
     return selected_organization
@@ -778,10 +783,13 @@ def organization_detail(slug: str):
         organization = interface.get_organization_by_id(slug)
         if organization is None:
             abort(404)
-        if organization.slug and organization.slug != slug:
-            return redirect(
-                url_for("main.organization_detail", slug=organization.slug), code=302
+    if organization.slug and organization.slug != slug:
+        canonical_url = url_for("main.organization_detail", slug=organization.slug)
+        if request.args:
+            canonical_url += "?" + urlencode(
+                request.args.to_dict(flat=False), doseq=True
             )
+        return redirect(canonical_url, code=302)
 
     try:
         criteria = SearchCriteria.from_request_args(

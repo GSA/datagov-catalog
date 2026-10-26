@@ -50,6 +50,9 @@ class TestOpenAPI:
             "spatial_geometry is provided; does not affect search results."
         )
 
+        org_slug = next(param for param in params if param.get("name") == "org_slug")
+        assert "case-insensitive" in org_slug["description"]
+
     def test_openapi_docs(self, db_client):
         """The Swagger docs can be loaded."""
         response = db_client.get("/openapi/docs")
