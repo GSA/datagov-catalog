@@ -24,6 +24,10 @@ class FilterParseError(ValueError):
         super().__init__(message)
 
 
+class FilterEnumValidationError(FilterParseError):
+    """Raised when an API filter contains an unsupported enum value."""
+
+
 class SortValidationError(Exception):
     def __init__(self, message: str, sort_requested: str):
         self.message = message

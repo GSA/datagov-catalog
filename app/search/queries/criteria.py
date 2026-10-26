@@ -4,8 +4,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.search.queries.filters.base import (
+    API_CONTEXT,
     DEFAULT_SEARCH_PER_PAGE,
     MAIN_CONTEXT,
+    FilterEnumValidationError,
     get_int,
     get_value,
 )
@@ -56,6 +58,22 @@ class SearchCriteria:
             if route_context not in definition.parse_contexts:
                 continue
             value = definition.parse(args)
+
+            if route_context == API_CONTEXT:
+                for param in definition.api_query_params:
+                    if not param.enum_values:
+                        continue
+
+                    values = value if isinstance(value, list) else [value]
+                    for item in values:
+                        if item in (None, ""):
+                            continue
+                        if item not in param.enum_values:
+                            raise FilterEnumValidationError(
+                                param.name,
+                                f"Invalid value for {param.name}: {item}",
+                            )
+
             if definition.is_active(value):
                 filters[definition.name] = value
 
