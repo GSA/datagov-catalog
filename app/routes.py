@@ -1202,6 +1202,7 @@ def get_location_by_id_api(location_id, **kwargs):
 
 
 @api.get("/api/dataset/<slug_or_id>")
+@api.get("/api/v1/dataset/<slug_or_id>")
 @api.output(SearchResults)
 @api.doc(description="Get a single opensearch document based on slug name")
 def get_document_by_dataset_slug(slug_or_id: str):
