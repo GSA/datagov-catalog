@@ -1089,6 +1089,7 @@ def get_publishers_api(**kwargs):
 
 
 @api.get("/api/opensearch/health")
+@api.get("/api/v1/opensearch/health")
 @api.output(OpensearchHealth)
 def get_opensearch_health_api():
     """Fetch OpenSearch cluster health."""
@@ -1111,6 +1112,7 @@ def get_opensearch_health_api():
 
 
 @api.get("/api/stats")
+@api.get("/api/v1/stats")
 @api.output(StatsResult)
 def get_stats_api():
     """Endpoint for stats consumers."""
@@ -1128,6 +1130,7 @@ def get_stats_api():
 
 
 @api.get("/api/locations/search")
+@api.get("/api/v1/locations/search")
 @api.output(LocationsResults)
 @api.input(LocationsQuery, location="query", validation=False)
 @api.doc(
@@ -1180,6 +1183,7 @@ def get_locations_api(**kwargs):
 
 
 @api.get("/api/location/<location_id>")
+@api.get("/api/v1/location/<location_id>")
 @api.input(LocationId, location="path", validation=False)
 @api.output(LocationDetail)
 @api.doc(
