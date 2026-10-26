@@ -58,7 +58,12 @@ ORGANIZATION_FILTER = FilterDefinition(
     ui_contexts=(MAIN_CONTEXT,),
     label="Organization",
     renderer="organization",
-    api_query_params=(ApiQueryParam("org_slug"),),
+    api_query_params=(
+        ApiQueryParam(
+            "org_slug",
+            description="Organization slug, e.g. `nasa`. Matching is case-insensitive.",
+        ),
+    ),
     parse=lambda args: parse_string(args, "org_slug"),
     to_query_pairs=lambda value: [("org_slug", value)],
     clause_builder=_clause,
