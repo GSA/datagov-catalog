@@ -3731,3 +3731,122 @@ def test_homepage_distance_sort_without_spatial_geometry_returns_200(db_client):
 
     assert response.status_code == 200
     assert b"<!DOCTYPE html>" in response.data or b"<html" in response.data
+
+
+def test_api_v1_search_exists(client):
+    """Test /api/v1/search route exists and returns JSON."""
+    response = client.get("/api/v1/search?q=test")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "results" in data
+
+
+def test_api_v1_dataset_detail_exists(client):
+    """Test /api/v1/dataset/<slug_or_id> route exists."""
+    response = client.get("/api/v1/dataset/test-dataset-slug")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_organizations_exists(client):
+    """Test /api/v1/organizations route exists."""
+    response = client.get("/api/v1/organizations")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "organizations" in data
+
+
+def test_api_v1_publishers_exists(client):
+    """Test /api/v1/publishers route exists."""
+    response = client.get("/api/v1/publishers")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "publishers" in data
+
+
+def test_api_v1_keywords_exists(client):
+    """Test /api/v1/keywords route exists."""
+    response = client.get("/api/v1/keywords")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "keywords" in data
+
+
+def test_api_v1_locations_search_exists(client):
+    """Test /api/v1/locations/search route exists."""
+    response = client.get("/api/v1/locations/search?q=test")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "locations" in data
+
+
+def test_api_v1_location_detail_exists(client):
+    """Test /api/v1/location/<id> route exists."""
+    response = client.get("/api/v1/location/123")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_opensearch_health_exists(client):
+    """Test /api/v1/opensearch/health route exists."""
+    response = client.get("/api/v1/opensearch/health")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "status" in data
+
+
+def test_api_v1_stats_exists(client):
+    """Test /api/v1/stats route exists."""
+    response = client.get("/api/v1/stats")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_harvest_record_detail_exists(client):
+    """Test /api/v1/harvest_record/<id> route exists."""
+    response = client.get("/api/v1/harvest_record/test-record-id")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_harvest_record_raw_exists(client):
+    """Test /api/v1/harvest_record/<id>/raw route exists."""
+    response = client.get("/api/v1/harvest_record/test-record-id/raw")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_harvest_record_transformed_exists(client):
+    """Test /api/v1/harvest_record/<id>/transformed route exists."""
+    response = client.get("/api/v1/harvest_record/test-record-id/transformed")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_backward_compatibility_api_routes(client):
+    """Test existing /api/* routes still work."""
+    routes = [
+        "/api/organizations",
+        "/api/publishers",
+        "/api/keywords",
+        "/api/locations/search?q=test",
+        "/api/opensearch/health",
+        "/api/stats",
+    ]
+    for route in routes:
+        response = client.get(route)
+        assert response.status_code == 200
+        assert response.content_type == "application/json"
+
+
+def test_backward_compatibility_search_route(client):
+    """Test existing /search route still works."""
+    response = client.get("/search?q=test")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
