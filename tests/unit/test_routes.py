@@ -355,6 +355,71 @@ def test_search_api_by_org_slug(interface_with_dataset, db_client):
         assert len(response.json["results"]) == 0
 
 
+def test_search_api_org_slug_is_case_insensitive(interface_with_dataset, db_client):
+    with patch("app.routes.interface", interface_with_dataset):
+        lower = db_client.get(
+            "/search", query_string={"q": "test", "org_slug": "test-org"}
+        )
+        upper = db_client.get(
+            "/search", query_string={"q": "test", "org_slug": "TEST-ORG"}
+        )
+
+    assert len(lower.json["results"]) > 0
+    assert [r["slug"] for r in upper.json["results"]] == [
+        r["slug"] for r in lower.json["results"]
+    ]
+
+
+def test_get_organization_by_slug_ignores_case(interface_with_organization):
+    org = interface_with_organization.get_organization_by_slug("Test-ORG")
+    assert org is not None
+    assert org.slug == "test-org"
+
+
+def test_get_organization_by_slug_prefers_exact_match(interface):
+    interface.db.add(Organization(id="org-lower", name="Lower", slug="mixed-org"))
+    interface.db.add(Organization(id="org-upper", name="Upper", slug="Mixed-Org"))
+    interface.db.commit()
+
+    assert interface.get_organization_by_slug("Mixed-Org").id == "org-upper"
+    assert interface.get_organization_by_slug("mixed-org").id == "org-lower"
+
+
+def test_organization_detail_redirects_to_canonical_slug_case(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            "/organization/TEST-ORG?q=americorps&keyword=a&keyword=b&slug=x"
+        )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == (
+        "/organization/test-org?q=americorps&keyword=a&keyword=b&slug=x"
+    )
+
+
+def test_index_page_normalizes_org_slug_case(db_client):
+    mock_interface = Mock()
+    mock_org = type(
+        "Org", (), {"id": "org-1", "slug": "test-org", "name": "Test Org"}
+    )()
+    mock_interface.search_datasets.return_value = SearchResult(
+        total=0, results=[], search_after=None
+    )
+    mock_interface.get_organization_by_slug.return_value = mock_org
+    mock_interface.get_organizations.return_value = []
+    mock_interface.total_datasets.return_value = 0
+    with patch("app.routes.interface", mock_interface):
+        response = db_client.get("/?org_slug=TEST-ORG")
+
+    assert response.status_code == 200
+    mock_interface.get_organization_by_slug.assert_called_once_with("TEST-ORG")
+    soup = BeautifulSoup(response.text, "html.parser")
+    hidden = soup.find("input", {"name": "org_slug", "type": "hidden"})
+    assert hidden.get("value") == "test-org"
+
+
 def test_search_api_by_theme(interface_with_dataset, db_client):
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(
@@ -1431,7 +1496,7 @@ def test_htmx_search_uses_from_hint(interface_with_dataset, db_client):
 
 def test_harvest_record_returns_json(interface_with_harvest_record, db_client):
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}")
+        response = db_client.get(f"/api/v1/harvest_record/{HARVEST_RECORD_ID}")
     harvest_record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
 
     assert response.status_code == 200
@@ -1445,7 +1510,7 @@ def test_harvest_record_returns_json(interface_with_harvest_record, db_client):
 
 def test_harvest_record_raw_returns_json(interface_with_harvest_record, db_client):
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+        response = db_client.get(f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/raw")
 
     assert response.status_code == 200
     assert response.mimetype == "application/json"
@@ -1458,7 +1523,7 @@ def test_harvest_record_raw_returns_xml(interface_with_harvest_record, db_client
     interface_with_harvest_record.db.commit()
 
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+        response = db_client.get(f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/raw")
 
     assert response.status_code == 200
     assert response.mimetype == "application/xml"
@@ -1470,7 +1535,7 @@ def test_harvest_record_raw_xml_correct_namespaces(
 ):
     with patch("app.routes.interface", interface_with_harvest_record):
         response = db_client.get(
-            "/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
+            "/api/v1/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
         )
 
     assert response.status_code == 200
@@ -1487,7 +1552,7 @@ def test_harvest_record_raw_xml_correct_namespaces(
             interface_with_harvest_record,
         ):
             response = db_client.get(
-                "/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
+                "/api/v1/harvest_record/6e0c8a23-2ac5-427b-91e3-dfea4bc5a93d/raw"
             )
 
     assert response.status_code == 200
@@ -1500,7 +1565,7 @@ def test_harvest_record_raw_xml_correct_namespaces(
 def test_harvest_record_raw_not_found(interface_with_harvest_record, db_client):
     missing_id = str(uuid4())
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{missing_id}/raw")
+        response = db_client.get(f"/api/v1/harvest_record/{missing_id}/raw")
 
     assert response.status_code == 404
 
@@ -1511,7 +1576,7 @@ def test_harvest_record_raw_json_is_formatted(interface_with_harvest_record, db_
     interface_with_harvest_record.db.commit()
 
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+        response = db_client.get(f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/raw")
 
     assert response.status_code == 200
     assert response.mimetype == "application/json"
@@ -1537,7 +1602,7 @@ def test_harvest_record_raw_xml_is_formatted(interface_with_harvest_record, db_c
     interface_with_harvest_record.db.commit()
 
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+        response = db_client.get(f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/raw")
 
     assert response.status_code == 200
     assert response.mimetype == "application/xml"
@@ -1561,7 +1626,7 @@ def test_harvest_record_raw_malformed_json_returns_as_text(
     interface_with_harvest_record.db.commit()
 
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+        response = db_client.get(f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/raw")
 
     assert response.status_code == 200
     assert response.mimetype == "text/plain"
@@ -1574,7 +1639,7 @@ def test_harvest_record_raw_empty_json_object(interface_with_harvest_record, db_
     interface_with_harvest_record.db.commit()
 
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+        response = db_client.get(f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/raw")
 
     assert response.status_code == 200
     assert response.mimetype == "application/json"
@@ -1588,7 +1653,7 @@ def test_harvest_record_raw_preserves_unicode(interface_with_harvest_record, db_
     interface_with_harvest_record.db.commit()
 
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+        response = db_client.get(f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/raw")
 
     assert response.status_code == 200
     assert response.mimetype == "application/json"
@@ -1606,7 +1671,9 @@ def test_harvest_record_transformed_returns_json(
     interface_with_harvest_record, db_client
 ):
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/transformed")
+        response = db_client.get(
+            f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/transformed"
+        )
 
     assert response.status_code == 200
     assert response.mimetype == "application/json"
@@ -1622,7 +1689,9 @@ def test_harvest_record_transformed_not_found(interface_with_harvest_record, db_
     interface_with_harvest_record.db.commit()
 
     with patch("app.routes.interface", interface_with_harvest_record):
-        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/transformed")
+        response = db_client.get(
+            f"/api/v1/harvest_record/{HARVEST_RECORD_ID}/transformed"
+        )
 
     assert response.status_code == 404
 
@@ -3786,3 +3855,166 @@ def test_search_api_distance_sort_without_spatial_geometry_returns_400(db_client
     assert "message" in data
     assert "spatial reference point" in data["message"].lower()
     assert "spatial_geometry" in data["message"]
+
+
+def test_search_api_distance_sort_with_spatial_geometry_returns_200(db_client):
+    """Test that distance sort with spatial_geometry works correctly."""
+    geojson = {"type": "Point", "coordinates": [-77.0369, 38.9072]}
+    encoded_geojson = quote(json.dumps(geojson))
+
+    response = db_client.get(
+        f"/search?sort=distance&spatial_geometry={encoded_geojson}"
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "results" in data
+    assert data.get("sort") == "distance"
+
+
+def test_search_api_other_sorts_work_without_spatial_geometry(db_client):
+    """Test that other sort options work without spatial_geometry."""
+    for sort_option in ["relevance", "popularity", "last_harvested_date"]:
+        response = db_client.get(f"/search?sort={sort_option}")
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "results" in data
+        assert data.get("sort") == sort_option
+
+
+def test_search_api_invalid_sort_falls_back_to_relevance(db_client):
+    """Test that invalid sort values fall back to relevance (existing behavior)."""
+    response = db_client.get("/search?sort=invalid_sort")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "results" in data
+    assert data.get("sort") == "relevance"
+
+
+def test_homepage_distance_sort_without_spatial_geometry_returns_200(db_client):
+    """Test that homepage (web UI) handles distance sort gracefully (no error)."""
+    response = db_client.get("/?sort=distance")
+
+    assert response.status_code == 200
+    assert b"<!DOCTYPE html>" in response.data or b"<html" in response.data
+
+
+def test_api_v1_search_exists(db_client):
+    """Test /api/v1/search route exists and returns JSON."""
+    response = db_client.get("/api/v1/search?q=test")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "results" in data
+
+
+def test_api_v1_dataset_detail_exists(db_client):
+    """Test /api/v1/dataset/<slug_or_id> route exists."""
+    response = db_client.get("/api/v1/dataset/test-dataset-slug")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_organizations_exists(db_client):
+    """Test /api/v1/organizations route exists."""
+    response = db_client.get("/api/v1/organizations")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "organizations" in data
+
+
+def test_api_v1_publishers_exists(db_client):
+    """Test /api/v1/publishers route exists."""
+    response = db_client.get("/api/v1/publishers")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "publishers" in data
+
+
+def test_api_v1_keywords_exists(db_client):
+    """Test /api/v1/keywords route exists."""
+    response = db_client.get("/api/v1/keywords")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "keywords" in data
+
+
+def test_api_v1_locations_search_exists(db_client):
+    """Test /api/v1/locations/search route exists."""
+    response = db_client.get("/api/v1/locations/search?q=test")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "locations" in data
+
+
+def test_api_v1_location_detail_exists(db_client):
+    """Test /api/v1/location/<id> route exists."""
+    response = db_client.get("/api/v1/location/123")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_opensearch_health_exists(db_client):
+    """Test /api/v1/opensearch/health route exists."""
+    response = db_client.get("/api/v1/opensearch/health")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+    data = response.get_json()
+    assert "status" in data
+
+
+def test_api_v1_stats_exists(db_client):
+    """Test /api/v1/stats route exists."""
+    response = db_client.get("/api/v1/stats")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_harvest_record_detail_exists(db_client):
+    """Test /api/v1/harvest_record/<id> route exists."""
+    response = db_client.get("/api/v1/harvest_record/test-record-id")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_harvest_record_raw_exists(db_client):
+    """Test /api/v1/harvest_record/<id>/raw route exists."""
+    response = db_client.get("/api/v1/harvest_record/test-record-id/raw")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_api_v1_harvest_record_transformed_exists(db_client):
+    """Test /api/v1/harvest_record/<id>/transformed route exists."""
+    response = db_client.get("/api/v1/harvest_record/test-record-id/transformed")
+    assert response.status_code in [200, 404]
+    assert response.content_type == "application/json"
+
+
+def test_backward_compatibility_api_routes(db_client):
+    """Test existing /api/* routes still work."""
+    routes = [
+        "/api/organizations",
+        "/api/publishers",
+        "/api/keywords",
+        "/api/locations/search?q=test",
+        "/api/opensearch/health",
+        "/api/stats",
+    ]
+    for route in routes:
+        response = db_client.get(route)
+        assert response.status_code == 200
+        assert response.content_type == "application/json"
+
+
+def test_backward_compatibility_search_route(db_client):
+    """Test existing /search route still works."""
+    response = db_client.get("/search?q=test")
+    assert response.status_code == 200
+    assert response.content_type == "application/json"
