@@ -640,20 +640,91 @@ def search(**kwargs):
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
+@api.route("/harvest_record/<record_id>", methods=["GET"])
+@valid_id_required
 def get_harvest_record(record_id: str):
-    return redirect(url_for("api.get_harvest_record_api", record_id=record_id), 301)
+    record = interface.get_harvest_record(record_id)
+    if record is None:
+        return json_not_found()
+
+    record_data = interface.to_dict(record)
+    for key, value in record_data.items():
+        if isinstance(value, datetime):
+            record_data[key] = value.isoformat()
+
+    source_raw = record_data.get("source_raw")
+    if isinstance(source_raw, str) and source_raw:
+        try:
+            record_data["source_raw"] = json.loads(source_raw)
+        except json.JSONDecodeError:
+            pass
+
+    return jsonify(record_data)
 
 
 @main.route("/harvest_record/<record_id>/raw", methods=["GET"])
+@api.route("/harvest_record/<record_id>/raw", methods=["GET"])
+@valid_id_required
 def get_harvest_record_raw(record_id: str) -> Response:
-    return redirect(url_for("api.get_harvest_record_raw_api", record_id=record_id), 301)
+    record = interface.get_harvest_record(record_id)
+    if record is None:
+        return json_not_found()
+
+    source_raw = record.source_raw
+    if not source_raw:
+        return json_not_found()
+
+    if not isinstance(source_raw, str):
+        source_raw = str(source_raw)
+
+    mimetype = "text/plain"
+    formatted_output = source_raw
+    stripped_source = source_raw.strip()
+
+    orig_et_map = ElementTree._namespace_map.copy()
+
+    if stripped_source:
+        try:
+            parsed_json = json.loads(stripped_source)
+            formatted_output = json.dumps(
+                parsed_json, indent=2, ensure_ascii=False, sort_keys=False
+            )
+            mimetype = "application/json"
+        except (TypeError, json.JSONDecodeError):
+            try:
+                register_iso_namespaces(ElementTree)
+                xml_tree = ElementTree.fromstring(stripped_source)
+                ElementTree.indent(xml_tree, space="  ", level=0)
+                formatted_output = ElementTree.tostring(
+                    xml_tree, encoding="unicode", method="xml"
+                )
+                mimetype = "application/xml"
+            except (ElementTree.ParseError, SyntaxError):
+                pass
+            finally:
+                ElementTree._namespace_map.clear()
+                ElementTree._namespace_map.update(orig_et_map)
+
+    return Response(formatted_output, mimetype=mimetype)
 
 
 @main.route("/harvest_record/<record_id>/transformed", methods=["GET"])
+@api.route("/harvest_record/<record_id>/transformed", methods=["GET"])
+@valid_id_required
 def get_harvest_record_transformed(record_id: str) -> Response:
-    return redirect(
-        url_for("api.get_harvest_record_transformed_api", record_id=record_id), 301
-    )
+    record = interface.get_harvest_record(record_id)
+    if record is None:
+        return json_not_found()
+
+    transformed = record.source_transform
+    if transformed is None:
+        return json_not_found()
+
+    if isinstance(transformed, str) and not transformed.strip():
+        return json_not_found()
+
+    body = json.dumps(transformed)
+    return Response(body, mimetype="application/json")
 
 
 @main.route("/organization", methods=["GET"], strict_slashes=False)

@@ -35,8 +35,8 @@ for better discoverability and future versioning. This includes:
 - `GET /api/v1/stats` - Catalog statistics
 
 **Compatibility:** Existing routes without the `/v1/` prefix remain functional
-for backward compatibility. The unversioned `/harvest_record/*` routes now
-redirect (301 permanent) to their `/api/v1/harvest_record/*` equivalents.
+for backward compatibility and continue to work exactly as before, returning
+the same responses without redirects.
 
 ### Changed
 
