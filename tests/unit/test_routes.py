@@ -3919,3 +3919,30 @@ def test_backward_compatibility_search_route(db_client):
     response = db_client.get("/search?q=test")
     assert response.status_code == 200
     assert response.content_type == "application/json"
+
+
+def test_harvest_record_redirects_to_api_v1(db_client):
+    """Test /harvest_record/<id> redirects to /api/v1/harvest_record/<id> with 301."""
+    response = db_client.get("/harvest_record/test-record-id", follow_redirects=False)
+    assert response.status_code == 301
+    assert response.location.endswith("/api/v1/harvest_record/test-record-id")
+
+
+def test_harvest_record_raw_redirects_to_api_v1(db_client):
+    """Test /harvest_record/<id>/raw redirects to /api/v1/harvest_record/<id>/raw with 301."""
+    response = db_client.get(
+        "/harvest_record/test-record-id/raw", follow_redirects=False
+    )
+    assert response.status_code == 301
+    assert response.location.endswith("/api/v1/harvest_record/test-record-id/raw")
+
+
+def test_harvest_record_transformed_redirects_to_api_v1(db_client):
+    """Test /harvest_record/<id>/transformed redirects to /api/v1/harvest_record/<id>/transformed with 301."""
+    response = db_client.get(
+        "/harvest_record/test-record-id/transformed", follow_redirects=False
+    )
+    assert response.status_code == 301
+    assert response.location.endswith(
+        "/api/v1/harvest_record/test-record-id/transformed"
+    )

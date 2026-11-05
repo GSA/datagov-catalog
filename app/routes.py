@@ -641,18 +641,18 @@ def search(**kwargs):
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
 def get_harvest_record(record_id: str):
-    return redirect(url_for("api.get_harvest_record_api", record_id=record_id))
+    return redirect(url_for("api.get_harvest_record_api", record_id=record_id), 301)
 
 
 @main.route("/harvest_record/<record_id>/raw", methods=["GET"])
 def get_harvest_record_raw(record_id: str) -> Response:
-    return redirect(url_for("api.get_harvest_record_raw_api", record_id=record_id))
+    return redirect(url_for("api.get_harvest_record_raw_api", record_id=record_id), 301)
 
 
 @main.route("/harvest_record/<record_id>/transformed", methods=["GET"])
 def get_harvest_record_transformed(record_id: str) -> Response:
     return redirect(
-        url_for("api.get_harvest_record_transformed_api", record_id=record_id)
+        url_for("api.get_harvest_record_transformed_api", record_id=record_id), 301
     )
 
 
