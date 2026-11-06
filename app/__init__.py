@@ -3,7 +3,7 @@ import os
 
 from apiflask import APIFlask
 from dotenv import load_dotenv
-from flask import render_template, request
+from flask import flash, redirect, render_template, request, url_for
 from flask_htmx import HTMX
 from flask_talisman import Talisman
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -144,9 +144,16 @@ def create_app(config_name: str = "local") -> APIFlask:
     def request_entity_too_large(error):
         if request.blueprint == "api" or request.path.startswith("/api/"):
             return {"error": "Upload too large. Maximum total size is 55MB."}, 413
-        from flask import flash, redirect, url_for
 
-        flash("Upload too large. Maximum total size is 55MB.", "error")
+        error_msg = "Upload too large. Maximum total size is 55MB."
+        flash(error_msg, "error")
+
+        # Handle HTMX requests with alert component
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+
         return redirect(url_for("main.contact"))
 
     # Content-Security-Policy headers

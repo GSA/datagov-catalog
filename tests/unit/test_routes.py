@@ -4032,3 +4032,44 @@ def test_contact_submit_sets_reply_to_header(db_client):
         mock_send.assert_called_once()
         call_args = mock_send.call_args
         assert call_args.kwargs["reply_to"] == submitter_email
+
+
+def test_contact_submit_413_error_with_htmx(db_client):
+    """Test that 413 error handler returns alert component for HTMX requests."""
+    from werkzeug.exceptions import RequestEntityTooLarge
+
+    # Simulate a 413 error with HTMX header
+    with db_client.application.test_request_context(
+        "/contact-submit", method="POST", headers={"HX-Request": "true"}
+    ):
+        # Trigger the error handler by calling handle_http_exception
+        try:
+            raise RequestEntityTooLarge()
+        except RequestEntityTooLarge as e:
+            response = db_client.application.handle_http_exception(e)
+
+            # Should return alert component HTML (response can be string or Response object)
+            response_str = (
+                response if isinstance(response, str) else response.data.decode()
+            )
+            assert "contact-alert" in response_str or "Upload too large" in response_str
+            # Should NOT be a redirect
+            if hasattr(response, "status_code"):
+                assert response.status_code != 302
+
+
+def test_contact_submit_413_error_without_htmx(db_client):
+    """Test that 413 error handler redirects for non-HTMX requests."""
+    from werkzeug.exceptions import RequestEntityTooLarge
+
+    # Simulate a 413 error without HTMX header
+    with db_client.application.test_request_context("/contact-submit", method="POST"):
+        # Trigger the error handler
+        try:
+            raise RequestEntityTooLarge()
+        except RequestEntityTooLarge as e:
+            response = db_client.application.handle_http_exception(e)
+
+            # Should be a redirect response
+            assert response.status_code == 302
+            assert "/contact" in response.location
