@@ -85,10 +85,19 @@ main = Blueprint("main", __name__)
 api = APIBlueprint("api", __name__)
 
 # Initialize limiter at module level
+_redis_uri = os.getenv("REDIS_URI")
+if not _redis_uri:
+    logger.warning(
+        "REDIS_URI not configured - rate limiting using in-memory storage. "
+        "This will NOT work correctly with multiple app instances in production. "
+        "Each instance will have independent rate limit counters, effectively "
+        "multiplying the rate limit by the number of instances. "
+        "Configure a Redis service for proper distributed rate limiting."
+    )
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[],
-    storage_uri=os.getenv("REDIS_URI", "memory://"),
+    storage_uri=_redis_uri or "memory://",
 )
 
 interface = CatalogDBInterface(db.session)

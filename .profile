@@ -59,3 +59,12 @@ export SITEMAP_S3_BUCKET=$(vcap_get_service s3 .credentials.bucket)
 export SITEMAP_S3_PREFIX=sitemap/
 export SITEMAP_INDEX_KEY=sitemap.xml
 export SITEMAP_BASE_URL=${SITE_URL}
+
+# Redis for rate limiting
+redis_uri=$(vcap_get_service redis .credentials.uri)
+if [ -n "$redis_uri" ] && [ "$redis_uri" != "null" ]; then
+  export REDIS_URI="$redis_uri"
+  echo "Redis configured for rate limiting"
+else
+  echo "Warning: Redis not configured - rate limiting will use in-memory storage (not suitable for multi-instance deployments)"
+fi
