@@ -1268,6 +1268,26 @@ def openapi_docs():
     return render_template("swagger.html")
 
 
+def _contact_error(error_msg: str, referrer: str):
+    """
+    Handle contact form validation errors consistently.
+
+    Args:
+        error_msg: Error message to display
+        referrer: URL to redirect to (for non-HTMX requests)
+
+    Returns:
+        Rendered alert component (HTMX) or redirect response
+    """
+    logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
+    flash(error_msg, "error")
+    if htmx:
+        return render_template(
+            "components/contact_alert.html", message=error_msg, category="error"
+        )
+    return redirect(referrer)
+
+
 @main.route("/contact")
 def contact():
     """Render contact form page."""
@@ -1299,75 +1319,30 @@ def contact_submit():
         referrer = normalized_referrer or url_for("main.index")
 
     if not all([name, email, subject, message]):
-        error_msg = "All fields are required."
-        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-        flash(error_msg, "error")
-        if htmx:
-            return render_template(
-                "components/contact_alert.html", message=error_msg, category="error"
-            )
-        return redirect(referrer)
+        return _contact_error("All fields are required.", referrer)
 
     if not validate_email(email):
-        error_msg = "Please enter a valid email address."
-        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-        flash(error_msg, "error")
-        if htmx:
-            return render_template(
-                "components/contact_alert.html", message=error_msg, category="error"
-            )
-        return redirect(referrer)
+        return _contact_error("Please enter a valid email address.", referrer)
 
     if len(message) < 10:
-        error_msg = "Please provide a more detailed message (at least 10 characters)."
-        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-        flash(error_msg, "error")
-        if htmx:
-            return render_template(
-                "components/contact_alert.html", message=error_msg, category="error"
-            )
-        return redirect(referrer)
+        return _contact_error(
+            "Please provide a more detailed message (at least 10 characters).", referrer
+        )
 
     if len(name) > 100:
-        error_msg = "Name is too long (maximum 100 characters)."
-        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-        flash(error_msg, "error")
-        if htmx:
-            return render_template(
-                "components/contact_alert.html", message=error_msg, category="error"
-            )
-        return redirect(referrer)
+        return _contact_error("Name is too long (maximum 100 characters).", referrer)
 
     if len(subject) > 200:
-        error_msg = "Subject is too long (maximum 200 characters)."
-        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-        flash(error_msg, "error")
-        if htmx:
-            return render_template(
-                "components/contact_alert.html", message=error_msg, category="error"
-            )
-        return redirect(referrer)
+        return _contact_error("Subject is too long (maximum 200 characters).", referrer)
 
     if len(message) > 2000:
-        error_msg = "Message is too long (maximum 2000 characters)."
-        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-        flash(error_msg, "error")
-        if htmx:
-            return render_template(
-                "components/contact_alert.html", message=error_msg, category="error"
-            )
-        return redirect(referrer)
+        return _contact_error(
+            "Message is too long (maximum 2000 characters).", referrer
+        )
 
     attachments = request.files.getlist("attachments")
     if len(attachments) > 5:
-        error_msg = "You can only upload up to 5 files."
-        logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-        flash(error_msg, "error")
-        if htmx:
-            return render_template(
-                "components/contact_alert.html", message=error_msg, category="error"
-            )
-        return redirect(referrer)
+        return _contact_error("You can only upload up to 5 files.", referrer)
 
     attachments = [f for f in attachments if f and f.filename]
 
@@ -1392,25 +1367,16 @@ def contact_submit():
         file.seek(0)
 
         if file_size > MAX_FILE_SIZE:
-            error_msg = f"File '{file.filename}' is too large. Maximum size is 10MB."
-            logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-            flash(error_msg, "error")
-            if htmx:
-                return render_template(
-                    "components/contact_alert.html", message=error_msg, category="error"
-                )
-            return redirect(referrer)
+            return _contact_error(
+                f"File '{file.filename}' is too large. Maximum size is 10MB.", referrer
+            )
 
         file_ext = os.path.splitext(file.filename.lower())[1]
         if file_ext not in ALLOWED_EXTENSIONS:
-            error_msg = f"File type '{file_ext}' is not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, images."
-            logger.warning(f"[CONTACT FORM] Validation failed: {error_msg}")
-            flash(error_msg, "error")
-            if htmx:
-                return render_template(
-                    "components/contact_alert.html", message=error_msg, category="error"
-                )
-            return redirect(referrer)
+            return _contact_error(
+                f"File type '{file_ext}' is not allowed. Allowed types: PDF, DOC, DOCX, TXT, CSV, XLS, XLSX, images.",
+                referrer,
+            )
 
     allowed_form_types = ["default", "feedback", "usagov"]
     if form_type not in allowed_form_types:
