@@ -1,10 +1,11 @@
 import json
 import logging
 import os
+import sys
 from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from xml.etree import ElementTree
 
 from apiflask import APIBlueprint
@@ -1277,9 +1278,6 @@ def contact():
 @limiter.limit("5 per hour")
 def contact_submit():
     """Handle contact form submission with optional file attachments."""
-    import sys
-    from urllib.parse import urlparse
-
     honeypot = request.form.get("website", "")
     if honeypot:
         return redirect(url_for("main.index"))
@@ -1402,8 +1400,6 @@ def contact_submit():
                     "components/contact_alert.html", message=error_msg, category="error"
                 )
             return redirect(referrer)
-
-        import os
 
         file_ext = os.path.splitext(file.filename.lower())[1]
         if file_ext not in ALLOWED_EXTENSIONS:
