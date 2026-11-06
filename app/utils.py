@@ -154,11 +154,6 @@ def send_email(recipient, subject, body, sender=None, reply_to=None, attachments
     Returns:
         bool: True if email sent successfully, False otherwise
     """
-    if not validate_email(recipient):
-        print(f"[EMAIL ERROR] Invalid recipient email format: {recipient}", flush=True)
-        logger.error(f"Invalid recipient email format: {recipient}")
-        return False
-
     if not all(
         [SMTP_CONFIG["server"], SMTP_CONFIG["username"], SMTP_CONFIG["password"]]
     ):
