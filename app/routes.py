@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from collections.abc import Iterable
 from datetime import datetime
 from math import ceil
@@ -19,6 +20,8 @@ from flask import (
     request,
     url_for,
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from marshmallow import ValidationError
 
 from app.models import db
@@ -80,6 +83,13 @@ INTERNAL_ERROR_MESSAGE = "An internal error has occurred."
 
 main = Blueprint("main", __name__)
 api = APIBlueprint("api", __name__)
+
+# Initialize limiter at module level
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[],
+    storage_uri=os.getenv("REDIS_URI", "memory://"),
+)
 
 interface = CatalogDBInterface(db.session)
 
@@ -1255,6 +1265,7 @@ def contact():
 
 
 @main.route("/contact-submit", methods=["POST"])
+@limiter.limit("5 per hour")
 def contact_submit():
     """Handle contact form submission with optional file attachments."""
     import sys
@@ -1598,9 +1609,8 @@ def register_routes(app):
     app.register_blueprint(main)
     app.register_blueprint(api)
 
-    from app import limiter
-
-    limiter.limit("5 per hour")(contact_submit)
+    # Initialize limiter with app
+    limiter.init_app(app)
 
     from app.dev_routes import register_dev_routes
 

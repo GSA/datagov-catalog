@@ -3914,3 +3914,39 @@ def test_contact_submit_htmx_request(db_client):
 
         assert response.status_code == 200
         assert b"contact-alert" in response.data or b"Thank you" in response.data
+
+
+def test_contact_submit_rate_limiting(db_client):
+    """Test that contact form enforces rate limiting (5 per hour)."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
+
+        # Submit 5 times - all should succeed
+        for i in range(5):
+            response = db_client.post(
+                "/contact-submit",
+                data={
+                    "name": f"Test User {i}",
+                    "email": "test@example.com",
+                    "subject": "Test",
+                    "message": "Test message with more details",
+                },
+                follow_redirects=False,
+            )
+            # Should redirect (302) or succeed (200) for first 5
+            assert response.status_code in [200, 302], f"Request {i+1} failed"
+
+        # 6th request should be rate limited
+        response = db_client.post(
+            "/contact-submit",
+            data={
+                "name": "Test User 6",
+                "email": "test@example.com",
+                "subject": "Test",
+                "message": "Test message with more details",
+            },
+            follow_redirects=False,
+        )
+        assert (
+            response.status_code == 429
+        ), "Rate limiting did not trigger on 6th request"

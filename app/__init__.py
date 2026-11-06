@@ -5,8 +5,6 @@ from apiflask import APIFlask
 from dotenv import load_dotenv
 from flask import render_template, request
 from flask_htmx import HTMX
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 
 from .models import db
@@ -19,7 +17,6 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 htmx = None
-limiter = None
 STATIC_ASSET_MAX_AGE_SECONDS = 60 * 60 * 24
 HTML_PAGE_MAX_AGE_SECONDS = 60 * 60
 HSTS_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
@@ -101,14 +98,6 @@ def create_app(config_name: str = "local") -> APIFlask:
 
     global htmx
     htmx = HTMX(app)
-
-    global limiter
-    limiter = Limiter(
-        app=app,
-        key_func=get_remote_address,
-        default_limits=[],
-        storage_uri=os.getenv("REDIS_URI", "memory://"),
-    )
 
     db.init_app(app)
 
