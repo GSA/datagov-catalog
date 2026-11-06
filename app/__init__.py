@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from flask import render_template, request
 from flask_htmx import HTMX
 from flask_talisman import Talisman
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .models import db
 from .startup_validation import validate_required_env_vars
@@ -60,6 +61,11 @@ def create_app(config_name: str = "local") -> APIFlask:
     app = VersionedStaticAPIFlask(
         __name__, static_url_path="", static_folder="static", docs_path=None
     )
+
+    # Apply ProxyFix to handle X-Forwarded-For from nginx proxy
+    # x_for=1: Trust 1 proxy hop (our nginx proxy in front of the app)
+    # This ensures rate limiting sees real client IPs, not the proxy's IP
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     app.config["CONFIG_NAME"] = config_name
     app.config["INFO"] = {

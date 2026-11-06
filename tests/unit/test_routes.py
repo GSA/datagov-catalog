@@ -3950,3 +3950,59 @@ def test_contact_submit_rate_limiting(db_client):
         assert (
             response.status_code == 429
         ), "Rate limiting did not trigger on 6th request"
+
+
+def test_contact_submit_rate_limiting_with_proxy(db_client):
+    """Test that rate limiting works correctly with X-Forwarded-For headers from proxy."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
+
+        # Simulate requests from client IP 1.2.3.4 through proxy
+        # X-Forwarded-For header simulates cloud.gov router + nginx proxy chain
+        for i in range(5):
+            response = db_client.post(
+                "/contact-submit",
+                data={
+                    "name": f"User {i}",
+                    "email": "test@example.com",
+                    "subject": "Test",
+                    "message": "Test message with more details",
+                },
+                headers={"X-Forwarded-For": "1.2.3.4"},
+                environ_base={"REMOTE_ADDR": "127.0.0.1"},  # Proxy's IP
+                follow_redirects=False,
+            )
+            assert response.status_code in [200, 302], f"Request {i+1} failed"
+
+        # 6th request from same client IP should be rate limited
+        response = db_client.post(
+            "/contact-submit",
+            data={
+                "name": "User 6",
+                "email": "test@example.com",
+                "subject": "Test",
+                "message": "Test message with more details",
+            },
+            headers={"X-Forwarded-For": "1.2.3.4"},
+            environ_base={"REMOTE_ADDR": "127.0.0.1"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 429, "Rate limiting failed with proxy headers"
+
+        # But a request from a different client IP should succeed
+        response = db_client.post(
+            "/contact-submit",
+            data={
+                "name": "Different User",
+                "email": "test2@example.com",
+                "subject": "Test",
+                "message": "Test message with more details",
+            },
+            headers={"X-Forwarded-For": "5.6.7.8"},
+            environ_base={"REMOTE_ADDR": "127.0.0.1"},
+            follow_redirects=False,
+        )
+        assert response.status_code in [
+            200,
+            302,
+        ], "Different client IP should not be rate limited"
