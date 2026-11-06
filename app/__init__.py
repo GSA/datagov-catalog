@@ -3,9 +3,10 @@ import os
 
 from apiflask import APIFlask
 from dotenv import load_dotenv
-from flask import render_template, request
+from flask import flash, redirect, render_template, request, url_for
 from flask_htmx import HTMX
 from flask_talisman import Talisman
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .models import db
 from .startup_validation import validate_required_env_vars
@@ -61,6 +62,11 @@ def create_app(config_name: str = "local") -> APIFlask:
         __name__, static_url_path="", static_folder="static", docs_path=None
     )
 
+    # Apply ProxyFix to handle X-Forwarded-For from nginx proxy
+    # x_for=1: Trust 1 proxy hop (our nginx proxy in front of the app)
+    # This ensures rate limiting sees real client IPs, not the proxy's IP
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     app.config["CONFIG_NAME"] = config_name
     app.config["INFO"] = {
         "title": "Datagov Catalog",
@@ -87,6 +93,7 @@ def create_app(config_name: str = "local") -> APIFlask:
     app.config["SECRET_KEY"] = env_values["FLASK_SECRET_KEY"]
     app.config["SQLALCHEMY_DATABASE_URI"] = env_values["DATABASE_URI"]
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["MAX_CONTENT_LENGTH"] = 55 * 1024 * 1024
     app.config["SOCIAL_IMAGE_URL"] = os.getenv(
         "SOCIAL_IMAGE_URL",
         "https://s3-us-gov-west-1.amazonaws.com/cg-0817d6e3-93c4-4de8-8b32-da6919464e61/hero-image-bg.png",
@@ -132,6 +139,22 @@ def create_app(config_name: str = "local") -> APIFlask:
         if request.blueprint == "api" or request.path.startswith("/api/"):
             return {"message": "Not Found", "detail": {}}, 404
         return render_template("404.html"), 404
+
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        if request.blueprint == "api" or request.path.startswith("/api/"):
+            return {"error": "Upload too large. Maximum total size is 55MB."}, 413
+
+        error_msg = "Upload too large. Maximum total size is 55MB."
+        flash(error_msg, "error")
+
+        # Handle HTMX requests with alert component
+        if htmx:
+            return render_template(
+                "components/contact_alert.html", message=error_msg, category="error"
+            )
+
+        return redirect(url_for("main.contact"))
 
     # Content-Security-Policy headers
     # single quotes need to appear in some of the strings
