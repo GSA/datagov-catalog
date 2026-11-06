@@ -139,7 +139,7 @@ def validate_email(email):
     return re.match(pattern, email) is not None
 
 
-def send_email(recipient, subject, body, sender=None, attachments=None):
+def send_email(recipient, subject, body, sender=None, reply_to=None, attachments=None):
     """
     Send an email via SMTP with optional file attachments.
 
@@ -148,6 +148,7 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
         subject: Email subject line
         body: Email body text
         sender: Email address to send from (defaults to SMTP_SENDER env var)
+        reply_to: Email address for Reply-To header (optional)
         attachments: List of file objects (FileStorage) to attach
 
     Returns:
@@ -177,7 +178,8 @@ def send_email(recipient, subject, body, sender=None, attachments=None):
             msg = MIMEMultipart()
             msg["From"] = sender
             msg["To"] = recipient
-            msg["Reply-To"] = "no-reply@gsa.gov"
+            if reply_to:
+                msg["Reply-To"] = reply_to
             msg["Subject"] = subject
             msg.attach(MIMEText(body, "plain"))
 

@@ -4006,3 +4006,29 @@ def test_contact_submit_rate_limiting_with_proxy(db_client):
             200,
             302,
         ], "Different client IP should not be rate limited"
+
+
+def test_contact_submit_sets_reply_to_header(db_client):
+    """Test that contact form sets Reply-To header to submitter's email."""
+    with patch("app.routes.send_email") as mock_send:
+        mock_send.return_value = True
+
+        submitter_email = "submitter@example.com"
+        response = db_client.post(
+            "/contact-submit",
+            data={
+                "name": "Test User",
+                "email": submitter_email,
+                "subject": "Test Subject",
+                "message": "Test message with more details",
+            },
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b"Thank you" in response.data
+
+        # Verify send_email was called with reply_to set to submitter's email
+        mock_send.assert_called_once()
+        call_args = mock_send.call_args
+        assert call_args.kwargs["reply_to"] == submitter_email

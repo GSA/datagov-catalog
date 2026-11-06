@@ -1455,7 +1455,9 @@ This message was sent via the Data.gov contact widget.
         flush=True,
     )
 
-    success = send_email(recipient, email_subject, body, attachments=attachments)
+    success = send_email(
+        recipient, email_subject, body, reply_to=email, attachments=attachments
+    )
 
     logger.info(f"[CONTACT FORM] Email send result: {success}")
     print(f"[CONTACT FORM] Email send result: {success}", file=sys.stderr, flush=True)
