@@ -72,7 +72,7 @@ if [ -n "$smtp_host" ] && [ "$smtp_host" != "null" ]; then
   export SMTP_USER="$smtp_username"
   export SMTP_PASSWORD="$smtp_password"
   export SMTP_STARTTLS="true"
-  export SMTP_SENDER="noreply@data.gov"
+  export SMTP_SENDER=noreply@$(vcap_get_service smtp .credentials.domain_arn | grep -o "ses-[[:alnum:]]\+.appmail.cloud.gov")
   echo "SMTP configured for email sending"
 else
   echo "Warning: SMTP service not configured - contact form emails will not be sent"
