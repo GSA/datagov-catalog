@@ -1411,18 +1411,12 @@ This message was sent via the Data.gov contact widget.
         body += f"\n{len(attachments)} file(s) attached."
 
     logger.info(f"[CONTACT FORM] Attempting to send email to {recipient}")
-    print(
-        f"[CONTACT FORM] Attempting to send email to {recipient}",
-        file=sys.stderr,
-        flush=True,
-    )
 
     success = send_email(
         recipient, email_subject, body, reply_to=email, attachments=attachments
     )
 
     logger.info(f"[CONTACT FORM] Email send result: {success}")
-    print(f"[CONTACT FORM] Email send result: {success}", file=sys.stderr, flush=True)
 
     if success:
         success_msg = "Thank you for your message! We will respond as soon as possible."
