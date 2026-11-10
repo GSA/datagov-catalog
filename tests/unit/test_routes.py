@@ -3968,8 +3968,8 @@ def test_contact_submit_rate_limiting_with_proxy(db_client):
                     "subject": "Test",
                     "message": "Test message with more details",
                 },
-                headers={"X-Forwarded-For": "1.2.3.4"},
-                environ_base={"REMOTE_ADDR": "127.0.0.1"},  # Proxy's IP
+                headers={"X-Forwarded-For": "1.2.3.4, cloudfront-ip, internal-ip"},
+                environ_base={"REMOTE_ADDR": "127.0.0.1"},
                 follow_redirects=False,
             )
             assert response.status_code in [200, 302], f"Request {i+1} failed"
@@ -3983,7 +3983,7 @@ def test_contact_submit_rate_limiting_with_proxy(db_client):
                 "subject": "Test",
                 "message": "Test message with more details",
             },
-            headers={"X-Forwarded-For": "1.2.3.4"},
+            headers={"X-Forwarded-For": "1.2.3.4, cloudfront-ip, internal-ip"},
             environ_base={"REMOTE_ADDR": "127.0.0.1"},
             follow_redirects=False,
         )
