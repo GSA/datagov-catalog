@@ -79,6 +79,7 @@ class TestDatasetDetail:
         )
         assert download_btn is not None
         assert download_btn.get("href") == "https://example.com/test.csv"
+        assert "dataset-outbound-link" in download_btn.get("class", [])
         assert "Download" in download_btn.get_text(strip=True)
 
         search_form = soup.find("form", attrs={"action": "/"})
@@ -634,6 +635,7 @@ class TestDatasetDetail:
         anchor = landing_page_row.select_one("td a")
         assert anchor is not None
         assert anchor.get("href") == landing_page_url
+        assert "dataset-outbound-link" in anchor.get("class", [])
         assert anchor.get_text(strip=True) == landing_page_url
 
     def test_metadata_landing_page_object_is_pretty_json_with_linked_url(
