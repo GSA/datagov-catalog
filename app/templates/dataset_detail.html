@@ -166,7 +166,7 @@
                             <div class="resources-list__actions">
                                 {% if download_url %}
                                 <a href="{{ download_url }}" target="_blank" rel="noopener"
-                                    class="usa-button usa-button--small resources-list__btn"
+                                    class="usa-button usa-button--small resources-list__btn dataset-outbound-link"
                                     aria-label="Download {{ resource_title }}">
                                     <i class="fa-solid fa-download margin-right-05"></i>
                                     Download
@@ -174,7 +174,7 @@
                                 {% endif %}
                                 {% if access_url %}
                                 <a href="{{ access_url }}" target="_blank" rel="noopener"
-                                    class="usa-button usa-button--outline usa-button--small resources-list__btn"
+                                    class="usa-button usa-button--outline usa-button--small resources-list__btn dataset-outbound-link"
                                     aria-label="Visit page for {{ resource_title }}">
                                     <i class="fa-solid fa-arrow-up-right-from-square margin-right-05"></i>
                                     Visit Page
@@ -306,7 +306,7 @@
                                     <th scope="row">{{ key }}</th>
                                     <td>
                                         {% if key == 'landingPage' and value is string %}
-                                        <a href="{{ value }}" target="_blank" rel="noopener">{{ value }}</a>
+                                        <a href="{{ value }}" class="dataset-outbound-link" target="_blank" rel="noopener">{{ value }}</a>
                                         {% elif rendered_value | is_json %}
                                         <pre class="json">{{ value | json_to_semantic_html | safe }}</pre>
                                         {% else %}
