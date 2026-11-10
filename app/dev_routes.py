@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 import requests
-from flask import Response
+from flask import Response, jsonify, request
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,22 @@ def register_dev_routes(app) -> None:
     """Register routes only needed for local development."""
     if not app.config.get("IS_LOCAL"):
         return
+
+    @app.route("/debug/proxy-info")
+    def debug_proxy_info():
+        """Debug endpoint to inspect proxy headers and access_route."""
+        logger.info(f"access_route: {request.access_route}")
+        logger.info(f"remote_addr: {request.remote_addr}")
+        logger.info(f"X-Forwarded-For: {request.headers.get('X-Forwarded-For')}")
+        return jsonify(
+            {
+                "access_route": list(request.access_route),
+                "remote_addr": request.remote_addr,
+                "x_forwarded_for": request.headers.get("X-Forwarded-For"),
+                "x_forwarded_host": request.headers.get("X-Forwarded-Host"),
+                "x_forwarded_proto": request.headers.get("X-Forwarded-Proto"),
+            }
+        )
 
     # Map tiles are served from a same-origin /maptiles path so the CSP stays
     # locked down. In production nginx proxies to OpenStreetMap
