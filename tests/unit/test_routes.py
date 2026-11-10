@@ -3921,26 +3921,38 @@ def test_backward_compatibility_search_route(db_client):
     assert response.content_type == "application/json"
 
 
-def test_harvest_record_backward_compatibility(db_client):
+def test_harvest_record_backward_compatibility(
+    interface_with_harvest_record, db_client
+):
     """Test /harvest_record/<id> still works as before (returns JSON, not redirect)."""
-    response = db_client.get("/harvest_record/test-record-id")
-    assert response.status_code in [200, 404]
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}")
+
+    harvest_record = interface_with_harvest_record.get_harvest_record(HARVEST_RECORD_ID)
+    assert response.status_code == 200
     assert response.content_type == "application/json"
+    response_dict = json.loads(response.get_data())
+    assert response_dict["action"] == harvest_record.action
 
 
-def test_harvest_record_raw_backward_compatibility(db_client):
+def test_harvest_record_raw_backward_compatibility(
+    interface_with_harvest_record, db_client
+):
     """Test /harvest_record/<id>/raw still works as before (returns data, not redirect)."""
-    response = db_client.get("/harvest_record/test-record-id/raw")
-    assert response.status_code in [200, 404]
-    assert response.content_type in [
-        "application/json",
-        "application/xml",
-        "text/plain",
-    ]
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/raw")
+
+    assert response.status_code == 200
+    assert response.mimetype == "application/json"
+    assert response.get_data(as_text=True) == '{\n  "title": "test dataset"\n}'
 
 
-def test_harvest_record_transformed_backward_compatibility(db_client):
+def test_harvest_record_transformed_backward_compatibility(
+    interface_with_harvest_record, db_client
+):
     """Test /harvest_record/<id>/transformed still works as before (returns JSON, not redirect)."""
-    response = db_client.get("/harvest_record/test-record-id/transformed")
-    assert response.status_code in [200, 404]
+    with patch("app.routes.interface", interface_with_harvest_record):
+        response = db_client.get(f"/harvest_record/{HARVEST_RECORD_ID}/transformed")
+
+    assert response.status_code == 200
     assert response.content_type == "application/json"
