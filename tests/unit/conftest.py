@@ -78,6 +78,10 @@ def dbapp(app):
 
 @pytest.fixture
 def db_client(dbapp):
+    # Reset rate limiter storage before each test
+    from app.routes import limiter
+
+    limiter.reset()
     yield dbapp.test_client()
 
 

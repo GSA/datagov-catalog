@@ -59,3 +59,29 @@ export SITEMAP_S3_BUCKET=$(vcap_get_service s3 .credentials.bucket)
 export SITEMAP_S3_PREFIX=sitemap/
 export SITEMAP_INDEX_KEY=sitemap.xml
 export SITEMAP_BASE_URL=${SITE_URL}
+
+# SMTP/SES settings for email sending
+smtp_server=$(vcap_get_service smtp .credentials.smtp_server)
+smtp_user=$(vcap_get_service smtp .credentials.smtp_user)
+smtp_password=$(vcap_get_service smtp .credentials.smtp_password)
+
+if [ -n "$smtp_server" ] && [ "$smtp_server" != "null" ]; then
+  export SMTP_SERVER="$smtp_server"
+  export SMTP_PORT=587
+  export SMTP_USER="$smtp_user"
+  export SMTP_PASSWORD="$smtp_password"
+  export SMTP_STARTTLS="true"
+  export SMTP_SENDER=noreply@$(vcap_get_service smtp .credentials.domain_arn | grep -o "ses-[[:alnum:]]\+.appmail.cloud.gov")
+  echo "SMTP configured for email sending"
+else
+  echo "Warning: SMTP service not configured - contact form emails will not be sent"
+fi
+
+# Redis for rate limiting
+redis_uri=$(vcap_get_service redis .credentials.uri)
+if [ -n "$redis_uri" ] && [ "$redis_uri" != "null" ]; then
+  export REDIS_URI="$redis_uri"
+  echo "Redis configured for rate limiting"
+else
+  echo "Warning: Redis not configured - rate limiting will use in-memory storage (not suitable for multi-instance deployments)"
+fi
