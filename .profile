@@ -61,15 +61,14 @@ export SITEMAP_INDEX_KEY=sitemap.xml
 export SITEMAP_BASE_URL=${SITE_URL}
 
 # SMTP/SES settings for email sending
-smtp_host=$(vcap_get_service smtp .credentials.host)
-smtp_port=$(vcap_get_service smtp .credentials.port)
-smtp_username=$(vcap_get_service smtp .credentials.username)
-smtp_password=$(vcap_get_service smtp .credentials.password)
+smtp_server=$(vcap_get_service smtp .credentials.smtp_server)
+smtp_user=$(vcap_get_service smtp .credentials.smtp_user)
+smtp_password=$(vcap_get_service smtp .credentials.smtp_password)
 
-if [ -n "$smtp_host" ] && [ "$smtp_host" != "null" ]; then
-  export SMTP_SERVER="$smtp_host"
-  export SMTP_PORT="${smtp_port:-587}"
-  export SMTP_USER="$smtp_username"
+if [ -n "$smtp_server" ] && [ "$smtp_server" != "null" ]; then
+  export SMTP_SERVER="$smtp_server"
+  export SMTP_PORT=587
+  export SMTP_USER="$smtp_user"
   export SMTP_PASSWORD="$smtp_password"
   export SMTP_STARTTLS="true"
   export SMTP_SENDER=noreply@$(vcap_get_service smtp .credentials.domain_arn | grep -o "ses-[[:alnum:]]\+.appmail.cloud.gov")
