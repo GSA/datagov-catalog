@@ -782,6 +782,23 @@ details {
     }
 }
 
+.resources-list__item--landing-page {
+    border-bottom: 2px solid #dfe1e2;
+    background: #f9fafb;
+
+    .resources-list__icon {
+        color: #005ea2;
+    }
+
+    .resources-list__name {
+        font-weight: 600;
+    }
+
+    &:hover {
+        background: #f5f8ff;
+    }
+}
+
 .resources-list__info {
     display: flex;
     align-items: center;
