@@ -614,6 +614,40 @@ def normalize_access_level(dcat: dict) -> str | None:
     return normalize_access_rights(dcat.get("accessRights"), dcat.get("accessLevel"))
 
 
+def extract_landing_page_url(landing_page):
+    """
+    Extract landing page URL from various DCAT formats.
+
+    DCAT-US landingPage can be:
+    - String: "https://example.gov/dataset"
+    - Object: {"@type": "...", "@id": "https://..."}
+    - Array: [{"@type": "...", "@id": "https://..."}]
+
+    Args:
+        landing_page: Landing page value from dataset.dcat
+
+    Returns:
+        URL string or None
+    """
+    if not landing_page:
+        return None
+
+    if isinstance(landing_page, str):
+        return landing_page.strip() if landing_page.strip() else None
+
+    if isinstance(landing_page, dict):
+        return landing_page.get("@id") or landing_page.get("url")
+
+    if isinstance(landing_page, list) and len(landing_page) > 0:
+        first_item = landing_page[0]
+        if isinstance(first_item, dict):
+            return first_item.get("@id") or first_item.get("url")
+        if isinstance(first_item, str):
+            return first_item.strip() if first_item.strip() else None
+
+    return None
+
+
 __all__ = [
     "usa_icon",
     "format_dcat_value",
@@ -638,4 +672,5 @@ __all__ = [
     "normalize_publisher_name",
     "normalize_license",
     "normalize_access_level",
+    "extract_landing_page_url",
 ]
