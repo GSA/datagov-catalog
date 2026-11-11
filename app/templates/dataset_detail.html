@@ -117,7 +117,8 @@
                 {% endif %}
 
                 <!-- Resources -->
-                {% if distributions %}
+                {% set landing_page_url = dataset.dcat.get('landingPage') | extract_landing_page_url %}
+                {% if distributions or landing_page_url %}
                 {% set resource_items = distributions %}
                 {% if resource_items is mapping or resource_items is string %}
                 {% set resource_items = [resource_items] %}
@@ -127,11 +128,37 @@
 
                 <div class="resources-section">
                     <h2 class="text-primary-darker margin-bottom-1">Resources</h2>
+                    {% set total_resources = (resource_items|length if resource_items else 0) + (1 if landing_page_url else 0) %}
                     <p class="resources-label margin-top-0">
-                        {{ resource_items|length }} resource{{ 's' if resource_items|length != 1 else '' }} available
+                        {{ total_resources }} resource{{ 's' if total_resources != 1 else '' }} available
                     </p>
 
                     <ul class="resources-list resources-list--main">
+                        {% if landing_page_url %}
+                        <li class="resources-list__item resources-list__item--main resources-list__item--landing-page">
+                            <div class="resources-list__info">
+                                <div class="resources-list__icon">
+                                    {{ labeled_file_icon('LINK', 'Landing Page') }}
+                                </div>
+                                <div class="resources-list__details">
+                                    <p class="resources-list__name" title="Landing Page">
+                                        Landing Page
+                                    </p>
+                                    <div class="resources-list__format" title="LINK">LINK</div>
+                                </div>
+                            </div>
+                            <div class="resources-list__actions">
+                                <a href="{{ landing_page_url }}" target="_blank" rel="noopener"
+                                    class="usa-button usa-button--outline usa-button--small resources-list__btn dataset-outbound-link"
+                                    aria-label="Visit landing page">
+                                    <i class="fa-solid fa-arrow-up-right-from-square margin-right-05"></i>
+                                    Visit Page
+                                </a>
+                            </div>
+                        </li>
+                        {% endif %}
+
+                        {% if resource_items %}
                         {% for resource in resource_items %}
                         {% set download_url = None %}
                         {% set access_url = None %}
@@ -186,6 +213,7 @@
                             </div>
                         </li>
                         {% endfor %}
+                        {% endif %}
                     </ul>
                 </div>
                 {% endif %}
