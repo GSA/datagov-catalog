@@ -134,30 +134,6 @@
                     </p>
 
                     <ul class="resources-list resources-list--main">
-                        {% if landing_page_url %}
-                        <li class="resources-list__item resources-list__item--main resources-list__item--landing-page">
-                            <div class="resources-list__info">
-                                <div class="resources-list__icon">
-                                    {{ labeled_file_icon('LINK', 'Landing Page') }}
-                                </div>
-                                <div class="resources-list__details">
-                                    <p class="resources-list__name" title="Landing Page">
-                                        Landing Page
-                                    </p>
-                                    <div class="resources-list__format" title="LINK">LINK</div>
-                                </div>
-                            </div>
-                            <div class="resources-list__actions">
-                                <a href="{{ landing_page_url }}" target="_blank" rel="noopener"
-                                    class="usa-button usa-button--outline usa-button--small resources-list__btn dataset-outbound-link"
-                                    aria-label="Visit landing page">
-                                    <i class="fa-solid fa-arrow-up-right-from-square margin-right-05"></i>
-                                    Visit Page
-                                </a>
-                            </div>
-                        </li>
-                        {% endif %}
-
                         {% if resource_items %}
                         {% for resource in resource_items %}
                         {% set download_url = None %}
@@ -213,6 +189,30 @@
                             </div>
                         </li>
                         {% endfor %}
+                        {% endif %}
+
+                        {% if landing_page_url %}
+                        <li class="resources-list__item resources-list__item--main resources-list__item--landing-page">
+                            <div class="resources-list__info">
+                                <div class="resources-list__icon">
+                                    {{ labeled_file_icon('LINK', 'Landing Page') }}
+                                </div>
+                                <div class="resources-list__details">
+                                    <p class="resources-list__name" title="Landing Page">
+                                        Landing Page
+                                    </p>
+                                    <div class="resources-list__format" title="LINK">LINK</div>
+                                </div>
+                            </div>
+                            <div class="resources-list__actions">
+                                <a href="{{ landing_page_url }}" target="_blank" rel="noopener"
+                                    class="usa-button usa-button--outline usa-button--small resources-list__btn dataset-outbound-link"
+                                    aria-label="Visit landing page">
+                                    <i class="fa-solid fa-arrow-up-right-from-square margin-right-05"></i>
+                                    Visit Page
+                                </a>
+                            </div>
+                        </li>
                         {% endif %}
                     </ul>
                 </div>
