@@ -290,6 +290,12 @@ def build_sort_clause(sort_by: str, sort_point: Any = None) -> list[dict]:
     """Return the OpenSearch sort clause for the requested key."""
     sort_key = (sort_by or "relevance").lower()
 
+    if sort_key == "title":
+        return [
+            {"title.normalized": {"order": "asc", "missing": "_last"}},
+            {"_id": {"order": "desc"}},
+        ]
+
     if sort_key == "distance":
         if sort_point:
             return [
