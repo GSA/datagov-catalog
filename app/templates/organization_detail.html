@@ -153,7 +153,7 @@
           aria-label="Filters"
           hidden
       >
-        {% set clear_filters_url = criteria_url_for('main.organization_detail', slug=organization_slug_or_id, q=dataset_search_query, sort=selected_sort) %}
+        {% set clear_filters_url = url_for('main.organization_detail', slug=organization_slug_or_id, q=dataset_search_query, sort=selected_sort) %}
         {{ render_filter_sidebar(
             form_action=url_for('main.organization_detail', slug=organization_slug_or_id),
             clear_filters_url=clear_filters_url,
