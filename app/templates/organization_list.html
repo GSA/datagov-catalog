@@ -98,7 +98,7 @@
       <li class="usa-pagination__item usa-pagination__arrow">
         {% if page > 1 %}
         <a class="usa-pagination__link usa-pagination__previous-page"
-          href="{{ criteria_url_for('main.list_organizations', page=page-1, per_page=pagination.per_page, q=search_query or None) }}"
+          href="{{ url_for('main.list_organizations', page=page-1, per_page=pagination.per_page, q=search_query or None) }}"
           aria-label="Previous page">
           <span class="usa-pagination__link-text">Previous</span>
         </a>
@@ -115,7 +115,7 @@
       {% else %}
       <li class="usa-pagination__item usa-pagination__page-no">
         <a class="usa-pagination__button"
-          href="{{ criteria_url_for('main.list_organizations', page=number, per_page=pagination.per_page, q=search_query or None) }}">{{ number }}</a>
+          href="{{ url_for('main.list_organizations', page=number, per_page=pagination.per_page, q=search_query or None) }}">{{ number }}</a>
       </li>
       {% endif %}
       {% endfor %}
@@ -123,7 +123,7 @@
       <li class="usa-pagination__item usa-pagination__arrow">
         {% if page < total_pages %}
         <a class="usa-pagination__link usa-pagination__next-page"
-          href="{{ criteria_url_for('main.list_organizations', page=page+1, per_page=pagination.per_page, q=search_query or None) }}" aria-label="Next page">
+          href="{{ url_for('main.list_organizations', page=page+1, per_page=pagination.per_page, q=search_query or None) }}" aria-label="Next page">
           <span class="usa-pagination__link-text">Next</span>
         </a>
         {% endif %}
