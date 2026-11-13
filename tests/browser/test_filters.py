@@ -107,6 +107,30 @@ def test_geography_map_fills_container_after_accordion_expand(page: Page) -> Non
     assert map_size["y"] >= 150
 
 
+def test_geography_map_can_be_closed_and_reopened_with_keyboard(page: Page) -> None:
+    """The map trigger supports Enter and Space and regains focus after closing."""
+    page.goto("/")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-geography")
+
+    trigger = page.get_by_role("button", name="Open map tools to draw a box")
+    panel = page.locator("#geography-map-expanded-panel")
+    expect(trigger).to_be_visible()
+
+    trigger.press("Enter")
+    expect(panel).to_be_visible()
+
+    page.get_by_role("button", name="Hide map").press("Space")
+    expect(panel).to_be_hidden()
+    expect(trigger).to_be_focused()
+
+    trigger.press("Space")
+    expect(panel).to_be_visible()
+
+    page.get_by_role("button", name="Hide map").press("Enter")
+    expect(panel).to_be_hidden()
+
+
 def test_geography_filter_limits_results(page: Page) -> None:
     """Selecting a geography suggestion limits results to datasets in that area."""
     page.goto("/")

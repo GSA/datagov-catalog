@@ -48,6 +48,7 @@ class GeographyAutocomplete {
         this.map = null;
         this.mapHandlersInitialized = false;
         this.drawControl = null;
+        this.mapPanelTriggerButton = null;
         this.mapPanelCloseButton = null;
         this.mapPanelElement = null;
         this.mapPanelMapContainer = null;
@@ -191,6 +192,9 @@ class GeographyAutocomplete {
       if (this.mapPanelCloseButton) {
         this.mapPanelCloseButton.addEventListener('click', () => {
           this.setMapPanelOpen(false);
+          if (this.mapPanelTriggerButton && this.mapPanelTriggerButton.isConnected) {
+            this.mapPanelTriggerButton.focus();
+          }
         });
       }
 
@@ -477,9 +481,21 @@ class GeographyAutocomplete {
           button.setAttribute('aria-label', 'Open map tools to draw a box');
           button.setAttribute('aria-controls', 'geography-map-expanded-panel');
           button.innerHTML = '<i class="fa-solid fa-pencil" aria-hidden="true"></i>';
+          self.mapPanelTriggerButton = button;
           L.DomEvent.on(button, 'click', function (e) {
             L.DomEvent.stop(e);
             self.openMapPanel();
+          });
+          button.addEventListener('keydown', function (e) {
+            if (e.key === ' ' || e.key === 'Spacebar') {
+              e.preventDefault();
+            }
+          });
+          button.addEventListener('keyup', function (e) {
+            if (e.key === ' ' || e.key === 'Spacebar') {
+              e.preventDefault();
+              button.click();
+            }
           });
           L.DomEvent.disableClickPropagation(container);
           L.DomEvent.disableScrollPropagation(container);
