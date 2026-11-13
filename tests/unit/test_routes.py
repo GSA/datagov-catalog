@@ -3352,6 +3352,143 @@ def test_dataset_detail_tag_links_point_to_keyword_search(
     assert found_keywords == expected_keywords
 
 
+def test_dataset_detail_includes_landing_page_in_template(
+    interface_with_harvest_source, db_client, fixture_data
+):
+    from app.models import Dataset
+
+    dataset_data = {
+        "id": "test-landing-page-display",
+        "slug": "test-landing-page-display",
+        "dcat": {
+            "title": "Test Dataset with Landing Page",
+            "description": "Test dataset",
+            "landingPage": "https://example.gov/dataset/landing",
+            "contactPoint": {"fn": "Test", "hasEmail": "mailto:test@example.gov"},
+        },
+        "harvest_source_id": fixture_data["harvest_source"]["id"],
+        "organization_id": fixture_data["organization"][0]["id"],
+    }
+    dataset = Dataset(**dataset_data)
+    interface_with_harvest_source.db.add(dataset)
+    interface_with_harvest_source.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_source):
+        response = db_client.get(f"/dataset/{dataset.slug}")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+
+    assert "https://example.gov/dataset/landing" in html
+    assert "Landing Page" in html
+
+
+def test_dataset_detail_landing_page_string_format(
+    interface_with_harvest_source, db_client, fixture_data
+):
+    from app.models import Dataset
+
+    dataset_data = {
+        "id": "test-landing-string",
+        "slug": "test-landing-string",
+        "dcat": {
+            "title": "Test Dataset",
+            "description": "Test",
+            "landingPage": "https://example.gov/dataset",
+            "contactPoint": {"fn": "Test", "hasEmail": "mailto:test@example.gov"},
+        },
+        "harvest_source_id": fixture_data["harvest_source"]["id"],
+        "organization_id": fixture_data["organization"][0]["id"],
+    }
+    dataset = Dataset(**dataset_data)
+    interface_with_harvest_source.db.add(dataset)
+    interface_with_harvest_source.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_source):
+        response = db_client.get(f"/dataset/{dataset.slug}")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Landing Page" in html
+    assert "https://example.gov/dataset" in html
+
+
+def test_dataset_detail_landing_page_object_format(
+    interface_with_harvest_source, db_client, fixture_data
+):
+    from app.models import Dataset
+
+    dataset_data = {
+        "id": "test-landing-object",
+        "slug": "test-landing-object",
+        "dcat": {
+            "title": "Test Dataset",
+            "description": "Test",
+            "landingPage": {
+                "@type": "dcat:Resource",
+                "@id": "https://example.gov/dataset-obj",
+            },
+            "contactPoint": {"fn": "Test", "hasEmail": "mailto:test@example.gov"},
+        },
+        "harvest_source_id": fixture_data["harvest_source"]["id"],
+        "organization_id": fixture_data["organization"][0]["id"],
+    }
+    dataset = Dataset(**dataset_data)
+    interface_with_harvest_source.db.add(dataset)
+    interface_with_harvest_source.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_source):
+        response = db_client.get(f"/dataset/{dataset.slug}")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+    assert "Landing Page" in html
+    assert "https://example.gov/dataset-obj" in html
+
+
+def test_dataset_detail_without_landing_page(interface_with_dataset, db_client):
+    dataset = interface_with_dataset.get_dataset_by_slug("test")
+    if "landingPage" in dataset.dcat:
+        dataset.dcat.pop("landingPage")
+    interface_with_dataset.db.commit()
+
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(f"/dataset/{dataset.slug}")
+
+    assert response.status_code == 200
+
+
+def test_dataset_detail_landing_page_has_visit_page_button(
+    interface_with_harvest_source, db_client, fixture_data
+):
+    from app.models import Dataset
+
+    dataset_data = {
+        "id": "test-landing-visit",
+        "slug": "test-landing-visit",
+        "dcat": {
+            "title": "Test Dataset",
+            "description": "Test",
+            "landingPage": "https://example.gov/dataset",
+            "contactPoint": {"fn": "Test", "hasEmail": "mailto:test@example.gov"},
+        },
+        "harvest_source_id": fixture_data["harvest_source"]["id"],
+        "organization_id": fixture_data["organization"][0]["id"],
+    }
+    dataset = Dataset(**dataset_data)
+    interface_with_harvest_source.db.add(dataset)
+    interface_with_harvest_source.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_source):
+        response = db_client.get(f"/dataset/{dataset.slug}")
+
+    assert response.status_code == 200
+    html = response.data.decode()
+
+    assert "Visit Page" in html
+    assert 'href="https://example.gov/dataset"' in html
+
+
 def test_keywords_api_returns_all_when_no_search(db_client):
     """GET /api/keywords with no search param returns keywords unfiltered."""
     mock_interface = Mock()
