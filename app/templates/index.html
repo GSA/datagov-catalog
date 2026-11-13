@@ -92,7 +92,7 @@
                 {%- else %} filters.
                 {%- endif -%}
                 {%- if filters_active %}
-                <a href="/?q={{ query }}&sort=relevance" class="usa-link">(clear all filters)</a>
+                <a href="{{ criteria_url_for('main.index', q=query, sort='relevance') }}" class="usa-link">(clear all filters)</a>
                 {%- endif %}
                 </p>
               {% else %}
@@ -158,7 +158,7 @@
         aria-label="Filters"
         hidden
     >
-        {% set clear_filters_url = url_for('main.index', q=query, sort='relevance', collection=collection if collection else none) %}
+        {% set clear_filters_url = criteria_url_for('main.index', q=query, sort='relevance', collection=collection if collection else none) %}
         {{ render_filter_sidebar(
             form_action=url_for('main.index'),
             clear_filters_url=clear_filters_url,
