@@ -180,7 +180,13 @@ def badge_color_stylesheet() -> str:
         {color for _, _, color in _FORMAT_INFO.values() if color}
         | {_BADGE_DEFAULT_COLOR}
     )
-    rules = (f".{badge_color_class(c)} {{ background-color: {c}; }}" for c in colors)
+    # Outrank the neutral fallback in `ul.dataset-resources li .label`,
+    # regardless of the order of the generated style block and compiled CSS.
+    rules = (
+        f"ul.dataset-resources li .label.{badge_color_class(c)} "
+        f"{{ background-color: {c}; }}"
+        for c in colors
+    )
     return "\n".join(rules)
 
 

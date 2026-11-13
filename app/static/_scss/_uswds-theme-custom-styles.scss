@@ -320,7 +320,8 @@ ul.menu {
 }
 
 // Filetype pill labels
-// Colors are applied inline from app/filters.py resource_format_badge, not here.
+// Per-format colors come from badge_color_stylesheet() in app/filters.py.
+// Keep this neutral fallback less specific than those generated class rules.
 ul.dataset-resources {
   padding-inline-start: 0;
   li {
@@ -344,13 +345,16 @@ ul.dataset-resources {
     a {
       text-decoration: none;
     }
-    .label:hover:not(.label[data-diff]) {
-      filter: brightness(80%);
-    }
     a.label:hover,
     a.label:focus {
         color: #fff;
         cursor: pointer;
+    }
+    // A brightness filter would darken the white text as well as the badge,
+    // reducing contrast. Preserve the palette and the USWDS focus outline.
+    a.label:hover,
+    a.label:focus-visible {
+        text-decoration: underline;
     }
   }
 }
