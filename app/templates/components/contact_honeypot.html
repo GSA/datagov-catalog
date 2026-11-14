@@ -1,0 +1,6 @@
+{% macro contact_honeypot(field_id) -%}
+<div class="contact-form-honeypot" aria-hidden="true">
+  <label for="{{ field_id }}">Website</label>
+  <input type="text" id="{{ field_id }}" name="website" value="" tabindex="-1" autocomplete="off">
+</div>
+{%- endmacro %}

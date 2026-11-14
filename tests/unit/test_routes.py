@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, quote, urlparse
@@ -3750,26 +3751,74 @@ def test_contact_page_renders(db_client):
     assert b"<form" in response.data
 
 
-def test_contact_submit_with_valid_data(db_client):
-    """Test that contact form submission works with valid data."""
-    with patch("app.routes.send_email") as mock_send:
-        mock_send.return_value = True
+@pytest.mark.parametrize("form_type", ["default", "feedback", "usagov"])
+@pytest.mark.parametrize("htmx", [False, True])
+@pytest.mark.parametrize("website", [None, ""])
+def test_contact_submit_with_valid_data(db_client, caplog, form_type, htmx, website):
+    """Empty or absent honeypots must not block legitimate submissions."""
+    data = {
+        "name": "John Doe",
+        "email": "john@example.com",
+        "subject": "Test subject",
+        "message": "Test message with more details",
+        "form_type": form_type,
+    }
+    if website is not None:
+        data["website"] = website
 
+    with patch("app.routes.send_email", return_value=True) as mock_send:
         response = db_client.post(
             "/contact-submit",
-            data={
-                "name": "John Doe",
-                "email": "john@example.com",
-                "subject": "Test subject",
-                "message": "Test message with more details",
-                "form_type": "default",
-            },
+            data=data,
+            headers={"HX-Request": "true"} if htmx else {},
             follow_redirects=True,
         )
 
-        assert response.status_code == 200
-        assert b"Thank you" in response.data
-        mock_send.assert_called_once()
+    assert response.status_code == 200
+    assert b"Thank you" in response.data
+    mock_send.assert_called_once()
+    assert "Submission blocked: honeypot" not in caplog.text
+
+
+@pytest.mark.parametrize("form_type", ["default", "feedback", "usagov"])
+@pytest.mark.parametrize("htmx", [False, True])
+@pytest.mark.parametrize("website", ["https://spam.example", " "])
+def test_contact_submit_blocks_honeypot(db_client, caplog, form_type, htmx, website):
+    """Block before validation and log once without including submitted content."""
+    with patch("app.routes.send_email") as mock_send:
+        with caplog.at_level(logging.WARNING, logger="app.routes"):
+            response = db_client.post(
+                "/contact-submit",
+                data={"website": website, "form_type": form_type},
+                headers={"HX-Request": "true"} if htmx else {},
+            )
+
+    assert response.status_code == 302
+    assert urlparse(response.location).path == "/"
+    mock_send.assert_not_called()
+    records = [record for record in caplog.records if record.name == "app.routes"]
+    assert len(records) == 1
+    assert records[0].levelno == logging.WARNING
+    assert records[0].getMessage() == "[CONTACT FORM] Submission blocked: honeypot"
+
+
+def test_contact_honeypots_render_in_all_forms(db_client):
+    soup = BeautifulSoup(db_client.get("/contact").data, "html.parser")
+    fields = soup.select('input[name="website"]')
+    assert len(fields) == 4
+    ids = [field["id"] for field in fields]
+    assert len(set(ids)) == 4
+    for field in fields:
+        assert len(soup.select(f'[id="{field["id"]}"]')) == 1
+        assert field["type"] == "text"
+        assert field["value"] == ""
+        assert field["tabindex"] == "-1"
+        assert field["autocomplete"] == "off"
+        assert "required" not in field.attrs
+        assert "disabled" not in field.attrs
+        assert field.parent["aria-hidden"] == "true"
+        assert "contact-form-honeypot" in field.parent["class"]
+        assert field.parent.find("label", attrs={"for": field["id"]}) is not None
 
 
 def test_contact_submit_requires_all_fields(db_client):

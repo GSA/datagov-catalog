@@ -1299,6 +1299,7 @@ def contact_submit():
     """Handle contact form submission with optional file attachments."""
     honeypot = request.form.get("website", "")
     if honeypot:
+        logger.warning("[CONTACT FORM] Submission blocked: honeypot")
         return redirect(url_for("main.index"))
 
     name = request.form.get("name", "").strip()

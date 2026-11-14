@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/contact_honeypot.html" import contact_honeypot %}
 
 {% block title %}Contact Us - Data.gov{% endblock %}
 
@@ -25,8 +26,7 @@
 
     <form method="POST" action="{{ url_for('main.contact_submit') }}" class="usa-form usa-form--large">
       <input type="hidden" name="form_type" value="default">
-      <!-- Honeypot field for bot detection -->
-      <input type="hidden" name="website" value="">
+      {{ contact_honeypot("contact-website") }}
 
       <label class="usa-label" for="name">
         Your name <span class="text-secondary-dark">*</span>
