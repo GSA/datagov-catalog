@@ -200,8 +200,7 @@ class TestDatasetDetail:
 
         assert '"page_title": "test org - test"' in data_layer_script
         assert (
-            '"page_location": "http://0.0.0.0:8080/dataset/test"'
-            in data_layer_script
+            '"page_location": "http://0.0.0.0:8080/dataset/test"' in data_layer_script
         )
 
     def test_dataset_detail_by_id_redirects_to_slug(
