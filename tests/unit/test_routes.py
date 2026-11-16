@@ -1473,7 +1473,9 @@ def test_htmx_search_returns_results(interface_with_dataset, db_client):
     assert dataset_description is not None
 
 
-def test_htmx_search_dataset_links_have_no_query_string(interface_with_dataset, db_client):
+def test_htmx_search_dataset_links_have_no_query_string(
+    interface_with_dataset, db_client
+):
     """HTMX search results link directly to dataset detail pages."""
     with patch("app.routes.interface", interface_with_dataset):
         # Simulate HTMX request with HX-Request header
@@ -1487,7 +1489,10 @@ def test_htmx_search_dataset_links_have_no_query_string(interface_with_dataset, 
     dataset_items = soup.find_all("li", class_="usa-collection__item")
     assert dataset_items
     assert all(
-        "?" not in item.find("a", href=lambda href: href and "/dataset/" in href).get("href")
+        "?"
+        not in item.find("a", href=lambda href: href and "/dataset/" in href).get(
+            "href"
+        )
         for item in dataset_items
     )
 

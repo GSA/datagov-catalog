@@ -252,7 +252,9 @@ class TestDatasetDetail:
         assert email_link is not None
         assert email_link.get("href") == "mailto:test.contact@example.gov"
 
-    def test_dataset_detail_return_link_is_hidden_until_navigation(self, interface_with_dataset, db_client):
+    def test_dataset_detail_return_link_is_hidden_until_navigation(
+        self, interface_with_dataset, db_client
+    ):
         with patch("app.routes.interface", interface_with_dataset):
             response = db_client.get("/dataset/test")
         soup = BeautifulSoup(response.text, "html.parser")
