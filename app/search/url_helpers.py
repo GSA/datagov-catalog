@@ -15,4 +15,8 @@ def criteria_url_for(
             if value is None or value == []:
                 continue
             values[key] = value
-    return url_for(endpoint, **values)
+    # Werkzeug follows HTML form encoding and represents spaces as ``+``.
+    # Use the RFC 3986 representation instead so generated search URLs are
+    # handled consistently by infrastructure in front of the application.
+    # issue: https://github.com/GSA/data.gov/issues/6465
+    return url_for(endpoint, **values).replace("+", "%20")

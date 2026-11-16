@@ -37,8 +37,13 @@ def unversion_static_filename(filename: str, version: str) -> str:
     path, extension = os.path.splitext(filename)
     version_suffix = f".{version}"
 
-    if extension and path.endswith(version_suffix):
-        return f"{path[: -len(version_suffix)]}{extension}"
+    # HTML can remain cached after a deploy. Its asset URLs contain the
+    # previous release's seven-character content hash, so serve the current
+    # file rather than leaving those pages without CSS or JavaScript.
+    if extension and (
+        path.endswith(version_suffix) or re.search(r"\.[0-9a-f]{7}$", path)
+    ):
+        return f"{path.rsplit('.', 1)[0]}{extension}"
     if not extension and filename.endswith(version_suffix):
         return filename[: -len(version_suffix)]
     return filename

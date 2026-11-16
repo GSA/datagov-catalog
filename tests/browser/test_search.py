@@ -25,6 +25,14 @@ def test_search(page):
     )
 
 
+def test_search_percent_encodes_spaces(page):
+    page.goto("/")
+    page.get_by_role("textbox", name="Search datasets").fill("Select Hydrologic")
+    page.get_by_role("button", name="Search", exact=True).click()
+
+    expect(page).to_have_url(re.compile(r"[?&]q=Select%20Hydrologic(?:&|$)"))
+
+
 def test_search_empty(page):
     page.goto("/")
     page.get_by_role("textbox", name="Search datasets").fill(
