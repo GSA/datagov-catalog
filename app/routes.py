@@ -67,8 +67,6 @@ from .sitemap_s3 import (
 )
 from .utils import (
     SMTP_CONFIG,
-    dict_from_hint,
-    hint_from_dict,
     json_not_found,
     pop_doc_by_identifier,
     register_iso_namespaces,
@@ -471,8 +469,6 @@ def index():
         exclude_org_slug=criteria.get_filter("organization") or "",
     )
 
-    # Only emit a return-to-search hint when there is actual search or filter state.
-    from_hint = hint_from_dict(request.args) if request.args else None
     search_result_geometries = (
         _collect_spatial_shapes(datasets) if spatial_geometry is not None else []
     )
@@ -507,7 +503,6 @@ def index():
         total=total,
         sort_by=criteria.sort_by,
         spatial_geometry=spatial_geometry,
-        from_hint=from_hint,
         collection_data=collection_data,
         filter_sections=build_filter_sections(
             criteria,
@@ -589,7 +584,6 @@ def search(**kwargs):
             400,
         )
     results_hint = criteria.results_hint
-    from_hint = criteria.from_hint
     spatial_geometry = criteria.get_spatial_geometry()
 
     selected_organization = _resolve_organization_filter(criteria)
@@ -625,7 +619,6 @@ def search(**kwargs):
                 selected_sort=criteria.sort_by,
                 organization_slug_or_id=selected_organization.slug,
                 spatial_geometry=spatial_geometry,
-                from_hint=from_hint,
                 api_pagination_query_params={
                     **criteria.to_query_dict(include_query=True, include_sort=True),
                     "org_slug": selected_organization.slug,
@@ -642,7 +635,6 @@ def search(**kwargs):
             per_page=per_page,
             results_hint=results_hint,
             result_start_index=result_start_index,
-            from_hint=from_hint,
             after=result.search_after_obscured(),
             sort_by=criteria.sort_by,
             spatial_geometry=spatial_geometry,
@@ -833,12 +825,6 @@ def organization_detail(slug: str):
     num_results = criteria.per_page
     spatial_geometry = criteria.get_spatial_geometry()
 
-    from_hint = None
-    if request.args:
-        hint_args = dict(request.args)
-        hint_args["slug"] = request.path.split("/")[2]  # get the org slug
-        from_hint = hint_from_dict(hint_args)
-
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
         criteria=criteria,
@@ -874,7 +860,6 @@ def organization_detail(slug: str):
         selected_sort=criteria.sort_by,
         dataset_search_query=dataset_search_query,
         spatial_geometry=spatial_geometry,
-        from_hint=from_hint,
         filter_sections=build_filter_sections(
             criteria,
             route_context=ORGANIZATION_CONTEXT,
@@ -970,10 +955,6 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
 
-    # Use from_hint to construct an arguments dict
-    from_hint = request.args.get("from_hint")
-    from_dict = dict_from_hint(from_hint)
-
     # Create normalized DCAT dict for template filters
     # This provides a copy with DCAT 3.0 fields normalized for display
     # while keeping the original dataset.dcat intact for Complete Metadata
@@ -989,7 +970,6 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         "dataset_detail.html",
         dataset=dataset,
         organization=org,
-        from_dict=from_dict,
         collection_data=collection_data,
         normalized_dcat=normalized_dcat,
     )

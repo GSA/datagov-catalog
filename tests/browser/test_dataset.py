@@ -10,6 +10,21 @@ def test_dataset_details(page):
     expect(page.get_by_role("heading", level=1)).to_have_text(
         "Climate Change Environmental Data"
     )
+    expect(page.get_by_role("link", name="Return to search results")).to_have_count(0)
+
+
+def test_dataset_returns_to_search_results(page):
+    page.goto("/?q=climate")
+    dataset_link = page.locator(
+        ".organization-datasets__list .usa-collection__heading a"
+    ).first
+    expect(dataset_link).to_be_visible()
+    dataset_link.click()
+
+    return_link = page.get_by_role("link", name="Return to search results")
+    expect(return_link).to_be_visible()
+    return_link.click()
+    expect(page).to_have_url(re.compile(r"/\?q=climate"))
 
 
 def test_dataset_with_collection_shows_explore_collection_card(page):
