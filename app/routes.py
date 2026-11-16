@@ -116,7 +116,7 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 
 
 SITEMAP_PAGE_SIZE = 10000
-ALLOWED_SORTS = {"relevance", "popularity", "distance", "last_harvested_date"}
+ALLOWED_SORTS = {"relevance", "popularity", "distance", "last_harvested_date", "title"}
 
 
 def _homepage_dataset_total(default_total: int) -> int:
