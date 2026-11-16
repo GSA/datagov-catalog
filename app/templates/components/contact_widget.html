@@ -1,3 +1,4 @@
+{% from "components/contact_honeypot.html" import contact_honeypot %}
 <div id="contact-widget" class="contact-widget">
   <!-- Floating button -->
   <button
@@ -83,7 +84,7 @@
               hx-target="#contact-widget-alert"
               hx-swap="innerHTML">
           <input type="hidden" name="form_type" value="default">
-          <input type="hidden" name="website" value="">
+          {{ contact_honeypot("widget-default-website") }}
 
           <h3 class="contact-widget__form-title">Default Ticket Form</h3>
 
@@ -172,7 +173,7 @@
               hx-target="#contact-widget-alert"
               hx-swap="innerHTML">
           <input type="hidden" name="form_type" value="feedback">
-          <input type="hidden" name="website" value="">
+          {{ contact_honeypot("widget-feedback-website") }}
 
           <h3 class="contact-widget__form-title">Data.gov Feedback</h3>
 
@@ -261,8 +262,7 @@
               hx-target="#contact-widget-alert"
               hx-swap="innerHTML">
           <input type="hidden" name="form_type" value="usagov">
-          <!-- Honeypot field for bot detection -->
-          <input type="hidden" name="website" value="">
+          {{ contact_honeypot("widget-usagov-website") }}
 
           <h3 class="contact-widget__form-title">Contact the USAGov team</h3>
 

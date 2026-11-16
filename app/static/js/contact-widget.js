@@ -161,7 +161,7 @@
       // Focus first input if on a form
       if (screenName !== 'menu') {
         setTimeout(function() {
-          const firstInput = screens[screenName].querySelector('input[type="text"]');
+          const firstInput = screens[screenName].querySelector('input[name="name"]');
           if (firstInput) {
             firstInput.focus();
           }
