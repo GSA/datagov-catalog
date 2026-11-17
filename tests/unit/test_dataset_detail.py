@@ -184,6 +184,25 @@ class TestDatasetDetail:
         assert twitter_image is not None
         assert twitter_image.get("content") == social_image_url
 
+    def test_dataset_detail_sends_page_metadata_to_ga(
+        self, interface_with_dataset, db_client
+    ):
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+        data_layer_script = next(
+            script.string
+            for script in soup.find_all("script")
+            if script.string and 'gtag("set"' in script.string
+        )
+
+        assert '"page_title": "test org - test"' in data_layer_script
+        assert (
+            '"page_location": "http://0.0.0.0:8080/dataset/test"' in data_layer_script
+        )
+
     def test_dataset_detail_by_id_redirects_to_slug(
         self, interface_with_dataset, db_client
     ):
