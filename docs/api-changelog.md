@@ -11,6 +11,22 @@ Issues that result in an entry in this changelog should be labeled
 
 ## Unreleased
 
+### Added
+
+#### Alphabetical dataset search ordering
+
+**Issue:** GSA/data.gov#6512  
+**Endpoint:** `GET /search`
+
+Use `sort=title` to order results A-Z by dataset title, case-insensitive.
+For example: `/search?q=climate&keyword=temperature&sort=title`. Displayed
+titles are unchanged. Datasets without a title appear last. Continue
+pagination with the returned `after` cursor using the same query, filters,
+and sort.
+
+**Compatibility:** Additive. Existing sort options and the default
+(`relevance`) are unchanged.
+
 ### Changed
 
 #### Organizations list excludes organizations with no datasets
