@@ -3,7 +3,6 @@ from unittest.mock import patch
 import pytest
 
 from app.api_schemas import SearchQuery, SearchResults
-from app.routes import _validate_and_normalize_sort
 from app.search.config import INDEX_NAME
 from app.search.queries import build_sort_clause
 from app.search.queries.registry import (
@@ -55,6 +54,8 @@ def test_title_sort_orders_case_insensitively_with_missing_last(interface):
 
 
 def test_validate_sort_accepts_title():
+    from app.routes import _validate_and_normalize_sort
+
     assert _validate_and_normalize_sort("Title", None) == "title"
 
 
