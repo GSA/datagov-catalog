@@ -7,9 +7,12 @@ from typing import Any
 from app.search.queries.criteria import SearchCriteria
 from app.search.queries.filters import FILTERS
 
-TITLE_SORT_MISSING_LAST_SCRIPT = "params._source.title == null ? 1 : 0"
+# title is text-only (no doc values), so sort on a script over _source.
+TITLE_SORT_MISSING_LAST_SCRIPT = (
+    "params._source.title == null || params._source.title.trim().isEmpty() ? 1 : 0"
+)
 TITLE_SORT_KEY_SCRIPT = (
-    "params._source.title == null ? '' : params._source.title.toLowerCase()"
+    "params._source.title == null ? '' : params._source.title.trim().toLowerCase()"
 )
 
 

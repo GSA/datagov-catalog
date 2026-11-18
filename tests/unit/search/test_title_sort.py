@@ -37,7 +37,16 @@ def test_build_sort_clause_title(sort_by):
 
 def test_title_sort_orders_case_insensitively_with_missing_last(interface):
     client = interface.opensearch.client
-    titles = {"1": "banana", "2": "Apple", "3": "cherry", "4": None, "5": "apple"}
+    titles = {
+        "1": "banana",
+        "2": "Apple",
+        "3": "cherry",
+        "4": None,
+        "5": "apple",
+        "6": "",
+        "7": "  aardvark",
+        "8": "   ",
+    }
     for doc_id, title in titles.items():
         body = {"slug": f"title-{doc_id}"}
         if title is not None:
@@ -50,7 +59,7 @@ def test_title_sort_orders_case_insensitively_with_missing_last(interface):
         body={"query": {"match_all": {}}, "sort": build_sort_clause("title")},
     )["hits"]["hits"]
 
-    assert [hit["_id"] for hit in hits] == ["5", "2", "1", "3", "4"]
+    assert [hit["_id"] for hit in hits] == ["7", "5", "2", "1", "3", "8", "6", "4"]
 
 
 def test_validate_sort_accepts_title():
