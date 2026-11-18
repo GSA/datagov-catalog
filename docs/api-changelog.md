@@ -16,7 +16,7 @@ Issues that result in an entry in this changelog should be labeled
 #### Alphabetical dataset search ordering
 
 **Issue:** GSA/data.gov#6512  
-**Endpoint:** `GET /search`
+**Endpoints:** `GET /search`, `GET /api/v1/search`
 
 Use `sort=title` to order results A-Z by dataset title, case-insensitive.
 For example: `/search?q=climate&keyword=temperature&sort=title`. Displayed
@@ -26,6 +26,31 @@ and sort.
 
 **Compatibility:** Additive. Existing sort options and the default
 (`relevance`) are unchanged.
+
+#### Versioned API routes under /api/v1/ namespace
+
+**Issue:** GSA/data.gov#5610  
+**Endpoints:** All API routes now available under `/api/v1/` prefix
+
+All programmatic API routes are now versioned under the `/api/v1/` namespace
+for better discoverability and future versioning. This includes:
+
+- `GET /api/v1/search` - Dataset search
+- `GET /api/v1/dataset/<slug_or_id>` - Dataset detail
+- `GET /api/v1/organizations` - Organizations list
+- `GET /api/v1/publishers` - Publishers list
+- `GET /api/v1/keywords` - Keywords list
+- `GET /api/v1/locations/search` - Locations search
+- `GET /api/v1/location/<id>` - Location detail
+- `GET /api/v1/harvest_record/<id>` - Harvest record detail
+- `GET /api/v1/harvest_record/<id>/raw` - Harvest record raw data
+- `GET /api/v1/harvest_record/<id>/transformed` - Harvest record transformed data
+- `GET /api/v1/opensearch/health` - OpenSearch health status
+- `GET /api/v1/stats` - Catalog statistics
+
+**Compatibility:** Existing routes without the `/v1/` prefix remain functional
+for backward compatibility and continue to work exactly as before, returning
+the same responses without redirects.
 
 ### Changed
 
