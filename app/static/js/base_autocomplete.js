@@ -125,7 +125,7 @@ class BaseAutocomplete {
     }
 
     renderSuggestions(items) {
-        this.suggestionsContainer.innerHTML = '';
+        this.suggestionsContainer.replaceChildren();
         this.currentFocusIndex = -1;
         this.renderedSuggestions = items;
 
@@ -385,7 +385,7 @@ class SingleSelectAutocomplete extends BaseAutocomplete {
 
     clearSelection() {
         this.selected = null;
-        this.chipsContainer.innerHTML = '';
+        this.chipsContainer.replaceChildren();
         this.syncHiddenInputs();
         this.showSuggestedContainer();
         this.showInput();
