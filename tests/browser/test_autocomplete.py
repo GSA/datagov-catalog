@@ -117,3 +117,13 @@ def test_organization_chip_removal_restores_input(page: Page) -> None:
 
     expect(organization_input(page)).to_be_visible()
     expect(page.locator("#organization-chips .tag-link")).to_have_count(0)
+
+
+def test_focusing_empty_keyword_input_keeps_suggestions_collapsed(page: Page) -> None:
+    page.goto("/")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-keywords")
+    keyword_input(page).focus()
+
+    expect(page.locator("#keyword-suggestions")).not_to_have_class(VISIBLE_SUGGESTIONS)
+    expect(keyword_input(page)).to_have_attribute("aria-expanded", "false")

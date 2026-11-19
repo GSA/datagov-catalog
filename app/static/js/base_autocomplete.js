@@ -193,6 +193,9 @@ class BaseAutocomplete {
     }
 
     showSuggestions() {
+        if (this.renderedSuggestions.length === 0) {
+            return;
+        }
         this.suggestionsContainer.classList.add('keyword-suggestions--visible');
         this.input.setAttribute('aria-expanded', 'true');
     }
