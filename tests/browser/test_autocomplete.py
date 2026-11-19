@@ -127,3 +127,16 @@ def test_focusing_empty_keyword_input_keeps_suggestions_collapsed(page: Page) ->
 
     expect(page.locator("#keyword-suggestions")).not_to_have_class(VISIBLE_SUGGESTIONS)
     expect(keyword_input(page)).to_have_attribute("aria-expanded", "false")
+
+
+def test_suggestion_highlight_ignores_surrounding_whitespace(page: Page) -> None:
+    with page.expect_response("**/api/publishers"):
+        page.goto("/")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-publishers")
+    publisher_input(page).fill("Portland   ")
+
+    highlighted = page.locator(
+        "#publisher-suggestions .keyword-suggestion__text strong"
+    ).first
+    expect(highlighted).to_have_text("Portland")

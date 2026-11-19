@@ -136,7 +136,7 @@ class BaseAutocomplete {
 
             const textSpan = document.createElement('span');
             textSpan.className = 'keyword-suggestion__text';
-            textSpan.appendChild(this.highlightMatch(this.getSuggestionLabel(item), this.input.value));
+            textSpan.appendChild(this.highlightMatch(this.getSuggestionLabel(item), this.input.value.trim()));
             div.appendChild(textSpan);
 
             const count = this.getSuggestionCount(item);
