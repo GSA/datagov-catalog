@@ -600,6 +600,10 @@ details {
     text-decoration: underline;
 }
 
+.return-link[hidden] {
+    display: none;
+}
+
 .advanced-search-tip {
     background: #e7f6f8;
     border-left: 4px solid #0d7ea2;

@@ -81,14 +81,10 @@
 <div class="usa-section">
     <div class="grid-container-widescreen">
 
-        <!-- Return to search link (compatible with org or main search) -->
-        {% if from_dict %}
-        {% set endpoint = 'main.organization_detail' if 'slug' in from_dict else 'main.index' %}
-        <a href="{{ url_for(endpoint, **from_dict) }}" class="return-link">
+        <a id="return-to-search-results" class="return-link" hidden>
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             Return to search results
         </a>
-        {% endif %}
 
         <div class="grid-row grid-gap-lg">
             <!-- Main Content Column -->
@@ -455,11 +451,11 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ static_url('js/return_to_search_results.js') }}"></script>
 <script src="{{ static_url('js/dataset_tags.js') }}"></script>
 {% if dataset.translated_spatial %}
 <link rel="stylesheet" href="{{ static_url('assets/leaflet/leaflet.css') }}" />
 <script src="{{ static_url('assets/leaflet/leaflet.js') }}"></script>
 <script src="{{ static_url('js/view_bbox_map.js') }}"></script>
-</script>
 {% endif %}
 {% endblock %}
