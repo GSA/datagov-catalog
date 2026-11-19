@@ -2,27 +2,14 @@
 const OSM_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-class GeographyAutocomplete {
+class GeographyAutocomplete extends BaseAutocomplete {
     constructor(options) {
+        super(options, { apiEndpoint: '/api/location', minQueryLength: 2 });
         this.mapPanelNextStateStorageKey = 'datagov.geographyMapExpanded.nextState';
-        this.inputId = options.inputId;
-        this.suggestionsId = options.suggestionsId;
-        this.apiEndpoint = options.apiEndpoint || '/api/location';
-        this.formId = options.formId;
-        this.mainSearchFormId = options.mainSearchFormId;
-        this.debounceDelay = options.debounceDelay || 300;
-
-        this.input = document.getElementById(this.inputId);
-        this.suggestionsContainer = document.getElementById(this.suggestionsId);
-        this.form = document.getElementById(this.formId);
-        this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
-
         this.selectedGeometry = null;
         this.selectedGeographyLabel = null;
         this.geoLayer = null;
         this.allGeographies = [];
-        this.debounceTimer = null;
-        this.currentFocusIndex = -1;
         this.map = null;
         this.mapHandlersInitialized = false;
         this.drawControl = null;
@@ -53,13 +40,7 @@ class GeographyAutocomplete {
         this.drawContainer = null;
         this.prevTouchAction = null;
         this.prevMsTouchAction = null;
-
-        if (!this.input || !this.suggestionsContainer) {
-            console.error('GeographyAutocomplete: Required elements not found');
-            return;
-        }
-
-        this.init();
+        this.start();
     }
 
     init() {
@@ -69,17 +50,7 @@ class GeographyAutocomplete {
         // Initialize suggested keywords click handlers
         this.initSuggestedGeography();
 
-        // Event listeners
-        this.input.addEventListener('input', (e) => this.handleInput(e));
-        this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
-        this.input.addEventListener('focus', () => this.showSuggestions());
-
-        // Close suggestions when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!this.input.contains(e.target) && !this.suggestionsContainer.contains(e.target)) {
-                this.hideSuggestions();
-            }
-        });
+        this.bindInputEvents();
 
         // Sync selection to hidden inputs on form submit
         if (this.form) {
@@ -1153,110 +1124,22 @@ class GeographyAutocomplete {
         });
     }
 
-    hideSuggestions() {
-        this.suggestionsContainer.classList.remove('keyword-suggestions--visible');
-        this.currentFocusIndex = -1;
-    }
-
-    showSuggestions() {
-       this.suggestionsContainer.classList.add('keyword-suggestions--visible');
-    }
-
-    handleInput(e) {
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => {
-            const query = e.target.value.trim().toLowerCase();
-            // only show suggestions when we have 3 or more search characters
-            if (query.length < 2) {
-                this.hideSuggestions();
-            } else {
-                this.filterAndShowSuggestions(query);
-            }
-        }, this.debounceDelay);
-    }
-
-    handleKeyDown(e) {
-        const suggestions = this.suggestionsContainer.querySelectorAll('.keyword-suggestion');
-
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            this.currentFocusIndex = Math.min(this.currentFocusIndex + 1, suggestions.length - 1);
-            this.updateSuggestionFocus(suggestions);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            this.currentFocusIndex = Math.max(this.currentFocusIndex - 1, 0);
-            this.updateSuggestionFocus(suggestions);
-        } else if (e.key === 'Enter' || e.key === 'Tab') {
-            if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
-                e.preventDefault();
-                const loc = suggestions[this.currentFocusIndex].location_data;
-                this.selectGeography(loc);
-                this.input.value = '';
-                this.hideSuggestions();
-            }
-        } else if (e.key === 'Escape') {
-            this.hideSuggestions();
-        }
-    }
-
-    updateSuggestionFocus(suggestions) {
-        suggestions.forEach((item, index) => {
-            if (index === this.currentFocusIndex) {
-                item.classList.add('keyword-suggestion--focused');
-                item.scrollIntoView({ block: 'nearest' });
-            } else {
-                item.classList.remove('keyword-suggestion--focused');
-            }
-        });
-    }
-
     async filterAndShowSuggestions(query) {
-        // Filter keywords that match the query
         // TODO: this calls the location search API every time, we could
         // try some caching to save on calls
-        query = query.toLowerCase();
         const response = await fetch(`${this.apiEndpoint}s/search?q=${query}&size=10`);
         const filtered = await response.json();
-
-        if (filtered.locations.length > 0) {
-            this.renderSuggestions(filtered.locations);
-            this.showSuggestions();
-        } else {
-            this.hideSuggestions();
-        }
+        this.displaySuggestions(filtered.locations);
     }
 
-    renderSuggestions(locations) {
-        this.suggestionsContainer.innerHTML = '';
-        this.currentFocusIndex = -1;
-
-        locations.forEach((item, index) => {
-            const div = document.createElement('div');
-            div.className = 'keyword-suggestion';
-            div.location_data = item;
-            div.innerHTML = `
-                <span class="keyword-suggestion__text">${this.highlightMatch(item.display_name, this.input.value)}</span>
-            `;
-
-            div.addEventListener('click', () => {
-                this.input.value = item.display_name;
-                this.selectGeography(item);
-                this.hideSuggestions();
-            });
-
-            this.suggestionsContainer.appendChild(div);
-        });
+    getSuggestionLabel(item) {
+        return item.display_name;
     }
 
-    highlightMatch(text, query) {
-        const index = text.toLowerCase().indexOf(query.toLowerCase());
-        if (index === -1) return text;
-
-        const before = text.substring(0, index);
-        const match = text.substring(index, index + query.length);
-        const after = text.substring(index + query.length);
-
-        return `${before}<strong>${match}</strong>${after}`;
+    chooseSuggestion(item) {
+        this.input.value = item.display_name;
+        this.selectGeography(item);
+        this.hideSuggestions();
     }
 
     async selectGeography(location_data) {
@@ -1280,45 +1163,15 @@ class GeographyAutocomplete {
     }
 
     _syncSpatialHiddenInputs(form) {
-        if (!form) return;
-
-        const existingGeometryInputs = form.querySelectorAll(
-          'input[name="spatial_geometry"][type="hidden"]'
+        const hasGeometry = Boolean(this.selectedGeometry);
+        // URI-encoding should be handled by form submission
+        this.replaceHiddenInputs(form, 'spatial_geometry', hasGeometry ? [JSON.stringify(this.selectedGeometry)] : []);
+        this.replaceHiddenInputs(form, 'spatial_within', hasGeometry ? [this.spatialWithin ? 'true' : 'false'] : []);
+        this.replaceHiddenInputs(
+            form,
+            'geography_label',
+            hasGeometry && this.selectedGeographyLabel ? [this.selectedGeographyLabel] : []
         );
-        existingGeometryInputs.forEach(input => input.remove());
-
-        const existingWithinInputs = form.querySelectorAll(
-          'input[name="spatial_within"][type="hidden"]'
-        );
-        existingWithinInputs.forEach(input => input.remove());
-
-        const existingLabelInputs = form.querySelectorAll(
-          'input[name="geography_label"][type="hidden"]'
-        );
-        existingLabelInputs.forEach(input => input.remove());
-
-        if (this.selectedGeometry) {
-          const geometryInput = document.createElement('input');
-          geometryInput.type = 'hidden';
-          geometryInput.name = 'spatial_geometry';
-          // URI-encoding should be handled by form submission
-          geometryInput.value = JSON.stringify(this.selectedGeometry);
-          form.appendChild(geometryInput);
-
-          const withinInput = document.createElement('input');
-          withinInput.type = 'hidden';
-          withinInput.name = 'spatial_within';
-          withinInput.value = this.spatialWithin ? 'true' : 'false';
-          form.appendChild(withinInput);
-
-          if (this.selectedGeographyLabel) {
-            const labelInput = document.createElement('input');
-            labelInput.type = 'hidden';
-            labelInput.name = 'geography_label';
-            labelInput.value = this.selectedGeographyLabel;
-            form.appendChild(labelInput);
-          }
-        }
     }
 
     // Sync geometry to hidden inputs in the filter form
@@ -1329,12 +1182,6 @@ class GeographyAutocomplete {
     // Sync geometry to hidden inputs in the main search form
     syncHiddenInputsToMainSearch() {
         this._syncSpatialHiddenInputs(this.mainSearchForm);
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
 }
 
