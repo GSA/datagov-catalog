@@ -4238,7 +4238,12 @@ def test_harvest_record_transformed_backward_compatibility(
 
 def _script_index(soup, filename):
     sources = [script.get("src", "") for script in soup.find_all("script")]
-    return next(index for index, src in enumerate(sources) if f"/js/{filename}." in src)
+    index = next(
+        (index for index, src in enumerate(sources) if f"/js/{filename}." in src),
+        None,
+    )
+    assert index is not None, f"{filename}.js is not loaded"
+    return index
 
 
 def _assert_base_autocomplete_loads_first(html):
