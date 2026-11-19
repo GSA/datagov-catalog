@@ -24,6 +24,7 @@ class KeywordAutocomplete extends BaseAutocomplete {
             this.mainSearchForm.addEventListener('submit', () => this.syncHiddenInputsToMainSearch());
         }
     }
+
     async fetchSuggestions(query) {
         // Cancel any in-flight request before starting a new one.
         if (this.fetchController) {
@@ -51,6 +52,7 @@ class KeywordAutocomplete extends BaseAutocomplete {
             return [];
         }
     }
+
     async filterAndShowSuggestions(query) {
         const keywords = await this.fetchSuggestions(query);
         if (keywords === null) {
@@ -59,6 +61,7 @@ class KeywordAutocomplete extends BaseAutocomplete {
 
         this.displaySuggestions(keywords.filter((item) => !this.selectedKeywords.has(item.keyword)));
     }
+
     loadExistingKeywords() {
         // Load keywords from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -69,6 +72,7 @@ class KeywordAutocomplete extends BaseAutocomplete {
             }
         });
     }
+
     initSuggestedKeywords() {
         // Add click handlers to suggested keyword buttons
         const suggestedContainer = document.getElementById('suggested-keywords');
@@ -83,18 +87,21 @@ class KeywordAutocomplete extends BaseAutocomplete {
             });
         });
     }
+
     hideSuggestedKeywords() {
         const suggestedContainer = document.getElementById('suggested-keywords');
         if (suggestedContainer) {
             suggestedContainer.style.display = 'none';
         }
     }
+
     showSuggestedKeywords() {
         const suggestedContainer = document.getElementById('suggested-keywords');
         if (suggestedContainer && this.selectedKeywords.size === 0) {
             suggestedContainer.style.display = 'block';
         }
     }
+
     getSuggestionLabel(item) {
         return item.keyword;
     }
@@ -124,7 +131,6 @@ class KeywordAutocomplete extends BaseAutocomplete {
 
         this.selectedKeywords.add(keyword);
         this.renderChip(keyword);
-
 
         if (!silent) {
             requestFilterFormSubmit(this.form);
