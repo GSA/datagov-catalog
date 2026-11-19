@@ -258,3 +258,172 @@ class BaseAutocomplete {
         });
     }
 }
+
+class SingleSelectAutocomplete extends BaseAutocomplete {
+    constructor(options, defaults) {
+        super(options, defaults);
+        this.chipsContainer = document.getElementById(options.chipsContainerId);
+        this.inputHint = document.getElementById(`${this.inputId}-hint`);
+        this.suggestedContainer = document.getElementById(
+            options.suggestedContainerId || defaults.suggestedContainerId
+        );
+        this.suggestedButtonSelector = defaults.suggestedButtonSelector;
+        this.hiddenInputName = defaults.hiddenInputName;
+        this.inputHintText = defaults.inputHintText;
+        this.numberFormatter = new Intl.NumberFormat();
+        this.contextualCounts = {};
+        this.items = [];
+        this.selected = null;
+        this.start();
+    }
+
+    hasRequiredElements() {
+        return super.hasRequiredElements() && Boolean(this.chipsContainer);
+    }
+
+    init() {
+        this.contextualCounts = this.parseContextualCounts(this.chipsContainer);
+        this.loadItems();
+        this.initSuggestedButtons();
+
+        const initialSelection = this.getInitialSelection();
+        if (initialSelection) {
+            this.setSelection(initialSelection, { silent: true });
+        }
+
+        this.bindInputEvents();
+        if (this.form) {
+            this.form.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+        if (this.mainSearchForm) {
+            this.mainSearchForm.addEventListener('submit', () => this.syncHiddenInputs());
+        }
+    }
+
+    async loadItems() {
+        try {
+            const response = await fetch(this.apiEndpoint);
+            this.items = this.parseItems(await response.json());
+        } catch (error) {
+            console.error(`${this.constructor.name}: Error loading suggestions:`, error);
+            this.items = [];
+        }
+    }
+
+    initSuggestedButtons() {
+        if (!this.suggestedContainer) {
+            return;
+        }
+        this.suggestedContainer.querySelectorAll(this.suggestedButtonSelector).forEach((button) => {
+            button.addEventListener('click', () => {
+                const selection = this.selectionFromButton(button);
+                if (selection) {
+                    this.setSelection(selection);
+                    this.input.value = '';
+                }
+            });
+        });
+    }
+
+    filterAndShowSuggestions(query) {
+        const hasContextualCounts = Object.keys(this.contextualCounts).length > 0;
+        const matches = this.items.filter((item) => {
+            const hasCount = !hasContextualCounts || this.contextualCounts[this.getItemKey(item)] > 0;
+            return !this.isSelected(item) && hasCount && this.matchesQuery(item, query);
+        });
+        this.displaySuggestions(matches.slice(0, 10));
+    }
+
+    isSelected(item) {
+        if (!this.selected) {
+            return false;
+        }
+        const selectedKey = this.getSelectionKey(this.selected);
+        return Boolean(selectedKey) && selectedKey === this.getSelectionKey(item);
+    }
+
+    getSuggestionLabel(item) {
+        return item.name;
+    }
+
+    getSuggestionCount(item) {
+        const contextualCount = this.contextualCounts[this.getItemKey(item)];
+        const count = contextualCount !== undefined ? contextualCount : this.getItemTotal(item);
+        return this.formatCount(count || 0);
+    }
+
+    selectSuggestion(item) {
+        this.setSelection(this.toSelection(item));
+    }
+
+    setSelection(selection, options = {}) {
+        if (!selection) {
+            return;
+        }
+        this.selected = selection;
+        this.renderChip(selection);
+        this.syncHiddenInputs();
+        this.hideSuggestedContainer();
+        this.hideInput();
+        if (!options.silent) {
+            requestFilterFormSubmit(this.form);
+        }
+    }
+
+    renderChip(selection) {
+        const count = this.contextualCounts[this.getItemKey(selection)];
+        const chip = this.createChip(
+            selection.name,
+            count ? this.formatCount(count) : null,
+            () => this.clearSelection()
+        );
+        this.setDataAttributes(chip, selection);
+        this.chipsContainer.replaceChildren(chip);
+    }
+
+    clearSelection() {
+        this.selected = null;
+        this.chipsContainer.innerHTML = '';
+        this.syncHiddenInputs();
+        this.showSuggestedContainer();
+        this.showInput();
+        requestFilterFormSubmit(this.form);
+    }
+
+    syncHiddenInputs() {
+        const values = this.selected ? [this.getHiddenInputValue(this.selected)] : [];
+        this.replaceHiddenInputs(this.form, this.hiddenInputName, values);
+        this.replaceHiddenInputs(this.mainSearchForm, this.hiddenInputName, values);
+    }
+
+    formatCount(value) {
+        return this.numberFormatter.format(Number.isFinite(value) ? value : 0);
+    }
+
+    hideSuggestedContainer() {
+        if (this.suggestedContainer) {
+            this.suggestedContainer.style.display = 'none';
+        }
+    }
+
+    showSuggestedContainer() {
+        if (this.suggestedContainer && !this.selected) {
+            this.suggestedContainer.style.display = 'block';
+        }
+    }
+
+    hideInput() {
+        this.input.classList.add('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = 'Remove the filter to search again';
+        }
+        this.hideSuggestions();
+    }
+
+    showInput() {
+        this.input.classList.remove('display-none');
+        if (this.inputHint) {
+            this.inputHint.textContent = this.inputHintText;
+        }
+    }
+}
