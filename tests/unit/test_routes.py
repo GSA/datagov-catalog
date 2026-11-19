@@ -4234,3 +4234,35 @@ def test_harvest_record_transformed_backward_compatibility(
 
     assert response.status_code == 200
     assert response.content_type == "application/json"
+
+
+def _script_index(soup, filename):
+    sources = [script.get("src", "") for script in soup.find_all("script")]
+    return next(index for index, src in enumerate(sources) if f"/js/{filename}." in src)
+
+
+def _assert_base_autocomplete_loads_first(html):
+    soup = BeautifulSoup(html, "html.parser")
+    base_index = _script_index(soup, "base_autocomplete")
+    assert base_index < _script_index(soup, "filters_autocomplete")
+    assert base_index < _script_index(soup, "geography_autocomplete")
+
+
+def test_index_loads_base_autocomplete_before_filter_scripts(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/")
+
+    assert response.status_code == 200
+    _assert_base_autocomplete_loads_first(response.text)
+
+
+def test_organization_detail_loads_base_autocomplete_before_filter_scripts(
+    db_client, interface_with_dataset
+):
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get("/organization/test-org")
+
+    assert response.status_code == 200
+    _assert_base_autocomplete_loads_first(response.text)
