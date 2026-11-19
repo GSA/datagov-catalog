@@ -5,6 +5,7 @@ These tests require the demo filter fixture data loaded into the running app
 """
 
 import re
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -140,3 +141,16 @@ def test_suggestion_highlight_ignores_surrounding_whitespace(page: Page) -> None
         "#publisher-suggestions .keyword-suggestion__text strong"
     ).first
     expect(highlighted).to_have_text("Portland")
+
+
+def test_geography_search_encodes_query(page: Page) -> None:
+    page.goto("/")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-geography")
+
+    with page.expect_request("**/api/locations/search?*") as request_info:
+        geography_input(page).fill("Portland & size=1")
+
+    params = parse_qs(urlparse(request_info.value.url).query)
+    assert params["q"] == ["portland & size=1"]
+    assert params["size"] == ["10"]

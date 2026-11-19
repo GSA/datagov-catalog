@@ -1127,9 +1127,15 @@ class GeographyAutocomplete extends BaseAutocomplete {
     async filterAndShowSuggestions(query) {
         // TODO: this calls the location search API every time, we could
         // try some caching to save on calls
-        const response = await fetch(`${this.apiEndpoint}s/search?q=${query}&size=10`);
-        const filtered = await response.json();
-        this.displaySuggestions(filtered.locations);
+        try {
+            const params = new URLSearchParams({ q: query, size: 10 });
+            const response = await fetch(`${this.apiEndpoint}s/search?${params}`);
+            const data = await response.json();
+            this.displaySuggestions(data.locations || []);
+        } catch (error) {
+            console.error('Error fetching geography suggestions:', error);
+            this.hideSuggestions();
+        }
     }
 
     getSuggestionLabel(item) {
