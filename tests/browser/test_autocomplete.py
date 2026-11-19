@@ -154,3 +154,46 @@ def test_geography_search_encodes_query(page: Page) -> None:
     params = parse_qs(urlparse(request_info.value.url).query)
     assert params["q"] == ["portland & size=1"]
     assert params["size"] == ["10"]
+
+
+def test_geography_escape_collapses_suggestions(page: Page) -> None:
+    page.goto("/")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-geography")
+    geography_input(page).fill("Portland")
+    expect(geography_input(page)).to_have_attribute("aria-expanded", "true")
+
+    geography_input(page).press("Escape")
+
+    expect(geography_input(page)).to_have_attribute("aria-expanded", "false")
+
+
+def test_geography_keyboard_selection_keeps_label(page: Page) -> None:
+    page.goto("/")
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-geography")
+    geography_input(page).fill("Portland")
+    first_suggestion = page.locator(
+        "#geography-suggestions .keyword-suggestion__text"
+    ).first
+    expect(first_suggestion).to_be_visible()
+    label = first_suggestion.inner_text()
+
+    geography_input(page).press("ArrowDown")
+    geography_input(page).press("Enter")
+
+    wait_for_filtered_results(page)
+    expect(geography_input(page)).to_have_value(label)
+
+
+def test_removing_keyword_with_quote_submits_filters(page: Page) -> None:
+    page.goto('/?keyword=a"b')
+    open_filter_sidebar(page)
+    expand_filter_section(page, "filter-keywords")
+    chip = page.locator("#keyword-chips .tag-link", has_text='a"b')
+    expect(chip).to_be_visible()
+
+    chip.locator(".keyword-chip__remove").click()
+
+    expect(page).not_to_have_url(re.compile(r"keyword="))
+    expect(page.locator("#keyword-chips .tag-link")).to_have_count(0)
