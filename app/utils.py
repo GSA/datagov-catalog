@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-import json
 import logging
 import mimetypes
 import os
@@ -52,32 +50,6 @@ def valid_id_required(func: F) -> F:
         return func(*args, **kwargs)
 
     return wrapper  # type: ignore[return-value]
-
-
-def dict_from_hint(hint_string):
-    """Compute a dict of args from our hint string.
-
-    The hint string is a base64 encoded JSON string. An argument of None
-    returns an empty dict and if there is an error decoding the hint,
-    it also returns an empty dict.
-    """
-    if hint_string is None:
-        return dict()
-
-    try:
-        return json.loads(base64.urlsafe_b64decode(hint_string).decode("utf-8"))
-    except ValueError:
-        return dict()
-
-
-def hint_from_dict(args_dict):
-    """Compute our URL hint from a dict of args.
-
-    The hint string is a base64 encoded JSON string.
-    """
-    return base64.urlsafe_b64encode(
-        json.dumps(args_dict, separators=(",", ":")).encode("utf-8")
-    ).decode("utf-8")
 
 
 def normalize_site_url(site_url: str) -> str:

@@ -1473,23 +1473,26 @@ def test_htmx_search_returns_results(interface_with_dataset, db_client):
     assert dataset_description is not None
 
 
-def test_htmx_search_uses_from_hint(interface_with_dataset, db_client):
-    """
-    Test that HTMX results have from_hint in dataset links
-    """
+def test_htmx_search_dataset_links_have_no_query_string(
+    interface_with_dataset, db_client
+):
+    """HTMX search results link directly to dataset detail pages."""
     with patch("app.routes.interface", interface_with_dataset):
         # Simulate HTMX request with HX-Request header
         response = db_client.get(
             "/search",
-            query_string={"q": "test", "per_page": "20", "from_hint": "badhint"},
+            query_string={"q": "test", "per_page": "20"},
             headers={"HX-Request": "true"},
         )
     soup = BeautifulSoup(response.text, "html.parser")
 
     dataset_items = soup.find_all("li", class_="usa-collection__item")
+    assert dataset_items
     assert all(
-        "from_hint=badhint"
-        in item.find("a", href=lambda href: href and "/dataset/" in href).get("href")
+        "?"
+        not in item.find("a", href=lambda href: href and "/dataset/" in href).get(
+            "href"
+        )
         for item in dataset_items
     )
 
@@ -2070,8 +2073,7 @@ def test_index_search_result_includes_dataset_link(interface_with_dataset, db_cl
     dataset_link = first_item.find("a", href=lambda href: href and "/dataset/" in href)
     assert dataset_link is not None
 
-    # dataset link should include a from_hint
-    assert "from_hint=" in dataset_link.get("href")
+    assert "?" not in dataset_link.get("href")
 
 
 def test_index_search_result_includes_published_on_in_metrics_line(db_client):
@@ -2357,8 +2359,8 @@ def test_index_apply_filters_button_absent(db_client):
     assert apply_button is None
 
 
-def test_index_from_hint_roundtrip(db_client, interface_with_dataset):
-    # load a search results page with query parameters
+def test_index_dataset_link_has_no_search_state(db_client, interface_with_dataset):
+    # Search state stays on the results page, not the dataset link.
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get("/?q=test&results=7")
     # find a dataset link
@@ -2366,16 +2368,14 @@ def test_index_from_hint_roundtrip(db_client, interface_with_dataset):
     dataset_link = soup.find("li", class_="usa-collection__item").find(
         "a", href=lambda href: "/dataset/" in href
     )
-    # now open the dataset details link
-    assert "from_hint=" in dataset_link.get("href")
+    assert "?" not in dataset_link.get("href")
     with patch("app.routes.interface", interface_with_dataset):
         response = db_client.get(dataset_link.get("href"))
-    # and check to make sure that the return to search link has those same
-    # query parameters
     soup = BeautifulSoup(response.text, "html.parser")
     return_link = soup.find("a", class_="return-link")
     assert return_link is not None
-    assert "?q=test&results=7" in return_link.get("href")
+    assert return_link.has_attr("hidden")
+    assert not return_link.has_attr("href")
 
 
 def test_header_exists(db_client):
@@ -2859,7 +2859,6 @@ def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
                 "keyword": ["health", "education"],
                 "spatial_filter": "geospatial",
                 "sort": "popularity",
-                "from_hint": "orghint",
             },
             headers={"HX-Request": "true"},
         )
@@ -2886,15 +2885,6 @@ def test_htmx_org_show_more_button_preserves_keywords_and_spatial_filter(
 
     # spatial_filter must be forwarded
     assert params.get("spatial_filter") == ["geospatial"]
-    assert params.get("from_hint") == ["orghint"]
-
-    dataset_items = soup.find_all("li", class_="usa-collection__item")
-    assert dataset_items
-    assert all(
-        "from_hint=orghint"
-        in item.find("a", href=lambda href: href and "/dataset/" in href).get("href")
-        for item in dataset_items
-    )
 
     # hx-push-url should also carry keywords correctly
     hx_push_url = load_more_button.get("hx-push-url")
