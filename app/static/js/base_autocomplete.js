@@ -20,6 +20,9 @@ function requestFilterFormSubmit(form, options = {}) {
     }
 }
 
+// Subclasses implement init(), filterAndShowSuggestions(query), getSuggestionLabel(item),
+// and selectSuggestion(item), and call this.start() at the end of their constructor.
+// Optional hooks: hasRequiredElements(), getSuggestionCount(item), setDataAttributes(element, item).
 class BaseAutocomplete {
     constructor(options, defaults = {}) {
         this.inputId = options.inputId;
@@ -262,6 +265,9 @@ class BaseAutocomplete {
     }
 }
 
+// Subclasses implement parseItems(data), getInitialSelection(), selectionFromButton(button),
+// toSelection(item), getItemKey(item), getSelectionKey(item), getItemTotal(item),
+// matchesQuery(item, query), getHiddenInputValue(selection), and setDataAttributes(element, item).
 class SingleSelectAutocomplete extends BaseAutocomplete {
     constructor(options, defaults) {
         super(options, defaults);
