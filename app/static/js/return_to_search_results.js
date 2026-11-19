@@ -23,6 +23,23 @@
     link.href = document.referrer;
     link.hidden = false;
     link.addEventListener('click', function (event) {
+        const navigationApi = window.navigation;
+        if (navigationApi?.entries && navigationApi?.traverseTo) {
+            const entries = navigationApi.entries();
+            const earlier = entries.slice(0, navigationApi.currentEntry.index);
+            const resultsEntry = earlier.reverse().find(entry => entry.url === link.href);
+            if (resultsEntry) {
+                event.preventDefault();
+                navigationApi.traverseTo(resultsEntry.key).finished.catch(function () {
+                    window.location.assign(link.href);
+                });
+            }
+            return;
+        }
+
+        if (window.location.href.includes('#')) {
+            return;
+        }
         event.preventDefault();
         window.history.go(-1);
     });

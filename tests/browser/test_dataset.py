@@ -15,6 +15,7 @@ def test_dataset_details(page):
 
 def test_dataset_returns_to_search_results(page):
     page.goto("/?q=climate")
+    page.evaluate("history.replaceState({returnMarker: true}, '')")
     dataset_link = page.locator(
         ".organization-datasets__list .usa-collection__heading a"
     ).first
@@ -25,6 +26,29 @@ def test_dataset_returns_to_search_results(page):
     expect(return_link).to_be_visible()
     return_link.click()
     expect(page).to_have_url(re.compile(r"/\?q=climate"))
+    assert page.evaluate("history.state?.returnMarker") is True
+
+
+def test_dataset_returns_to_search_results_after_hash_navigation(page):
+    page.goto("/?q=climate")
+    page.evaluate("history.replaceState({returnMarker: true}, '')")
+    dataset_link = page.locator(
+        ".organization-datasets__list .usa-collection__heading a"
+    ).first
+    expect(dataset_link).to_be_visible()
+    dataset_link.click()
+
+    return_link = page.get_by_role("link", name="Return to search results")
+    expect(return_link).to_be_visible()
+    for fragment in ("abc", "123"):
+        page.evaluate("fragment => location.hash = fragment", fragment)
+        expect(page).to_have_url(re.compile(rf"/dataset/[^/]+#{fragment}$"))
+    page.go_back()
+    expect(page).to_have_url(re.compile(r"/dataset/[^/]+#abc$"))
+
+    return_link.click()
+    expect(page).to_have_url(re.compile(r"/\?q=climate$"))
+    assert page.evaluate("history.state?.returnMarker") is True
 
 
 def test_dataset_with_collection_shows_explore_collection_card(page):
