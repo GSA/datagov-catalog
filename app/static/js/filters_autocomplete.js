@@ -171,6 +171,7 @@ class OrganizationAutocomplete extends SingleSelectAutocomplete {
             hiddenInputName: 'org_slug',
             inputHintText: 'Start typing to select an organization',
         });
+        this.start();
     }
 
     parseItems(data) {
@@ -246,6 +247,7 @@ class PublisherAutocomplete extends SingleSelectAutocomplete {
             hiddenInputName: 'publisher',
             inputHintText: 'Start typing to select a publisher',
         });
+        this.start();
     }
 
     parseItems(data) {

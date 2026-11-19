@@ -274,7 +274,6 @@ class SingleSelectAutocomplete extends BaseAutocomplete {
         this.contextualCounts = {};
         this.items = [];
         this.selected = null;
-        this.start();
     }
 
     hasRequiredElements() {
