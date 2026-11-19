@@ -2,28 +2,6 @@
 const OSM_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-function requestFilterFormSubmit(form, options = {}) {
-    const controller = window.dataGovFilterFormAutoSubmit;
-    if (controller && typeof controller.request === 'function' && controller.form) {
-        controller.request(options);
-        return;
-    }
-
-    if (controller && typeof controller.captureMapPanelState === 'function') {
-        controller.captureMapPanelState();
-    }
-
-    if (!form) {
-        return;
-    }
-
-    if (typeof form.requestSubmit === 'function') {
-        form.requestSubmit();
-    } else {
-        form.submit();
-    }
-}
-
 class GeographyAutocomplete {
     constructor(options) {
         this.mapPanelNextStateStorageKey = 'datagov.geographyMapExpanded.nextState';

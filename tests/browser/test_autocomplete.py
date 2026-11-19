@@ -95,7 +95,8 @@ def test_keyword_keyboard_selection_adds_chip(page: Page) -> None:
 
 
 def test_publisher_suggestion_highlights_query(page: Page) -> None:
-    page.goto("/")
+    with page.expect_response("**/api/publishers"):
+        page.goto("/")
     open_filter_sidebar(page)
     expand_filter_section(page, "filter-publishers")
     publisher_input(page).fill("Portland")
