@@ -6,7 +6,11 @@ from app.search.queries import (
     build_parents_with_children_query,
     visible_filter_query_params,
 )
-from app.search.queries.registry import build_multi_match_query, build_phrase_query
+from app.search.queries.registry import (
+    build_base_query,
+    build_multi_match_query,
+    build_phrase_query,
+)
 
 
 def test_has_download_filter_parses_and_builds_clause():
@@ -69,3 +73,21 @@ def test_search_queries_include_access_level():
     assert {
         "match_phrase": {"access_level": {"query": "restricted public"}}
     } in phrase_fields
+
+
+def test_phrase_and_term_without_or_are_required_together():
+    base_query = build_base_query('"health food" nutrition')
+
+    assert base_query["bool"]["must"] == [
+        build_phrase_query("health food"),
+        build_multi_match_query("nutrition"),
+    ]
+
+
+def test_two_phrases_without_or_are_required_together():
+    base_query = build_base_query('"health food" "electric vehicle"')
+
+    assert base_query["bool"]["must"] == [
+        build_phrase_query("health food"),
+        build_phrase_query("electric vehicle"),
+    ]
