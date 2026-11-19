@@ -27,8 +27,8 @@ class BaseAutocomplete {
         this.apiEndpoint = options.apiEndpoint || defaults.apiEndpoint;
         this.formId = options.formId;
         this.mainSearchFormId = options.mainSearchFormId;
-        this.debounceDelay = options.debounceDelay || 300;
-        this.minQueryLength = defaults.minQueryLength || 1;
+        this.debounceDelay = options.debounceDelay ?? 300;
+        this.minQueryLength = defaults.minQueryLength ?? 1;
 
         this.input = document.getElementById(this.inputId);
         this.suggestionsContainer = document.getElementById(this.suggestionsId);
