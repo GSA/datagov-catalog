@@ -1,62 +1,27 @@
-class KeywordAutocomplete {
+class KeywordAutocomplete extends BaseAutocomplete {
     constructor(options) {
-        this.inputId = options.inputId;
-        this.chipsContainerId = options.chipsContainerId;
-        this.suggestionsId = options.suggestionsId;
-        this.apiEndpoint = options.apiEndpoint || '/api/keywords';
-        this.formId = options.formId;
-        this.mainSearchFormId = options.mainSearchFormId;
-        this.debounceDelay = options.debounceDelay || 300;
-        this.input = document.getElementById(this.inputId);
-        this.chipsContainer = document.getElementById(this.chipsContainerId);
-        this.suggestionsContainer = document.getElementById(this.suggestionsId);
-        this.form = document.getElementById(this.formId);
-        this.mainSearchForm = document.getElementById(this.mainSearchFormId); // NEW
+        super(options, { apiEndpoint: '/api/keywords' });
+        this.chipsContainer = document.getElementById(options.chipsContainerId);
         this.selectedKeywords = new Set();
         this.fetchController = null;
-        this.debounceTimer = null;
-        this.currentFocusIndex = -1;
         this.contextualCounts = {};
-        if (!this.input || !this.chipsContainer || !this.suggestionsContainer) {
-            console.error('KeywordAutocomplete: Required elements not found');
-            return;
-        }
-        // Load contextual counts from data attribute
-        const countsData = this.chipsContainer.dataset.contextualCounts;
-        if (countsData) {
-            try {
-                this.contextualCounts = JSON.parse(countsData);
-            } catch (e) {
-                console.error('Failed to parse contextual counts:', e);
-            }
-        }
+        this.start();
+    }
 
-        this.init();
+    hasRequiredElements() {
+        return super.hasRequiredElements() && Boolean(this.chipsContainer);
     }
 
     init() {
-        // Load any existing keywords from URL parameters
+        this.contextualCounts = this.parseContextualCounts(this.chipsContainer);
         this.loadExistingKeywords();
-        // Initialize suggested keywords click handlers
         this.initSuggestedKeywords();
-        // Event listeners
-        this.input.addEventListener('input', (e) => this.handleInput(e));
-        this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
-        this.input.addEventListener('focus', () => this.showSuggestions());
-        // Close suggestions when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!this.input.contains(e.target) && !this.suggestionsContainer.contains(e.target)) {
-                this.hideSuggestions();
-            }
-        });
-        // Sync chips to hidden inputs on form submit
+        this.bindInputEvents();
         if (this.form) {
             this.form.addEventListener('submit', () => this.syncHiddenInputs());
         }
         if (this.mainSearchForm) {
-            this.mainSearchForm.addEventListener('submit', (e) => {
-                this.syncHiddenInputsToMainSearch();
-            });
+            this.mainSearchForm.addEventListener('submit', () => this.syncHiddenInputsToMainSearch());
         }
     }
     async fetchSuggestions(query) {
@@ -92,16 +57,7 @@ class KeywordAutocomplete {
             return; // Aborted by a newer keystroke.
         }
 
-        const filtered = keywords.filter(
-            item => !this.selectedKeywords.has(item.keyword)
-        );
-
-        if (filtered.length > 0) {
-            this.renderSuggestions(filtered);
-            this.showSuggestions();
-        } else {
-            this.hideSuggestions();
-        }
+        this.displaySuggestions(keywords.filter((item) => !this.selectedKeywords.has(item.keyword)));
     }
     loadExistingKeywords() {
         // Load keywords from URL parameters
@@ -139,104 +95,27 @@ class KeywordAutocomplete {
             suggestedContainer.style.display = 'block';
         }
     }
-    handleInput(e) {
-        clearTimeout(this.debounceTimer);
-        this.debounceTimer = setTimeout(() => {
-            const query = e.target.value.trim().toLowerCase();
-            if (query.length === 0) {
-                this.hideSuggestions();
-            } else {
-                this.filterAndShowSuggestions(query);
-            }
-        }, this.debounceDelay);
+    getSuggestionLabel(item) {
+        return item.keyword;
     }
-    handleKeyDown(e) {
-        const suggestions = this.suggestionsContainer.querySelectorAll('.keyword-suggestion');
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            this.currentFocusIndex = Math.min(this.currentFocusIndex + 1, suggestions.length - 1);
-            this.updateSuggestionFocus(suggestions);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            this.currentFocusIndex = Math.max(this.currentFocusIndex - 1, 0);
-            this.updateSuggestionFocus(suggestions);
-        } else if (e.key === 'Enter' || e.key === 'Tab') {
-            if (this.currentFocusIndex >= 0 && suggestions[this.currentFocusIndex]) {
-                e.preventDefault();
-                const keyword = suggestions[this.currentFocusIndex].dataset.keyword;
-                this.addKeyword(keyword);
-                this.input.value = '';
-                this.hideSuggestions();
-            }
-        } else if (e.key === 'Escape') {
-            this.hideSuggestions();
+
+    // Prefer the response count for the current filter context, falling back
+    // to the page's contextual counts when the API did not provide one.
+    getSuggestionCount(item) {
+        if (item.count !== undefined) {
+            return item.count;
         }
+        return this.contextualCounts[item.keyword] ?? 0;
     }
-    updateSuggestionFocus(suggestions) {
-        suggestions.forEach((item, index) => {
-            if (index === this.currentFocusIndex) {
-                item.classList.add('keyword-suggestion--focused');
-                item.scrollIntoView({ block: 'nearest' });
-            } else {
-                item.classList.remove('keyword-suggestion--focused');
-            }
-        });
-    }
-    renderSuggestions(keywords) {
-        this.suggestionsContainer.innerHTML = '';
-        this.currentFocusIndex = -1;
 
+    setDataAttributes(element, item) {
+        element.dataset.keyword = item.keyword;
+    }
 
-        keywords.forEach((item, index) => {
-            const div = document.createElement('div');
-            div.className = 'keyword-suggestion';
-            div.dataset.keyword = item.keyword;
+    selectSuggestion(item) {
+        this.addKeyword(item.keyword);
+    }
 
-            // Prefer the response count for the current filter context, falling back
-            // to the page's contextual counts when the API did not provide one.
-            const displayCount = item.count !== undefined
-                ? item.count
-                : this.contextualCounts[item.keyword] !== undefined
-                    ? this.contextualCounts[item.keyword]
-                    : 0;
-
-            const textSpan = document.createElement('span');
-            textSpan.className = 'keyword-suggestion__text';
-            textSpan.appendChild(this.highlightMatch(item.keyword, this.input.value));
-            const countSpan = document.createElement('span');
-            countSpan.className = 'keyword-suggestion__count';
-            countSpan.textContent = displayCount;
-            div.appendChild(textSpan);
-            div.appendChild(countSpan);
-            div.addEventListener('click', () => {
-                this.addKeyword(item.keyword);
-                this.input.value = '';
-                this.hideSuggestions();
-            });
-            this.suggestionsContainer.appendChild(div);
-        });
-    }
-    highlightMatch(text, query) {
-        const fragment = document.createDocumentFragment();
-        const index = text.toLowerCase().indexOf(query.toLowerCase());
-        if (index === -1) {
-            fragment.appendChild(document.createTextNode(text));
-            return fragment;
-        }
-        fragment.appendChild(document.createTextNode(text.substring(0, index)));
-        const strong = document.createElement('strong');
-        strong.textContent = text.substring(index, index + query.length);
-        fragment.appendChild(strong);
-        fragment.appendChild(document.createTextNode(text.substring(index + query.length)));
-        return fragment;
-    }
-    showSuggestions() {
-        this.suggestionsContainer.classList.add('keyword-suggestions--visible');
-    }
-    hideSuggestions() {
-        this.suggestionsContainer.classList.remove('keyword-suggestions--visible');
-        this.currentFocusIndex = -1;
-    }
     addKeyword(keyword, options = {}) {
         const silent = Boolean(options.silent);
         if (this.selectedKeywords.has(keyword)) {
@@ -253,11 +132,10 @@ class KeywordAutocomplete {
     }
 
     removeKeyword(keyword) {
-        const removed = this.selectedKeywords.delete(keyword);
-        if (!removed) {
+        if (!this.selectedKeywords.delete(keyword)) {
             return;
         }
-        const chip = this.chipsContainer.querySelector(`[data-keyword="${this.escapeHtml(keyword)}"]`);
+        const chip = [...this.chipsContainer.children].find((el) => el.dataset.keyword === keyword);
         if (chip) {
             chip.remove();
         }
@@ -268,70 +146,19 @@ class KeywordAutocomplete {
 
         requestFilterFormSubmit(this.form);
     }
+
     renderChip(keyword) {
-        const chip = document.createElement('div');
-        chip.className = 'tag-link';
-        chip.dataset.keyword = keyword;
-        const count = this.contextualCounts[keyword];
-
-        const textSpan = document.createElement('span');
-        textSpan.className = 'keyword-chip__text';
-        textSpan.textContent = keyword;
-        if (count) {
-            const countSpan = document.createElement('span');
-            countSpan.className = 'tag-link__count';
-            countSpan.textContent = `(${count})`;
-            textSpan.appendChild(countSpan);
-        }
-
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.className = 'keyword-chip__remove';
-        removeBtn.setAttribute('aria-label', `Remove ${keyword}`);
-        const icon = document.createElement('i');
-        icon.className = 'fa-solid fa-xmark';
-        removeBtn.appendChild(icon);
-
-        chip.appendChild(textSpan);
-        chip.appendChild(removeBtn);
-        removeBtn.addEventListener('click', () => {
-            this.removeKeyword(keyword);
-        });
+        const chip = this.createChip(keyword, this.contextualCounts[keyword], () => this.removeKeyword(keyword));
+        this.setDataAttributes(chip, { keyword });
         this.chipsContainer.appendChild(chip);
     }
+
     syncHiddenInputs() {
-        // Remove existing keyword hidden inputs from filter form
-        const existingInputs = this.form.querySelectorAll('input[name="keyword"]');
-        existingInputs.forEach(input => input.remove());
-        // Add hidden input for each selected keyword
-        this.selectedKeywords.forEach(keyword => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'keyword';
-            input.value = keyword;
-            this.form.appendChild(input);
-        });
+        this.replaceHiddenInputs(this.form, 'keyword', [...this.selectedKeywords]);
     }
 
-    // Sync various args to hidden inputs in the main search form
     syncHiddenInputsToMainSearch() {
-        if (!this.mainSearchForm) return;
-        // Remove existing keyword hidden inputs from main search form
-        const existingInputs = this.mainSearchForm.querySelectorAll('input[name="keyword"][type="hidden"]');
-        existingInputs.forEach(input => input.remove());
-        // Add hidden input for each selected keyword
-        this.selectedKeywords.forEach(keyword => {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'keyword';
-            input.value = keyword;
-            this.mainSearchForm.appendChild(input);
-        });
-    }
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        this.replaceHiddenInputs(this.mainSearchForm, 'keyword', [...this.selectedKeywords]);
     }
 }
 
