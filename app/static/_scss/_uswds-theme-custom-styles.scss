@@ -244,7 +244,7 @@ ul.menu {
   background-color: color('blue-warm-70v');
 }
 .organization-datasets__body--state {
-  background-color: color('blue-cool-40v');
+  background-color: color('blue-cool-60v');
 }
 .organization-datasets__body--city {
   background-color: color('red-50');
@@ -1175,7 +1175,7 @@ details {
 }
 
 // footer
-div.grid-row.grid-gap#menu-footer {
+nav.grid-row.grid-gap#menu-footer {
   span {
     padding: 0;
     margin-top: .7rem;
@@ -1479,4 +1479,3 @@ li.usa-collection__item.organization-datasets__item.margin-0.parent-collection-d
 div.usa-tag.collection-tag {
   margin-right: 10px !important;
 }
-
