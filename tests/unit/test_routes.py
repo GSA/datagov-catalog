@@ -3431,6 +3431,39 @@ def test_dataset_detail_landing_page_string_format(
     assert "https://example.gov/dataset" in html
 
 
+def test_dataset_detail_landing_page_without_distributions(
+    interface_with_harvest_source, db_client, fixture_data
+):
+    from app.models import Dataset
+
+    dataset_data = {
+        "id": "test-landing-no-dist",
+        "slug": "test-landing-no-dist",
+        "dcat": {
+            "title": "Test Dataset",
+            "description": "Test",
+            "landingPage": "https://example.gov/dataset",
+            "contactPoint": {"fn": "Test", "hasEmail": "mailto:test@example.gov"},
+        },
+        "harvest_source_id": fixture_data["harvest_source"]["id"],
+        "organization_id": fixture_data["organization"][0]["id"],
+    }
+    dataset = Dataset(**dataset_data)
+    interface_with_harvest_source.db.add(dataset)
+    interface_with_harvest_source.db.commit()
+
+    with patch("app.routes.interface", interface_with_harvest_source):
+        response = db_client.get(f"/dataset/{dataset.slug}")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.data, "html.parser")
+    items = soup.select(".resources-list--main .resources-list__item")
+    assert len(items) == 1
+    assert "resources-list__item--landing-page" in items[0]["class"]
+    assert "Resource 1" not in response.data.decode()
+    assert "1 resource available" in soup.select_one(".resources-label").text
+
+
 def test_dataset_detail_landing_page_object_format(
     interface_with_harvest_source, db_client, fixture_data
 ):
