@@ -8,12 +8,11 @@ from app.search.queries.criteria import SearchCriteria
 from app.search.queries.filters import FILTERS
 
 # title is text-only (no doc values), so sort on a script over _source.
-TITLE_SORT_MISSING_LAST_SCRIPT = (
-    "params._source.title == null || params._source.title.trim().isEmpty() ? 1 : 0"
-)
 TITLE_SORT_KEY_SCRIPT = (
-    "params._source.title == null ? '' : params._source.title.trim().toLowerCase()"
+    "String title = params._source.title == null ? '' : params._source.title.trim(); "
+    "return title.isEmpty() ? params.missing : title.toLowerCase();"
 )
+TITLE_SORT_MISSING_KEY = "\uffff"
 
 
 def build_filter_clauses(criteria: SearchCriteria) -> list[dict]:
@@ -336,19 +335,13 @@ def build_sort_clause(sort_by: str, sort_point: Any = None) -> list[dict]:
         return [
             {
                 "_script": {
-                    "type": "number",
+                    "type": "string",
                     "order": "asc",
                     "script": {
                         "lang": "painless",
-                        "source": TITLE_SORT_MISSING_LAST_SCRIPT,
+                        "source": TITLE_SORT_KEY_SCRIPT,
+                        "params": {"missing": TITLE_SORT_MISSING_KEY},
                     },
-                }
-            },
-            {
-                "_script": {
-                    "type": "string",
-                    "order": "asc",
-                    "script": {"lang": "painless", "source": TITLE_SORT_KEY_SCRIPT},
                 }
             },
             {"_id": {"order": "desc"}},

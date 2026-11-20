@@ -5,10 +5,7 @@ import pytest
 from app.api_schemas import SearchQuery, SearchResults
 from app.search.config import INDEX_NAME
 from app.search.queries import build_sort_clause
-from app.search.queries.registry import (
-    TITLE_SORT_KEY_SCRIPT,
-    TITLE_SORT_MISSING_LAST_SCRIPT,
-)
+from app.search.queries.registry import TITLE_SORT_KEY_SCRIPT, TITLE_SORT_MISSING_KEY
 
 
 @pytest.mark.parametrize("sort_by", ["title", "TITLE", "Title"])
@@ -16,19 +13,13 @@ def test_build_sort_clause_title(sort_by):
     assert build_sort_clause(sort_by) == [
         {
             "_script": {
-                "type": "number",
+                "type": "string",
                 "order": "asc",
                 "script": {
                     "lang": "painless",
-                    "source": TITLE_SORT_MISSING_LAST_SCRIPT,
+                    "source": TITLE_SORT_KEY_SCRIPT,
+                    "params": {"missing": TITLE_SORT_MISSING_KEY},
                 },
-            }
-        },
-        {
-            "_script": {
-                "type": "string",
-                "order": "asc",
-                "script": {"lang": "painless", "source": TITLE_SORT_KEY_SCRIPT},
             }
         },
         {"_id": {"order": "desc"}},
