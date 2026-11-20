@@ -1464,7 +1464,7 @@ def test_htmx_search_returns_results(interface_with_dataset, db_client):
 
     # Check first dataset has expected elements
     first_dataset = dataset_items[0]
-    dataset_heading = first_dataset.find("h3", class_="usa-collection__heading")
+    dataset_heading = first_dataset.find("h2", class_="usa-collection__heading")
     assert dataset_heading is not None
     assert "test" in dataset_heading.text.lower()
 
@@ -2014,7 +2014,7 @@ def test_index_page_lists_results_without_query(db_client):
     assert response.status_code == 200
     soup = BeautifulSoup(response.text, "html.parser")
 
-    heading = soup.find("h3", class_="usa-collection__heading")
+    heading = soup.find("h2", class_="usa-collection__heading")
     assert heading is not None
     assert "Mock Dataset" in heading.text
 
@@ -2401,11 +2401,35 @@ def test_footer_exists(db_client):
 
     soup = BeautifulSoup(response.text, "html.parser")
 
+    site_footer = soup.find("footer")
+    assert site_footer is not None
+
     datagov_footer = soup.find("div", class_="footer-section-bottom")
     assert datagov_footer is not None
 
+    footer_nav = soup.find(
+        "nav", id="menu-footer", attrs={"aria-label": "Footer navigation"}
+    )
+    assert footer_nav is not None
+    github_button = footer_nav.find("a", class_="github-button")
+    assert github_button is not None
+    assert github_button.find_parent("ul") is None
+
     gsa_footer = soup.find("div", class_="usa-identifier")
     assert gsa_footer is not None
+
+
+def test_contact_widget_is_in_landmark(db_client):
+    response = db_client.get("/")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    contact_landmark = soup.find(
+        "aside", id="contact-widget", attrs={"aria-label": "Contact and feedback"}
+    )
+    assert contact_landmark is not None
+    feedback_button = contact_landmark.find("button", id="contact-widget-button")
+    assert feedback_button is not None
 
 
 class TestKeywordSearch:
