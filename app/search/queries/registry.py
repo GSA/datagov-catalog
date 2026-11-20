@@ -7,6 +7,13 @@ from typing import Any
 from app.search.queries.criteria import SearchCriteria
 from app.search.queries.filters import FILTERS
 
+# title is text-only (no doc values), so sort on a script over _source.
+TITLE_SORT_KEY_SCRIPT = (
+    "String title = params._source.title == null ? '' : params._source.title.trim(); "
+    "return title.isEmpty() ? params.missing : title.toLowerCase();"
+)
+TITLE_SORT_MISSING_KEY = "\uffff"
+
 
 def build_filter_clauses(criteria: SearchCriteria) -> list[dict]:
     clauses: list[dict] = []
@@ -321,6 +328,22 @@ def build_sort_clause(sort_by: str, sort_point: Any = None) -> list[dict]:
             {"last_harvested_date": {"order": "desc", "missing": "_last"}},
             {"_score": {"order": "desc"}},
             {"popularity": {"order": "desc", "missing": "_last"}},
+            {"_id": {"order": "desc"}},
+        ]
+
+    if sort_key == "title":
+        return [
+            {
+                "_script": {
+                    "type": "string",
+                    "order": "asc",
+                    "script": {
+                        "lang": "painless",
+                        "source": TITLE_SORT_KEY_SCRIPT,
+                        "params": {"missing": TITLE_SORT_MISSING_KEY},
+                    },
+                }
+            },
             {"_id": {"order": "desc"}},
         ]
 

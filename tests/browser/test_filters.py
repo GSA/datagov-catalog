@@ -4,6 +4,8 @@ These tests require the demo filter fixture data loaded into the running app
 (for example via ``make test-browser-with-data``).
 """
 
+from urllib.parse import parse_qs, urlparse
+
 from playwright.sync_api import Page, expect
 
 from tests.browser.filter_helpers import (
@@ -182,6 +184,26 @@ def test_sort_by_popularity_preserves_active_filters(page: Page) -> None:
     expect(sort_select(page)).to_have_value("popularity")
     expect(page.locator("#keyword-chips .tag-link")).to_contain_text("health")
     expect_result_visible(page, "Red Cross Blood Drive Schedule")
+
+
+def test_sort_by_title_preserves_query_and_filters(page: Page) -> None:
+    """Title (A-Z) sort keeps the query and filters and orders results A-Z."""
+    page.goto("/?q=health&keyword=health")
+    wait_for_filtered_results(page)
+    with page.expect_navigation():
+        sort_select(page).select_option(label="Title (A-Z)")
+
+    expect(sort_select(page)).to_have_value("title")
+    query = parse_qs(urlparse(page.url).query)
+    assert query["q"] == ["health"]
+    assert query["keyword"] == ["health"]
+    expect(page.locator("#keyword-chips .tag-link")).to_contain_text("health")
+    titles = [
+        title.strip().lower()
+        for title in page.locator(".usa-collection__heading a").all_text_contents()
+    ]
+    assert titles
+    assert titles == sorted(titles)
 
 
 def test_bfcache_restore_removes_stale_loading_overlay(page: Page) -> None:

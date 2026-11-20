@@ -40,6 +40,7 @@ from app.search.reader import InvalidCursorError
 
 from . import htmx
 from .api_schemas import (
+    SORT_BY_ENUM,
     KeywordsQuery,
     KeywordsResults,
     LocationDetail,
@@ -114,7 +115,7 @@ def build_page_sequence(cur: int, total_pages: int, edge: int = 1, around: int =
 
 
 SITEMAP_PAGE_SIZE = 10000
-ALLOWED_SORTS = {"relevance", "popularity", "distance", "last_harvested_date"}
+ALLOWED_SORTS = {sort.value for sort in SORT_BY_ENUM}
 
 
 def _homepage_dataset_total(default_total: int) -> int:

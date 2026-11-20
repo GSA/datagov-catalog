@@ -14,6 +14,7 @@
     <label class="results-sort__label" for="sort-select">Sort by</label>
     <select class="usa-select results-sort__select" name="sort" id="sort-select" form="{{ form_id }}">
         <option value="relevance" {% if sort_value == 'relevance' %}selected{% endif %}>Relevance</option>
+        <option value="title" {% if sort_value == 'title' %}selected{% endif %}>Title (A-Z)</option>
         <option value="popularity" {% if sort_value == 'popularity' %}selected{% endif %}>Popularity</option>
         <option value="last_harvested_date" {% if sort_value == 'last_harvested_date' %}selected{% endif %}>Last Published Date</option>
         {% if allow_distance %}
