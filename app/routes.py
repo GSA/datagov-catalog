@@ -67,8 +67,6 @@ from .sitemap_s3 import (
 )
 from .utils import (
     SMTP_CONFIG,
-    dict_from_hint,
-    hint_from_dict,
     json_not_found,
     pop_doc_by_identifier,
     register_iso_namespaces,
@@ -471,8 +469,6 @@ def index():
         exclude_org_slug=criteria.get_filter("organization") or "",
     )
 
-    # Only emit a return-to-search hint when there is actual search or filter state.
-    from_hint = hint_from_dict(request.args) if request.args else None
     search_result_geometries = (
         _collect_spatial_shapes(datasets) if spatial_geometry is not None else []
     )
@@ -507,7 +503,6 @@ def index():
         total=total,
         sort_by=criteria.sort_by,
         spatial_geometry=spatial_geometry,
-        from_hint=from_hint,
         collection_data=collection_data,
         filter_sections=build_filter_sections(
             criteria,
@@ -533,6 +528,7 @@ def index():
 
 
 @api.get("/search")
+@api.get("/api/v1/search")
 @api.input(SearchQuery, location="query", validation=False)
 @api.doc(
     description="Search the catalog for datasets based on query parameters",
@@ -589,7 +585,6 @@ def search(**kwargs):
             400,
         )
     results_hint = criteria.results_hint
-    from_hint = criteria.from_hint
     spatial_geometry = criteria.get_spatial_geometry()
 
     selected_organization = _resolve_organization_filter(criteria)
@@ -625,7 +620,6 @@ def search(**kwargs):
                 selected_sort=criteria.sort_by,
                 organization_slug_or_id=selected_organization.slug,
                 spatial_geometry=spatial_geometry,
-                from_hint=from_hint,
                 api_pagination_query_params={
                     **criteria.to_query_dict(include_query=True, include_sort=True),
                     "org_slug": selected_organization.slug,
@@ -642,7 +636,6 @@ def search(**kwargs):
             per_page=per_page,
             results_hint=results_hint,
             result_start_index=result_start_index,
-            from_hint=from_hint,
             after=result.search_after_obscured(),
             sort_by=criteria.sort_by,
             spatial_geometry=spatial_geometry,
@@ -662,6 +655,8 @@ def search(**kwargs):
 
 
 @main.route("/harvest_record/<record_id>", methods=["GET"])
+@api.get("/api/v1/harvest_record/<record_id>")
+@api.doc(description="Get harvest record details")
 @valid_id_required
 def get_harvest_record(record_id: str):
     record = interface.get_harvest_record(record_id)
@@ -684,17 +679,10 @@ def get_harvest_record(record_id: str):
 
 
 @main.route("/harvest_record/<record_id>/raw", methods=["GET"])
+@api.get("/api/v1/harvest_record/<record_id>/raw")
+@api.doc(description="Get harvest record raw source data")
 @valid_id_required
 def get_harvest_record_raw(record_id: str) -> Response:
-    """Return the raw payload stored on a harvest record.
-
-    The endpoint fetches HarvestObject.source_raw and responds with a mimetype
-    based on the payload content: application/json for valid JSON, application/xml
-    for XML, and text/plain otherwise. A 404 JSON response is returned
-    when the record does not exist or the payload is missing/empty.
-
-    JSON and XML outputs are pretty-printed for better human readability.
-    """
     record = interface.get_harvest_record(record_id)
     if record is None:
         return json_not_found()
@@ -721,8 +709,6 @@ def get_harvest_record_raw(record_id: str) -> Response:
             mimetype = "application/json"
         except (TypeError, json.JSONDecodeError):
             try:
-                # to avoid default namespaces
-                # https://github.com/GSA/data.gov/issues/6328
                 register_iso_namespaces(ElementTree)
                 xml_tree = ElementTree.fromstring(stripped_source)
                 ElementTree.indent(xml_tree, space="  ", level=0)
@@ -733,7 +719,6 @@ def get_harvest_record_raw(record_id: str) -> Response:
             except (ElementTree.ParseError, SyntaxError):
                 pass
             finally:
-                # restore the original state
                 ElementTree._namespace_map.clear()
                 ElementTree._namespace_map.update(orig_et_map)
 
@@ -741,15 +726,10 @@ def get_harvest_record_raw(record_id: str) -> Response:
 
 
 @main.route("/harvest_record/<record_id>/transformed", methods=["GET"])
+@api.get("/api/v1/harvest_record/<record_id>/transformed")
+@api.doc(description="Get harvest record transformed data")
 @valid_id_required
 def get_harvest_record_transformed(record_id: str) -> Response:
-    """Return the transformed payload for a harvest record.
-
-    The endpoint fetches HarvestObject.source_transform and
-    returns the JSON content with the application/json mimetype.
-    A 404 JSON response is returned if the record cannot be found,
-    no transformed payload exists, or the stored payload is an empty string.
-    """
     record = interface.get_harvest_record(record_id)
     if record is None:
         return json_not_found()
@@ -833,12 +813,6 @@ def organization_detail(slug: str):
     num_results = criteria.per_page
     spatial_geometry = criteria.get_spatial_geometry()
 
-    from_hint = None
-    if request.args:
-        hint_args = dict(request.args)
-        hint_args["slug"] = request.path.split("/")[2]  # get the org slug
-        from_hint = hint_from_dict(hint_args)
-
     dataset_result = interface.list_datasets_for_organization(
         organization.id,
         criteria=criteria,
@@ -874,7 +848,6 @@ def organization_detail(slug: str):
         selected_sort=criteria.sort_by,
         dataset_search_query=dataset_search_query,
         spatial_geometry=spatial_geometry,
-        from_hint=from_hint,
         filter_sections=build_filter_sections(
             criteria,
             route_context=ORGANIZATION_CONTEXT,
@@ -970,10 +943,6 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
     # get the org for GA purposes so far
     org = interface.get_organization_by_id(dataset.organization_id) if dataset else None
 
-    # Use from_hint to construct an arguments dict
-    from_hint = request.args.get("from_hint")
-    from_dict = dict_from_hint(from_hint)
-
     # Create normalized DCAT dict for template filters
     # This provides a copy with DCAT 3.0 fields normalized for display
     # while keeping the original dataset.dcat intact for Complete Metadata
@@ -989,7 +958,6 @@ def dataset_detail_by_slug_or_id(slug_or_id: str):
         "dataset_detail.html",
         dataset=dataset,
         organization=org,
-        from_dict=from_dict,
         collection_data=collection_data,
         normalized_dcat=normalized_dcat,
     )
@@ -1002,6 +970,7 @@ def redirect_to_dcat_validator():
 
 
 @api.get("/api/keywords")
+@api.get("/api/v1/keywords")
 @api.input(KeywordsQuery, location="query", validation=False)
 @api.output(KeywordsResults)
 @api.doc(description="Get a list of the most popular keywords and how often they occur")
@@ -1058,6 +1027,7 @@ def get_keywords_api(**kwargs):
 
 
 @api.route("/api/organizations", methods=["GET"])
+@api.route("/api/v1/organizations", methods=["GET"])
 @api.output(OrganizationsResults)
 @api.doc(description="Get the list of organizations that have at least one dataset")
 def get_organizations_api(**kwargs):
@@ -1084,6 +1054,7 @@ def get_organizations_api(**kwargs):
 
 
 @api.route("/api/publishers", methods=["GET"])
+@api.route("/api/v1/publishers", methods=["GET"])
 @api.input(PublishersQuery, location="query")
 @api.output(PublishersResults)
 @api.doc(description="Get unique publishers by count")
@@ -1120,6 +1091,7 @@ def get_publishers_api(**kwargs):
 
 
 @api.get("/api/opensearch/health")
+@api.get("/api/v1/opensearch/health")
 @api.output(OpensearchHealth)
 def get_opensearch_health_api():
     """Fetch OpenSearch cluster health."""
@@ -1142,6 +1114,7 @@ def get_opensearch_health_api():
 
 
 @api.get("/api/stats")
+@api.get("/api/v1/stats")
 @api.output(StatsResult)
 def get_stats_api():
     """Endpoint for stats consumers."""
@@ -1159,6 +1132,7 @@ def get_stats_api():
 
 
 @api.get("/api/locations/search")
+@api.get("/api/v1/locations/search")
 @api.output(LocationsResults)
 @api.input(LocationsQuery, location="query", validation=False)
 @api.doc(
@@ -1211,6 +1185,7 @@ def get_locations_api(**kwargs):
 
 
 @api.get("/api/location/<location_id>")
+@api.get("/api/v1/location/<location_id>")
 @api.input(LocationId, location="path", validation=False)
 @api.output(LocationDetail)
 @api.doc(
@@ -1236,6 +1211,7 @@ def get_location_by_id_api(location_id, **kwargs):
 
 
 @api.get("/api/dataset/<slug_or_id>")
+@api.get("/api/v1/dataset/<slug_or_id>")
 @api.output(SearchResults)
 @api.doc(description="Get a single opensearch document based on slug name")
 def get_document_by_dataset_slug(slug_or_id: str):
