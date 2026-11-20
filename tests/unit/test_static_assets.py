@@ -67,3 +67,15 @@ def test_versioned_static_asset_request_serves_on_disk_file(app):
     response = app.test_client().get("/js/datetime.8eb9d3e.js")
 
     assert response.status_code == 200
+
+
+def test_previous_release_asset_url_serves_current_file(app):
+    app.config["ASSET_VERSION"] = "406e84e"
+    client = app.test_client()
+
+    current = client.get("/css/contact-widget.406e84e.css")
+    previous = client.get("/css/contact-widget.ff76e11.css")
+
+    assert previous.status_code == 200
+    assert previous.data == current.data
+    assert client.get("/css/nonexistent.ff76e11.css").status_code == 404

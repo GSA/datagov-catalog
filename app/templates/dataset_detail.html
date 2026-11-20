@@ -6,6 +6,7 @@
 {% set type_label = {'data_series': 'Series', 'data_service': 'Service'}.get(dataset.type, 'Dataset') %}
 {% set organization_title = organization.name if organization else 'Unknown' %}
 {% set page_title = organization_title ~ ' - ' ~ dataset_title %}
+{% set canonical_url = url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug, _external=True) %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -22,6 +23,14 @@
     if (bot_regex.test(navigator.userAgent)) {
         is_bot = true
     }
+
+    // Keep GA reports tied to the server-rendered title. The browser's document
+    // title is user-controlled and can be modified before an event is recorded.
+    window.gtag = window.gtag || function() { dataLayer.push(arguments); };
+    gtag("set", {
+        "page_title": {{ page_title | tojson }},
+        "page_location": {{ canonical_url | tojson }}
+    });
 
     dataLayer.push({
         "nodeID": "{{ dataset.id }}",
@@ -48,7 +57,6 @@
 {% set description_value = dataset.dcat.get('description') %}
 {% set cleaned_description = description_value | remove_html_tags | striptags | replace('\n', ' ') | trim %}
 {% set meta_description = cleaned_description | truncate(200, True, '...') %}
-{% set canonical_url = url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug, _external=True) %}
 {% set social_image = config.get('SOCIAL_IMAGE_URL') %}
 <link rel="canonical" href="{{ canonical_url }}">
 <meta name="description" content="{{ meta_description }}">
@@ -73,14 +81,10 @@
 <div class="usa-section">
     <div class="grid-container-widescreen">
 
-        <!-- Return to search link (compatible with org or main search) -->
-        {% if from_dict %}
-        {% set endpoint = 'main.organization_detail' if 'slug' in from_dict else 'main.index' %}
-        <a href="{{ url_for(endpoint, **from_dict) }}" class="return-link">
+        <a id="return-to-search-results" class="return-link" hidden>
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             Return to search results
         </a>
-        {% endif %}
 
         <div class="grid-row grid-gap-lg">
             <!-- Main Content Column -->
@@ -447,11 +451,11 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ static_url('js/return_to_search_results.js') }}"></script>
 <script src="{{ static_url('js/dataset_tags.js') }}"></script>
 {% if dataset.translated_spatial %}
 <link rel="stylesheet" href="{{ static_url('assets/leaflet/leaflet.css') }}" />
 <script src="{{ static_url('assets/leaflet/leaflet.js') }}"></script>
 <script src="{{ static_url('js/view_bbox_map.js') }}"></script>
-</script>
 {% endif %}
 {% endblock %}

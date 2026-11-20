@@ -6,7 +6,6 @@ import pytest
 from bs4 import BeautifulSoup
 
 from app.search.reader import SearchResult
-from app.utils import hint_from_dict
 from tests.fixtures import DATASET_ID, DEFAULT_LAST_HARVESTED_DATE
 
 
@@ -184,6 +183,25 @@ class TestDatasetDetail:
         assert twitter_image is not None
         assert twitter_image.get("content") == social_image_url
 
+    def test_dataset_detail_sends_page_metadata_to_ga(
+        self, interface_with_dataset, db_client
+    ):
+        with patch("app.routes.interface", interface_with_dataset):
+            response = db_client.get("/dataset/test")
+
+        assert response.status_code == 200
+        soup = BeautifulSoup(response.text, "html.parser")
+        data_layer_script = next(
+            script.string
+            for script in soup.find_all("script")
+            if script.string and 'gtag("set"' in script.string
+        )
+
+        assert '"page_title": "test org - test"' in data_layer_script
+        assert (
+            '"page_location": "http://0.0.0.0:8080/dataset/test"' in data_layer_script
+        )
+
     def test_dataset_detail_by_id_redirects_to_slug(
         self, interface_with_dataset, db_client
     ):
@@ -253,15 +271,16 @@ class TestDatasetDetail:
         assert email_link is not None
         assert email_link.get("href") == "mailto:test.contact@example.gov"
 
-    def test_dataset_detail_return_to_search(self, interface_with_dataset, db_client):
+    def test_dataset_detail_return_link_is_hidden_until_navigation(
+        self, interface_with_dataset, db_client
+    ):
         with patch("app.routes.interface", interface_with_dataset):
-            response = db_client.get(
-                "/dataset/test", query_string={"from_hint": hint_from_dict({"a": "b"})}
-            )
+            response = db_client.get("/dataset/test")
         soup = BeautifulSoup(response.text, "html.parser")
-        back_link = soup.find("a", class_="return-link")
-        assert back_link is not None
-        assert "?a=b" in back_link.get("href")
+        return_link = soup.find("a", class_="return-link")
+        assert return_link is not None
+        assert return_link.has_attr("hidden")
+        assert not return_link.has_attr("href")
 
     def test_dataset_detail_includes_map_assets_when_spatial_polygon(
         self, interface_with_dataset, db_client
