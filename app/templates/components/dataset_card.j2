@@ -1,6 +1,6 @@
 {% from "components/dataset_metrics.html" import dataset_metrics %}
 
-{% macro dataset_card(dataset, from_hint='', result_number=None, sort_value=None, allow_distance=false, is_parent=false) -%}
+{% macro dataset_card(dataset, result_number=None, sort_value=None, allow_distance=false, is_parent=false) -%}
 {% set dataset_meta = dataset.get('dcat', {}) if dataset.get('dcat') else {} %}
 {% set is_series = dataset.get('type') == 'data_series' %}
 {% set is_service = dataset.get('type') == 'data_service' %}
@@ -56,12 +56,10 @@
                 </div>
               {% endif %}
 
-              <h3 class="usa-collection__heading margin-0">
+              <h2 class="usa-collection__heading margin-0">
                   <a
                       class="usa-link"
-                      {% if dataset_slug and from_hint %}
-                      href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug, from_hint=from_hint) }}"
-                      {% elif dataset_slug %}
+                      {% if dataset_slug %}
                       href="{{ url_for('main.dataset_detail_by_slug_or_id', slug_or_id=dataset_slug) }}"
                       {% else %}
                       href="#"
@@ -73,7 +71,7 @@
                     <i class="fa-solid fa-arrow-trend-up" aria-hidden="true" title="Trending"></i>
                     <span class="usa-sr-only">Trending</span>
                   {% endif %}
-              </h3>
+              </h2>
           </div>
           <ul class="usa-collection__meta">
               <li class="usa-collection__meta-item">

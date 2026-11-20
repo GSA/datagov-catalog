@@ -20,7 +20,6 @@ class SearchCriteria:
     sort_by: str = "relevance"
     after: str | None = None
     results_hint: int = 0
-    from_hint: str | None = None
     include_aggregations: bool = False
     keyword_size: int = 100
     org_size: int = 100
@@ -83,7 +82,6 @@ class SearchCriteria:
             sort_by=get_value(args, "sort", "relevance") or "relevance",
             after=get_value(args, "after"),
             results_hint=get_int(args, "results", 0),
-            from_hint=get_value(args, "from_hint"),
             include_aggregations=include_aggregations,
             keyword_size=keyword_size,
             org_size=org_size,
