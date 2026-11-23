@@ -5,6 +5,7 @@ import pytest
 from app.filters import (
     badge_color_stylesheet,
     dcatus_to_schema_org_jsonld,
+    fill_jsonld_placeholders,
     first_contact_point,
     format_dcat_date,
     format_icon_class,
@@ -52,6 +53,44 @@ class TestFirstContactPoint:
 
     def test_none_returns_empty_dict(self):
         assert first_contact_point(None) == {}
+
+
+class TestFillJsonldPlaceholders:
+    @pytest.mark.parametrize("object_type", ["DataService", "dcat:DataService"])
+    def test_fills_optional_data_service_description(self, object_type):
+        dcatus = {"@type": object_type, "title": "Example service"}
+
+        filled = fill_jsonld_placeholders(dcatus)
+
+        assert filled["description"] == (
+            "No description has been provided for this data service."
+        )
+        assert "description" not in dcatus
+
+    def test_preserves_data_service_description(self):
+        dcatus = {
+            "@type": "DataService",
+            "title": "Example service",
+            "description": "Description from the publisher.",
+        }
+
+        assert fill_jsonld_placeholders(dcatus)["description"] == dcatus["description"]
+
+    @pytest.mark.parametrize("object_type", ["Dataset", "DatasetSeries"])
+    def test_does_not_fill_schema_required_fields(self, object_type):
+        dcatus = {"@type": object_type, "title": "Example"}
+
+        assert fill_jsonld_placeholders(dcatus) == dcatus
+
+
+def test_data_service_jsonld_uses_description_placeholder():
+    jsonld = dcatus_to_schema_org_jsonld(
+        {"@type": "DataService", "title": "Example service"}
+    )
+
+    assert jsonld["description"] == (
+        "No description has been provided for this data service."
+    )
 
 
 def test_dcatus_to_schema_org_jsonld(dcatus_dataset):

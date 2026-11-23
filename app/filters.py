@@ -556,12 +556,33 @@ def jsonld_distributions(dcatus: dict):
     return output
 
 
+_JSONLD_PLACEHOLDERS = {
+    "DataService": {
+        "description": "No description has been provided for this data service.",
+    },
+}
+
+
+def fill_jsonld_placeholders(dcatus: dict) -> dict:
+    """Fill Google-required fields that are optional for a DCAT object type."""
+    filled = dcatus.copy()
+    object_type = str(filled.get("@type", "Dataset")).rsplit(":", 1)[-1]
+
+    for field, placeholder in _JSONLD_PLACEHOLDERS.get(object_type, {}).items():
+        if not filled.get(field):
+            filled[field] = placeholder
+
+    return filled
+
+
 def dcatus_to_schema_org_jsonld(dcatus: dict):
     """
     converts dcatus into schema.org jsonld for google search compatibility
 
     all inputs are valid dcatus
     """
+
+    dcatus = fill_jsonld_placeholders(dcatus)
 
     return {
         "@context": "https://schema.org/",
@@ -634,6 +655,7 @@ __all__ = [
     "is_json",
     "parse_datetime",
     "format_dcat_date",
+    "fill_jsonld_placeholders",
     "dcatus_to_schema_org_jsonld",
     "normalize_publisher_name",
     "normalize_license",
