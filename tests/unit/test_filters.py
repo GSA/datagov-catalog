@@ -17,6 +17,7 @@ from app.filters import (
     resolve_resource_format,
     resource_format_badge,
 )
+from tests.contrast import contrast_ratio
 
 
 def test_remove_html_tags(html_tags_within_text):
@@ -217,12 +218,33 @@ class TestBadgeColorStylesheet:
         css = badge_color_stylesheet()
         for key in known_format_badges():
             badge = resource_format_badge({"format": key})
-            assert f".{badge['color_class']} {{" in css
+            assert (
+                f"ul.dataset-resources li .label.{badge['color_class']} "
+                f"{{ background-color: {badge['color']}; }}"
+            ) in css
 
     def test_covers_default_color(self):
         css = badge_color_stylesheet()
         badge = resource_format_badge({})
-        assert f".{badge['color_class']} {{" in css
+        assert (
+            f"ul.dataset-resources li .label.{badge['color_class']} "
+            f"{{ background-color: {badge['color']}; }}"
+        ) in css
+
+
+@pytest.mark.parametrize("fmt", [*known_format_badges(), "unknown-format", None])
+def test_badge_palette_meets_small_text_contrast(fmt):
+    badge = resource_format_badge({"format": fmt})
+    background = tuple(bytes.fromhex(badge["color"].lstrip("#")))
+    assert contrast_ratio((255, 255, 255), background) >= 4.5, badge
+
+
+@pytest.mark.parametrize(
+    "foreground,background,expected",
+    [((255, 255, 255), (0, 0, 0), 21), ((255, 255, 255), (255, 255, 255), 1)],
+)
+def test_contrast_calculation_reference_values(foreground, background, expected):
+    assert contrast_ratio(foreground, background) == expected
 
 
 class TestParseDatetime:
