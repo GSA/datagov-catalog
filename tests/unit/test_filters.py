@@ -5,6 +5,7 @@ import pytest
 from app.filters import (
     badge_color_stylesheet,
     dcatus_to_schema_org_jsonld,
+    extract_landing_page_url,
     first_contact_point,
     format_dcat_date,
     format_icon_class,
@@ -370,3 +371,34 @@ class TestFormatOverlayLabel:
     def test_badge_labels_are_short(self, fmt):
         label = format_overlay_label(fmt)
         assert len(label) <= 4
+
+
+class TestExtractLandingPageUrl:
+    def test_extract_landing_page_url_from_string(self):
+        landing_page = "https://example.gov/dataset/123"
+        result = extract_landing_page_url(landing_page)
+        assert result == "https://example.gov/dataset/123"
+
+    def test_extract_landing_page_url_from_object(self):
+        landing_page = {
+            "@type": "dcat:Resource",
+            "@id": "https://example.gov/dataset/456",
+        }
+        result = extract_landing_page_url(landing_page)
+        assert result == "https://example.gov/dataset/456"
+
+    def test_extract_landing_page_url_from_array(self):
+        landing_page = [
+            {"@type": "dcat:Resource", "@id": "https://example.gov/dataset/789"}
+        ]
+        result = extract_landing_page_url(landing_page)
+        assert result == "https://example.gov/dataset/789"
+
+    def test_extract_landing_page_url_from_empty(self):
+        assert extract_landing_page_url(None) is None
+        assert extract_landing_page_url("") is None
+        assert extract_landing_page_url([]) is None
+
+    def test_extract_landing_page_url_from_invalid(self):
+        assert extract_landing_page_url({"invalid": "format"}) is None
+        assert extract_landing_page_url(123) is None
