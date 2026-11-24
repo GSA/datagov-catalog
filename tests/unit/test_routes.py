@@ -1898,6 +1898,10 @@ def test_index_page_has_filters_sidebar(db_client):
     last_harvested_option = soup.find("option", {"value": "last_harvested_date"})
     assert last_harvested_option is not None
 
+    # Check sort has title option
+    title_option = soup.find("option", {"value": "title"})
+    assert title_option is not None
+
     # Check sort has distance option (disabled without geography)
     distance_option = soup.find("option", {"value": "distance"})
     assert distance_option is not None
@@ -1981,6 +1985,36 @@ def test_index_page_last_harvested_sort_preserved(db_client):
     hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
     assert hidden_sort_input is not None
     assert hidden_sort_input.get("value") == "last_harvested_date"
+
+
+def test_index_page_title_sort_preserved(db_client):
+    """Test that title sort selection is preserved between requests."""
+    response = db_client.get("/?q=climate&per_page=10&sort=title")
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    title_option = soup.select_one('#sort-select option[value="title"]')
+    assert title_option.get_text(strip=True) == "Title (A-Z)"
+    assert "selected" in title_option.attrs
+
+    hidden_sort_input = soup.find("input", {"name": "sort", "type": "hidden"})
+    assert hidden_sort_input.get("value") == "title"
+
+
+def test_organization_page_title_sort_preserved(interface_with_dataset, db_client):
+    """Test that title sort selection is preserved on organization pages."""
+    organization = interface_with_dataset.db.query(Organization).first()
+    with patch("app.routes.interface", interface_with_dataset):
+        response = db_client.get(
+            f"/organization/{organization.slug}",
+            query_string={"q": "health", "sort": "title"},
+        )
+    assert response.status_code == 200
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    title_option = soup.select_one('#sort-select option[value="title"]')
+    assert "selected" in title_option.attrs
 
 
 def test_index_page_lists_results_without_query(db_client):

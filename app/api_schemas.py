@@ -26,7 +26,10 @@ ORGANIZATION_TYPE_ENUM = PyEnum(
 )
 SORT_BY_ENUM = PyEnum(
     "SortBy",
-    [(a, a) for a in ("relevance", "popularity", "distance", "last_harvested_date")],
+    [
+        (a, a)
+        for a in ("relevance", "popularity", "distance", "last_harvested_date", "title")
+    ],
 )
 
 
