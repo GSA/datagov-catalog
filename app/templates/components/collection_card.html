@@ -5,7 +5,7 @@
 {% set title = dataset.title %}
 {% set description = dataset.description %}
 {% set parent_collection_id = dataset.get('parent_identifier') %}
-{% set collection_url = "/?collection=" + parent_collection_id if parent_collection_id else None %}
+{% set collection_param = parent_collection_id if parent_collection_id else None %}
 {% set metadata_url = "/dataset/" + dataset.slug %}
 {% set file_formats = dataset.dcat.get('distribution', []) %}
 
@@ -30,7 +30,7 @@
             <svg class="usa-icon" aria-hidden="true" focusable="false" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
               <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
             </svg>
-            <a href="{{ collection_url }}" class="collection-card__collection-link">
+            <a href="/?collection={{ collection_param | urlencode }}" class="collection-card__collection-link">
               View Collection
             </a>
           </span>
