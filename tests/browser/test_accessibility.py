@@ -20,26 +20,17 @@ WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]
 # Rules that already fail on main. Listed explicitly so they show up as known
 # debt rather than silently lowering the bar -- remove an entry once it's fixed.
 KNOWN_VIOLATIONS = {
-    # The two footer blocks sit outside any landmark. Fixing means restructuring
-    # footer.html, which is more than an a11y-only change.
-    "region",
     # The "Show more results" htmx div is a direct child of <ul class="usa-collection">
     # in dataset_results.html. Moving it out means reworking the hx-target/hx-swap
     # pair that replaces it, so it is tracked rather than fixed here.
     "list",
-    # Dataset cards use <h3> for their titles, but the surrounding results section
-    # has no <h2>, so the first card jumps h1 -> h3. Choosing the right level for
-    # the results region is a content decision, not a markup typo.
-    "heading-order",
     # The organization link in .dataset-meta carries no usa-link class, so it is
     # set apart from the surrounding text by colour alone. Underlining it is a
     # visual-design call for the design owners.
     "link-in-text-block",
-    # Resource-format badges (CSV/PDF/JSON pills) are decorative color-coding on
-    # top of a visible text label, which is what actually conveys the format to
-    # screen readers -- some badge colors don't hit 4.5:1 against white text.
-    # Rebalancing the palette (or picking per-color text colors) is a visual-
-    # design call for the design owners, tracked here rather than fixed blind.
+    # Page-wide contrast findings outside resource-format badges remain advisory.
+    # Badge contrast is checked without exemptions by the blocking tests in
+    # test_resource_badges.py, including the full palette and interaction states.
     "color-contrast",
 }
 
